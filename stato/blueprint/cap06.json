@@ -1,0 +1,388 @@
+{
+  "capitolo": 6,
+  "titolo": "Ripetizioni",
+  "obiettivi": [
+    "Scegliere il ciclo adatto (while, do-while o for) in base alla condizione di arresto",
+    "Controllare il flusso dentro un ciclo con break e continue senza creare codice confuso",
+    "Scrivere cicli annidati per elaborare tabelle, griglie e sequenze",
+    "Formulare l'invariante di un ciclo per verificarne correttezza e terminazione"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "ciclo",
+      "definizione": "Costrutto di controllo che ripete un blocco di istruzioni finché una condizione rimane vera."
+    },
+    {
+      "termine": "iterazione",
+      "definizione": "Singola esecuzione del corpo di un ciclo."
+    },
+    {
+      "termine": "invariante di ciclo",
+      "definizione": "Proprietà logica che vale prima del ciclo e resta vera al termine di ogni iterazione."
+    }
+  ],
+  "concetti_richiesti": [
+    "flusso di controllo",
+    "operatori relazionali e logici",
+    "valutazione a corto circuito",
+    "stream",
+    "buffer",
+    "fine dell'input",
+    "fgets, sscanf, getchar, putchar e fprintf",
+    "EXIT_SUCCESS ed EXIT_FAILURE",
+    "overflow"
+  ],
+  "regole": [
+    {
+      "id": "6.R1",
+      "enunciato": "Il ciclo while (condizione) { ... } valuta condizione prima di ogni iterazione: se è diversa da zero esegue il corpo e ripete il controllo; se è zero termina immediatamente (anche con zero iterazioni). La lettura fino alla fine dell'input si scrive con while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) oppure while ((c = getchar()) != EOF) con c di tipo int.",
+      "nota_standard": "definito: la valutazione in testa della condizione, l'esecuzione del corpo finché il valore è diverso da zero e le regole di precedenza tra = e != sono definite dallo standard C23."
+    },
+    {
+      "id": "6.R2",
+      "enunciato": "Il ciclo do { ... } while (condizione); esegue il corpo almeno una volta e valuta condizione al termine di ogni iterazione, chiudendosi obbligatoriamente con il punto e virgola. Ogni variabile usata in condizione deve essere dichiarata prima del blocco do, perché le variabili dichiarate dentro { ... } terminano la loro visibilità alla parentesi graffa di chiusura.",
+      "nota_standard": "definito: la valutazione in coda, l'esecuzione garantita della prima iterazione e la visibilità di blocco del corpo di do-while sono definite dallo standard C23."
+    },
+    {
+      "id": "6.R3",
+      "enunciato": "Il ciclo for (inizializzazione; condizione; aggiornamento) { ... } esegue inizializzazione una sola volta, controlla condizione prima di ogni iterazione ed esegue aggiornamento al termine di ogni iterazione. Una variabile dichiarata in inizializzazione (per esempio for (int i = 0; i < n; ++i)) è visibile esclusivamente all'interno del ciclo for. Se condizione viene omessa è considerata sempre vera (1).",
+      "nota_standard": "definito: la semantica delle tre clausole del for, la visibilità della dichiarazione nella clausola di inizializzazione e il significato della condizione omessa sono definiti dallo standard C23."
+    },
+    {
+      "id": "6.R4",
+      "enunciato": "All'interno di un ciclo, break interrompe immediatamente solo il ciclo (o lo switch) più interno che la racchiude; continue salta le istruzioni residue dell'iterazione corrente del solo ciclo più interno. Nel ciclo for l'istruzione continue esegue comunque la clausola di aggiornamento prima di rivalutare la condizione, mentre in while e do-while passa direttamente alla valutazione della condizione.",
+      "nota_standard": "definito: l'effetto di break e continue sul solo costrutto più interno e l'esecuzione della clausola di aggiornamento del for dopo continue sono definiti dallo standard C23."
+    },
+    {
+      "id": "6.R5",
+      "enunciato": "Per verificare la correttezza di un ciclo si enuncia un invariante di ciclo che vale prima della prima iterazione, si conserva al termine di ogni iterazione e, combinato con la negazione della condizione di permanenza all'uscita, implica il risultato atteso. Per verificare la terminazione si individua una quantità che si avvicina strettamente alla condizione di arresto (o alla fine dello stream) a ogni iterazione.",
+      "nota_standard": "definito: lo standard C23 specifica la semantica esatta dei cicli; inoltre un ciclo infinito privo di effetti osservabili (come operazioni di I/O) può avere conseguenze particolari nelle ottimizzazioni, mentre i cicli con I/O o che terminano hanno comportamento pienamente definito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input e restituisce s oppure nullptr in caso di errore o fine dell'input."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza il testo contenuto in s secondo format, memorizza i valori convertiti e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "getchar",
+      "firma": "int getchar(void);",
+      "header": "stdio.h",
+      "descrizione": "Legge il prossimo carattere da stdin restituendolo come int oppure EOF in caso di fine dell'input o errore."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "6.1",
+      "titolo": "Il ciclo while",
+      "contenuti": [
+        "Cos'è un ciclo e cos'è un'iterazione; sintassi di while (condizione) { ... } con controllo in testa (può eseguire zero iterazioni)",
+        "I tre elementi essenziali di ogni ciclo: inizializzazione prima del ciclo, condizione di permanenza, aggiornamento nel corpo verso la terminazione (e rischio di ciclo infinito)",
+        "Idiomi di lettura fino alla fine dell'input: while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) e while ((c = getchar()) != EOF) con c di tipo int",
+        "Schemi con contatori, accumulatori, minimo e massimo su sequenze di lunghezza arbitraria, gestendo sempre il caso di zero elementi letti",
+        "Errore classico del punto e virgola indesiderato dopo while (condizione);"
+      ],
+      "esempio_guidato": "Un programma che legge uno stream di testo da stdin con while ((c = getchar()) != EOF) contando caratteri totali, righe ('\\n') e cifre decimali ('0'..'9'), affiancato da un secondo breve esempio che somma importi double letti riga per riga con while (fgets(...) != nullptr) fino alla fine dell'input.",
+      "approfondimento": "Perché le parentesi attorno a (c = getchar()) dentro while ((c = getchar()) != EOF) sono obbligatorie: l'operatore != ha precedenza maggiore rispetto a =.",
+      "esercizio_id": "6.1"
+    },
+    {
+      "id": "6.2",
+      "titolo": "Il ciclo do-while",
+      "contenuti": [
+        "Sintassi di do { ... } while (condizione); con valutazione della condizione in coda e punto e virgola finale obbligatorio",
+        "Garanzia di almeno una iterazione e casi d'uso naturali: richieste ripetute di input con validazione, menu interattivi ed elaborazioni che devono compiere almeno un passo (come l'estrazione delle cifre di 0)",
+        "Regola di visibilità: una variabile usata dentro while (condizione); va dichiarata prima di do e non dentro il blocco tra graffe",
+        "Gestione sicura della fine dell'input nei cicli do-while di lettura per evitare cicli infiniti quando stdin si chiude"
+      ],
+      "esempio_guidato": "Un programma che richiede ripetutamente un codice PIN numerico tra 100 e 999 dentro un ciclo do { ... } while (!valido);, scartando gli input errati e interrompendosi in modo sicuro se fgets restituisce nullptr.",
+      "approfondimento": "Perché un do-while che legge da stdin senza controllare nullptr entra in ciclo infinito appena lo stream raggiunge la fine dell'input.",
+      "esercizio_id": "6.2"
+    },
+    {
+      "id": "6.3",
+      "titolo": "Il ciclo for",
+      "contenuti": [
+        "Anatomia di for (inizializzazione; condizione; aggiornamento) { ... } e corrispondenza concettuale con while",
+        "Dichiarazione della variabile di controllo nell'intestazione (for (int i = 0; i < n; ++i)) e sua visibilità circoscritta al ciclo",
+        "Conteggi in avanti (0..n-1 e 1..n), a ritroso, a passo arbitrario e uso di contatori interi per generare sequenze di valori double senza accumulare errori di arrotondamento",
+        "Errori classici: errori off-by-one (< contro <=), underflow di contatori unsigned nei cicli decrescenti (i >= 0 sempre vero) e punto e virgola dopo for (...);",
+        "Criteri pratici per scegliere tra for, while e do-while"
+      ],
+      "esempio_guidato": "Un programma che legge un intero n (1..20) e usa due cicli for: il primo stampa una tabella di conversione Celsius-Fahrenheit usando un contatore intero per calcolare valori double precisi; il secondo calcola i primi n numeri di Fibonacci in variabili long long.",
+      "approfondimento": "Due insidie da evitare nel for: usare un contatore double con passo decimale (come 0.1) e scrivere un ciclo decrescente con unsigned int e condizione i >= 0.",
+      "esercizio_id": "6.3"
+    },
+    {
+      "id": "6.4",
+      "titolo": "Modificare il percorso di un ciclo: break e continue",
+      "contenuti": [
+        "Istruzione break nei cicli: uscita immediata dal solo ciclo più interno per ricerche riuscite o condizioni sentinella",
+        "Istruzione continue: salto al termine dell'iterazione corrente per ignorare casi da scartare (righe vuote, valori fuori filtro)",
+        "Differenza operativa di continue tra for (esegue l'aggiornamento prima del test) e while/do-while (salta subito al test, con rischio di ciclo infinito se l'aggiornamento è nel corpo)",
+        "Interazione con switch annidato in un ciclo: break esce dallo switch mentre continue agisce sul ciclo esterno",
+        "Leggibilità: usare break e continue con misura evitando cicli con molti punti di uscita difficili da seguire"
+      ],
+      "esempio_guidato": "Un programma che analizza una sequenza di letture di sensori da stdin: usa continue per ignorare le righe vuote e i campioni negativi di disturbo, e usa break per arrestarsi al codice sentinella 9999 oppure al superamento di una soglia critica, stampando statistiche e causa di arresto.",
+      "approfondimento": "Confronto diretto tra continue in un ciclo while (dove un incremento posto dopo continue viene saltato causando un ciclo infinito) e nello stesso ciclo scritto con for.",
+      "esercizio_id": "6.4"
+    },
+    {
+      "id": "6.5",
+      "titolo": "Cicli annidati e invarianti di ciclo",
+      "contenuti": [
+        "Cicli annidati per elaborare tabelle, griglie e coppie di valori: numero complessivo di iterazioni e scelta di nomi distinti per i contatori (per esempio riga e colonna)",
+        "Uscita pulita da cicli annidati tramite una variabile bool di controllo, ricordando che break interrompe solo il ciclo più interno",
+        "Cos'è un invariante di ciclo e le tre verifiche: inizializzazione (vero prima del ciclo), mantenimento (resta vero dopo ogni iterazione) e conclusione (con la negazione della condizione prova il risultato)",
+        "Dimostrazione della terminazione tramite una grandezza decrescente verso un limite inferiore",
+        "Applicazione pratica degli invarianti per prevenire errori off-by-one e controllare accumulatori e ricerche"
+      ],
+      "esempio_guidato": "Un programma in due parti: la prima stampa una tavola pitagorica N x N con due cicli for annidati esplicitando l'invariante di riga; la seconda calcola il massimo comun divisore (MCD) di due interi positivi con l'algoritmo di Euclide in un ciclo while, commentando invariante (MCD(a, b) invariato) e terminazione (b strettamente decrescente verso 0).",
+      "approfondimento": "Come formulare l'invariante prima di scrivere il ciclo elimina i dubbi su condizioni < o <= e sui valori iniziali di contatori e accumulatori.",
+      "esercizio_id": "6.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "6.1",
+      "tipo": "esercizio",
+      "titolo": "Statistiche delle temperature giornaliere",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sequenza di lunghezza arbitraria di temperature in gradi Celsius (`double`, una per riga) usando un ciclo `while (fgets(...) != nullptr)`. Per ogni riga verifica il formato con `sscanf(riga, \"%lf %c\", &temp, &extra) != 1`: in caso di formato non valido stampa un messaggio di errore su `stderr` e termina con `EXIT_FAILURE`. Durante il ciclo aggiorna il numero di letture, la temperatura minima, la temperatura massima, la somma e il conteggio dei giorni con gelo (`temp <= 0.0`). Al termine dello stream, se non è stata letta alcuna temperatura stampa `Nessuna temperatura inserita.` e restituisci `EXIT_SUCCESS`; altrimenti stampa letture valide, minima, massima, media (tutte con due cifre decimali) e giorni con gelo esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "ciclo while con controllo in testa",
+        "lettura fino alla fine dell'input con fgets e nullptr",
+        "inizializzazione sicura di minimo e massimo al primo elemento",
+        "gestione del caso limite di input vuoto (0 letture)"
+      ],
+      "domande_guida": [
+        "Perché non è corretto inizializzare la temperatura minima a 0.0 prima di iniziare il ciclo while?",
+        "Come puoi riconoscere all'interno del ciclo di star elaborando la prima temperatura valida per inizializzare minima e massima?",
+        "Che cosa succederebbe se provassi a calcolare la media senza verificare prima che il conteggio sia maggiore di zero?",
+        "Quando termina naturalmente il ciclo while basato su fgets?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "12.5\n-1.0\n0.0\n8.5\n",
+          "output": "Letture valide: 4\nMinima: -1.00 C\nMassima: 12.50 C\nMedia: 5.00 C\nGiorni con gelo (<= 0 C): 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Nessuna temperatura inserita.\n"
+        },
+        {
+          "input": "-4.25\n",
+          "output": "Letture valide: 1\nMinima: -4.25 C\nMassima: -4.25 C\nMedia: -4.25 C\nGiorni con gelo (<= 0 C): 1\n"
+        },
+        {
+          "input": "20.0\n22.4\n18.6\n",
+          "output": "Letture valide: 3\nMinima: 18.60 C\nMassima: 22.40 C\nMedia: 20.33 C\nGiorni con gelo (<= 0 C): 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    double temp = 0.0;\n    char extra = '\\0';\n    int conteggio = 0;\n    int giorni_gelo = 0;\n    double somma = 0.0;\n    double minima = 0.0;\n    double massima = 0.0;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%lf %c\", &temp, &extra) != 1) {\n            fprintf(stderr, \"Errore: temperatura non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (conteggio == 0) {\n            minima = temp;\n            massima = temp;\n        } else {\n            if (temp < minima) {\n                minima = temp;\n            }\n            if (temp > massima) {\n                massima = temp;\n            }\n        }\n        if (temp <= 0.0) {\n            ++giorni_gelo;\n        }\n        somma += temp;\n        ++conteggio;\n    }\n\n    if (conteggio == 0) {\n        printf(\"Nessuna temperatura inserita.\\n\");\n        return EXIT_SUCCESS;\n    }\n\n    double media = somma / conteggio;\n    printf(\"Letture valide: %d\\n\", conteggio);\n    printf(\"Minima: %.2f C\\n\", minima);\n    printf(\"Massima: %.2f C\\n\", massima);\n    printf(\"Media: %.2f C\\n\", media);\n    printf(\"Giorni con gelo (<= 0 C): %d\\n\", giorni_gelo);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "6.2",
+      "tipo": "esercizio",
+      "titolo": "Analisi delle cifre di un intero non negativo con do-while",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una riga contenente un intero `long long` compreso tra `0` e `1'000'000'000` inclusi (controllando fine dell'input, formato esatto con `\"%lld %c\"` e intervallo; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Usando un ciclo `do-while` che estrae le cifre decimali dalla meno significativa alla più significativa mediante `% 10` e `/= 10`, calcola: il numero totale di cifre (per `0` deve valere `1`), la somma delle cifre, la cifra massima e il numero ottenuto invertendo l'ordine delle cifre (gli zeri iniziali del numero invertito spariscono naturalmente nel valore numerico). Stampa i risultati esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "ciclo do-while con controllo in coda",
+        "garanzia di almeno una iterazione (caso limite n = 0)",
+        "visibilità delle variabili dichiarate prima del blocco do",
+        "estrazione di cifre con % 10 e /= 10"
+      ],
+      "domande_guida": [
+        "Perché un ciclo do-while gestisce naturalmente il caso limite in cui il numero inserito vale 0 senza richiedere un if separato?",
+        "Dove devi dichiarare la variabile residuo affinché possa essere controllata nella condizione finale while (residuo > 0);?",
+        "Come aggiorni la variabile inverso a ogni iterazione per aggiungere in fondo la nuova cifra appena estratta?",
+        "Perché limitare l'ingresso a 1'000'000'000 e usare long long per inverso impedisce qualsiasi rischio di overflow?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "40825\n",
+          "output": "Numero: 40825\nCifre: 5\nSomma cifre: 19\nCifra massima: 8\nNumero invertito: 52804\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0\n",
+          "output": "Numero: 0\nCifre: 1\nSomma cifre: 0\nCifra massima: 0\nNumero invertito: 0\n"
+        },
+        {
+          "input": "7\n",
+          "output": "Numero: 7\nCifre: 1\nSomma cifre: 7\nCifra massima: 7\nNumero invertito: 7\n"
+        },
+        {
+          "input": "1200\n",
+          "output": "Numero: 1200\nCifre: 4\nSomma cifre: 3\nCifra massima: 2\nNumero invertito: 21\n"
+        },
+        {
+          "input": "1000000000\n",
+          "output": "Numero: 1000000000\nCifre: 10\nSomma cifre: 1\nCifra massima: 1\nNumero invertito: 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    long long numero = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lld %c\", &numero, &extra) != 1 ||\n        numero < 0 || numero > 1'000'000'000LL) {\n        fprintf(stderr, \"Errore: inserisci un intero tra 0 e 1000000000.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    long long residuo = numero;\n    int conteggio_cifre = 0;\n    int somma_cifre = 0;\n    int cifra_massima = 0;\n    long long inverso = 0;\n\n    do {\n        int cifra = (int)(residuo % 10);\n        ++conteggio_cifre;\n        somma_cifre += cifra;\n        if (cifra > cifra_massima) {\n            cifra_massima = cifra;\n        }\n        inverso = inverso * 10 + cifra;\n        residuo /= 10;\n    } while (residuo > 0);\n\n    printf(\"Numero: %lld\\n\", numero);\n    printf(\"Cifre: %d\\n\", conteggio_cifre);\n    printf(\"Somma cifre: %d\\n\", somma_cifre);\n    printf(\"Cifra massima: %d\\n\", cifra_massima);\n    printf(\"Numero invertito: %lld\\n\", inverso);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "6.3",
+      "tipo": "esercizio",
+      "titolo": "Piano di risparmio mensile con ciclo for",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sola riga contenente quattro valori separati da spazi: `capitale_iniziale` (`double >= 0.0`), `versamento_mensile` (`double >= 0.0`), `tasso_annuo` in percentuale (`double` tra `0.0` e `50.0` inclusi) e `mesi` (`int` tra `1` e `60` inclusi). Verifica fine dell'input, formato esatto rifiutando caratteri extra (`\"%lf %lf %lf %d %c\"` con valore restituito `4`) e validità dei domini; in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`. Calcola il tasso mensile come `(tasso_annuo / 100.0) / 12.0` e usa un ciclo `for` con contatore intero `mese` da `1` a `mesi` inclusi: in ogni mese calcola `interessi = saldo * tasso_mensile`, somma `interessi` a `interessi_totali`, aggiungi `interessi + versamento_mensile` a `saldo`, aggiorna `totale_versato` e stampa la riga del mese (`%2d` per il numero del mese, `%.2f` per gli importi). Dopo il ciclo stampa il riepilogo finale esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "ciclo for con contatore intero dichiarato nell'intestazione",
+        "aggiornamento di più accumulatori a ogni iterazione",
+        "condizione esatta <= per evitare errori off-by-one",
+        "formattazione allineata con %2d e %.2f"
+      ],
+      "domande_guida": [
+        "Perché in questo problema il ciclo for è più adatto di while e do-while?",
+        "Quale condizione devi scrivere nel for (con mese che parte da 1) affinché vengano simulati esattamente tutti i mesi richiesti senza saltarne l'ultimo?",
+        "In quale ordine vanno calcolati interessi e aggiornamento del saldo all'interno di ogni mese?",
+        "Perché conviene dichiarare int mese direttamente nella prima clausola del for?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "1000.0 100.0 12.0 3\n",
+          "output": "Mese  1: interessi = 10.00, saldo = 1110.00\nMese  2: interessi = 11.10, saldo = 1221.10\nMese  3: interessi = 12.21, saldo = 1333.31\nTotale versato: 1300.00\nInteressi maturati: 33.31\nSaldo finale: 1333.31\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "500.0 0.0 0.0 2\n",
+          "output": "Mese  1: interessi = 0.00, saldo = 500.00\nMese  2: interessi = 0.00, saldo = 500.00\nTotale versato: 500.00\nInteressi maturati: 0.00\nSaldo finale: 500.00\n"
+        },
+        {
+          "input": "0.0 250.0 6.0 1\n",
+          "output": "Mese  1: interessi = 0.00, saldo = 250.00\nTotale versato: 250.00\nInteressi maturati: 0.00\nSaldo finale: 250.00\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    double capitale_iniziale = 0.0;\n    double versamento_mensile = 0.0;\n    double tasso_annuo = 0.0;\n    int mesi = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lf %lf %lf %d %c\",\n               &capitale_iniziale, &versamento_mensile, &tasso_annuo, &mesi, &extra) != 4 ||\n        capitale_iniziale < 0.0 || versamento_mensile < 0.0 ||\n        tasso_annuo < 0.0 || tasso_annuo > 50.0 || mesi < 1 || mesi > 60) {\n        fprintf(stderr, \"Errore: parametri del piano non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    double tasso_mensile = (tasso_annuo / 100.0) / 12.0;\n    double saldo = capitale_iniziale;\n    double totale_versato = capitale_iniziale;\n    double interessi_totali = 0.0;\n\n    for (int mese = 1; mese <= mesi; ++mese) {\n        double interessi = saldo * tasso_mensile;\n        interessi_totali += interessi;\n        saldo += interessi + versamento_mensile;\n        totale_versato += versamento_mensile;\n        printf(\"Mese %2d: interessi = %.2f, saldo = %.2f\\n\", mese, interessi, saldo);\n    }\n\n    printf(\"Totale versato: %.2f\\n\", totale_versato);\n    printf(\"Interessi maturati: %.2f\\n\", interessi_totali);\n    printf(\"Saldo finale: %.2f\\n\", saldo);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "6.4",
+      "tipo": "esercizio",
+      "titolo": "Carico di un furgone con break e continue",
+      "descrizione": "Un furgone ha una capacità massima di `50.0` kg (`constexpr double CAPACITA_MAX = 50.0;`). Scrivi un programma C che legga da `stdin` una sequenza di righe con `while (fgets(...) != nullptr)`, dove ciascuna riga contiene il peso di un pacco in chilogrammi (`double`). Segui queste regole dentro il ciclo usando `continue` e `break`: se la riga è vuota o contiene solo spazi (`sscanf(riga, \" %c\", &primo) == EOF`), incrementa `righe_vuote` e passa subito alla riga successiva con `continue`; altrimenti estrai un solo `double` con `\"%lf %c\"` (se il formato non è valido stampa su `stderr` e restituisci `EXIT_FAILURE`); se `peso == 0.0` (valore sentinella di fine lista) registra il motivo di arresto ed esci dal ciclo con `break`; se `peso < 0.0` incrementa `scartati` e passa alla riga successiva con `continue`; se `carico_attuale + peso > CAPACITA_MAX` non caricare il pacco, registra che il furgone è pieno ed esci dal ciclo con `break`; altrimenti carica il pacco aggiornando `carico_attuale` e `caricati`. Al termine del ciclo stampa pacchi caricati, peso totale (`%.2f kg`), pacchi scartati, righe vuote ignorate e causa di arresto (`furgone pieno`, `codice sentinella` oppure `fine dell'input`), restituendo `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "istruzione continue per saltare righe vuote o valori scartati",
+        "istruzione break per arrestare il ciclo su sentinella o capacità esaurita",
+        "ordine dei controlli dentro il corpo del ciclo",
+        "registrazione dello stato di uscita prima del break"
+      ],
+      "domande_guida": [
+        "Perché conviene controllare se la riga contiene solo spazi bianchi prima di tentare la conversione numerica con sscanf?",
+        "Che differenza pratica c'è tra usare continue quando un peso è negativo e usare break quando il peso vale 0.0 o supera la capacità residua?",
+        "In che modo il programma può sapere dopo la fine del ciclo quale delle tre cause (furgone pieno, codice sentinella o fine dell'input) ha provocato l'uscita?",
+        "Perché in questo ciclo while l'istruzione continue non provoca un ciclo infinito?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "12.5\n\n-3.0\n20.0\n15.0\n8.0\n10.0\n",
+          "output": "Pacchi caricati: 3\nPeso totale: 47.50 kg\nPacchi scartati: 1\nRighe vuote ignorate: 1\nArresto: furgone pieno\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "10.0\n15.5\n0\n20.0\n",
+          "output": "Pacchi caricati: 2\nPeso totale: 25.50 kg\nPacchi scartati: 0\nRighe vuote ignorate: 0\nArresto: codice sentinella\n"
+        },
+        {
+          "input": "   \n-1.5\n5.0\n",
+          "output": "Pacchi caricati: 1\nPeso totale: 5.00 kg\nPacchi scartati: 1\nRighe vuote ignorate: 1\nArresto: fine dell'input\n"
+        },
+        {
+          "input": "",
+          "output": "Pacchi caricati: 0\nPeso totale: 0.00 kg\nPacchi scartati: 0\nRighe vuote ignorate: 0\nArresto: fine dell'input\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    constexpr double CAPACITA_MAX = 50.0;\n    char riga[128];\n    int caricati = 0;\n    int scartati = 0;\n    int righe_vuote = 0;\n    double carico_attuale = 0.0;\n    int motivo_arresto = 0;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        char primo = '\\0';\n        if (sscanf(riga, \" %c\", &primo) == EOF) {\n            ++righe_vuote;\n            continue;\n        }\n\n        double peso = 0.0;\n        char extra = '\\0';\n        if (sscanf(riga, \"%lf %c\", &peso, &extra) != 1) {\n            fprintf(stderr, \"Errore: peso non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (peso == 0.0) {\n            motivo_arresto = 1;\n            break;\n        }\n        if (peso < 0.0) {\n            ++scartati;\n            continue;\n        }\n        if (carico_attuale + peso > CAPACITA_MAX) {\n            motivo_arresto = 2;\n            break;\n        }\n        carico_attuale += peso;\n        ++caricati;\n    }\n\n    printf(\"Pacchi caricati: %d\\n\", caricati);\n    printf(\"Peso totale: %.2f kg\\n\", carico_attuale);\n    printf(\"Pacchi scartati: %d\\n\", scartati);\n    printf(\"Righe vuote ignorate: %d\\n\", righe_vuote);\n    switch (motivo_arresto) {\n        case 1:\n            printf(\"Arresto: codice sentinella\\n\");\n            break;\n        case 2:\n            printf(\"Arresto: furgone pieno\\n\");\n            break;\n        default:\n            printf(\"Arresto: fine dell'input\\n\");\n            break;\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "6.5",
+      "tipo": "esercizio",
+      "titolo": "Tabella di divisibilità con cicli annidati e invarianti",
+      "descrizione": "Scrivi un programma C che legga da `stdin` un intero `n` compreso tra `2` e `12` inclusi (controllando fine dell'input, formato esatto con `\"%d %c\"` e intervallo; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Usando due cicli `for` annidati (`riga_val` da `1` a `n` e `col` da `1` a `n`), stampa una griglia `n x n` di divisibilità preceduta dall'intestazione `Tabella di divisibilita (1..n):`: ogni riga inizia con `%2d:` seguito, per ciascuna colonna `col`, da uno spazio e dal carattere `'X'` se `riga_val % col == 0` oppure `'.'` altrimenti (scritti con `putchar`). Durante il ciclo interno conta i divisori della riga; al termine del ciclo interno stampa ` | divisori: K` aggiungendo ` (primo)` se `K == 2` e aggiorna `conteggio_primi`, `max_divisori` e `miglior_numero` (in caso di parità sul numero massimo di divisori conserva il numero più piccolo). Documenta nei commenti l'invariante di ciclo sia del ciclo esterno sia del ciclo interno. Al termine stampa il conteggio dei numeri primi trovati e il numero con più divisori esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "cicli for annidati con variabili di controllo distinte",
+        "invariante di ciclo esterno e interno",
+        "ripristino del contatore locale a ogni iterazione del ciclo esterno",
+        "gestione della parità nel calcolo del massimo (> contro >=)"
+      ],
+      "domande_guida": [
+        "Dove deve essere azzerata la variabile divisori affinché il conteggio di una riga non si sommi a quello delle righe precedenti?",
+        "Qual è l'invariante del ciclo interno al termine dell'iterazione col, e quale proprietà garantisce alla sua uscita quando col supera n?",
+        "Quale differenza produce scrivere divisori > max_divisori rispetto a divisori >= max_divisori quando due numeri hanno lo stesso numero massimo di divisori?",
+        "Quante volte in totale viene eseguito il corpo del ciclo interno in funzione di n?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "6\n",
+          "output": "Tabella di divisibilita (1..6):\n 1: X . . . . . | divisori: 1\n 2: X X . . . . | divisori: 2 (primo)\n 3: X . X . . . | divisori: 2 (primo)\n 4: X X . X . . | divisori: 3\n 5: X . . . X . | divisori: 2 (primo)\n 6: X X X . . X | divisori: 4\nNumeri primi trovati: 3\nNumero con piu divisori: 6 (4 divisori)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "2\n",
+          "output": "Tabella di divisibilita (1..2):\n 1: X . | divisori: 1\n 2: X X | divisori: 2 (primo)\nNumeri primi trovati: 1\nNumero con piu divisori: 2 (2 divisori)\n"
+        },
+        {
+          "input": "8\n",
+          "output": "Tabella di divisibilita (1..8):\n 1: X . . . . . . . | divisori: 1\n 2: X X . . . . . . | divisori: 2 (primo)\n 3: X . X . . . . . | divisori: 2 (primo)\n 4: X X . X . . . . | divisori: 3\n 5: X . . . X . . . | divisori: 2 (primo)\n 6: X X X . . X . . | divisori: 4\n 7: X . . . . . X . | divisori: 2 (primo)\n 8: X X . X . . . X | divisori: 4\nNumeri primi trovati: 4\nNumero con piu divisori: 6 (4 divisori)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    int n = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n, &extra) != 1 ||\n        n < 2 || n > 12) {\n        fprintf(stderr, \"Errore: inserisci un intero compreso tra 2 e 12.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    int conteggio_primi = 0;\n    int miglior_numero = 1;\n    int max_divisori = 0;\n\n    printf(\"Tabella di divisibilita (1..%d):\\n\", n);\n    // Invariante esterno: stampate le righe 1..riga_val-1 con statistiche aggiornate\n    for (int riga_val = 1; riga_val <= n; ++riga_val) {\n        int divisori = 0;\n        printf(\"%2d:\", riga_val);\n        // Invariante interno: divisori conta i divisori di riga_val in 1..col-1\n        for (int col = 1; col <= n; ++col) {\n            putchar(' ');\n            if (riga_val % col == 0) {\n                putchar('X');\n                ++divisori;\n            } else {\n                putchar('.');\n            }\n        }\n        if (divisori == 2) {\n            printf(\" | divisori: %d (primo)\\n\", divisori);\n            ++conteggio_primi;\n        } else {\n            printf(\" | divisori: %d\\n\", divisori);\n        }\n        if (divisori > max_divisori) {\n            max_divisori = divisori;\n            miglior_numero = riga_val;\n        }\n    }\n\n    printf(\"Numeri primi trovati: %d\\n\", conteggio_primi);\n    printf(\"Numero con piu divisori: %d (%d divisori)\\n\", miglior_numero, max_divisori);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Scrivere un punto e virgola subito dopo while (condizione); oppure for (...);, trasformando il ciclo in un ciclo a corpo vuoto ed eseguendo il blocco tra graffe una sola volta fuori dal ciclo.",
+    "Dimenticare il punto e virgola finale dopo do { ... } while (condizione); oppure dichiarare dentro il blocco do una variabile usata poi nella condizione finale.",
+    "Dimenticare le parentesi in while ((c = getchar()) != EOF): poiché != ha precedenza su =, a c viene assegnato 0 o 1 invece del carattere letto.",
+    "Commettere errori off-by-one (< al posto di <= o viceversa) oppure usare un contatore unsigned int in un ciclo decrescente con condizione i >= 0, creando un ciclo infinito per underflow.",
+    "Usare una variabile double come contatore di un ciclo for (per esempio con passo 0.1) subendo errori di arrotondamento cumulativi invece di derivare il valore da un contatore intero.",
+    "Mettere continue in un ciclo while prima dell'istruzione di aggiornamento del contatore, saltando l'aggiornamento e generando un ciclo infinito.",
+    "Dimenticare di azzerare un contatore o accumulatore locale all'inizio di ogni iterazione del ciclo esterno in una coppia di cicli annidati."
+  ],
+  "differenze_python": [
+    "In Python il ciclo for itera sugli elementi di una sequenza o di range(); in C il for controlla esplicitamente inizializzazione, condizione e aggiornamento di un contatore.",
+    "Python non possiede un costrutto do-while nativo; in C do { ... } while (condizione); garantisce almeno una esecuzione del corpo prima del controllo.",
+    "In Python i cicli while e for supportano una clausola else eseguita solo se il ciclo non termina con break; in C non esiste else legato ai cicli e si usa una variabile booleana o di stato per ricordare il motivo di uscita."
+  ]
+}

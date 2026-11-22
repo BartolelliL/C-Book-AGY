@@ -1,0 +1,332 @@
+{
+  "capitolo": 5,
+  "titolo": "Leggere dalla tastiera",
+  "obiettivi": [
+    "Leggere una riga di testo dalla tastiera in modo sicuro con fgets",
+    "Convertire righe di testo in valori numerici con sscanf verificando il valore restituito",
+    "Gestire in modo corretto gli errori di formato e la fine dell'input (nullptr ed EOF), segnalando gli errori su stderr con fprintf",
+    "Leggere ed elaborare singoli caratteri con getchar e putchar"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "stream",
+      "definizione": "Astrazione di un canale sequenziale di caratteri o byte usato per leggere dati in ingresso o scrivere dati in uscita."
+    },
+    {
+      "termine": "buffer",
+      "definizione": "Area temporanea di memoria usata per accumulare dati durante la lettura, la scrittura o la formattazione."
+    },
+    {
+      "termine": "fine dell'input",
+      "definizione": "Condizione in cui uno stream non contiene più dati da leggere, segnalata da EOF o da nullptr."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "specificatore di formato",
+    "operatore sizeof",
+    "cast esplicito",
+    "flusso di controllo",
+    "valutazione a corto circuito",
+    "costrutti if, else e switch",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "5.R1",
+      "enunciato": "La funzione fgets(buffer, n, stdin) legge dallo stream stdin al più n - 1 caratteri fermandosi al ritorno a capo '\\n' (che conserva nel buffer) oppure alla fine dell'input, aggiungendo il carattere di chiusura interna. Se non riesce a leggere alcun carattere per fine dell'input o errore di lettura restituisce nullptr (parola chiave C23).",
+      "nota_standard": "definito: il limite di n - 1 caratteri, la conservazione di '\\n' e il ritorno di un puntatore nullo in caso di fine dell'input o errore sono definiti dallo standard C23 (con n >= 1 e buffer di almeno n byte); sui compilatori C17/C11 precedenti si usa NULL al posto di nullptr."
+    },
+    {
+      "id": "5.R2",
+      "enunciato": "La funzione sscanf(buffer, formato, &var, ...) estrae valori da una riga già letta in memoria e restituisce il numero di elementi convertiti e assegnati con successo, oppure EOF se la lettura fallisce prima della prima conversione (per esempio su riga vuota o di soli spazi). Ogni variabile di destinazione va preceduta dall'idioma & (che vedremo nel capitolo 10) e il tipo deve corrispondere esattamente allo specificatore (%d per int, %ld per long, %u per unsigned int, %lf per double, %c o \" %c\" per char).",
+      "nota_standard": "indefinito: fornire uno specificatore non corrispondente al tipo dell'argomento (come %f per un double), dimenticare & oppure convertire un numero fuori dall'intervallo rappresentabile dal tipo di destinazione provoca comportamento indefinito in C23."
+    },
+    {
+      "id": "5.R3",
+      "enunciato": "Un programma C si avvia con tre stream standard aperti: stdin (ingresso), stdout (uscita normale) e stderr (uscita per errori). La funzione fprintf(stream, formato, ...) scrive sullo stream indicato; i messaggi diagnostici vanno inviati su stderr. Per segnalare al sistema operativo l'esito del programma si restituiscono le costanti portabili EXIT_SUCCESS ed EXIT_FAILURE definite in <stdlib.h>.",
+      "nota_standard": "dipendente dall'implementazione: l'esistenza di stdin, stdout, stderr e il significato portabile di EXIT_SUCCESS ed EXIT_FAILURE sono definiti dallo standard C23, mentre il valore numerico concreto di EXIT_FAILURE e le modalità di buffering predefinite dipendono dall'implementazione."
+    },
+    {
+      "id": "5.R4",
+      "enunciato": "Per rifiutare caratteri extra non validi dopo un numero letto con sscanf si può aggiungere uno specificatore \" %c\" con una variabile char di appoggio e verificare che sscanf restituisca esattamente il numero atteso di valori validi (per esempio sscanf(riga, \"%d %c\", &valore, &extra) == 1).",
+      "nota_standard": "definito: lo spazio bianco nella stringa di formato di sscanf consuma zero o più caratteri di spaziatura e %c legge il primo carattere successivo non di spaziatura, se presente; in assenza di altri caratteri il conteggio restituito rimane pari ai soli valori convertiti in precedenza."
+    },
+    {
+      "id": "5.R5",
+      "enunciato": "La funzione getchar() legge il prossimo carattere da stdin e lo restituisce come unsigned char convertito in int, oppure restituisce la costante negativa EOF in caso di fine dell'input o errore. Il valore restituito da getchar() va sempre salvato in una variabile di tipo int (mai in char). La funzione putchar(c) scrive un singolo carattere su stdout e restituisce il carattere scritto o EOF in caso di errore.",
+      "nota_standard": "dipendente dall'implementazione: il ritorno di int da getchar(), il segno negativo di EOF e la contiguità delle cifre decimali '0'..'9' sono definiti dallo standard C23; il valore concreto di EOF (tipicamente -1) e il segno del tipo char semplice dipendono dall'implementazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stdout o stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input e restituisce s oppure nullptr in caso di errore o fine dell'input."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza il testo contenuto in s secondo format, memorizza i valori convertiti e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "getchar",
+      "firma": "int getchar(void);",
+      "header": "stdio.h",
+      "descrizione": "Legge il prossimo carattere da stdin restituendolo come int (valore di unsigned char) oppure EOF in caso di fine dell'input o errore."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c (convertito a unsigned char) su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "5.1",
+      "titolo": "Leggere una riga di testo con fgets",
+      "contenuti": [
+        "Cos'è uno stream e introduzione a stdin come canale standard di ingresso dalla tastiera",
+        "Cos'è un buffer e uso dell'idioma char riga[100]; per riservare memoria a una riga di testo (con rinvio ai capitoli 8 e 9 per array e stringhe)",
+        "Chiamata sicura fgets(riga, (int)sizeof(riga), stdin): limite di n - 1 caratteri, conservazione di '\\n' e stampa del buffer con lo specificatore %s in printf",
+        "Verifica del valore restituito confrontandolo con la parola chiave C23 nullptr per rilevare la fine dell'input (con box C23 che segnala NULL sui compilatori C17/C11)",
+        "Perché non usare mai gets (rimossa dallo standard perché non limita i caratteri letti) e perché il libro adotta la lettura per righe con fgets"
+      ],
+      "esempio_guidato": "Un programma di registrazione per un circolo di lettura che legge nome del lettore e titolo del libro preferito da stdin in due buffer char da 100 byte tramite fgets, controlla il risultato rispetto a nullptr e stampa il riepilogo con printf(\"%s\", ...), mostrando l'effetto del '\\n' incluso da fgets.",
+      "approfondimento": "Cosa succede se la riga digitata supera la capienza del buffer: fgets legge al massimo n - 1 caratteri in sicurezza e lascia i caratteri eccedenti in stdin per la lettura successiva.",
+      "esercizio_id": "5.1"
+    },
+    {
+      "id": "5.2",
+      "titolo": "Estrarre numeri da una riga con sscanf",
+      "contenuti": [
+        "Separare la lettura della riga (fgets) dall'estrazione dei numeri (sscanf) per avere pieno controllo su ciò che l'utente digita",
+        "Sintassi di sscanf(riga, formato, &variabile, ...) e presentazione dell'operatore & come idioma necessario affinché sscanf scriva nella variabile (lo vedremo nel capitolo 10)",
+        "Specificatori di formato in sscanf e differenze cruciali rispetto a printf: %lf per double (mai %f), %d per int, %ld per long, %u per unsigned int, \" %c\" per leggere un carattere ignorando gli spazi bianchi",
+        "Estrazione di più valori sulla stessa riga e controllo obbligatorio del valore restituito (sscanf(...) == numero_atteso), spiegando perché confrontare con != 0 è sbagliato quando sscanf restituisce EOF",
+        "Limiti di sscanf sull'overflow numerico (comportamento indefinito se il numero supera il tipo di destinazione; nel capitolo 14 vedremo strtol e strtod)"
+      ],
+      "esempio_guidato": "Un programma sul consumo di un viaggio in auto che legge due righe con fgets: dalla prima estrae distanza in km e litri consumati (due double con \"%lf %lf\"), dalla seconda estrae il numero di passeggeri (int con \"%d\"), controlla il valore restituito da ogni chiamata e stampa resa chilometrica e consumo pro capite.",
+      "approfondimento": "Perché scrivere %f invece di %lf in sscanf per una variabile double provoca comportamento indefinito anche se in printf si usa %f per entrambi.",
+      "esercizio_id": "5.2"
+    },
+    {
+      "id": "5.3",
+      "titolo": "Controllare gli errori di input e la fine dello stream",
+      "contenuti": [
+        "Ruolo separato dei tre stream standard (stdin, stdout, stderr) e stampa dei messaggi diagnostici su stderr con fprintf(stderr, ...)",
+        "Inclusione di <stdlib.h> e uso delle costanti portabili EXIT_SUCCESS ed EXIT_FAILURE come valori di ritorno di main",
+        "Classificazione sistematica degli errori di input: fine dell'input (fgets == nullptr), riga vuota o testo non numerico (sscanf != k), caratteri spuri in coda (idioma \"%d %c\" con char extra) e valori fuori intervallo ammesso",
+        "Come l'utente segnala la fine dell'input da tastiera (Ctrl+D su Linux e macOS, Ctrl+Z seguito da Invio su Windows) e perché distinguere stdout da stderr permette di ridirigere i flussi dal terminale"
+      ],
+      "esempio_guidato": "Un programma di registrazione di un voto universitario che legge voto (18..30) e indicazione di lode, rileva la fine dell'input (nullptr), scarta input con caratteri extra (come \"28abc\") tramite sscanf(riga, \"%d %c\", &voto, &extra) != 1, valida il dominio e segnala ogni errore su stderr restituendo EXIT_FAILURE, oppure stampa la conferma su stdout restituendo EXIT_SUCCESS.",
+      "approfondimento": "Ridirezione da riga di comando: perché inviare gli errori su stderr impedisce che un messaggio d'errore finisca per sbaglio dentro i dati salvati da stdout.",
+      "esercizio_id": "5.3"
+    },
+    {
+      "id": "5.4",
+      "titolo": "Leggere e scrivere singoli caratteri con getchar e putchar",
+      "contenuti": [
+        "Lettura di un carattere alla volta da stdin con getchar() e scrittura su stdout con putchar(c)",
+        "Regola obbligatoria: salvare sempre il valore restituito da getchar() in una variabile int, mai in char, per distinguerlo senza ambiguità dalla costante negativa EOF",
+        "Gestione esplicita di '\\n' e di EOF: il terminale consegna i caratteri al programma dopo la pressione di Invio e il ritorno a capo fa parte dello stream",
+        "Elaborazione portabile delle cifre decimali: lo standard garantisce che '0'..'9' abbiano codici consecutivi, quindi c - '0' ricava il valore numerico 0..9 e '0' + d ricava il carattere cifra",
+        "Rinvio al capitolo 6 per leggere sequenze di caratteri di lunghezza arbitraria con un ciclo fino a EOF"
+      ],
+      "esempio_guidato": "Un programma che legge una sigla di tre caratteri (due lettere maiuscole e una cifra di priorità da '1' a '5') mediante tre chiamate a getchar() memorizzate in int, controlla EOF e '\\n', converte la cifra in intero con c3 - '0' e stampa la sigla formattata carattere per carattere con putchar.",
+      "approfondimento": "Perché char c = getchar(); è un bug di portabilità: se char è senza segno c == EOF è sempre falso, mentre se char è con segno un byte di valore 255 viene scambiato per EOF.",
+      "esercizio_id": "5.4"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "5.1",
+      "tipo": "esercizio",
+      "titolo": "Scheda di iscrizione al torneo di scacchi",
+      "descrizione": "Scrivi un programma C che chieda all'utente il nome del giocatore e il nome del circolo di appartenenza, leggendo due righe da `stdin` in due buffer `char` di `100` byte mediante `fgets` e `(int)sizeof(...)`. Prima di ciascuna lettura stampa l'invito terminato da ritorno a capo (`Inserisci il nome del giocatore:` e `Inserisci il circolo di appartenenza:`). Dopo ogni chiamata a `fgets`, controlla se il valore restituito è `nullptr`; in tal caso stampa un messaggio di errore e termina restituendo `1`. Se entrambe le letture riescono, stampa il riepilogo esattamente come nell'esempio di esecuzione usando `%s` (ricordando che `fgets` conserva il ritorno a capo presente nell'input) e restituisci `0`.",
+      "concetti_da_tenere_a_mente": [
+        "stream stdin",
+        "buffer char[] e (int)sizeof(...)",
+        "lettura sicura di righe con fgets",
+        "controllo della fine dell'input con nullptr (C23)",
+        "stampa del testo del buffer con %s"
+      ],
+      "domande_guida": [
+        "Quale vantaggio offre passare (int)sizeof(buffer) a fgets rispetto a scrivere la dimensione numerica in due punti diversi del programma?",
+        "Che cosa restituisce fgets quando incontra la fine dell'input prima di leggere qualsiasi carattere?",
+        "Perché nelle righe finali di stampa con %s non devi aggiungere un altro ritorno a capo se la riga letta da fgets termina già con '\\n'?",
+        "Quanti caratteri utili al massimo può contenere un buffer dichiarato di 100 byte quando viene passato a fgets?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "Marco Bianchi\nCavallo Nero\n",
+          "output": "Inserisci il nome del giocatore:\nInserisci il circolo di appartenenza:\n=== ISCRIZIONE TORNEO ===\nGiocatore: Marco Bianchi\nCircolo: Cavallo Nero\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "Elena\nTorre 2025\n",
+          "output": "Inserisci il nome del giocatore:\nInserisci il circolo di appartenenza:\n=== ISCRIZIONE TORNEO ===\nGiocatore: Elena\nCircolo: Torre 2025\n"
+        },
+        {
+          "input": "G. Verdi\nCircolo Scacchi Nord-Est\n",
+          "output": "Inserisci il nome del giocatore:\nInserisci il circolo di appartenenza:\n=== ISCRIZIONE TORNEO ===\nGiocatore: G. Verdi\nCircolo: Circolo Scacchi Nord-Est\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    char giocatore[100];\n    char circolo[100];\n\n    printf(\"Inserisci il nome del giocatore:\\n\");\n    if (fgets(giocatore, (int)sizeof(giocatore), stdin) == nullptr) {\n        printf(\"Errore: lettura del giocatore interrotta.\\n\");\n        return 1;\n    }\n\n    printf(\"Inserisci il circolo di appartenenza:\\n\");\n    if (fgets(circolo, (int)sizeof(circolo), stdin) == nullptr) {\n        printf(\"Errore: lettura del circolo interrotta.\\n\");\n        return 1;\n    }\n\n    printf(\"=== ISCRIZIONE TORNEO ===\\n\");\n    printf(\"Giocatore: %s\", giocatore);\n    printf(\"Circolo: %s\", circolo);\n    return 0;\n}\n"
+    },
+    {
+      "id": "5.2",
+      "tipo": "esercizio",
+      "titolo": "Riepilogo di una sessione di ricarica elettrica",
+      "descrizione": "Scrivi un programma C che legga da `stdin` due righe tramite `fgets` (senza stampare inviti) ed estragga i dati con `sscanf`: la prima riga contiene energia erogata in kWh (`double`) e tariffa in euro/kWh (`double`) separati da spazio; la seconda riga contiene i minuti di sosta (`int`) e il codice tessera (`char`: `'A'` o `'a'` per abbonato con sconto del `10%`, `'O'` o `'o'` per occasionale senza sconto). Verifica ogni chiamata a `fgets` rispetto a `nullptr`, controlla che ciascuna chiamata a `sscanf` restituisca esattamente `2`, verifica che i valori numerici siano non negativi e che il codice tessera sia valido (con `switch`); in caso di errore stampa un messaggio e restituisci `1`. Altrimenti calcola costo lordo, sconto, totale da pagare e potenza media in kW (`energia_kwh / (minuti_sosta / 60.0)` solo se `minuti_sosta > 0`, altrimenti stampa `Potenza media: non calcolabile`). Produci l'output con due cifre decimali esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "abbinamento fgets + sscanf",
+        "specificatore %lf per double e \" %c\" per char in sscanf",
+        "idioma & davanti alle variabili in sscanf",
+        "controllo esatto del valore restituito da sscanf",
+        "guardia contro la divisione per zero"
+      ],
+      "domande_guida": [
+        "Quale specificatore di formato devi usare in sscanf per leggere una variabile di tipo double e perché differisce da printf?",
+        "Perché nella seconda chiamata a sscanf conviene scrivere uno spazio prima di %c nella stringa di formato?",
+        "Che cosa controlla la condizione sscanf(...) != 2 e perché non basta controllare sscanf(...) == 0?",
+        "In che modo proteggi il calcolo della potenza media quando i minuti di sosta inseriti valgono 0?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "24.5 0.60\n90 A\n",
+          "output": "Energia: 24.50 kWh\nCosto lordo: 14.70 euro\nSconto: 1.47 euro\nTotale da pagare: 13.23 euro\nPotenza media: 16.33 kW\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "  12.0   0.50 \n 30 o\n",
+          "output": "Energia: 12.00 kWh\nCosto lordo: 6.00 euro\nSconto: 0.00 euro\nTotale da pagare: 6.00 euro\nPotenza media: 24.00 kW\n"
+        },
+        {
+          "input": "0.0 0.65\n0 a\n",
+          "output": "Energia: 0.00 kWh\nCosto lordo: 0.00 euro\nSconto: 0.00 euro\nTotale da pagare: 0.00 euro\nPotenza media: non calcolabile\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    char riga[128];\n    double energia_kwh = 0.0;\n    double tariffa_kwh = 0.0;\n    int minuti_sosta = 0;\n    char codice_tessera = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lf %lf\", &energia_kwh, &tariffa_kwh) != 2) {\n        printf(\"Errore: prima riga non valida.\\n\");\n        return 1;\n    }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &minuti_sosta, &codice_tessera) != 2) {\n        printf(\"Errore: seconda riga non valida.\\n\");\n        return 1;\n    }\n    if (energia_kwh < 0.0 || tariffa_kwh < 0.0 || minuti_sosta < 0) {\n        printf(\"Errore: valori negativi non ammessi.\\n\");\n        return 1;\n    }\n\n    double aliquota_sconto = 0.0;\n    switch (codice_tessera) {\n        case 'A':\n        case 'a':\n            aliquota_sconto = 0.10;\n            break;\n        case 'O':\n        case 'o':\n            aliquota_sconto = 0.0;\n            break;\n        default:\n            printf(\"Errore: codice tessera non valido.\\n\");\n            return 1;\n    }\n\n    double costo_lordo = energia_kwh * tariffa_kwh;\n    double sconto = costo_lordo * aliquota_sconto;\n    double totale = costo_lordo - sconto;\n    printf(\"Energia: %.2f kWh\\n\", energia_kwh);\n    printf(\"Costo lordo: %.2f euro\\n\", costo_lordo);\n    printf(\"Sconto: %.2f euro\\n\", sconto);\n    printf(\"Totale da pagare: %.2f euro\\n\", totale);\n    if (minuti_sosta > 0) {\n        double potenza_media = energia_kwh / (minuti_sosta / 60.0);\n        printf(\"Potenza media: %.2f kW\\n\", potenza_media);\n    } else {\n        printf(\"Potenza media: non calcolabile\\n\");\n    }\n    return 0;\n}\n"
+    },
+    {
+      "id": "5.3",
+      "tipo": "esercizio",
+      "titolo": "Validatore di prenotazione per una sala conferenze",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>` e `<stdlib.h>` e legga da `stdin` due righe con `fgets`: la prima contiene il numero di fila (`int` compreso tra `1` e `20` inclusi), la seconda il numero di posto (`int` compreso tra `1` e `15` inclusi). Per ciascuna riga controlla nell'ordine: la fine dell'input (`fgets == nullptr`), la validità del formato rifiutando eventuali caratteri extra dopo il numero tramite l'idioma `\"%d %c\"` con una variabile `char` di appoggio, e l'appartenenza all'intervallo consentito. In qualsiasi caso di errore scrivi un messaggio descrittivo su `stderr` tramite `fprintf` e termina restituendo `EXIT_FAILURE`. Se entrambi i dati sono validi, stampa su `stdout` con `fprintf` la conferma della prenotazione, il settore (`Platea anteriore` per file `1..5`, `Platea centrale` per `6..12`, `Platea posteriore` per `13..20`) e la posizione (`Corridoio` per i posti `1` e `15`, `Interno` per gli altri), quindi restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "stream stdin, stdout e stderr",
+        "scrittura di errori su stderr con fprintf",
+        "codici di uscita EXIT_SUCCESS ed EXIT_FAILURE (<stdlib.h>)",
+        "rilevamento di caratteri extra in coda con \"%d %c\"",
+        "distinzione tra fine dell'input, errore di formato e valore fuori intervallo"
+      ],
+      "domande_guida": [
+        "Perché conviene inviare i messaggi di errore su stderr con fprintf invece di stamparli su stdout con printf?",
+        "Come riesce la stringa di formato \"%d %c\" in sscanf ad accettare \"  12  \" ma a rifiutare \"12abc\" o \"12 3\"?",
+        "In quale ordine conviene controllare fine dell'input, formato con sscanf e intervallo numerico per evitare di leggere variabili non aggiornate?",
+        "Quale header standard definisce le costanti EXIT_SUCCESS ed EXIT_FAILURE e perché è preferibile usarle al posto di numeri arbitrari?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\n1\n",
+          "output": "Prenotazione confermata: fila 4, posto 1\nSettore: Platea anteriore\nPosizione: Corridoio\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "  12 \n  8\n",
+          "output": "Prenotazione confermata: fila 12, posto 8\nSettore: Platea centrale\nPosizione: Interno\n"
+        },
+        {
+          "input": "20\n15\n",
+          "output": "Prenotazione confermata: fila 20, posto 15\nSettore: Platea posteriore\nPosizione: Corridoio\n"
+        },
+        {
+          "input": "1\n2\n",
+          "output": "Prenotazione confermata: fila 1, posto 2\nSettore: Platea anteriore\nPosizione: Interno\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    int fila = 0;\n    int posto = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: fine dell'input durante la lettura della fila.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (sscanf(riga, \"%d %c\", &fila, &extra) != 1) {\n        fprintf(stderr, \"Errore: formato della fila non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (fila < 1 || fila > 20) {\n        fprintf(stderr, \"Errore: la fila deve essere compresa tra 1 e 20.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: fine dell'input durante la lettura del posto.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (sscanf(riga, \"%d %c\", &posto, &extra) != 1) {\n        fprintf(stderr, \"Errore: formato del posto non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (posto < 1 || posto > 15) {\n        fprintf(stderr, \"Errore: il posto deve essere compreso tra 1 e 15.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    fprintf(stdout, \"Prenotazione confermata: fila %d, posto %d\\n\", fila, posto);\n    if (fila <= 5) {\n        fprintf(stdout, \"Settore: Platea anteriore\\n\");\n    } else if (fila <= 12) {\n        fprintf(stdout, \"Settore: Platea centrale\\n\");\n    } else {\n        fprintf(stdout, \"Settore: Platea posteriore\\n\");\n    }\n    if (posto == 1 || posto == 15) {\n        fprintf(stdout, \"Posizione: Corridoio\\n\");\n    } else {\n        fprintf(stdout, \"Posizione: Interno\\n\");\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "5.4",
+      "tipo": "esercizio",
+      "titolo": "Verifica di un codice di accesso con getchar e putchar",
+      "descrizione": "Un laboratorio usa codici di accesso composti esattamente da quattro caratteri: una lettera maiuscola di settore (`'A'` = `Archivio`, `'B'` = `Biblioteca`, `'C'` = `Centro calcolo`) seguita da tre cifre decimali (`'0'..'9'`). Scrivi un programma C che legga i caratteri uno alla volta con cinque chiamate a `getchar()` salvate in variabili `int` (`c1..c4` per il codice e `c5` per verificare che la riga termini con `'\\n'` oppure `EOF`). Se uno dei primi quattro caratteri è `EOF`, se `c5` è diverso sia da `'\\n'` sia da `EOF`, se `c1` non è tra `'A'`, `'B'`, `'C'` oppure se una delle tre posizioni numeriche non è compresa tra `'0'` e `'9'`, stampa un messaggio di errore su `stderr` con `fprintf` e restituisci `EXIT_FAILURE`. Altrimenti converti le tre cifre in valori numerici con `c - '0'`, calcola il numero intero a tre cifre (`d1 * 100 + d2 * 10 + d3`), la somma delle cifre e la cifra di controllo (`somma_cifre % 10`). Stampa la riga `Codice verificato: ` seguita dal codice nel formato `X-DDD-C` scrivendo ogni singolo carattere con `putchar` (incluso `'0' + controllo` e `'\\n'`), quindi stampa settore, numero e somma delle cifre come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "lettura carattere per carattere con getchar() in variabili int",
+        "costante EOF e controllo della fine della riga",
+        "scrittura di singoli caratteri con putchar",
+        "conversione tra carattere cifra e valore numerico tramite '0'",
+        "gestione degli errori su stderr con EXIT_FAILURE"
+      ],
+      "domande_guida": [
+        "Perché le variabili che ricevono il risultato di getchar() devono essere dichiarate int e non char?",
+        "A che cosa serve leggere anche un quinto carattere dopo i quattro caratteri del codice e confrontarlo sia con '\\n' sia con EOF?",
+        "Perché l'espressione c2 - '0' calcola in modo portabile il valore intero di una cifra decimale dopo aver verificato che c2 sia tra '0' e '9'?",
+        "Come puoi ottenere il carattere stampabile corrispondente alla cifra di controllo intera compresa tra 0 e 9 prima di passarlo a putchar?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "B407\n",
+          "output": "Codice verificato: B-407-1\nSettore: Biblioteca\nNumero: 407\nSomma cifre: 11\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "A000\n",
+          "output": "Codice verificato: A-000-0\nSettore: Archivio\nNumero: 0\nSomma cifre: 0\n"
+        },
+        {
+          "input": "C999",
+          "output": "Codice verificato: C-999-7\nSettore: Centro calcolo\nNumero: 999\nSomma cifre: 27\n"
+        },
+        {
+          "input": "A052\n",
+          "output": "Codice verificato: A-052-7\nSettore: Archivio\nNumero: 52\nSomma cifre: 7\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int c1 = getchar();\n    int c2 = getchar();\n    int c3 = getchar();\n    int c4 = getchar();\n    int c5 = getchar();\n\n    if (c1 == EOF || c2 == EOF || c3 == EOF || c4 == EOF) {\n        fprintf(stderr, \"Errore: codice incompleto (fine dell'input).\\n\");\n        return EXIT_FAILURE;\n    }\n    if (c5 != '\\n' && c5 != EOF) {\n        fprintf(stderr, \"Errore: il codice deve avere esattamente 4 caratteri.\\n\");\n        return EXIT_FAILURE;\n    }\n    if ((c1 != 'A' && c1 != 'B' && c1 != 'C') ||\n        c2 < '0' || c2 > '9' || c3 < '0' || c3 > '9' || c4 < '0' || c4 > '9') {\n        fprintf(stderr, \"Errore: formato codice non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    int d1 = c2 - '0';\n    int d2 = c3 - '0';\n    int d3 = c4 - '0';\n    int numero = d1 * 100 + d2 * 10 + d3;\n    int somma_cifre = d1 + d2 + d3;\n    int controllo = somma_cifre % 10;\n\n    printf(\"Codice verificato: \");\n    putchar(c1);\n    putchar('-');\n    putchar(c2);\n    putchar(c3);\n    putchar(c4);\n    putchar('-');\n    putchar('0' + controllo);\n    putchar('\\n');\n\n    switch (c1) {\n        case 'A':\n            printf(\"Settore: Archivio\\n\");\n            break;\n        case 'B':\n            printf(\"Settore: Biblioteca\\n\");\n            break;\n        default:\n            printf(\"Settore: Centro calcolo\\n\");\n            break;\n    }\n    printf(\"Numero: %d\\n\", numero);\n    printf(\"Somma cifre: %d\\n\", somma_cifre);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Usare %f invece di %lf in sscanf per una variabile double: in printf entrambi usano %f, ma in sscanf scrivere %f per un double provoca comportamento indefinito.",
+    "Dimenticare il simbolo & davanti al nome della variabile numerica in sscanf (per esempio sscanf(riga, \"%d\", valore) invece di &valore).",
+    "Controllare il ritorno di sscanf con != 0 invece che con == numero_atteso: su una riga vuota sscanf restituisce EOF (negativo), quindi != 0 risulterebbe vero per errore.",
+    "Salvare il risultato di getchar() in una variabile char invece che in int, rendendo impossibile distinguere correttamente EOF dai caratteri validi su tutte le piattaforme.",
+    "Dimenticare che fgets conserva il carattere '\\n' alla fine della riga letta (quando entra nel buffer), causando ritorni a capo doppi o confronti inattesi.",
+    "Ignorare eventuali caratteri extra dopo un numero in sscanf (per esempio \"12abc\" letto come 12) invece di verificarli con lo specificatore \" %c\"."
+  ],
+  "differenze_python": [
+    "In Python input() restituisce una stringa di lunghezza arbitraria senza il ritorno a capo finale; in C fgets legge in un buffer di dimensione fissa, conserva '\\n' se entra nel buffer e segnala la fine dell'input restituendo nullptr.",
+    "In Python la conversione di testo in numero avviene con int() o float() e solleva un'eccezione se il formato è errato; in C si usa sscanf (e più avanti strtol/strtod) controllando esplicitamente il valore restituito.",
+    "In Python per stampare errori su stderr si passa file=sys.stderr a print(); in C si usa fprintf(stderr, ...) e si restituiscono EXIT_SUCCESS o EXIT_FAILURE da main."
+  ]
+}
