@@ -1,9 +1,9 @@
-# Pipeline per scrivere il libro di C (solo Google Antigravity, con orchestratore)
+# Pipeline per scrivere il libro di C (Google Antigravity, modelli Gemini 4)
 
-Questo pacchetto ti permette di scrivere il libro **mandando pochi messaggi a Google Antigravity**. In ogni messaggio
-l'**orchestratore** (Gemini 4 Neon, in alternativa Argon o Claude Opus 5.5) divide il lavoro tra **sub-agenti esecutori**
-(Claude Sonnet 5.5 o Gemini 4 Hydrogen), uno per capitolo. Non devi decidere tu cosa fare dopo: uno script controlla
-il lavoro e ti dice il prossimo messaggio da incollare.
+Questo pacchetto ti permette di scrivere il libro **mandando un messaggio alla volta ad Antigravity**, con i soli modelli
+**Gemini 4 Neon, Argon e Hydrogen**. Non c'e' orchestratore ne' sub-agenti: in ogni sessione lavora un solo agente su un
+compito preciso. Non devi decidere tu cosa fare dopo: uno script controlla il lavoro e ti dice **quale modello scegliere e
+quale messaggio incollare**.
 
 ## 1. Preparazione (una volta sola)
 
@@ -16,11 +16,9 @@ il lavoro e ti dice il prossimo messaggio da incollare.
    ```
    `diagnosi` controlla Python, compilatore, supporto a C23 (e quali novita' C23 il tuo compilatore capisce) e i file.
    Deve finire con "TUTTO OK". Se il compilatore non conosce `-std=c23` usa `-std=c2x` da solo.
-3. Apri la cartella come workspace in **Antigravity**. In Antigravity trova dove si scelgono il **modello Orchestrator**
-   (planner) e il **modello Executor**: sono due impostazioni separate. Orchestratore consigliato: **Gemini 4 Neon**
-   (vanno bene anche Argon o Claude Opus 5.5; Carbon escluso). Per l'executor ti dice lo script, passo per passo.
-4. (Facoltativo) prima di partire modifica `PROGRAMMA.md` (capitoli), la tabella iniziale di `CONVENZIONI.md`
-   (lettori, soluzioni, lingua) e `config.json` (limiti, dimensione dei lotti).
+3. Apri la cartella come workspace in **Antigravity**.
+4. (Facoltativo) prima di partire modifica `PROGRAMMA.md` (capitoli), la tabella iniziale di `CONVENZIONI.md` (lettori,
+   soluzioni, lingua) e `config.json` (limiti, modelli, dimensione dei lotti).
 
 ## 2. Il ciclo (sempre lo stesso)
 
@@ -28,45 +26,54 @@ il lavoro e ti dice il prossimo messaggio da incollare.
 python3 scripts/libro.py avanti
 ```
 
-1. Il comando controlla cio' che e' stato prodotto e ti mostra: la tabella di avanzamento, **orchestratore ed esecutori da
-   selezionare** e **il messaggio esatto da incollare**, con i capitoli del lotto (es. `CAPITOLI=3-5`).
-2. In Antigravity apri una **sessione nuova**, imposta i modelli indicati, incolla il messaggio (solo quello).
-3. Aspetta che l'orchestratore finisca. Poi torna al punto 1.
+1. Il comando controlla cio' che e' stato prodotto e ti mostra la tabella di avanzamento, **il modello da selezionare** e **il
+   messaggio esatto da incollare** (con i capitoli, es. `CAPITOLI=3`).
+2. In Antigravity apri una **sessione nuova**, seleziona il modello indicato, incolla il messaggio (solo quello).
+3. Aspetta che l'agente finisca. Poi torna al punto 1.
 
-Se ci sono stati errori, `avanti` te lo dice e ripropone lo stesso passo: i sub-agenti riconoscono da soli il
-rilancio (leggono i file di esito con gli errori) e correggono solo quelli.
+Se ci sono stati errori, `avanti` te lo dice e ripropone lo stesso passo: l'agente riconosce da solo il rilancio (legge i file di
+esito con gli errori) e corregge solo quelli. Se la sessione si interrompe (quota, chiusura), reincolla lo stesso messaggio: l'agente
+completa solo cio' che manca.
 
-## 3. I passi
+## 3. I modelli e perche'
 
-| Passo | Cosa fa | Esecutori | Quante volte |
-|---|---|---|---|
-| P1 | Macro-scaletta (capitoli, obiettivi, registro degli elementi del linguaggio, glossario) + revisione indipendente | Sonnet 5.5 (scrive), Hydrogen (revisiona) | 1 |
-| **Checkpoint 1** | **Tu** leggi macro-scaletta e `stato/revisione_p1.md`, poi `approva 1` | tu | 1 |
-| P2 | Scheda tecnica dei capitoli con esercizi e soluzioni di riferimento (compilate e provate dallo script) | Sonnet 5.5 | 1 messaggio ogni 5 capitoli |
-| P2B | Coerenza tra le schede (lavora su un riepilogo generato dallo script) | Hydrogen | 1 |
-| P3 | Stesura dei capitoli (testo, codice, esercizi senza soluzioni) | Sonnet 5.5 | 1 messaggio ogni 3 capitoli |
-| P4 | Audit indipendente (famiglia di modelli diversa da chi ha scritto) con revisione delle patch gravi da parte dell'orchestratore | Hydrogen | 1-2 giri per capitolo, 4 capitoli a messaggio |
-| P5 | Correzioni mirate (solo se servono) | Sonnet 5.5 | se serve |
-| **Checkpoint 2** | **Tu** leggi il **capitolo pilota** e approvi (`approva pilota`) | tu | 1 |
-| P6 | Revisione di coerenza su tutto il libro (per digest) | Hydrogen | 1 |
-| P7 | Commenti alle soluzioni per il docente e metadati | Hydrogen | 1 |
-| **Checkpoint 3** | **Tu** leggi tutto, `approva finale`, poi `fine` crea il file finale | tu | 1 |
+| Ruolo | Modello | Passi |
+|---|---|---|
+| Scrive e progetta | **Gemini 4 Neon** (il piu' adatto tra i tre al lavoro complesso: sostituisce Argon con qualita' vicina a Carbon) | P1, P2, P3, P5 |
+| Controlla | **Gemini 4 Argon**: un modello DIVERSO da chi ha scritto | P1R, P2B, P4, P6 |
+| Lavoro meccanico o di riassunto | **Gemini 4 Hydrogen** (veloce ed economico) | P6D, P7, P7M |
 
-**Il capitolo pilota** (`capitolo_pilota` in `config.json`, ora il 10, sui puntatori) e' il primo capitolo scritto e
-controllato fino in fondo, da solo, prima di tutti gli altri. Se ti convince, la sua prima sotto-sezione diventa l'esempio
-di stile per tutto il libro; se no, correggi prompt o regole e rifai il capitolo.
+Dove il passo lo prevede, se Antigravity lo permette, imposta il **ragionamento alto** (la tabella in `config.json` lo indica).
+Tutti e tre sono modelli Google: l'indipendenza tra chi scrive e chi controlla e' quindi minore di quella tra famiglie
+diverse. La compensano i controlli automatici dello script (compila ed esegue tutto il codice) e i tuoi tre checkpoint. Se
+vuoi un'altra assegnazione modifica la tabella `modelli` in `config.json`.
+
+## 4. I passi
+
+| Passo | Cosa fa | Quante volte |
+|---|---|---|
+| P1 | Macro-scaletta: capitoli, obiettivi, registro degli elementi del linguaggio, glossario | 1 |
+| P1R | Critica indipendente della macro-scaletta (`stato/revisione_p1.md`) | 1 |
+| **Checkpoint 1** | **Tu** leggi macro-scaletta e critica, poi `approva 1` | 1 |
+| P2 | Scheda tecnica di un capitolo, con esercizi e soluzioni di riferimento (compilate e provate dallo script) | 1 messaggio ogni 2 capitoli |
+| P2B | Coerenza tra le schede (lavora su un riepilogo generato dallo script) | 1 |
+| P3 | Stesura di un capitolo (testo, codice, esercizi senza soluzioni) | 1 messaggio per capitolo |
+| P4 | Audit indipendente del capitolo | 1-2 giri per capitolo, 2 capitoli a messaggio |
+| P5 | Correzioni mirate (solo se servono) | se serve |
+| **Checkpoint 2** | **Tu** leggi il **capitolo pilota** e approvi (`approva pilota`) | 1 |
+| P6D | Riassunti strutturati (digest) dei capitoli | 1 messaggio ogni 4 capitoli |
+| P6 | Revisione di coerenza su tutto il libro, a partire dai digest | 1 |
+| P7 | Commenti alle soluzioni per il docente | 1 messaggio ogni 4 capitoli |
+| P7M | Metadati del libro | 1 |
+| **Checkpoint 3** | **Tu** leggi tutto, `approva finale`, poi `fine` crea il file finale | 1 |
+
+**Il capitolo pilota** (`capitolo_pilota` in `config.json`, ora il 10, sui puntatori) e' il primo capitolo scritto e controllato
+fino in fondo, da solo, prima di tutti gli altri. Se ti convince, la sua prima sotto-sezione diventa l'esempio di stile per tutto il
+libro; se no, correggi prompt o regole e rifai il capitolo.
 
 L'ordine lo decide lo script: prima il pilota, poi tutte le stesure, poi tutti gli audit.
-**Quanti messaggi?** Con 22 capitoli circa 30-40 in tutto (invece di 100+), perche' ogni messaggio copre piu' capitoli.
-La dimensione dei lotti e' in `config.json` (`lotto_capitoli`): abbassala se esaurisci le quote, alzala se hai margine.
-
-## 4. Perche' due famiglie di modelli
-
-Chi scrive (P1, P2, P3, P5) e' **Claude Sonnet 5.5**; chi controlla (P2B, P4, P6) e' **Gemini 4 Hydrogen** sotto la guida di
-Neon. Modelli di famiglie diverse tendono a non ripetere gli stessi errori: e' il motivo per cui lo script ti chiede di
-cambiare executor tra un passo e l'altro. Se in Antigravity non riuscissi a cambiare l'executor tra una sessione e l'altra,
-puoi usare Sonnet 5.5 per tutto: funziona, ma l'audit perde l'indipendenza tra modelli (restano i controlli dello script e i
-tuoi checkpoint).
+**Quanti messaggi?** Con 22 capitoli circa 70-90 in tutto (una sessione per capitolo nella stesura, lotti piu' grandi nei passi
+leggeri). I lotti sono in `config.json` (`lotto_capitoli`): alzali se hai margine di quota, abbassali se l'agente perde il filo.
 
 ## 5. Cosa controlla lo script in automatico (e cosa no)
 
@@ -77,15 +84,14 @@ funzioni non portabili vietati; termini del glossario e sinonimi vietati; strutt
 esercizi** (nemmeno un esempio guidato che la somigli); gli esempi di esecuzione coincidono con il blueprint.
 
 **Non garantito da script:** la correttezza delle spiegazioni, la bonta' didattica, la qualita' dell'italiano. Qui lavorano
-l'audit del secondo modello (P4, P6) e **tu** nei tre checkpoint. Leggi con attenzione soprattutto il capitolo pilota e i
+l'audit di un secondo modello (P4, P6) e **tu** nei tre checkpoint. Leggi con attenzione soprattutto il capitolo pilota e i
 capitoli su puntatori, memoria dinamica, puntatori a funzione, tabelle hash e il progetto finale.
 
 ## 6. Regole d'oro
 
-- **Una sessione = un messaggio.** Apri una sessione nuova per ogni passo.
-- **Non modificare i file mentre un orchestratore lavora.** I sub-agenti lavorano in parallelo su capitoli diversi.
-- Incolla **solo** il messaggio che ti mostra `avanti`: tutte le istruzioni sono nei file in `prompts/` e in `CONVENZIONI.md`
-  (paragrafo 8: orchestrazione).
+- **Una sessione = un messaggio**, con il modello indicato da `avanti`.
+- **Non modificare i file mentre un agente lavora**, e un solo agente alla volta sulla cartella.
+- Incolla **solo** il messaggio che ti mostra `avanti`: tutte le istruzioni sono nei file in `prompts/` e in `CONVENZIONI.md`.
 - Non modificare `stato/macro_scaletta.json` dopo averla approvata (lo script se ne accorge). Se serve cambiarla,
   modifica e rilancia `approva 1`.
 - Lo script fa un commit Git a ogni passo: puoi sempre tornare indietro.
@@ -96,9 +102,9 @@ capitoli su puntatori, memoria dinamica, puntatori a funzione, tabelle hash e il
 
 | Situazione | Cosa fare |
 |---|---|
-| Quota esaurita o sessione interrotta | Aspetta, o riduci `lotto_capitoli`, poi **reincolla lo stesso messaggio**: i sub-agenti completano solo cio' che manca |
-| L'orchestratore scrive lui i file, o legge tutto il libro | Interrompi e rilancia: ricordagli il paragrafo 8 di `CONVENZIONI.md` (non scrive file, non legge capitoli interi) |
-| Un sub-agente dice di aver eseguito i controlli ma non e' vero | Nessun problema: `avanti` li rifa sempre lui |
+| Quota esaurita o sessione interrotta | Aspetta, o riduci `lotto_capitoli`, poi **reincolla lo stesso messaggio** |
+| L'agente perde il filo o ignora le regole in un lotto di piu' capitoli | Metti `lotto_capitoli` a 1 per quel passo in `config.json` |
+| Un agente dice di aver eseguito i controlli ma non e' vero | Nessun problema: `avanti` li rifa sempre lui |
 | Un capitolo non ti convince | `python3 scripts/libro.py riapri N stesura` (oppure `blueprint`, `audit`) e poi `avanti` |
 | Vuoi controllare a mano un capitolo | `python3 scripts/libro.py controlla N` |
 | Vuoi vedere dove sei | `python3 scripts/libro.py stato` |
@@ -108,10 +114,10 @@ capitoli su puntatori, memoria dinamica, puntatori a funzione, tabelle hash e il
 ## 8. Cartelle
 
 ```
-CONVENZIONI.md   regole condivise + orchestrazione (§8)        PROGRAMMA.md   capitoli proposti (input di P1)
-prompts/         i prompt P1-P7                                 config.json    limiti, modelli, lotti
-scripts/libro.py controlli e avanzamento                        stato/         macro-scaletta, blueprint, esiti dei controlli, digest
-manoscritto/     il libro, un file per sotto-sezione            audit/         rapporti di audit e correzioni
+CONVENZIONI.md   regole condivise (§8: lavoro a capitoli)       PROGRAMMA.md   capitoli proposti (input di P1)
+prompts/         i prompt                                        config.json    limiti, modelli, lotti
+scripts/libro.py controlli e avanzamento                         stato/         macro-scaletta, blueprint, esiti dei controlli, digest
+manoscritto/     il libro, un file per sotto-sezione             audit/         rapporti di audit e correzioni
 docente/         commenti e soluzioni per il docente (NON nel libro)    apparati/  indice analitico e metadati
 consegna/        libro_completo.md (file finale)
 ```
@@ -124,9 +130,8 @@ Dell'utente: `avanti` · `stato` · `prossimo` · `diagnosi` · `approva 1 | pil
 
 ## 10. Nota sull'affidabilita' del pacchetto
 
-Gli script sono stati provati con un libro finto di 10 capitoli (limiti ridotti nel test) e con agenti simulati, su Linux con
-GCC 13 e Python 3.12: macchina a stati, lotti di capitoli, sandbox (anche a piu' file), controlli, patch, apparati e file finale
-funzionano. **Non e' stato provato con Antigravity vero ne' su macOS.** In particolare non so con certezza: se Antigravity
-lascia scegliere orchestratore ed executor per ogni sessione, quanti sub-agenti lancia davvero in parallelo, e quanta quota
-consuma ogni lotto. I primi due giri veri (P1 e il capitolo pilota) servono anche a scoprirlo. Se qualcosa non torna, incolla
-qui l'output di `python3 scripts/libro.py diagnosi` e di `avanti`.
+La versione con un solo agente per sessione e i soli modelli Gemini **non e' stata provata**: lo script e' stato solo controllato
+nella sintassi dopo le ultime modifiche. Le versioni precedenti della macchina a stati, della sandbox (anche a piu' file), dei
+controlli, delle patch e del file finale erano state provate con agenti simulati su Linux con GCC 13 e Python 3.12, ma non con
+Antigravity vero ne' su macOS. Il primo giro vero (`diagnosi`, P1, P1R) serve anche a scoprire eventuali problemi: se
+qualcosa non torna, incolla l'output di `python3 scripts/libro.py diagnosi` e di `avanti`.

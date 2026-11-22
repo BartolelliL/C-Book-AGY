@@ -12,7 +12,7 @@ in conflitto, vince questo file e lo segnali nel messaggio finale.
 | Titolo di lavoro | C - Il linguaggio di programmazione |
 | Lingua del libro | Italiano |
 | Standard del linguaggio | C23 (ISO/IEC 9899:2024) |
-| Lettori | Studenti di 16-18 anni, partono da zero in C. Conoscono già Python a livello intermedio, senza però farne alcun riferimento. |
+| Lettori | Studenti di 16-18 anni, partono da zero in C. Possono conoscere un altro linguaggio (per esempio Python) ma non e' garantito: ogni concetto va spiegato da zero |
 | Traguardo | Autonomia completa in C: il lettore sa scrivere da solo programmi di qualche centinaio di righe su piu' file, con strutture dati dinamiche, senza perdite di memoria e senza comportamento indefinito. Concetto di riferimento: una **tabella hash generica come tipo opaco** (`void *`, puntatori a funzione, regole di possesso della memoria). Vedi `PROGRAMMA.md` |
 | Livello | Dal capitolo 13 in poi il libro e' di livello intermedio-avanzato: stesso rigore, meno spiegazioni elementari, esercizi piu' lunghi (40-150 righe), in parte su piu' file |
 | Sistema operativo dei lettori | Variabile (macOS, Linux, Windows): niente istruzioni legate a un solo sistema; nessuna dipendenza da un IDE specifico |
@@ -45,22 +45,23 @@ in conflitto, vince questo file e lo segnali nel messaggio finale.
 
 | Compito | Puo' creare/modificare |
 |---|---|
-| P1 | `stato/macro_scaletta.json` (un solo sub-agente); `stato/revisione_p1.md` (il sub-agente revisore) |
+| P1 | `stato/macro_scaletta.json` |
+| P1R | `stato/revisione_p1.md` |
 | P2 (cap. N) | `stato/blueprint/capNN.json` |
-| P2B | `stato/coerenza_blueprint.json` (un solo sub-agente); correzioni locali a `stato/blueprint/capNN.json` (un sub-agente per capitolo) |
+| P2B | `stato/coerenza_blueprint.json`; correzioni locali a `stato/blueprint/capNN.json` |
 | P3 (cap. N) | `manoscritto/capNN/*.md` |
 | P4 (cap. N) | `audit/capNN_cC_audit.json` (e basta: l'auditor NON modifica il testo) |
 | P5 (cap. N) | i file di `manoscritto/capNN/` indicati nei residui; `audit/capNN_cC_p5.json` o `audit/globale_p5_capNN.json` |
-| P6 | `stato/digest/capNN.md`; `audit/globale/NNN_<nome>.json` (un file per sub-agente) |
-| P7 | `docente/commenti/capNN.json`; `apparati/metadati.json` |
+| P6D (cap. N) | `stato/digest/capNN.md` |
+| P6 | `audit/globale_audit.json` (e basta) |
+| P7 (cap. N) | `docente/commenti/capNN.json` |
+| P7M | `apparati/metadati.json` |
 
 (`NN` = numero del capitolo a due cifre, `C` = numero del ciclo di audit, `N` senza zero iniziale.)
-**L'orchestratore non scrive nessun file del libro**: li scrivono solo i sub-agenti, ognuno nei propri percorsi.
 
 ### Comandi di controllo (dalla cartella del progetto)
 
-Questi sono gli UNICI comandi che un sub-agente puo' eseguire (non modificano lo stato della pipeline; sono sicuri anche
-se lanciati in parallelo da sub-agenti diversi su capitoli diversi):
+Questi sono gli UNICI comandi che un agente puo' eseguire (non modificano lo stato della pipeline):
 
 ```
 python3 scripts/libro.py controlla-macro  # controlla la macro-scaletta
@@ -298,34 +299,18 @@ DUBBI: <cose di cui non sei sicuro, o "nessuno">
 
 ---
 
-## 8. Esecuzione con orchestratore (Google Antigravity)
+## 8. Lavoro a capitoli (un agente per volta)
 
-Tutto il lavoro gira in Antigravity con un **orchestratore** (esplora, pianifica, assegna, controlla l'avanzamento) e dei
-**sub-agenti esecutori** (cercano, leggono, scrivono file, eseguono comandi). Il messaggio dell'utente indica il compito
-(il file in `prompts/`) e i capitoli (`CAPITOLI=...`: un numero, un elenco `3,7` o un intervallo `3-5`).
+Il lavoro gira in Google Antigravity con i modelli Gemini 4 (Neon, Argon, Hydrogen): un solo agente per sessione, senza
+orchestratore e senza sub-agenti. Il messaggio dell'utente indica il compito (il file in `prompts/`) e, quando serve, i
+capitoli (`CAPITOLI=...`: un numero, un elenco `3,7` o un intervallo `3-5`) ed eventuali parametri (`CICLO`, `SORGENTE`).
 
-**Regole per l'orchestratore**
-
-1. Il tuo piano ha UN sub-agente per ogni capitolo dell'elenco (o per ogni gruppo di lavoro indicato dal prompt). Mai due
-   sub-agenti sugli stessi file. Al massimo 3 sub-agenti in parallelo.
-2. A ogni sub-agente dai: (a) il file di prompt da seguire, (b) `CONVENZIONI.md`, (c) il numero del capitolo e gli
-   eventuali parametri (`CICLO`, `SORGENTE`). Nient'altro: NON riassumere il contenuto dei file al suo posto e non
-   incollare testo del libro nelle istruzioni. Ogni sub-agente legge da se' i file indicati nel prompt.
-3. **Tu non scrivi e non riscrivi i file del libro.** Sei il controllore: ti basi sui comandi di controllo e i file di esito;
-   non rileggere tutti i capitoli (il libro intero non ti sta nel contesto). Per ogni capitolo: file di output presente e
-   controlli superati → ok; altrimenti rimanda al sub-agente l'elenco degli errori (massimo 2 giri), poi segnalalo nel
-   messaggio finale.
-4. Se un sub-agente dice di aver eseguito un controllo ma il file di esito non esiste o non e' aggiornato, il
-   controllo non e' stato fatto: eseguilo tu (solo i comandi consentiti al paragrafo 2).
-5. **Rilancio dopo errori**: se i file di esito (`stato/verifica_bp_capNN.json`, `stato/verifica_capNN.json`,
-   `stato/verifica_p1.json`) contengono `errori`, il sub-agente lavora in modalita' correzione: corregge SOLO quegli
-   errori e non riscrive il resto.
-6. Se il compito e' un rilancio dopo un'interruzione (quota esaurita, sessione chiusa), i sub-agenti completano solo
-   cio' che manca.
-7. Messaggio finale dell'orchestratore: per ogni capitolo una riga di esito, poi DUBBI. Nel formato del paragrafo 7.
-
-**Regole per i sub-agenti**
-
-1. Leggi tu stesso `CONVENZIONI.md` e i file di input del prompt. Lavora SOLO sul capitolo e sui percorsi assegnati.
-2. Esegui solo i comandi di controllo consentiti.
-3. Alla fine rispondi all'orchestratore nel formato del paragrafo 7 (FATTO / CONTROLLI / DUBBI).
+1. **Un capitolo alla volta.** Se i capitoli sono piu' d'uno, lavorali in ordine: finisci e controlla un capitolo prima di
+   passare al successivo. Non rileggere i capitoli gia' chiusi.
+2. **Leggi solo cio' che serve.** Il prompt elenca i file di input: non leggere altro (il libro intero non sta nel contesto).
+3. **Rilancio dopo errori o interruzioni.** Se i file di esito (`stato/verifica_bp_capNN.json`, `stato/verifica_capNN.json`,
+   `stato/verifica_p1.json`) contengono `errori`, lavora in modalita' correzione: correggi SOLO quegli errori e non riscrivere il
+   resto. Se i file di output esistono gia' (sessione interrotta), completa solo cio' che manca.
+4. **Esegui i controlli indicati e non dichiarare mai di averli eseguiti se non l'hai fatto.** Se non puoi eseguire comandi,
+   dillo nel messaggio finale: l'utente li lancera'.
+5. **Mai due compiti diversi nella stessa sessione.** Quando hai finito, rispondi con il messaggio finale del paragrafo 7.

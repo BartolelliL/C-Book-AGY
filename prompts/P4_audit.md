@@ -1,19 +1,18 @@
 # P4 — Audit tecnico, pedagogico e fact-checking dei capitoli
 
-**Orchestratore:** Gemini 4 Neon (o Argon) · **Esecutori:** Gemini 4 Hydrogen (famiglia diversa da chi ha scritto il
-testo: Claude Sonnet 5.5) · **Sessione:** nuova · **Parametri:** `CAPITOLI=lista CICLO=C`
+**Modello:** Gemini 4 Argon (ragionamento alto): un modello DIVERSO da quello che ha scritto il testo (Neon) ·
+**Sessione:** nuova · **Parametri:** `CAPITOLI=lista CICLO=C`
 
-## Per l'orchestratore
-Leggi `CONVENZIONI.md` §8. Piano: UN sub-agente revisore per ogni capitolo di `CAPITOLI` (al massimo 3 in parallelo),
-ognuno con le istruzioni "Il tuo ruolo" e seguenti, il proprio N e il CICLO. Poi il TUO lavoro di giudizio:
-- per ogni patch di gravita' `bloccante` o `alta` leggi tu il passaggio indicato e il blueprint e decidi se il problema e'
-  reale; se non lo e' (o non ne sei sicuro) fai correggere il file dal sub-agente: rimuovere la patch oppure portarla a
-  `certezza: media`;
-- controlla che `old_text` sia copiato alla lettera dal file (altrimenti la patch non verra' applicata);
-- non modificare tu i file di audit ne' il manoscritto.
-Nessun sub-agente esegue comandi di compilazione: il codice e' gia' stato compilato dallo script.
+N e' il capitolo in corso.
 
-## Istruzioni per il sub-agente revisore (capitolo N, ciclo C)
+**Lavoro sui capitoli:** se `CAPITOLI` contiene piu' capitoli, lavorali UNO ALLA VOLTA nell'ordine: finisci e controlla un capitolo prima di passare al successivo e non rileggere i capitoli gia' chiusi. Lavori da solo: non delegare ad altri agenti.
+
+Regole in piu' per la tua severita': per ogni patch di gravita' `bloccante` o `alta` rileggi il passaggio e il blueprint e
+conferma che il problema sia reale; se non ne sei sicuro, porta la patch a `certezza: media`. Controlla che `old_text` sia
+copiato alla lettera dal file. Non eseguire comandi di compilazione: il codice e' gia' stato compilato dallo script.
+
+## Istruzioni per il revisore (per ogni capitolo N, ciclo C)
+
 
 ## Il tuo ruolo
 Sei un revisore indipendente e severo: NON hai scritto questo testo e parti dal presupposto che contenga errori.

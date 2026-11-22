@@ -1,11 +1,11 @@
 # PROGRAMMA — dal primo programma all'autonomia in C
 
-Questo file è l'input di P1. È una PROPOSTA: P1 puo' unire o dividere capitoli (da 15 a 24 in tutto) se motiva la
+Questo file e' l'input di P1. E' una PROPOSTA: P1 puo' unire o dividere capitoli (da 15 a 24 in tutto) se motiva la
 scelta, ma deve rispettare l'ordine di propedeuticita' e raggiungere il traguardo qui sotto.
 
 Lettori: studenti di 16-18 anni, zero C all'inizio. Standard: C23. Sistema operativo: qualunque (solo libreria
-standard, niente POSIX/Windows, niente thread). Il libro è un **libro di teoria, esercizi e di progetto**: ogni 
-sotto-sezione spiega un concetto e poi fa esercitare, senza dare soluzioni.
+standard, niente POSIX/Windows, niente thread). Il libro e' un **libro di esercizi e di progetto**: ogni sotto-sezione
+spiega un concetto e poi fa esercitare, senza dare soluzioni.
 
 ## Traguardo del libro
 
@@ -15,7 +15,7 @@ funzione per hash, confronto e rilascio, gestione delle collisioni, ridimensiona
 "chi possiede e chi libera" la memoria, header pubblico con tipo opaco, controllo degli errori senza perdite di memoria
 e senza comportamento indefinito. Tutto il libro prepara questo traguardo; il progetto finale (un interprete) la usa.
 
-**Padronanza**: alla fine il lettore sa scrivere da solo programmi di centinaia e migliaia di righe su piu' file, con
+**Autonomia**: alla fine il lettore sa scrivere da solo programmi di qualche centinaio di righe su piu' file, con
 strutture dati dinamiche; leggere e correggere codice C altrui; usare gli strumenti di diagnostica (avvisi del
 compilatore, sanitizer, debugger); consultare la documentazione dello standard; riconoscere e evitare il comportamento
 indefinito.
@@ -86,11 +86,11 @@ indefinito.
 
 ## Vincoli didattici
 
-- Ogni sotto-sezione si chiude con un esercizio; la difficoltà cresce nel capitolo e nel libro (capitoli 1-7:
+- Ogni sotto-sezione si chiude con un esercizio; la difficolta' cresce nel capitolo e nel libro (capitoli 1-7:
   da 1 a 3 su 5; capitoli 8-12: da 2 a 4; capitoli 13-21: da 3 a 5).
 - Gli esercizi non contengono soluzioni: aiutano solo "concetti da tenere a mente" e "domande guida".
 - Prima di introdurre un concetto non si usa mai (nemmeno negli esempi).
 - Dal capitolo 13 gli esercizi tipici sono programmi di 40-150 righe; dal capitolo 19 possono essere su piu' file.
 - Il comportamento indefinito va spiegato quando nasce (cap. 3, 8, 10, 11, 13) e ripreso nel capitolo 21: il lettore
-  deve sapere perche' è pericoloso, non solo che esiste.
+  deve sapere perche' e' pericoloso, non solo che esiste.
 - Nessuna dipendenza da funzioni non standard (niente POSIX/Windows, niente thread).

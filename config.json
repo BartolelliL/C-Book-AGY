@@ -3,7 +3,7 @@
   "lingua": "it",
   "standard_c": "C23",
   "capitoli_min": 16,
-  "capitoli_max": 48,
+  "capitoli_max": 32,
   "sotto_sezioni_min": 3,
   "sotto_sezioni_max": 6,
   "progetto_finale": true,
@@ -26,21 +26,25 @@
   "git_autocommit": true,
   "registro_min": 80,
   "glossario_min": 60,
-  "orchestratore": "Gemini 4 Neon (in alternativa Claude Opus 5.5)",
-  "esecutori": {
-    "P1": "Claude Sonnet 5.5",
-    "P2": "Claude Sonnet 5.5",
-    "P2B": "Gemini 4 Hydrogen",
-    "P3": "Claude Sonnet 5.5",
-    "P4": "Gemini 4 Hydrogen",
-    "P5": "Claude Sonnet 5.5",
-    "P6": "Gemini 4 Hydrogen",
-    "P7": "Gemini 4 Hydrogen"
-  },
   "lotto_capitoli": {
-    "P2": 5,
-    "P3": 3,
-    "P4": 4,
-    "P5": 4
+    "P2": 2,
+    "P3": 1,
+    "P4": 2,
+    "P5": 2,
+    "P6D": 4,
+    "P7": 4
+  },
+  "modelli": {
+    "P1": "Gemini 4 Neon (ragionamento alto)",
+    "P1R": "Gemini 4 Argon (ragionamento alto)",
+    "P2": "Gemini 4 Neon (ragionamento alto)",
+    "P2B": "Gemini 4 Argon (ragionamento alto)",
+    "P3": "Gemini 4 Neon",
+    "P4": "Gemini 4 Argon (ragionamento alto): modello DIVERSO da quello che ha scritto",
+    "P5": "Gemini 4 Neon",
+    "P6D": "Gemini 4 Hydrogen",
+    "P6": "Gemini 4 Argon (ragionamento alto)",
+    "P7": "Gemini 4 Hydrogen",
+    "P7M": "Gemini 4 Hydrogen"
   }
 }

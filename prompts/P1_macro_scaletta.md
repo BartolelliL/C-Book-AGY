@@ -1,20 +1,9 @@
 # P1 — Macro-scaletta del libro
 
-**Orchestratore:** Gemini 4 Neon (o Argon) · **Esecutori:** Claude Sonnet 5.5 (scrittura) e Gemini 4 Hydrogen (revisione) ·
-**Sessione:** nuova · **Parametri:** nessuno
+**Modello:** Gemini 4 Neon (ragionamento alto) · **Sessione:** nuova · **Parametri:** nessuno
+(la critica indipendente della macro-scaletta la fa un altro modello con P1R)
 
-## Per l'orchestratore
-Leggi `CONVENZIONI.md` §8 (orchestrazione). Piano in due fasi:
-1. UN sub-agente scrittore (Sonnet 5.5) esegue le "Istruzioni per il sub-agente scrittore" qui sotto e scrive
-   `stato/macro_scaletta.json`. Se esiste `stato/verifica_p1.json` con `errori`, e' un rilancio: modalita' correzione.
-2. Quando `python3 scripts/libro.py controlla-macro` passa, UN sub-agente revisore (Hydrogen: modello DIVERSO da quello che
-   ha scritto) legge `stato/macro_scaletta.json`, `PROGRAMMA.md` e `config.json` e scrive `stato/revisione_p1.md`
-   (massimo 400 parole): critica indipendente su registro incompleto o incoerente, ordine di propedeuticita', capitoli
-   troppo carichi o troppo leggeri, glossario, e se il traguardo di `PROGRAMMA.md` (tabella hash generica, interprete finale)
-   e' davvero raggiunto. NON modifica la macro-scaletta.
-Tu controlli l'esito e non scrivi nulla. Nel messaggio finale riassumi in 5 righe la revisione.
-
-## Istruzioni per il sub-agente scrittore
+## Istruzioni
 
 ## Prima di tutto
 1. Leggi `CONVENZIONI.md` per intero.
@@ -59,7 +48,7 @@ capitoli, quindi lavora con cura. Non scrivere nessun altro file.
 }
 ```
 
-(L'esempio è abbreviato: il tuo file deve essere completo.)
+(L'esempio e' abbreviato: il tuo file deve essere completo.)
 
 ### Regole per i capitoli
 - Il numero di capitoli sta nei limiti di `config.json` (`capitoli_min`-`capitoli_max`); segui ordine e traguardo di

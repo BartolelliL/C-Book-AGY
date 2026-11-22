@@ -1,0 +1,207 @@
+{
+  "p1": {
+    "verificato": true,
+    "approvato": false,
+    "hash": null,
+    "modificato": false
+  },
+  "n_capitoli": 22,
+  "capitoli": {
+    "1": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "2": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "3": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "4": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "5": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "6": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "7": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "8": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "9": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "10": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "11": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "12": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "13": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "14": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "15": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "16": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "17": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "18": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "19": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "20": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "21": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "22": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    }
+  },
+  "p2b": {
+    "verificato": false
+  },
+  "pilota": {
+    "approvato": false
+  },
+  "p6": {
+    "unito": false,
+    "audit": false,
+    "applicato": false,
+    "p5_capitoli": [],
+    "chiuso": false
+  },
+  "p7": {
+    "verificato": false
+  },
+  "finale": {
+    "approvato": false
+  },
+  "fine": false
+}

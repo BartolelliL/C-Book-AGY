@@ -1,15 +1,15 @@
 # P5 — Correzioni mirate (residui dell'audit ed errori dei controlli)
 
-**Orchestratore:** Gemini 4 Neon (o Argon) · **Esecutori:** Claude Sonnet 5.5 · **Sessione:** nuova ·
-**Parametri:** `CAPITOLI=lista` e (`SORGENTE=capitolo` `CICLO=C`) oppure `SORGENTE=globale`
+**Modello:** Gemini 4 Neon · **Sessione:** nuova · **Parametri:** `CAPITOLI=lista` e (`SORGENTE=capitolo` `CICLO=C`)
+oppure `SORGENTE=globale`
 
-## Per l'orchestratore
-Leggi `CONVENZIONI.md` §8. Piano: UN sub-agente per ogni capitolo di `CAPITOLI` (al massimo 3 in parallelo), con queste
-istruzioni, il proprio N, `SORGENTE` ed eventuale `CICLO`. A fine lavoro esegui `python3 scripts/libro.py controlla N` per ogni
-capitolo e verifica che esista il rapporto P5. Se un sub-agente dichiara `non_risolti`, non decidere tu: riportalo
-nel messaggio finale (decide l'utente).
+N e' il capitolo in corso.
 
-## Istruzioni per il sub-agente (capitolo N)
+**Lavoro sui capitoli:** se `CAPITOLI` contiene piu' capitoli, lavorali UNO ALLA VOLTA nell'ordine: finisci e controlla un capitolo prima di passare al successivo e non rileggere i capitoli gia' chiusi. Lavori da solo: non delegare ad altri agenti.
+
+Se dichiari `non_risolti` non decidere tu: la scelta spetta all'utente.
+
+## Istruzioni (per ogni capitolo N)
 
 ## Prima di tutto
 1. Leggi `CONVENZIONI.md` per intero.

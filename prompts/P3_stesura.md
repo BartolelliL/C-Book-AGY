@@ -1,18 +1,12 @@
 # P3 — Stesura dei capitoli
 
-**Orchestratore:** Gemini 4 Neon (o Argon) · **Esecutori:** Claude Sonnet 5.5 · **Sessione:** nuova ·
-**Parametri:** `CAPITOLI=lista` (es. `3-5`)
+**Modello:** Gemini 4 Neon · **Sessione:** nuova (meglio un capitolo per sessione) · **Parametri:** `CAPITOLI=lista` (es. `3` o `3-4`)
 
-NN = N a due cifre (es. 03). K = numero della sotto-sezione. N e' il capitolo assegnato al sub-agente.
+NN = N a due cifre (es. 03). K = numero della sotto-sezione. N e' il capitolo in corso.
 
-## Per l'orchestratore
-Leggi `CONVENZIONI.md` §8. Piano: UN sub-agente per ogni capitolo di `CAPITOLI` (al massimo 3 in parallelo), ognuno con
-queste istruzioni e il proprio N. Non scrivere tu il testo e non leggere i capitoli per intero: a fine lavoro esegui
-`python3 scripts/libro.py controlla N` per ogni capitolo. Se ci sono errori, rimanda il capitolo allo stesso sub-agente
-con l'elenco (massimo 2 giri). Verifica a campione (una sotto-sezione per capitolo) che l'esempio di esecuzione
-dell'esercizio coincida con il blueprint e che l'esercizio non contenga la soluzione.
+**Lavoro sui capitoli:** se `CAPITOLI` contiene piu' capitoli, lavorali UNO ALLA VOLTA nell'ordine: finisci e controlla un capitolo prima di passare al successivo e non rileggere i capitoli gia' chiusi. Lavori da solo: non delegare ad altri agenti.
 
-## Istruzioni per il sub-agente (capitolo N)
+## Istruzioni (per ogni capitolo N)
 
 ## Prima di tutto
 1. Leggi `CONVENZIONI.md` per intero: il formato dei file e i marcatori del codice sono OBBLIGATORI.
@@ -71,7 +65,7 @@ nel formato ESATTO di `CONVENZIONI.md` §3. Non scrivere altro.
 1. Esegui `python3 scripts/libro.py controlla N`. Legge i file, compila ed esegue ogni programma, confronta gli output e
    controlla progressione, glossario, struttura e soluzioni esposte.
 2. Correggi OGNI errore elencato (gli avvisi vanno valutati) e riesegui, fino a esito pulito (massimo 4 giri).
-3. Se non puoi eseguire comandi: scrivilo nel messaggio finale; l'orchestratore o l'utente li lanceranno.
+3. Se non puoi eseguire comandi: scrivilo nel messaggio finale; l'utente li lancera'.
 
 ## Non fare
 - Non modificare il blueprint, la macro-scaletta, gli script o altri capitoli.

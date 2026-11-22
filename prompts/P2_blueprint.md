@@ -1,17 +1,14 @@
 # P2 — Blueprint tecnico-pedagogico dei capitoli
 
-**Orchestratore:** Gemini 4 Neon (o Argon) · **Esecutori:** Claude Sonnet 5.5 · **Sessione:** nuova ·
-**Parametri:** `CAPITOLI=lista` (es. `1-5`)
+**Modello:** Gemini 4 Neon (ragionamento alto) · **Sessione:** nuova · **Parametri:** `CAPITOLI=lista` (es. `1-2`)
 
-NN = N a due cifre (es. 03), dove N e' il capitolo assegnato al sub-agente.
+NN = N a due cifre (es. 03). N e' il capitolo in corso.
 
-## Per l'orchestratore
-Leggi `CONVENZIONI.md` §8. Piano: UN sub-agente per ogni capitolo di `CAPITOLI`, ognuno con queste istruzioni e il proprio
-numero N (al massimo 3 in parallelo). A fine lavoro esegui tu `python3 scripts/libro.py controlla-bp N` per ogni capitolo;
-se ci sono errori, rimanda il capitolo al sub-agente (massimo 2 giri). Nel messaggio finale segnala gli elementi che i
-sub-agenti avrebbero voluto usare ma non sono nel registro (decisione dell'utente).
+**Lavoro sui capitoli:** se `CAPITOLI` contiene piu' capitoli, lavorali UNO ALLA VOLTA nell'ordine: finisci e controlla un capitolo prima di passare al successivo e non rileggere i capitoli gia' chiusi. Lavori da solo: non delegare ad altri agenti.
 
-## Istruzioni per il sub-agente (capitolo N)
+Alla fine, nel messaggio finale, segnala gli elementi che avresti voluto usare ma non sono nel registro (decide l'utente).
+
+## Istruzioni (per ogni capitolo N)
 
 ## Prima di tutto
 1. Leggi `CONVENZIONI.md` per intero.

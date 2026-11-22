@@ -1588,13 +1588,16 @@ def verifica_p7(macro, st):
 
 PROMPT = {
     "P1": "prompts/P1_macro_scaletta.md",
+    "P1R": "prompts/P1R_revisione_macro.md",
     "P2": "prompts/P2_blueprint.md",
     "P2B": "prompts/P2B_coerenza_blueprint.md",
     "P3": "prompts/P3_stesura.md",
     "P4": "prompts/P4_audit.md",
     "P5": "prompts/P5_correzioni.md",
+    "P6D": "prompts/P6D_digest.md",
     "P6": "prompts/P6_coerenza_globale.md",
-    "P7": "prompts/P7_apparati.md",
+    "P7": "prompts/P7_commenti.md",
+    "P7M": "prompts/P7M_metadati.md",
 }
 
 
@@ -1618,7 +1621,7 @@ def messaggio(codice, **par):
         if isinstance(v, (list, tuple)):
             v = fmt_capitoli(v)
         extra += " %s=%s" % (k, v)
-    base = ("Leggi CONVENZIONI.md per intero (in particolare il paragrafo 8 sull'orchestrazione), "
+    base = ("Leggi CONVENZIONI.md per intero (in particolare il paragrafo 8 sul lavoro a capitoli), "
             "poi esegui esattamente le istruzioni di %s" % PROMPT[codice])
     return base + (" con" + extra if extra else "") + "."
 
@@ -1641,9 +1644,23 @@ def compito_capitolo(n, cp):
     return None
 
 
+def capitoli_commenti_incompleti(st):
+    """Capitoli per cui mancano (o sono troppo brevi) i commenti alle soluzioni."""
+    com, _ = carica_commenti()
+    com = com if isinstance(com, dict) else {}
+    out = []
+    for n in range(1, (st["n_capitoli"] or 0) + 1):
+        bp, e = carica_bp(n)
+        if e:
+            continue
+        ids = [x["id"] for x in bp["esercizi"] if x.get("verificabile", True) is True]
+        if any(not isinstance(com.get(i), str) or len(com[i].strip()) < 20 for i in ids):
+            out.append(n)
+    return out
+
+
 def decidi_prossimo(c, st):
-    orch = c.get("orchestratore", "")
-    E = c["esecutori"]
+    M = c["modelli"]
 
     def task(codice, capitoli=None, **par):
         pp = {}
@@ -1651,8 +1668,8 @@ def decidi_prossimo(c, st):
             pp["CAPITOLI"] = capitoli
         pp.update(par)
         parti = [codice] + ["%s=%s" % (k, fmt_capitoli(v) if isinstance(v, (list, tuple)) else v) for k, v in pp.items()]
-        return {"tipo": "agente", "titolo": " ".join(parti), "orchestratore": orch,
-                "esecutori": E[codice], "messaggio": messaggio(codice, **pp)}
+        return {"tipo": "agente", "titolo": " ".join(parti), "modello": M[codice],
+                "messaggio": messaggio(codice, **pp)}
 
     def umano(titolo, istruzioni, comando=None):
         return {"tipo": "umano", "titolo": titolo, "istruzioni": istruzioni, "comando": comando}
@@ -1664,10 +1681,12 @@ def decidi_prossimo(c, st):
                      "Apri stato/macro_scaletta.json: se la modifica e' voluta riapprova, altrimenti ripristina il file (git).",
                      "python3 scripts/libro.py approva 1")
     if not st["p1"]["approvato"]:
+        if not os.path.exists(p("stato", "revisione_p1.md")):
+            return task("P1R")
         return umano("CHECKPOINT UMANO 1 - Approva la macro-scaletta",
                      "Leggi stato/macro_scaletta.json (capitoli, obiettivi, glossario, registro) e stato/revisione_p1.md "
-                     "(critica indipendente). Ogni errore qui si propaga a tutto il libro: correggi a mano o chiedi di "
-                     "correggere (rilancia P1).",
+                     "(critica di un secondo modello). Ogni errore qui si propaga a tutto il libro: correggi a mano oppure "
+                     "cancella stato/revisione_p1.md e rilancia P1 chiedendo le correzioni.",
                      "python3 scripts/libro.py approva 1")
     n_tot = st["n_capitoli"]
     da_fare = [n for n in range(1, n_tot + 1) if st["capitoli"][str(n)]["fase"] == "blueprint"]
@@ -1704,13 +1723,20 @@ def decidi_prossimo(c, st):
         return task(prima[1], capitoli, **prima[2])
     g = st["p6"]
     if not g["audit"]:
+        da_digest = [n for n in range(1, n_tot + 1)
+                     if not os.path.exists(p("stato", "digest", "cap%s.md" % nn(n)))]
+        if da_digest:
+            return task("P6D", da_digest[:lotto(c, "P6D")])
         return task("P6")
     if not g["chiuso"]:
         elenco = list(g["p5_capitoli"])
         mancanti = [n for n in elenco if not os.path.exists(p("audit", "globale_p5_cap%s.json" % nn(n)))]
         return task("P5", (mancanti or elenco)[:lotto(c, "P5")], SORGENTE="globale")
     if not st["p7"]["verificato"]:
-        return task("P7")
+        da = capitoli_commenti_incompleti(st)
+        if da:
+            return task("P7", da[:lotto(c, "P7")])
+        return task("P7M")
     if not st["finale"]["approvato"]:
         return umano("CHECKPOINT UMANO 3 - Lettura finale e congelamento",
                      "Leggi il libro per intero (manoscritto/cap*.md), docente/soluzioni_commentate.md e apparati/. "
@@ -1731,8 +1757,7 @@ def stampa_prossimo(t):
     print("=" * 72)
     if t["tipo"] == "agente":
         print("PROSSIMO PASSO : " + t["titolo"])
-        print("ORCHESTRATORE  : " + t["orchestratore"])
-        print("ESECUTORI      : " + t["esecutori"])
+        print("MODELLO        : " + t["modello"])
         print("SESSIONE       : nuova (chiudi la precedente)")
         print("-" * 72)
         print("Incolla in Antigravity questo messaggio:")
@@ -1740,7 +1765,7 @@ def stampa_prossimo(t):
         print("    " + t["messaggio"])
         print("")
         print("-" * 72)
-        print("Quando l'orchestratore ha finito, lancia:  python3 scripts/libro.py avanti")
+        print("Quando l'agente ha finito, lancia:  python3 scripts/libro.py avanti")
     else:
         print("PASSO UMANO: " + t["titolo"])
         print("-" * 72)
