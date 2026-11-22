@@ -9,12 +9,12 @@ in conflitto, vince questo file e lo segnali nel messaggio finale.
 
 | Voce | Valore |
 |---|---|
-| Titolo di lavoro | C - Il linguaggio di programmazione |
+| Titolo di lavoro | Imparare il C con gli esercizi |
 | Lingua del libro | Italiano |
 | Standard del linguaggio | C23 (ISO/IEC 9899:2024) |
 | Lettori | Studenti di 16-18 anni, partono da zero in C. Possono conoscere un altro linguaggio (per esempio Python) ma non e' garantito: ogni concetto va spiegato da zero |
 | Traguardo | Autonomia completa in C: il lettore sa scrivere da solo programmi di qualche centinaio di righe su piu' file, con strutture dati dinamiche, senza perdite di memoria e senza comportamento indefinito. Concetto di riferimento: una **tabella hash generica come tipo opaco** (`void *`, puntatori a funzione, regole di possesso della memoria). Vedi `PROGRAMMA.md` |
-| Livello | Dal capitolo 13 in poi il libro e' di livello intermedio-avanzato: stesso rigore, meno spiegazioni elementari, esercizi piu' lunghi (40-150 righe), in parte su piu' file |
+| Livello | Dal capitolo 13 in poi il libro e' di livello intermedio-avanzato, e la Parte IV (allocatori, strutture dati avanzate, tecniche avanzate del linguaggio, qualita' e prestazioni) e' di livello avanzato: stesso rigore, meno spiegazioni elementari, esercizi piu' lunghi (40-150 righe), in parte su piu' file |
 | Sistema operativo dei lettori | Variabile (macOS, Linux, Windows): niente istruzioni legate a un solo sistema; nessuna dipendenza da un IDE specifico |
 | Soluzioni degli esercizi | NON compaiono nel libro. Le soluzioni di riferimento esistono solo nei blueprint (per verificare gli esercizi) e nel file separato `docente/soluzioni_commentate.md` |
 | Progetto finale | Un progetto di difficolta' alta nell'ultimo capitolo (un interprete per un piccolo linguaggio), diviso in fasi, con test automatici |
@@ -245,7 +245,10 @@ marcatore:
 6. **Confronti con Python**: opzionali, al massimo uno per sotto-sezione, nel box `> **Se vieni da Python** — ...`.
 7. **Schemi di memoria**: disegnali in blocchi ```` ```text ```` (monospazio), senza marcatore.
 8. **Lunghezza** di una sotto-sezione: indicativamente 700-2200 parole di prosa (codice escluso).
-9. **Esercizi senza soluzione**: l'esercizio contiene descrizione, concetti da tenere a mente, domande guida (che
+9. **Lettere accentate**: nel libro, nei blueprint e nel glossario scrivi SEMPRE le lettere accentate corrette (è, é, à, ì, ò, ù),
+   MAI l'apostrofo al posto dell'accento (vietato: `perche'`, `e'`, `piu'`, `citta'`). Gli esempi di questo file usano l'apostrofo
+   solo per motivi tecnici: non imitarli. I controlli automatici segnalano l'errore.
+10. **Esercizi senza soluzione**: l'esercizio contiene descrizione, concetti da tenere a mente, domande guida (che
    indirizzano il ragionamento, mai il codice) ed esempio di esecuzione. Niente codice risolutivo, nemmeno parziale,
    salvo una `traccia` con `TODO`. L'esempio guidato NON deve essere la soluzione dell'esercizio della stessa
    sotto-sezione (i controlli lo verificano).

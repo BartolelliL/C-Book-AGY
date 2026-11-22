@@ -1,30 +1,43 @@
 {
   "titolo": "C - Il linguaggio di programmazione",
-  "destinatari": "Studenti di 16-18 anni che partono da zero in C (possono conoscere un altro linguaggio come Python, ma ogni concetto viene spiegato da zero), accompagnati fino all'autonomia completa in C23 su più file.",
+  "destinatari": "Studenti di 16-18 anni che partono da zero in C, su qualunque sistema operativo, con l'obiettivo di raggiungere piena autonomia in C23 fino a progettare librerie modulari e strutture dati dinamiche.",
   "capitoli": [
     {
       "n": 1,
       "titolo": "Il primo programma",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare che cos'è il linguaggio C e come un file sorgente diventa un eseguibile",
-        "Compilare ed eseguire un programma C da riga di comando con avvisi attivi",
-        "Scrivere la struttura minima di un programma C usando int main(void) e return 0",
-        "Usare printf con sequenze di escape per stampare testo formattato",
-        "Distinguere errori di compilazione, avvisi e commenti nel codice"
+        "Compilare ed eseguire un programma C da riga di comando in modo indipendente dal sistema operativo",
+        "Spiegare il ruolo di #include, della funzione main e dell'istruzione return",
+        "Scrivere programmi che stampano testo formattato con printf e sequenze di escape",
+        "Distinguere gli errori di compilazione dagli avvisi e correggere i messaggi più comuni"
       ],
       "argomenti": [
-        "ruolo del C e ciclo di compilazione",
-        "struttura di un programma (#include, main, blocchi, return)",
-        "stampa di testo con printf e sequenze di escape",
-        "commenti, errori di compilazione e avvisi"
+        "ruolo del linguaggio C",
+        "compilazione ed esecuzione",
+        "struttura di un programma",
+        "printf e sequenze di escape",
+        "commenti",
+        "errori e avvisi del compilatore"
       ],
       "prerequisiti": [],
       "sotto_sezioni": [
-        {"id": "1.1", "titolo": "Dal sorgente all'eseguibile"},
-        {"id": "1.2", "titolo": "La struttura di un programma C"},
-        {"id": "1.3", "titolo": "Stampare testo con printf e sequenze di escape"},
-        {"id": "1.4", "titolo": "Commenti, errori e avvisi del compilatore"}
+        {
+          "id": "1.1",
+          "titolo": "Dal codice sorgente all'eseguibile"
+        },
+        {
+          "id": "1.2",
+          "titolo": "La struttura di un programma C"
+        },
+        {
+          "id": "1.3",
+          "titolo": "Stampare testo con printf e sequenze di escape"
+        },
+        {
+          "id": "1.4",
+          "titolo": "Commenti, errori e avvisi del compilatore"
+        }
       ]
     },
     {
@@ -32,26 +45,42 @@
       "titolo": "Variabili e tipi",
       "tipo": "teoria",
       "obiettivi": [
-        "Dichiarare e inizializzare variabili dei tipi int, double, char e bool (C23)",
-        "Scegliere il tipo intero o in virgola mobile adatto in base a dimensioni e limiti",
-        "Usare sizeof, size_t e le costanti di limits.h per ispezionare i tipi",
-        "Definire costanti con const e constexpr (C23) spiegandone la differenza",
-        "Formattare numeri e caratteri con gli specificatori di printf"
+        "Dichiarare e inizializzare variabili dei tipi fondamentali del C23",
+        "Scegliere lo specificatore di formato corretto in printf per ciascun tipo",
+        "Definire valori immutabili con const e costanti a tempo di compilazione con constexpr",
+        "Determinare la dimensione e i limiti numerici dei tipi con sizeof e <limits.h>"
       ],
       "argomenti": [
-        "dichiarazione e inizializzazione di variabili",
-        "tipi fondamentali (int, double, float, char, bool, short, long, unsigned, signed)",
-        "sizeof, size_t e limits.h",
+        "variabili, dichiarazione e inizializzazione",
+        "tipi int, double, char, bool (C23) e modificatori di tipo",
+        "specificatori di formato",
         "costanti con const e constexpr",
-        "specificatori di formato di printf"
+        "operatore sizeof, size_t e <limits.h>"
       ],
-      "prerequisiti": [1],
+      "prerequisiti": [
+        1
+      ],
       "sotto_sezioni": [
-        {"id": "2.1", "titolo": "Variabili, dichiarazione e inizializzazione"},
-        {"id": "2.2", "titolo": "Caratteri, codifica ASCII e tipo bool in C23"},
-        {"id": "2.3", "titolo": "Dimensioni, limiti e varianti dei tipi numerici"},
-        {"id": "2.4", "titolo": "Costanti con const e constexpr"},
-        {"id": "2.5", "titolo": "Specificatori di formato con printf"}
+        {
+          "id": "2.1",
+          "titolo": "Dichiarare e inizializzare variabili"
+        },
+        {
+          "id": "2.2",
+          "titolo": "I tipi fondamentali: int, double, char e bool"
+        },
+        {
+          "id": "2.3",
+          "titolo": "Stampare valori con gli specificatori di formato"
+        },
+        {
+          "id": "2.4",
+          "titolo": "Costanti con const e constexpr"
+        },
+        {
+          "id": "2.5",
+          "titolo": "Dimensione e limiti dei tipi: sizeof e <limits.h>"
+        }
       ]
     },
     {
@@ -59,26 +88,44 @@
       "titolo": "Operatori ed espressioni",
       "tipo": "teoria",
       "obiettivi": [
-        "Prevedere il risultato di espressioni aritmetiche inclusa la divisione intera e il resto",
-        "Usare assegnamenti composti, incremento e decremento evitando effetti collaterali ambigui",
-        "Costruire espressioni booleane con operatori relazionali e logici rispettando la precedenza",
-        "Spiegare le conversioni di tipo implicite e applicare conversioni esplicite (cast)",
-        "Riconoscere l'overflow degli interi come comportamento indefinito e gestire l'imprecisione dei numeri in virgola mobile"
+        "Prevedere il risultato di espressioni aritmetiche, relazionali e logiche applicando precedenza e associatività",
+        "Distinguere la divisione intera dalla divisione in virgola mobile e usare l'operatore modulo",
+        "Controllare le conversioni di tipo implicite ed esplicite senza perdere informazioni",
+        "Riconoscere e prevenire l'overflow degli interi con segno e gli errori di arrotondamento in virgola mobile"
       ],
       "argomenti": [
         "operatori aritmetici, divisione intera e resto",
-        "assegnamenti composti, ++ e --",
-        "operatori relazionali, logici, precedenza e associatività",
-        "conversioni implicite ed esplicite (cast)",
-        "overflow degli interi, comportamento indefinito e precisione della virgola mobile"
+        "assegnamenti composti, incremento e precedenza",
+        "operatori relazionali e logici",
+        "conversioni di tipo implicite ed esplicite",
+        "overflow degli interi e comportamento indefinito",
+        "imprecisione dei numeri in virgola mobile e <float.h>"
       ],
-      "prerequisiti": [1, 2],
+      "prerequisiti": [
+        1,
+        2
+      ],
       "sotto_sezioni": [
-        {"id": "3.1", "titolo": "Operatori aritmetici, divisione intera e resto"},
-        {"id": "3.2", "titolo": "Assegnamenti composti, incremento e decremento"},
-        {"id": "3.3", "titolo": "Operatori relazionali, logici e precedenza"},
-        {"id": "3.4", "titolo": "Conversioni di tipo implicite ed esplicite"},
-        {"id": "3.5", "titolo": "Overflow degli interi e imprecisione della virgola mobile"}
+        {
+          "id": "3.1",
+          "titolo": "Operatori aritmetici, divisione intera e resto"
+        },
+        {
+          "id": "3.2",
+          "titolo": "Assegnamenti composti, incremento e precedenza"
+        },
+        {
+          "id": "3.3",
+          "titolo": "Operatori relazionali e logici"
+        },
+        {
+          "id": "3.4",
+          "titolo": "Conversioni di tipo implicite ed esplicite"
+        },
+        {
+          "id": "3.5",
+          "titolo": "Overflow degli interi e imprecisione della virgola mobile"
+        }
       ]
     },
     {
@@ -86,23 +133,39 @@
       "titolo": "Decisioni",
       "tipo": "teoria",
       "obiettivi": [
-        "Scrivere ramificazioni chiare con if, else ed else if",
-        "Sfruttare la valutazione a corto circuito degli operatori logici per proteggere le espressioni",
-        "Scegliere tra catene if/else e il costrutto switch con break e default",
-        "Usare l'operatore condizionale ?: nei casi in cui migliora la leggibilità"
+        "Scrivere selezioni semplici e annidate con if ed else",
+        "Sfruttare la valutazione a corto circuito di && e || per scrivere condizioni sicure",
+        "Scegliere tra catene di if-else e il costrutto switch con break e default",
+        "Usare l'operatore condizionale ?: quando rende un'espressione più leggibile"
       ],
       "argomenti": [
-        "istruzioni if, else, else if e blocchi",
-        "valutazione a corto circuito di && e ||",
+        "costrutto if ed else",
+        "condizioni composte e valutazione a corto circuito",
         "costrutto switch, case, default e break",
         "operatore condizionale ?:"
       ],
-      "prerequisiti": [2, 3],
+      "prerequisiti": [
+        1,
+        2,
+        3
+      ],
       "sotto_sezioni": [
-        {"id": "4.1", "titolo": "Scegliere con if, else ed else if"},
-        {"id": "4.2", "titolo": "Condizioni composte e valutazione a corto circuito"},
-        {"id": "4.3", "titolo": "Scelte multiple con switch"},
-        {"id": "4.4", "titolo": "L'operatore condizionale ?:"}
+        {
+          "id": "4.1",
+          "titolo": "Scegliere con if ed else"
+        },
+        {
+          "id": "4.2",
+          "titolo": "Condizioni composte e valutazione a corto circuito"
+        },
+        {
+          "id": "4.3",
+          "titolo": "Scelte multiple con switch"
+        },
+        {
+          "id": "4.4",
+          "titolo": "L'operatore condizionale ?:"
+        }
       ]
     },
     {
@@ -110,23 +173,41 @@
       "titolo": "Leggere dalla tastiera",
       "tipo": "teoria",
       "obiettivi": [
-        "Leggere numeri e singoli caratteri da tastiera con scanf controllandone sempre il valore restituito",
-        "Leggere e stampare singoli caratteri con getchar e putchar usando il tipo int",
-        "Gestire errori di formato nell'input senza proseguire con valori non inizializzati",
-        "Riconoscere e gestire la fine dell'input tramite la costante EOF"
+        "Leggere una riga di testo dalla tastiera in modo sicuro con fgets",
+        "Convertire righe di testo in valori numerici con sscanf verificando il valore restituito",
+        "Gestire in modo corretto gli errori di formato e la fine dell'input (nullptr ed EOF)",
+        "Leggere ed elaborare singoli caratteri con getchar e putchar"
       ],
       "argomenti": [
-        "lettura di numeri con scanf e controllo del valore restituito",
-        "lettura e scrittura di caratteri con getchar e putchar",
-        "errori di formato e caratteri residui nel flusso di ingresso",
-        "fine dell'input e costante EOF"
+        "lettura di righe con fgets e stdin",
+        "valore nullo nullptr in C23 per la fine dell'input",
+        "estrazione di numeri con sscanf",
+        "controllo degli errori e codici di uscita EXIT_SUCCESS e EXIT_FAILURE",
+        "lettura carattere per carattere con getchar ed EOF"
       ],
-      "prerequisiti": [2, 3, 4],
+      "prerequisiti": [
+        1,
+        2,
+        3,
+        4
+      ],
       "sotto_sezioni": [
-        {"id": "5.1", "titolo": "Leggere numeri con scanf e controllare gli errori"},
-        {"id": "5.2", "titolo": "Leggere e scrivere caratteri con getchar e putchar"},
-        {"id": "5.3", "titolo": "Input multipli e gestione dei formati errati"},
-        {"id": "5.4", "titolo": "Fine dell'input e costante EOF"}
+        {
+          "id": "5.1",
+          "titolo": "Leggere una riga di testo con fgets"
+        },
+        {
+          "id": "5.2",
+          "titolo": "Estrarre numeri da una riga con sscanf"
+        },
+        {
+          "id": "5.3",
+          "titolo": "Controllare gli errori di input e la fine dello stream"
+        },
+        {
+          "id": "5.4",
+          "titolo": "Leggere e scrivere singoli caratteri con getchar e putchar"
+        }
       ]
     },
     {
@@ -134,25 +215,46 @@
       "titolo": "Ripetizioni",
       "tipo": "teoria",
       "obiettivi": [
-        "Scegliere tra while, do-while e for in base al problema",
-        "Scrivere cicli che elaborano sequenze da tastiera fino a un valore sentinella o a EOF",
-        "Controllare il flusso interno ai cicli con break, continue e cicli annidati",
-        "Verificare la correttezza e la terminazione di un ciclo usando un invariante di ciclo"
+        "Scegliere il ciclo adatto (while, do-while o for) in base alla condizione di arresto",
+        "Controllare il flusso dentro un ciclo con break e continue senza creare codice confuso",
+        "Scrivere cicli annidati per elaborare tabelle, griglie e sequenze",
+        "Formulare l'invariante di un ciclo per verificarne correttezza e terminazione"
       ],
       "argomenti": [
-        "ciclo while e cicli su sequenze fino a EOF",
-        "ciclo do-while e validazione dell'input",
-        "ciclo for e contatori",
-        "break, continue e cicli annidati",
-        "terminazione e invarianti di ciclo"
+        "ciclo while e lettura fino a fine input",
+        "ciclo do-while",
+        "ciclo for",
+        "istruzioni break e continue",
+        "cicli annidati e invarianti di ciclo"
       ],
-      "prerequisiti": [4, 5],
+      "prerequisiti": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
       "sotto_sezioni": [
-        {"id": "6.1", "titolo": "Il ciclo while e la lettura fino a EOF"},
-        {"id": "6.2", "titolo": "Il ciclo do-while e la ripetizione con controllo in coda"},
-        {"id": "6.3", "titolo": "Il ciclo for e i cicli con contatore"},
-        {"id": "6.4", "titolo": "break, continue e cicli annidati"},
-        {"id": "6.5", "titolo": "Terminazione e invarianti di ciclo"}
+        {
+          "id": "6.1",
+          "titolo": "Il ciclo while"
+        },
+        {
+          "id": "6.2",
+          "titolo": "Il ciclo do-while"
+        },
+        {
+          "id": "6.3",
+          "titolo": "Il ciclo for"
+        },
+        {
+          "id": "6.4",
+          "titolo": "Modificare il percorso di un ciclo: break e continue"
+        },
+        {
+          "id": "6.5",
+          "titolo": "Cicli annidati e invarianti di ciclo"
+        }
       ]
     },
     {
@@ -160,26 +262,47 @@
       "titolo": "Funzioni",
       "tipo": "teoria",
       "obiettivi": [
-        "Definire funzioni con parametri, valore di ritorno e prototipi separati",
-        "Spiegare il passaggio per valore e distinguere ambito e durata delle variabili",
-        "Usare static locale in modo mirato ed evitare variabili globali mutabili",
-        "Scrivere funzioni ricorsive corrette individuando caso base e passo ricorsivo",
-        "Scomporre un problema articolato in funzioni coese e facili da verificare"
+        "Definire e dichiarare funzioni con prototipi coerenti e parametri passati per valore",
+        "Prevedere visibilità e durata di vita di variabili locali e variabili static locali",
+        "Scrivere funzioni ricorsive identificando caso base e passo ricorsivo",
+        "Scomporre un problema complesso in funzioni piccole e indipendenti"
       ],
       "argomenti": [
-        "definizione, chiamata, prototipi e funzioni void",
-        "passaggio dei parametri per valore",
-        "ambito, durata di memorizzazione e static locale",
-        "ricorsione e pila delle chiamate",
+        "definizione e chiamata di funzioni",
+        "prototipi e passaggio dei parametri per valore",
+        "visibilità, durata di vita e static locale",
+        "ricorsione",
         "scomposizione di un problema in funzioni"
       ],
-      "prerequisiti": [4, 5, 6],
+      "prerequisiti": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
       "sotto_sezioni": [
-        {"id": "7.1", "titolo": "Definire e chiamare funzioni"},
-        {"id": "7.2", "titolo": "Prototipi, funzioni void e passaggio per valore"},
-        {"id": "7.3", "titolo": "Ambito, durata delle variabili e static locale"},
-        {"id": "7.4", "titolo": "Ricorsione e pila delle chiamate"},
-        {"id": "7.5", "titolo": "Scomporre un problema in funzioni"}
+        {
+          "id": "7.1",
+          "titolo": "Definire e chiamare una funzione"
+        },
+        {
+          "id": "7.2",
+          "titolo": "Prototipi e passaggio per valore"
+        },
+        {
+          "id": "7.3",
+          "titolo": "Visibilità, durata di vita e static locale"
+        },
+        {
+          "id": "7.4",
+          "titolo": "Funzioni ricorsive"
+        },
+        {
+          "id": "7.5",
+          "titolo": "Scomporre un problema in funzioni"
+        }
       ]
     },
     {
@@ -187,26 +310,45 @@
       "titolo": "Array",
       "tipo": "teoria",
       "obiettivi": [
-        "Dichiarare, inizializzare e scorrere array mono e bidimensionali a dimensione costante",
-        "Individuare e prevenire gli accessi fuori dai limiti come comportamento indefinito",
-        "Passare array alle funzioni trasmettendo esplicitamente la lunghezza e usando const",
-        "Implementare ricerca lineare, ricerca binaria e un ordinamento elementare",
-        "Confrontare il costo di algoritmi semplici con l'idea intuitiva di complessità"
+        "Dichiarare, inizializzare e attraversare array mono e bidimensionali di dimensione costante",
+        "Riconoscere gli accessi fuori dai limiti come comportamento indefinito ed evitarli",
+        "Passare un array e la sua lunghezza a una funzione",
+        "Implementare algoritmi elementari di ricerca e ordinamento stimandone il costo"
       ],
       "argomenti": [
-        "array monodimensionali, indici, costanti simboliche e accessi fuori dai limiti",
-        "passaggio di array alle funzioni con lunghezza esplicita e const",
-        "array bidimensionali (matrici)",
-        "ricerca lineare e ricerca binaria",
-        "ordinamento elementare e idea intuitiva di complessità"
+        "array monodimensionali e inizializzatori",
+        "accessi fuori dai limiti e comportamento indefinito",
+        "passaggio di array a funzioni",
+        "array bidimensionali",
+        "ricerca lineare, ricerca binaria, ordinamento elementare e idea di costo"
       ],
-      "prerequisiti": [6, 7],
+      "prerequisiti": [
+        2,
+        4,
+        6,
+        7
+      ],
       "sotto_sezioni": [
-        {"id": "8.1", "titolo": "Array monodimensionali e accessi fuori dai limiti"},
-        {"id": "8.2", "titolo": "Array e funzioni: lunghezza esplicita e const"},
-        {"id": "8.3", "titolo": "Array bidimensionali"},
-        {"id": "8.4", "titolo": "Ricerca lineare e ricerca binaria"},
-        {"id": "8.5", "titolo": "Ordinamento elementare e complessità"}
+        {
+          "id": "8.1",
+          "titolo": "Dichiarare, inizializzare e scorrere un array"
+        },
+        {
+          "id": "8.2",
+          "titolo": "Accessi fuori dai limiti e comportamento indefinito"
+        },
+        {
+          "id": "8.3",
+          "titolo": "Array e funzioni"
+        },
+        {
+          "id": "8.4",
+          "titolo": "Array bidimensionali"
+        },
+        {
+          "id": "8.5",
+          "titolo": "Ricerca, ordinamento elementare e idea di costo"
+        }
       ]
     },
     {
@@ -214,26 +356,46 @@
       "titolo": "Stringhe",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare come il C rappresenta le stringhe con array di char e terminatore nullo",
-        "Leggere intere righe di testo in sicurezza con fgets ed estrarre numeri con sscanf",
-        "Usare le funzioni sicure di string.h e snprintf per misurare, confrontare e comporre testo",
-        "Classificare e trasformare caratteri con ctype.h convertendo sempre a unsigned char",
-        "Riconoscere e prevenire il buffer overflow nelle operazioni sulle stringhe"
+        "Manipolare stringhe C come array di char terminati da '\\0'",
+        "Usare correttamente le funzioni di <string.h> e <ctype.h> rispettando il cast a unsigned char",
+        "Costruire stringhe formattate in modo sicuro con snprintf verificando eventuali troncamenti",
+        "Prevenire i buffer overflow nella copia, concatenazione e analisi del testo"
       ],
       "argomenti": [
-        "array di char e terminatore nullo",
-        "lettura sicura con fgets, stdin, NULL e conversione con sscanf",
-        "string.h (strlen, strcmp, strncmp, strcpy, strcspn) e snprintf",
-        "classificazione caratteri con ctype.h",
-        "buffer overflow e scrittura difensiva"
+        "rappresentazione delle stringhe e terminatore nullo",
+        "funzioni di <string.h>",
+        "classificazione e conversione dei caratteri con <ctype.h>",
+        "formattazione sicura con snprintf",
+        "buffer overflow e manipolazione sicura"
       ],
-      "prerequisiti": [5, 7, 8],
+      "prerequisiti": [
+        2,
+        5,
+        6,
+        7,
+        8
+      ],
       "sotto_sezioni": [
-        {"id": "9.1", "titolo": "Stringhe come array di char e terminatore nullo"},
-        {"id": "9.2", "titolo": "Leggere righe con fgets e convertirle con sscanf"},
-        {"id": "9.3", "titolo": "Operazioni su stringhe con string.h e snprintf"},
-        {"id": "9.4", "titolo": "Classificare e trasformare caratteri con ctype.h"},
-        {"id": "9.5", "titolo": "Buffer overflow e gestione sicura dei buffer"}
+        {
+          "id": "9.1",
+          "titolo": "Array di char e terminatore nullo"
+        },
+        {
+          "id": "9.2",
+          "titolo": "Elaborare stringhe con <string.h>"
+        },
+        {
+          "id": "9.3",
+          "titolo": "Classificare e trasformare caratteri con <ctype.h>"
+        },
+        {
+          "id": "9.4",
+          "titolo": "Formattazione sicura con snprintf"
+        },
+        {
+          "id": "9.5",
+          "titolo": "Buffer overflow e gestione sicura del testo"
+        }
       ]
     },
     {
@@ -241,28 +403,51 @@
       "titolo": "Puntatori",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare indirizzi di memoria, operatore & e operatore di dereferenziazione *",
-        "Usare NULL e nullptr (C23) prevenendo la dereferenziazione di puntatori non validi",
-        "Relazionare array e puntatori e usare correttamente l'aritmetica dei puntatori",
-        "Scrivere funzioni che modificano variabili del chiamante tramite passaggio per puntatore",
-        "Applicare const ai puntatori e usare funzioni di libreria che operano con puntatori (strchr, strstr, strtol, strtod)"
+        "Spiegare il rapporto tra oggetti in memoria, indirizzi, & e dereferenziazione con *",
+        "Gestire i puntatori nulli con nullptr e NULL prevenendo la dereferenziazione nulla",
+        "Prevedere il comportamento del decadimento degli array e dell'aritmetica dei puntatori",
+        "Scrivere funzioni che modificano variabili del chiamante tramite parametri puntatore",
+        "Applicare correttamente const ai puntatori e ai dati puntati"
       ],
       "argomenti": [
-        "indirizzi di memoria, operatori & e *",
-        "NULL, nullptr (C23) e comportamento indefinito con puntatori non validi",
-        "puntatori, array, decadimento e aritmetica dei puntatori (ptrdiff_t)",
-        "passaggio per puntatore e parametri di uscita",
-        "const con i puntatori",
-        "ricerca in stringhe (strchr, strstr) e conversione sicura (strtol, strtod)"
+        "indirizzi di memoria, operatore & e operatore *",
+        "puntatori nulli: nullptr e NULL",
+        "relazione tra puntatori e array",
+        "aritmetica dei puntatori e ptrdiff_t",
+        "passaggio per puntatore",
+        "const con i puntatori"
       ],
-      "prerequisiti": [7, 8, 9],
+      "prerequisiti": [
+        2,
+        7,
+        8,
+        9
+      ],
       "sotto_sezioni": [
-        {"id": "10.1", "titolo": "Indirizzi di memoria, & e *"},
-        {"id": "10.2", "titolo": "NULL, nullptr e puntatori non validi"},
-        {"id": "10.3", "titolo": "Puntatori, array e aritmetica dei puntatori"},
-        {"id": "10.4", "titolo": "Passaggio per puntatore e parametri di uscita"},
-        {"id": "10.5", "titolo": "const e puntatori"},
-        {"id": "10.6", "titolo": "Puntatori nella libreria standard: strchr, strstr, strtol e strtod"}
+        {
+          "id": "10.1",
+          "titolo": "Indirizzi di memoria, & e *"
+        },
+        {
+          "id": "10.2",
+          "titolo": "Puntatori nulli: nullptr e NULL"
+        },
+        {
+          "id": "10.3",
+          "titolo": "Il legame tra puntatori e array"
+        },
+        {
+          "id": "10.4",
+          "titolo": "Aritmetica dei puntatori e ptrdiff_t"
+        },
+        {
+          "id": "10.5",
+          "titolo": "Passaggio per puntatore"
+        },
+        {
+          "id": "10.6",
+          "titolo": "const e puntatori"
+        }
       ]
     },
     {
@@ -270,53 +455,90 @@
       "titolo": "Memoria dinamica",
       "tipo": "teoria",
       "obiettivi": [
-        "Distinguere memoria automatica (stack) e memoria allocata dinamicamente (heap)",
-        "Allocare, ridimensionare e liberare memoria con malloc, calloc, realloc e free controllando sempre gli errori",
-        "Implementare un array dinamico che cresce automaticamente gestendo dimensione e capacità",
-        "Riconoscere e prevenire perdite di memoria, uso dopo free e doppia liberazione",
-        "Compilare ed eseguire programmi con i sanitizer per individuare errori di memoria"
+        "Distinguere durata di vita e ruolo di stack e heap",
+        "Allocare, ridimensionare e liberare memoria dinamica con malloc, calloc, realloc e free controllando sempre i fallimenti",
+        "Costruire array dinamici che crescono in modo sicuro senza perdere il puntatore originale",
+        "Riconoscere ed eliminare perdite di memoria, uso dopo la liberazione e doppia liberazione con i sanitizer"
       ],
       "argomenti": [
         "stack e heap",
-        "malloc, calloc, realloc, free e controllo degli errori",
-        "array dinamici con crescita di capacità",
-        "perdite di memoria, uso dopo free e doppia liberazione",
-        "strumenti di diagnostica (AddressSanitizer e UBSan)"
+        "malloc, calloc e free",
+        "realloc e array dinamici",
+        "perdite di memoria, uso dopo la liberazione e doppia liberazione",
+        "strumenti di diagnostica e sanitizer"
       ],
-      "prerequisiti": [8, 10],
+      "prerequisiti": [
+        7,
+        8,
+        10
+      ],
       "sotto_sezioni": [
-        {"id": "11.1", "titolo": "Stack e heap: perché serve la memoria dinamica"},
-        {"id": "11.2", "titolo": "Allocare e liberare con malloc, calloc e free"},
-        {"id": "11.3", "titolo": "Ridimensionare con realloc e costruire array dinamici"},
-        {"id": "11.4", "titolo": "Perdite di memoria, uso dopo free e doppia liberazione"},
-        {"id": "11.5", "titolo": "Diagnosticare errori di memoria con i sanitizer"}
+        {
+          "id": "11.1",
+          "titolo": "Stack e heap: perché serve la memoria dinamica"
+        },
+        {
+          "id": "11.2",
+          "titolo": "Allocare e liberare memoria: malloc, calloc e free"
+        },
+        {
+          "id": "11.3",
+          "titolo": "Ridimensionare blocchi con realloc e array dinamici"
+        },
+        {
+          "id": "11.4",
+          "titolo": "Perdite di memoria, uso dopo free e doppia liberazione"
+        },
+        {
+          "id": "11.5",
+          "titolo": "Individuare gli errori di memoria con i sanitizer"
+        }
       ]
     },
     {
       "n": 12,
-      "titolo": "Strutture, enumerazioni e typedef",
+      "titolo": "Strutture, enumerazioni, typedef",
       "tipo": "teoria",
       "obiettivi": [
-        "Progettare tipi composti con struct e inizializzarli con inizializzatori designati",
-        "Usare enum per insiemi finiti di valori e typedef per nomi di tipo leggibili",
-        "Gestire array di struct, struct annidate e accesso ai membri tramite ->",
-        "Scegliere tra passaggio di struct per valore e per puntatore const",
-        "Scrivere funzioni di creazione e distruzione per struct che possiedono memoria dinamica"
+        "Modellare entità composite con struct e tipi simbolici con enum e typedef",
+        "Accedere ai campi tramite puntatori a struct con l'operatore ->",
+        "Gestire array dinamici di struct e strutture annidate senza perdite di memoria",
+        "Scegliere tra passaggio per valore e passaggio per puntatore a const struct"
       ],
       "argomenti": [
-        "struct, operatore . e inizializzatori designati",
-        "enum e typedef",
-        "array di struct e struct annidate",
-        "puntatori a struct, operatore ->, copia e passaggio",
-        "struct con campi allocati dinamicamente"
+        "definizione e inizializzazione di struct",
+        "typedef ed enum",
+        "puntatori a struct e operatore ->",
+        "array di struct, struct annidate e allocazione dinamica",
+        "copia, passaggio e restituzione di struct"
       ],
-      "prerequisiti": [8, 9, 10, 11],
+      "prerequisiti": [
+        8,
+        9,
+        10,
+        11
+      ],
       "sotto_sezioni": [
-        {"id": "12.1", "titolo": "Definire e inizializzare struct"},
-        {"id": "12.2", "titolo": "Enumerazioni (enum) e alias di tipo (typedef)"},
-        {"id": "12.3", "titolo": "Array di struct e struct annidate"},
-        {"id": "12.4", "titolo": "Puntatori a struct, operatore -> e passaggio alle funzioni"},
-        {"id": "12.5", "titolo": "struct con memoria dinamica: creazione e rilascio"}
+        {
+          "id": "12.1",
+          "titolo": "Raggruppare dati con struct"
+        },
+        {
+          "id": "12.2",
+          "titolo": "Enumerazioni con enum e alias con typedef"
+        },
+        {
+          "id": "12.3",
+          "titolo": "Puntatori a struct e operatore ->"
+        },
+        {
+          "id": "12.4",
+          "titolo": "Array di struct e strutture annidate"
+        },
+        {
+          "id": "12.5",
+          "titolo": "Copia, passaggio e restituzione di struct"
+        }
       ]
     },
     {
@@ -324,28 +546,50 @@
       "titolo": "Dati a basso livello",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare la rappresentazione binaria in complemento a due e usare i tipi a larghezza fissa di stdint.h",
-        "Manipolare singoli bit e flag con operatori bit a bit, maschere e letterali binari C23",
-        "Usare gli operatori di spostamento evitando il comportamento indefinito",
-        "Modellare dati alternativi in modo sicuro con union etichettate da enum",
-        "Analizzare ordine dei byte (endianness), campi di bit, padding delle struct e offsetof"
+        "Spiegare la rappresentazione binaria in complemento a due e usare i tipi a dimensione fissa di <stdint.h> e <inttypes.h>",
+        "Manipolare singoli bit con operatori bit a bit, maschere e spostamenti evitando comportamento indefinito",
+        "Usare union e unioni etichettate e definire campi di bit con consapevolezza dei loro limiti",
+        "Analizzare ordine dei byte, allineamento e padding delle struct usando alignof e offsetof"
       ],
       "argomenti": [
-        "rappresentazione binaria, complemento a due, stdint.h e inttypes.h",
-        "operatori bit a bit, maschere, letterali binari 0b e separatori di cifre",
-        "spostamenti << e >> e comportamento indefinito",
+        "rappresentazione binaria, complemento a due, <stdint.h> e <inttypes.h>",
+        "operatori bit a bit, maschere e spostamenti",
         "union e unioni etichettate",
-        "campi di bit e ordine dei byte (endianness)",
-        "allineamento, padding delle struct e offsetof"
+        "campi di bit",
+        "ordine dei byte (endianness)",
+        "allineamento, padding, alignof e offsetof"
       ],
-      "prerequisiti": [2, 3, 10, 12],
+      "prerequisiti": [
+        2,
+        3,
+        10,
+        12
+      ],
       "sotto_sezioni": [
-        {"id": "13.1", "titolo": "Complemento a due e interi a larghezza fissa (stdint.h)"},
-        {"id": "13.2", "titolo": "Operatori bit a bit, maschere e letterali binari"},
-        {"id": "13.3", "titolo": "Spostamenti di bit e trappole di comportamento indefinito"},
-        {"id": "13.4", "titolo": "union e unioni etichettate"},
-        {"id": "13.5", "titolo": "Campi di bit e ordine dei byte (endianness)"},
-        {"id": "13.6", "titolo": "Allineamento, padding delle struct e offsetof"}
+        {
+          "id": "13.1",
+          "titolo": "Interi in binario, complemento a due e <stdint.h>"
+        },
+        {
+          "id": "13.2",
+          "titolo": "Operatori bit a bit, maschere e spostamenti"
+        },
+        {
+          "id": "13.3",
+          "titolo": "Unioni e unioni etichettate"
+        },
+        {
+          "id": "13.4",
+          "titolo": "Campi di bit"
+        },
+        {
+          "id": "13.5",
+          "titolo": "Ordine dei byte in memoria"
+        },
+        {
+          "id": "13.6",
+          "titolo": "Allineamento, padding, alignof e offsetof"
+        }
       ]
     },
     {
@@ -353,77 +597,134 @@
       "titolo": "Puntatori avanzati",
       "tipo": "teoria",
       "obiettivi": [
-        "Usare puntatori a puntatori per modificare puntatori del chiamante in funzioni di allocazione o ricerca",
-        "Gestire array di puntatori e confrontare le due rappresentazioni delle matrici dinamiche",
-        "Elaborare argomenti da riga di comando tramite argc e argv",
-        "Applicare const-correttezza multilivello e spiegare il contratto del qualificatore restrict",
-        "Usare nullptr come sentinella e prevenire i puntatori pendenti"
+        "Usare puntatori a puntatori per modificare un puntatore dentro una funzione e gestire array di puntatori",
+        "Allocare e liberare matrici dinamiche in modo contiguo o per righe senza perdite di memoria",
+        "Elaborare argomenti da riga di comando con argc/argv e convertire stringhe in numeri con strtol e strtod",
+        "Applicare correttamente const e restrict e prevenire puntatori pendenti usando valori sentinella"
       ],
       "argomenti": [
         "puntatori a puntatori",
         "array di puntatori e matrici dinamiche",
-        "argomenti da riga di comando (argc e argv)",
-        "const-correttezza e restrict",
-        "sentinella nullptr e puntatori pendenti"
+        "argc/argv e conversioni rigorose con strtol e strtod",
+        "correttezza di const e qualificatore restrict",
+        "valori sentinella e puntatori pendenti"
       ],
-      "prerequisiti": [10, 11, 12],
+      "prerequisiti": [
+        9,
+        10,
+        11,
+        12
+      ],
       "sotto_sezioni": [
-        {"id": "14.1", "titolo": "Puntatori a puntatori"},
-        {"id": "14.2", "titolo": "Array di puntatori e matrici dinamiche"},
-        {"id": "14.3", "titolo": "Argomenti da riga di comando: argc e argv"},
-        {"id": "14.4", "titolo": "const-correttezza e qualificatore restrict"},
-        {"id": "14.5", "titolo": "Sentinelle nullptr e puntatori pendenti"}
+        {
+          "id": "14.1",
+          "titolo": "Puntatori a puntatori"
+        },
+        {
+          "id": "14.2",
+          "titolo": "Array di puntatori e matrici dinamiche"
+        },
+        {
+          "id": "14.3",
+          "titolo": "Argomenti da riga di comando (argc/argv), strtol e strtod"
+        },
+        {
+          "id": "14.4",
+          "titolo": "Correttezza di const e qualificatore restrict"
+        },
+        {
+          "id": "14.5",
+          "titolo": "Valori sentinella e puntatori pendenti"
+        }
       ]
     },
     {
       "n": 15,
-      "titolo": "Puntatori a funzione",
+      "titolo": "Programmazione generica con void *",
       "tipo": "teoria",
       "obiettivi": [
-        "Dichiarare puntatori a funzione e renderli leggibili con typedef",
-        "Scrivere funzioni di ordine superiore che accettano funzioni di richiamata (callback)",
-        "Ordinare e cercare array di qualunque tipo con qsort e bsearch scrivendo comparatori con const void *",
-        "Progettare tabelle di puntatori a funzione (dispatch) per associare comandi o operazioni a funzioni"
+        "Convertire e manipolare puntatori generici void * in modo sicuro",
+        "Copiare, spostare, confrontare e inizializzare blocchi di byte con memcpy, memmove, memcmp e memset",
+        "Progettare e implementare un vettore dinamico generico indipendente dal tipo degli elementi",
+        "Scrivere codice adattato al tipo e verifiche a tempo di compilazione con _Generic, typeof, auto e static_assert"
       ],
       "argomenti": [
-        "dichiarazione e typedef per puntatori a funzione",
-        "callback e parametrizzazione di algoritmi",
-        "qsort, bsearch e introduzione a void *",
-        "tabelle di dispatch"
+        "void * e conversioni di puntatore",
+        "memcpy, memmove, memcmp e memset",
+        "contenitori generici: vettore dinamico generico",
+        "selezione generica con _Generic",
+        "typeof, auto e static_assert in C23"
       ],
-      "prerequisiti": [10, 12, 14],
+      "prerequisiti": [
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
       "sotto_sezioni": [
-        {"id": "15.1", "titolo": "Dichiarare e usare puntatori a funzione"},
-        {"id": "15.2", "titolo": "Funzioni di richiamata (callback)"},
-        {"id": "15.3", "titolo": "qsort, bsearch e introduzione a const void *"},
-        {"id": "15.4", "titolo": "Tabelle di puntatori a funzione (dispatch)"}
+        {
+          "id": "15.1",
+          "titolo": "Il puntatore generico void *"
+        },
+        {
+          "id": "15.2",
+          "titolo": "Operazioni su byte: memcpy, memmove, memcmp e memset"
+        },
+        {
+          "id": "15.3",
+          "titolo": "Progettare un vettore dinamico generico"
+        },
+        {
+          "id": "15.4",
+          "titolo": "Selezione sul tipo con _Generic"
+        },
+        {
+          "id": "15.5",
+          "titolo": "typeof, auto e static_assert"
+        }
       ]
     },
     {
       "n": 16,
-      "titolo": "Programmazione generica con void *",
+      "titolo": "Puntatori a funzione",
       "tipo": "teoria",
       "obiettivi": [
-        "Usare void * e le funzioni memcpy, memmove, memcmp e memset rispettando allineamento e aliasing",
-        "Progettare e implementare un vettore dinamico generico capace di memorizzare elementi di qualsiasi tipo",
-        "Scrivere espressioni polimorfiche a tempo di compilazione con _Generic",
-        "Usare typeof e auto (C23) in modo mirato senza perdere chiarezza sui tipi",
-        "Verificare ipotesi su tipi e dimensioni a tempo di compilazione con static_assert e alignof"
+        "Dichiarare, assegnare e invocare puntatori a funzione anche tramite typedef leggibili",
+        "Passare funzioni di richiamo (callback) per parametrizzare algoritmi generici",
+        "Ordinare e cercare array di qualsiasi tipo con qsort e bsearch scrivendo comparatori corretti",
+        "Organizzare scelte operative con tabelle di puntatori a funzione"
       ],
       "argomenti": [
-        "void *, conversioni e funzioni di memoria (memcpy, memmove, memcmp, memset, memchr)",
-        "contenitore generico: vettore dinamico generico",
-        "_Generic",
-        "typeof e auto (C23)",
-        "static_assert e alignof (C23)"
+        "dichiarazione e uso dei puntatori a funzione",
+        "funzioni di richiamo (callback)",
+        "qsort e bsearch con comparatori su const void *",
+        "tabelle di puntatori a funzione"
       ],
-      "prerequisiti": [11, 13, 15],
+      "prerequisiti": [
+        7,
+        10,
+        12,
+        14,
+        15
+      ],
       "sotto_sezioni": [
-        {"id": "16.1", "titolo": "void * e operazioni grezze in memoria"},
-        {"id": "16.2", "titolo": "Costruire un vettore dinamico generico"},
-        {"id": "16.3", "titolo": "Selezione per tipo con _Generic"},
-        {"id": "16.4", "titolo": "typeof e auto in C23"},
-        {"id": "16.5", "titolo": "Verifiche statiche con static_assert e alignof"}
+        {
+          "id": "16.1",
+          "titolo": "Dichiarare e usare puntatori a funzione"
+        },
+        {
+          "id": "16.2",
+          "titolo": "Callback e algoritmi parametrizzati"
+        },
+        {
+          "id": "16.3",
+          "titolo": "Ordinare e cercare qualsiasi tipo con qsort e bsearch"
+        },
+        {
+          "id": "16.4",
+          "titolo": "Tabelle di puntatori a funzione"
+        }
       ]
     },
     {
@@ -431,25 +732,47 @@
       "titolo": "Strutture dati dinamiche",
       "tipo": "teoria",
       "obiettivi": [
-        "Implementare liste concatenate semplici e doppie con inserimento, ricerca, rimozione e distruzione senza perdite",
-        "Costruire pile e code valutando i compromessi tra implementazione su array e su lista",
-        "Implementare un albero binario di ricerca con inserimento, ricerca, visite ricorsive e distruzione",
-        "Definire e rispettare regole esplicite di possesso della memoria per strutture dati dinamiche"
+        "Implementare liste semplicemente e doppiamente concatenate con inserimento, ricerca e rimozione",
+        "Costruire pile e code dinamiche rispettando le relative discipline di accesso",
+        "Implementare un albero binario di ricerca con inserimento, ricerca, visita e distruzione",
+        "Definire e rispettare regole esplicite di possesso della memoria nella distruzione delle strutture"
       ],
       "argomenti": [
-        "liste concatenate semplici",
+        "liste semplicemente concatenate",
         "liste doppiamente concatenate",
-        "pile (stack) e code (queue)",
+        "pile e code dinamiche",
         "alberi binari di ricerca",
-        "regole di possesso della memoria e distruzione"
+        "possesso della memoria e distruzione delle strutture"
       ],
-      "prerequisiti": [11, 12, 14, 16],
+      "prerequisiti": [
+        7,
+        11,
+        12,
+        14,
+        15,
+        16
+      ],
       "sotto_sezioni": [
-        {"id": "17.1", "titolo": "Liste concatenate semplici"},
-        {"id": "17.2", "titolo": "Liste doppiamente concatenate"},
-        {"id": "17.3", "titolo": "Pile e code"},
-        {"id": "17.4", "titolo": "Alberi binari di ricerca"},
-        {"id": "17.5", "titolo": "Possesso della memoria e distruzione sicura"}
+        {
+          "id": "17.1",
+          "titolo": "Liste semplicemente concatenate"
+        },
+        {
+          "id": "17.2",
+          "titolo": "Liste doppiamente concatenate"
+        },
+        {
+          "id": "17.3",
+          "titolo": "Pile e code dinamiche"
+        },
+        {
+          "id": "17.4",
+          "titolo": "Alberi binari di ricerca"
+        },
+        {
+          "id": "17.5",
+          "titolo": "Regole di possesso della memoria e distruzione"
+        }
       ]
     },
     {
@@ -457,26 +780,47 @@
       "titolo": "Tabelle hash",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare come funziona una tabella hash e scrivere una funzione di hash deterministica su byte e stringhe",
-        "Gestire le collisioni tramite concatenamento con liste di bucket",
-        "Calcolare il fattore di carico ed eseguire il ridimensionamento (rehashing) senza perdere dati o memoria",
-        "Progettare e implementare una tabella hash generica con void * e callback per hash, confronto e rilascio",
-        "Documentare e far rispettare le regole di possesso di chiavi e valori in presenza di errori di allocazione"
+        "Spiegare il funzionamento di una funzione di hash e il problema delle collisioni",
+        "Implementare una tabella hash con risoluzione delle collisioni per concatenamento",
+        "Monitorare il fattore di carico ed eseguire il ridimensionamento (rehashing) senza perdite di memoria",
+        "Progettare una tabella hash generica con void * e puntatori a funzione per hash, confronto e rilascio"
       ],
       "argomenti": [
-        "funzioni di hash (FNV-1a)",
+        "funzioni di hash e distribuzione delle chiavi",
         "collisioni e concatenamento",
-        "fattore di carico e rehashing",
-        "tabella hash generica con void * e puntatori a funzione",
-        "possesso della memoria e gestione degli errori nella tabella hash"
+        "fattore di carico e ridimensionamento (rehashing)",
+        "tabella hash generica con void * e callback",
+        "possesso di chiavi e valori e distruzione sicura"
       ],
-      "prerequisiti": [13, 15, 16, 17],
+      "prerequisiti": [
+        11,
+        12,
+        13,
+        15,
+        16,
+        17
+      ],
       "sotto_sezioni": [
-        {"id": "18.1", "titolo": "Tabelle associative e funzioni di hash"},
-        {"id": "18.2", "titolo": "Collisioni e concatenamento"},
-        {"id": "18.3", "titolo": "Fattore di carico e ridimensionamento (rehashing)"},
-        {"id": "18.4", "titolo": "La tabella hash generica con void * e callback"},
-        {"id": "18.5", "titolo": "Possesso della memoria, errori e verifica completa"}
+        {
+          "id": "18.1",
+          "titolo": "Come funziona una tabella hash e cosa fa una funzione di hash"
+        },
+        {
+          "id": "18.2",
+          "titolo": "Gestire le collisioni con il concatenamento"
+        },
+        {
+          "id": "18.3",
+          "titolo": "Fattore di carico e ridimensionamento"
+        },
+        {
+          "id": "18.4",
+          "titolo": "La tabella hash generica con void * e puntatori a funzione"
+        },
+        {
+          "id": "18.5",
+          "titolo": "Regole di possesso della memoria nella tabella hash"
+        }
       ]
     },
     {
@@ -484,26 +828,45 @@
       "titolo": "Programmi su più file",
       "tipo": "teoria",
       "obiettivi": [
-        "Spiegare unità di traduzione, compilazione separata e fase di collegamento (linking)",
-        "Separare interfaccia (.h) e implementazione (.c) proteggendo gli header con include guard",
-        "Controllare la visibilità dei simboli tra file con static, extern e inline",
-        "Progettare tipi opachi per nascondere la rappresentazione interna di una struttura dati",
-        "Trasformare la tabella hash generica del capitolo 18 in una libreria modulare con tipo opaco"
+        "Separare interfaccia e implementazione tra file di intestazione (.h) e file sorgenti (.c) con compilazione separata",
+        "Proteggere gli header con protezioni di inclusione e controllare il collegamento con static, extern e inline",
+        "Nascondere la rappresentazione interna di una struttura dati mediante tipi opachi",
+        "Organizzare la tabella hash generica come libreria riutilizzabile su più file"
       ],
       "argomenti": [
-        "unità di traduzione, compilazione separata e linking",
-        "header, sorgenti e include guard",
-        "static a livello di file, extern e inline",
-        "tipi opachi e incapsulamento",
-        "progettazione di una libreria riutilizzabile"
+        "file di intestazione, file sorgenti e compilazione separata",
+        "protezioni di inclusione e direttive del preprocessore",
+        "static, extern e inline a livello di file",
+        "tipi opachi e dichiarazioni incomplete",
+        "organizzazione di una libreria: tabella hash come tipo opaco"
       ],
-      "prerequisiti": [7, 12, 18],
+      "prerequisiti": [
+        7,
+        12,
+        16,
+        18
+      ],
       "sotto_sezioni": [
-        {"id": "19.1", "titolo": "Unità di traduzione, compilazione separata e linking"},
-        {"id": "19.2", "titolo": "Header, file sorgenti e include guard"},
-        {"id": "19.3", "titolo": "Collegamento interno ed esterno: static, extern e inline"},
-        {"id": "19.4", "titolo": "Tipi opachi e incapsulamento"},
-        {"id": "19.5", "titolo": "La tabella hash generica come libreria con tipo opaco"}
+        {
+          "id": "19.1",
+          "titolo": "File di intestazione, file sorgenti e compilazione separata"
+        },
+        {
+          "id": "19.2",
+          "titolo": "Protezioni di inclusione e direttive del preprocessore"
+        },
+        {
+          "id": "19.3",
+          "titolo": "Visibilità tra file: static, extern e inline"
+        },
+        {
+          "id": "19.4",
+          "titolo": "Incapsulamento con i tipi opachi"
+        },
+        {
+          "id": "19.5",
+          "titolo": "Organizzare una libreria: la tabella hash come tipo opaco"
+        }
       ]
     },
     {
@@ -511,26 +874,46 @@
       "titolo": "File e dati binari",
       "tipo": "teoria",
       "obiettivi": [
-        "Aprire, chiudere e verificare file con fopen, fclose, feof e ferror distinguendo stdout e stderr",
-        "Leggere e scrivere file di testo in modo sicuro con fgets, fputs e fprintf",
-        "Leggere, scrivere e riposizionare flussi binari con fread, fwrite, fseek e ftell",
-        "Serializzare strutture in formato binario portabile evitando dipendenze da padding ed endianness",
-        "Progettare un formato di file con intestazione e numero di versione"
+        "Aprire, leggere, scrivere e chiudere file di testo con fopen, fgets, fprintf e fclose controllando ogni errore",
+        "Distinguere la fine del file dagli errori di lettura con feof e ferror",
+        "Leggere e scrivere dati binari con fread e fwrite e posizionarsi nel file con fseek e ftell",
+        "Progettare formati binari portabili e versionati per salvare e ricaricare strutture"
       ],
       "argomenti": [
-        "flussi FILE *, fopen, fclose, stdout e stderr",
-        "file di testo (fgets, fputs, fprintf, fscanf, feof, ferror)",
-        "file binari (fread, fwrite)",
-        "posizionamento (fseek, ftell, rewind, tmpfile, remove)",
-        "serializzazione portabile di strutture, formati di file e versioni"
+        "fopen, fclose, fprintf, fgets e gestione di FILE",
+        "feof, ferror, clearerr e stderr",
+        "file binari con fread e fwrite",
+        "accesso casuale con fseek, ftell e rewind",
+        "serializzazione portabile di strutture e versioni di formato"
       ],
-      "prerequisiti": [9, 12, 13, 19],
+      "prerequisiti": [
+        5,
+        9,
+        12,
+        13,
+        19
+      ],
       "sotto_sezioni": [
-        {"id": "20.1", "titolo": "Aprire, chiudere e controllare i flussi di file"},
-        {"id": "20.2", "titolo": "Leggere e scrivere file di testo"},
-        {"id": "20.3", "titolo": "File binari con fread e fwrite"},
-        {"id": "20.4", "titolo": "Spostarsi nei file e gestire file temporanei"},
-        {"id": "20.5", "titolo": "Salvataggio portabile di strutture e formati con versione"}
+        {
+          "id": "20.1",
+          "titolo": "Aprire, scrivere e chiudere file di testo"
+        },
+        {
+          "id": "20.2",
+          "titolo": "Leggere file di testo e distinguere feof da ferror"
+        },
+        {
+          "id": "20.3",
+          "titolo": "File binari con fread e fwrite"
+        },
+        {
+          "id": "20.4",
+          "titolo": "Accesso casuale con fseek, ftell e rewind"
+        },
+        {
+          "id": "20.5",
+          "titolo": "Salvare e caricare strutture: formati binari e versioni"
+        }
       ]
     },
     {
@@ -538,549 +921,3034 @@
       "titolo": "Robustezza e qualità",
       "tipo": "teoria",
       "obiettivi": [
-        "Progettare la gestione degli errori con codici dedicati, errno, perror, strerror e il modello goto cleanup",
-        "Usare assert per verificare precondizioni e invarianti durante lo sviluppo",
-        "Scrivere funzioni variadiche sicure con stdarg.h e vsnprintf",
-        "Usare il preprocessore avanzato (macro con argomenti, compilazione condizionale, __FILE__, __LINE__) evitandone le insidie",
-        "Riconoscere sistematicamente il comportamento indefinito, cercarlo con sanitizer e debugger, e conoscere i limiti di volatile e signal"
+        "Propagare e diagnosticare errori con codici di ritorno, errno, perror e strerror",
+        "Strutturare il rilascio deterministico di più risorse con il modello goto cleanup",
+        "Scrivere asserzioni con assert e funzioni variadiche con <stdarg.h>",
+        "Usare macro con argomenti, compilazione condizionale, __FILE__ e __LINE__ evitando le trappole del preprocessore",
+        "Spiegare i casi critici di comportamento indefinito e il ruolo di volatile e <signal.h>"
       ],
       "argomenti": [
-        "gestione degli errori, errno, perror, strerror e modello goto cleanup",
+        "gestione degli errori, errno, perror e strerror",
+        "modello goto cleanup per il rilascio delle risorse",
         "assert e NDEBUG",
-        "funzioni variadiche (stdarg.h, vsnprintf, vfprintf)",
-        "preprocessore avanzato (macro con argomenti, compilazione condizionale, #, ##, __FILE__, __LINE__, __func__)",
-        "catalogo del comportamento indefinito, sanitizer e debugger",
-        "cenni a volatile e segnali (signal.h)"
+        "funzioni variadiche con <stdarg.h> e vfprintf/vsnprintf",
+        "macro con argomenti, __FILE__ e __LINE__",
+        "comportamento indefinito, diagnostica, volatile e <signal.h>"
       ],
-      "prerequisiti": [11, 13, 19, 20],
+      "prerequisiti": [
+        11,
+        14,
+        19,
+        20
+      ],
       "sotto_sezioni": [
-        {"id": "21.1", "titolo": "Gestione degli errori, errno e modello goto cleanup"},
-        {"id": "21.2", "titolo": "Asserzioni e contratti con assert"},
-        {"id": "21.3", "titolo": "Funzioni variadiche con stdarg.h"},
-        {"id": "21.4", "titolo": "Preprocessore avanzato: macro e compilazione condizionale"},
-        {"id": "21.5", "titolo": "Comportamento indefinito, sanitizer e debugger"},
-        {"id": "21.6", "titolo": "Cenni a volatile e segnali"}
+        {
+          "id": "21.1",
+          "titolo": "Gestione degli errori: codici di ritorno, errno e perror"
+        },
+        {
+          "id": "21.2",
+          "titolo": "Liberare risorse in ordine con goto cleanup"
+        },
+        {
+          "id": "21.3",
+          "titolo": "Verificare invarianti a tempo di esecuzione con assert"
+        },
+        {
+          "id": "21.4",
+          "titolo": "Funzioni variadiche con <stdarg.h>"
+        },
+        {
+          "id": "21.5",
+          "titolo": "Preprocessore: macro con argomenti, __FILE__ e __LINE__"
+        },
+        {
+          "id": "21.6",
+          "titolo": "Comportamento indefinito, diagnostica e cenni a volatile e signal"
+        }
       ]
     },
     {
       "n": 22,
+      "titolo": "Gestione avanzata della memoria",
+      "tipo": "teoria",
+      "obiettivi": [
+        "Allineare buffer statici e blocchi allocati con alignas, alignof e max_align_t",
+        "Implementare da zero un allocatore ad arena, un allocatore a pool e un allocatore con lista libera",
+        "Ridurre frammentazione e numero di chiamate a malloc scegliendo l'allocatore adatto al ciclo di vita dei dati",
+        "Spiegare le regole di strict aliasing e di restrict e diagnosticare corruzioni della memoria"
+      ],
+      "argomenti": [
+        "allineamento pratico con alignas e max_align_t",
+        "allocatore ad arena su buffer statico",
+        "allocatore a pool per blocchi a dimensione fissa",
+        "allocatore con lista libera (free list)",
+        "strict aliasing, restrict e corruzioni di memoria"
+      ],
+      "prerequisiti": [
+        11,
+        13,
+        14,
+        15,
+        19,
+        21
+      ],
+      "sotto_sezioni": [
+        {
+          "id": "22.1",
+          "titolo": "Allineamento in pratica con alignas e max_align_t"
+        },
+        {
+          "id": "22.2",
+          "titolo": "L'allocatore ad arena su buffer statico"
+        },
+        {
+          "id": "22.3",
+          "titolo": "L'allocatore a pool per blocchi di dimensione fissa"
+        },
+        {
+          "id": "22.4",
+          "titolo": "L'allocatore con lista libera"
+        },
+        {
+          "id": "22.5",
+          "titolo": "Strict aliasing, restrict e diagnosi delle corruzioni"
+        }
+      ]
+    },
+    {
+      "n": 23,
+      "titolo": "Strutture dati e algoritmi avanzati",
+      "tipo": "teoria",
+      "obiettivi": [
+        "Analizzare la complessità asintotica con la notazione O verificandola tramite conteggio delle operazioni",
+        "Implementare un heap binario generico e usarlo come coda di priorità",
+        "Costruire un albero AVL con rotazioni semplici e doppie e un trie per ricerche su prefissi",
+        "Rappresentare grafi con liste di adiacenza ed eseguire visite in ampiezza, in profondità e l'algoritmo di Dijkstra"
+      ],
+      "argomenti": [
+        "notazione O e conteggio delle operazioni",
+        "heap binario e coda di priorità generica",
+        "albero AVL e rotazioni",
+        "trie per chiavi testuali",
+        "grafi con liste di adiacenza, BFS e DFS",
+        "cammini minimi con l'algoritmo di Dijkstra"
+      ],
+      "prerequisiti": [
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "sotto_sezioni": [
+        {
+          "id": "23.1",
+          "titolo": "Complessità asintotica e notazione O"
+        },
+        {
+          "id": "23.2",
+          "titolo": "Heap binario e coda di priorità"
+        },
+        {
+          "id": "23.3",
+          "titolo": "Alberi AVL e rotazioni di bilanciamento"
+        },
+        {
+          "id": "23.4",
+          "titolo": "Trie per la ricerca su prefissi"
+        },
+        {
+          "id": "23.5",
+          "titolo": "Grafi con liste di adiacenza: visite in ampiezza e in profondità"
+        },
+        {
+          "id": "23.6",
+          "titolo": "Cammini minimi con l'algoritmo di Dijkstra"
+        }
+      ]
+    },
+    {
+      "n": 24,
+      "titolo": "Tecniche avanzate del linguaggio",
+      "tipo": "teoria",
+      "obiettivi": [
+        "Scrivere macro robuste con do-while(0), macro variadiche (__VA_ARGS__, __VA_OPT__) e X-macro",
+        "Simulare il sovraccarico di funzioni combinando _Generic e funzioni inline",
+        "Gestire uscite non locali in sicurezza con setjmp e longjmp conoscendo i vincoli su volatile",
+        "Implementare liste intrusive con offsetof, macchine a stati con tabelle di funzioni e formati binari con campi di bit"
+      ],
+      "argomenti": [
+        "macro variadiche, do-while(0), #, ##, __VA_OPT__ e X-macro",
+        "sovraccarico basato sul tipo con _Generic e inline",
+        "setjmp e longjmp",
+        "liste intrusive con offsetof",
+        "macchine a stati con tabelle di puntatori a funzione",
+        "campi di bit e unioni per formati binari"
+      ],
+      "prerequisiti": [
+        13,
+        15,
+        16,
+        17,
+        19,
+        21
+      ],
+      "sotto_sezioni": [
+        {
+          "id": "24.1",
+          "titolo": "Macro avanzate: do-while(0), macro variadiche e X-macro"
+        },
+        {
+          "id": "24.2",
+          "titolo": "Funzioni sovraccaricate con _Generic e inline"
+        },
+        {
+          "id": "24.3",
+          "titolo": "Salti non locali con setjmp e longjmp"
+        },
+        {
+          "id": "24.4",
+          "titolo": "Liste intrusive con offsetof"
+        },
+        {
+          "id": "24.5",
+          "titolo": "Macchine a stati con tabelle di puntatori a funzione"
+        },
+        {
+          "id": "24.6",
+          "titolo": "Formati binari compatti con campi di bit"
+        }
+      ]
+    },
+    {
+      "n": 25,
+      "titolo": "Qualità e prestazioni",
+      "tipo": "teoria",
+      "obiettivi": [
+        "Confrontare algoritmi contando le operazioni elementari e conoscere i limiti delle misure temporali con clock",
+        "Progettare disposizioni di dati favorevoli alla cache scegliendo tra array di struct e struct di array",
+        "Spiegare come le ottimizzazioni del compilatore interagiscono con il comportamento indefinito",
+        "Costruire un mini framework di test automatici con macro ed eseguire prove con input casuali a seme fisso"
+      ],
+      "argomenti": [
+        "conteggio delle operazioni e clock di <time.h>",
+        "località dei dati, cache, array di struct e struct di array",
+        "ottimizzazioni del compilatore e comportamento indefinito",
+        "mini framework di test automatici in C",
+        "prove con input casuali a seme fisso (srand/rand) e strumenti di analisi"
+      ],
+      "prerequisiti": [
+        13,
+        19,
+        21,
+        22,
+        23,
+        24
+      ],
+      "sotto_sezioni": [
+        {
+          "id": "25.1",
+          "titolo": "Misurare il costo: contare le operazioni e usare clock"
+        },
+        {
+          "id": "25.2",
+          "titolo": "Località dei dati e cache: array di struct contro struct di array"
+        },
+        {
+          "id": "25.3",
+          "titolo": "Ottimizzazioni del compilatore e comportamento indefinito"
+        },
+        {
+          "id": "25.4",
+          "titolo": "Scrivere un mini framework di test automatici in C"
+        },
+        {
+          "id": "25.5",
+          "titolo": "Fuzzing a seme fisso e strumenti professionali di analisi"
+        }
+      ]
+    },
+    {
+      "n": 26,
       "titolo": "Progetto finale: un interprete per un piccolo linguaggio",
       "tipo": "progetto",
       "obiettivi": [
-        "Progettare la grammatica, i valori dinamici e l'architettura modulare di un piccolo linguaggio di programmazione",
-        "Implementare un analizzatore lessicale che trasforma il testo sorgente in una sequenza di token con riga di origine",
-        "Implementare un analizzatore sintattico a discesa ricorsiva che costruisce un albero sintattico astratto rispettando le precedenze",
-        "Valutare espressioni, variabili, istruzioni if/while e funzioni usando la propria tabella hash generica come tipo opaco e tabelle di dispatch",
-        "Integrare tutti i moduli in un interprete completo privo di perdite di memoria e verificato con test automatici"
+        "Progettare la sintassi e le strutture dati di un piccolo linguaggio imperativo usando unioni etichettate ed enum",
+        "Implementare un analizzatore lessicale e un analizzatore sintattico a discesa ricorsiva con precedenza degli operatori",
+        "Gestire i nodi dell'albero di sintassi con un allocatore ad arena e gli ambienti di variabili e funzioni con la tabella hash generica opaca",
+        "Integrare controllo di flusso, funzioni definite dall'utente, funzioni predefinite e test automatici su più file senza perdite di memoria"
       ],
       "argomenti": [
-        "specifica del linguaggio, rappresentazione dei valori (enum + union) e architettura su più file",
-        "analizzatore lessicale (lexer)",
-        "analizzatore sintattico a discesa ricorsiva e albero sintattico astratto (AST)",
-        "valutazione delle espressioni e tabella dei simboli con tabella hash opaca",
-        "controllo di flusso (if, while), funzioni utente e funzioni predefinite",
-        "progetto completo, diagnostica degli errori e suite di test automatici"
+        "progettazione del linguaggio, valori e nodi AST",
+        "analizzatore lessicale",
+        "analizzatore sintattico ricorsivo",
+        "valutazione delle espressioni, ambiente e tabella hash generica",
+        "if, while e funzioni definite dall'utente",
+        "integrazione su più file, gestione errori e test automatici"
       ],
-      "prerequisiti": [13, 15, 17, 18, 19, 20, 21],
+      "prerequisiti": [
+        12,
+        13,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25
+      ],
       "sotto_sezioni": [
-        {"id": "22.1", "titolo": "Specificare il linguaggio, i valori e l'architettura dei moduli"},
-        {"id": "22.2", "titolo": "L'analizzatore lessicale: dal testo ai token"},
-        {"id": "22.3", "titolo": "L'analizzatore sintattico: dai token all'albero sintattico"},
-        {"id": "22.4", "titolo": "Valutazione delle espressioni e variabili con la tabella hash"},
-        {"id": "22.5", "titolo": "Istruzioni if e while, funzioni utente e funzioni predefinite"},
-        {"id": "22.6", "titolo": "Integrazione finale dell'interprete e test automatici"}
+        {
+          "id": "26.1",
+          "titolo": "Progettare il linguaggio e le strutture dati"
+        },
+        {
+          "id": "26.2",
+          "titolo": "L'analizzatore lessicale"
+        },
+        {
+          "id": "26.3",
+          "titolo": "L'analizzatore sintattico"
+        },
+        {
+          "id": "26.4",
+          "titolo": "Valutazione delle espressioni e gestione delle variabili"
+        },
+        {
+          "id": "26.5",
+          "titolo": "Controllo di flusso e funzioni definite dall'utente"
+        },
+        {
+          "id": "26.6",
+          "titolo": "L'interprete completo e la suite di test automatici"
+        }
       ]
     }
   ],
   "registro": [
-    {"nome": "stdio.h", "categoria": "header", "capitolo": 1},
-    {"nome": "int", "categoria": "parola chiave", "capitolo": 1},
-    {"nome": "void", "categoria": "parola chiave", "capitolo": 1},
-    {"nome": "return", "categoria": "parola chiave", "capitolo": 1},
-    {"nome": "printf", "categoria": "funzione", "capitolo": 1},
-    {"nome": "#include", "categoria": "sintassi", "capitolo": 1},
-    {"nome": "main", "categoria": "sintassi", "capitolo": 1},
-    {"nome": "//", "categoria": "sintassi", "capitolo": 1},
-    {"nome": "/* */", "categoria": "sintassi", "capitolo": 1},
-    {"nome": "sequenze di escape", "categoria": "sintassi", "capitolo": 1},
-    {"nome": "compilazione", "categoria": "concetto", "capitolo": 1},
-    {"nome": "stringa letterale", "categoria": "concetto", "capitolo": 1},
-    {"nome": "errori e avvisi del compilatore", "categoria": "concetto", "capitolo": 1},
-
-    {"nome": "limits.h", "categoria": "header", "capitolo": 2},
-    {"nome": "stddef.h", "categoria": "header", "capitolo": 2},
-    {"nome": "double", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "float", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "char", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "bool", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "true", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "false", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "short", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "long", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "unsigned", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "signed", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "const", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "constexpr", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "sizeof", "categoria": "parola chiave", "capitolo": 2},
-    {"nome": "size_t", "categoria": "tipo", "capitolo": 2},
-    {"nome": "CHAR_BIT", "categoria": "costante", "capitolo": 2},
-    {"nome": "INT_MIN", "categoria": "costante", "capitolo": 2},
-    {"nome": "INT_MAX", "categoria": "costante", "capitolo": 2},
-    {"nome": "UINT_MAX", "categoria": "costante", "capitolo": 2},
-    {"nome": "SHRT_MIN", "categoria": "costante", "capitolo": 2},
-    {"nome": "SHRT_MAX", "categoria": "costante", "capitolo": 2},
-    {"nome": "LONG_MIN", "categoria": "costante", "capitolo": 2},
-    {"nome": "LONG_MAX", "categoria": "costante", "capitolo": 2},
-    {"nome": "LLONG_MIN", "categoria": "costante", "capitolo": 2},
-    {"nome": "LLONG_MAX", "categoria": "costante", "capitolo": 2},
-    {"nome": "dichiarazione e inizializzazione", "categoria": "sintassi", "capitolo": 2},
-    {"nome": "specificatori di formato printf", "categoria": "sintassi", "capitolo": 2},
-    {"nome": "codifica ASCII", "categoria": "concetto", "capitolo": 2},
-
-    {"nome": "float.h", "categoria": "header", "capitolo": 3},
-    {"nome": "math.h", "categoria": "header", "capitolo": 3},
-    {"nome": "fabs", "categoria": "funzione", "capitolo": 3},
-    {"nome": "sqrt", "categoria": "funzione", "capitolo": 3},
-    {"nome": "pow", "categoria": "funzione", "capitolo": 3},
-    {"nome": "floor", "categoria": "funzione", "capitolo": 3},
-    {"nome": "ceil", "categoria": "funzione", "capitolo": 3},
-    {"nome": "round", "categoria": "funzione", "capitolo": 3},
-    {"nome": "DBL_EPSILON", "categoria": "costante", "capitolo": 3},
-    {"nome": "DBL_MAX", "categoria": "costante", "capitolo": 3},
-    {"nome": "DBL_MIN", "categoria": "costante", "capitolo": 3},
-    {"nome": "DBL_DIG", "categoria": "costante", "capitolo": 3},
-    {"nome": "operatori aritmetici", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "operatori di assegnamento composto", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "operatori ++ e --", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "operatori relazionali", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "operatori logici", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "cast esplicito", "categoria": "sintassi", "capitolo": 3},
-    {"nome": "divisione intera", "categoria": "concetto", "capitolo": 3},
-    {"nome": "precedenza e associatività", "categoria": "concetto", "capitolo": 3},
-    {"nome": "conversioni implicite", "categoria": "concetto", "capitolo": 3},
-    {"nome": "overflow intero", "categoria": "concetto", "capitolo": 3},
-    {"nome": "comportamento indefinito", "categoria": "concetto", "capitolo": 3},
-    {"nome": "imprecisione in virgola mobile", "categoria": "concetto", "capitolo": 3},
-
-    {"nome": "if", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "else", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "switch", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "case", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "default", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "break", "categoria": "parola chiave", "capitolo": 4},
-    {"nome": "operatore condizionale ?:", "categoria": "sintassi", "capitolo": 4},
-    {"nome": "valutazione a corto circuito", "categoria": "concetto", "capitolo": 4},
-
-    {"nome": "scanf", "categoria": "funzione", "capitolo": 5},
-    {"nome": "getchar", "categoria": "funzione", "capitolo": 5},
-    {"nome": "putchar", "categoria": "funzione", "capitolo": 5},
-    {"nome": "EOF", "categoria": "costante", "capitolo": 5},
-    {"nome": "operatore & in scanf", "categoria": "sintassi", "capitolo": 5},
-    {"nome": "flusso di ingresso standard", "categoria": "concetto", "capitolo": 5},
-    {"nome": "controllo del valore restituito", "categoria": "concetto", "capitolo": 5},
-
-    {"nome": "while", "categoria": "parola chiave", "capitolo": 6},
-    {"nome": "do", "categoria": "parola chiave", "capitolo": 6},
-    {"nome": "for", "categoria": "parola chiave", "capitolo": 6},
-    {"nome": "continue", "categoria": "parola chiave", "capitolo": 6},
-    {"nome": "cicli annidati", "categoria": "concetto", "capitolo": 6},
-    {"nome": "invariante di ciclo", "categoria": "concetto", "capitolo": 6},
-
-    {"nome": "static", "categoria": "parola chiave", "capitolo": 7},
-    {"nome": "prototipo di funzione", "categoria": "sintassi", "capitolo": 7},
-    {"nome": "definizione di funzione", "categoria": "sintassi", "capitolo": 7},
-    {"nome": "passaggio per valore", "categoria": "concetto", "capitolo": 7},
-    {"nome": "ambito delle variabili", "categoria": "concetto", "capitolo": 7},
-    {"nome": "durata di memorizzazione", "categoria": "concetto", "capitolo": 7},
-    {"nome": "static locale", "categoria": "concetto", "capitolo": 7},
-    {"nome": "ricorsione", "categoria": "concetto", "capitolo": 7},
-    {"nome": "pila delle chiamate", "categoria": "concetto", "capitolo": 7},
-
-    {"nome": "array monodimensionale", "categoria": "sintassi", "capitolo": 8},
-    {"nome": "array bidimensionale", "categoria": "sintassi", "capitolo": 8},
-    {"nome": "#define (costante simbolica)", "categoria": "sintassi", "capitolo": 8},
-    {"nome": "accesso fuori dai limiti", "categoria": "concetto", "capitolo": 8},
-    {"nome": "passaggio di array a funzione", "categoria": "concetto", "capitolo": 8},
-    {"nome": "ricerca lineare", "categoria": "concetto", "capitolo": 8},
-    {"nome": "ricerca binaria", "categoria": "concetto", "capitolo": 8},
-    {"nome": "ordinamento elementare", "categoria": "concetto", "capitolo": 8},
-    {"nome": "complessità algoritmica", "categoria": "concetto", "capitolo": 8},
-
-    {"nome": "string.h", "categoria": "header", "capitolo": 9},
-    {"nome": "ctype.h", "categoria": "header", "capitolo": 9},
-    {"nome": "fgets", "categoria": "funzione", "capitolo": 9},
-    {"nome": "sscanf", "categoria": "funzione", "capitolo": 9},
-    {"nome": "snprintf", "categoria": "funzione", "capitolo": 9},
-    {"nome": "puts", "categoria": "funzione", "capitolo": 9},
-    {"nome": "strlen", "categoria": "funzione", "capitolo": 9},
-    {"nome": "strcmp", "categoria": "funzione", "capitolo": 9},
-    {"nome": "strncmp", "categoria": "funzione", "capitolo": 9},
-    {"nome": "strcpy", "categoria": "funzione", "capitolo": 9},
-    {"nome": "strcspn", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isalpha", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isdigit", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isalnum", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isspace", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isupper", "categoria": "funzione", "capitolo": 9},
-    {"nome": "islower", "categoria": "funzione", "capitolo": 9},
-    {"nome": "isprint", "categoria": "funzione", "capitolo": 9},
-    {"nome": "toupper", "categoria": "funzione", "capitolo": 9},
-    {"nome": "tolower", "categoria": "funzione", "capitolo": 9},
-    {"nome": "stdin", "categoria": "costante", "capitolo": 9},
-    {"nome": "NULL", "categoria": "costante", "capitolo": 9},
-    {"nome": "terminatore nullo", "categoria": "concetto", "capitolo": 9},
-    {"nome": "buffer overflow", "categoria": "concetto", "capitolo": 9},
-
-    {"nome": "stdlib.h", "categoria": "header", "capitolo": 10},
-    {"nome": "nullptr", "categoria": "parola chiave", "capitolo": 10},
-    {"nome": "ptrdiff_t", "categoria": "tipo", "capitolo": 10},
-    {"nome": "strchr", "categoria": "funzione", "capitolo": 10},
-    {"nome": "strstr", "categoria": "funzione", "capitolo": 10},
-    {"nome": "strtol", "categoria": "funzione", "capitolo": 10},
-    {"nome": "strtod", "categoria": "funzione", "capitolo": 10},
-    {"nome": "abs", "categoria": "funzione", "capitolo": 10},
-    {"nome": "labs", "categoria": "funzione", "capitolo": 10},
-    {"nome": "operatore & (indirizzo)", "categoria": "sintassi", "capitolo": 10},
-    {"nome": "operatore * (puntatore e dereferenziazione)", "categoria": "sintassi", "capitolo": 10},
-    {"nome": "decadimento di array in puntatore", "categoria": "concetto", "capitolo": 10},
-    {"nome": "aritmetica dei puntatori", "categoria": "concetto", "capitolo": 10},
-    {"nome": "passaggio per puntatore", "categoria": "concetto", "capitolo": 10},
-    {"nome": "const e puntatori", "categoria": "concetto", "capitolo": 10},
-
-    {"nome": "malloc", "categoria": "funzione", "capitolo": 11},
-    {"nome": "calloc", "categoria": "funzione", "capitolo": 11},
-    {"nome": "realloc", "categoria": "funzione", "capitolo": 11},
-    {"nome": "free", "categoria": "funzione", "capitolo": 11},
-    {"nome": "EXIT_SUCCESS", "categoria": "costante", "capitolo": 11},
-    {"nome": "EXIT_FAILURE", "categoria": "costante", "capitolo": 11},
-    {"nome": "stack e heap", "categoria": "concetto", "capitolo": 11},
-    {"nome": "array dinamico", "categoria": "concetto", "capitolo": 11},
-    {"nome": "perdita di memoria", "categoria": "concetto", "capitolo": 11},
-    {"nome": "uso dopo free", "categoria": "concetto", "capitolo": 11},
-    {"nome": "doppia liberazione", "categoria": "concetto", "capitolo": 11},
-    {"nome": "sanitizer", "categoria": "concetto", "capitolo": 11},
-
-    {"nome": "struct", "categoria": "parola chiave", "capitolo": 12},
-    {"nome": "enum", "categoria": "parola chiave", "capitolo": 12},
-    {"nome": "typedef", "categoria": "parola chiave", "capitolo": 12},
-    {"nome": "operatore .", "categoria": "sintassi", "capitolo": 12},
-    {"nome": "operatore ->", "categoria": "sintassi", "capitolo": 12},
-    {"nome": "inizializzatori designati", "categoria": "sintassi", "capitolo": 12},
-    {"nome": "struct annidate", "categoria": "concetto", "capitolo": 12},
-    {"nome": "struct con memoria dinamica", "categoria": "concetto", "capitolo": 12},
-
-    {"nome": "stdint.h", "categoria": "header", "capitolo": 13},
-    {"nome": "inttypes.h", "categoria": "header", "capitolo": 13},
-    {"nome": "union", "categoria": "parola chiave", "capitolo": 13},
-    {"nome": "int8_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "uint8_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "int16_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "uint16_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "int32_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "uint32_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "int64_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "uint64_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "uintptr_t", "categoria": "tipo", "capitolo": 13},
-    {"nome": "SIZE_MAX", "categoria": "costante", "capitolo": 13},
-    {"nome": "INT32_MAX", "categoria": "costante", "capitolo": 13},
-    {"nome": "UINT32_MAX", "categoria": "costante", "capitolo": 13},
-    {"nome": "INT64_MAX", "categoria": "costante", "capitolo": 13},
-    {"nome": "UINT64_MAX", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRId32", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRIu32", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRId64", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRIu64", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRIx32", "categoria": "costante", "capitolo": 13},
-    {"nome": "PRIx64", "categoria": "costante", "capitolo": 13},
-    {"nome": "offsetof", "categoria": "funzione", "capitolo": 13},
-    {"nome": "operatori bit a bit", "categoria": "sintassi", "capitolo": 13},
-    {"nome": "operatori di spostamento << e >>", "categoria": "sintassi", "capitolo": 13},
-    {"nome": "letterali binari 0b", "categoria": "sintassi", "capitolo": 13},
-    {"nome": "separatori di cifre", "categoria": "sintassi", "capitolo": 13},
-    {"nome": "campi di bit", "categoria": "sintassi", "capitolo": 13},
-    {"nome": "complemento a due", "categoria": "concetto", "capitolo": 13},
-    {"nome": "maschere di bit", "categoria": "concetto", "capitolo": 13},
-    {"nome": "unione etichettata", "categoria": "concetto", "capitolo": 13},
-    {"nome": "ordine dei byte (endianness)", "categoria": "concetto", "capitolo": 13},
-    {"nome": "allineamento e padding", "categoria": "concetto", "capitolo": 13},
-
-    {"nome": "restrict", "categoria": "parola chiave", "capitolo": 14},
-    {"nome": "puntatore a puntatore", "categoria": "sintassi", "capitolo": 14},
-    {"nome": "argc e argv", "categoria": "sintassi", "capitolo": 14},
-    {"nome": "array di puntatori", "categoria": "concetto", "capitolo": 14},
-    {"nome": "matrice dinamica", "categoria": "concetto", "capitolo": 14},
-    {"nome": "const-correttezza", "categoria": "concetto", "capitolo": 14},
-    {"nome": "puntatore pendente", "categoria": "concetto", "capitolo": 14},
-
-    {"nome": "qsort", "categoria": "funzione", "capitolo": 15},
-    {"nome": "bsearch", "categoria": "funzione", "capitolo": 15},
-    {"nome": "void *", "categoria": "tipo", "capitolo": 15},
-    {"nome": "puntatore a funzione", "categoria": "sintassi", "capitolo": 15},
-    {"nome": "funzione di richiamata", "categoria": "concetto", "capitolo": 15},
-    {"nome": "tabella di dispatch", "categoria": "concetto", "capitolo": 15},
-
-    {"nome": "_Generic", "categoria": "parola chiave", "capitolo": 16},
-    {"nome": "typeof", "categoria": "parola chiave", "capitolo": 16},
-    {"nome": "auto", "categoria": "parola chiave", "capitolo": 16},
-    {"nome": "static_assert", "categoria": "parola chiave", "capitolo": 16},
-    {"nome": "alignof", "categoria": "parola chiave", "capitolo": 16},
-    {"nome": "memcpy", "categoria": "funzione", "capitolo": 16},
-    {"nome": "memmove", "categoria": "funzione", "capitolo": 16},
-    {"nome": "memcmp", "categoria": "funzione", "capitolo": 16},
-    {"nome": "memset", "categoria": "funzione", "capitolo": 16},
-    {"nome": "memchr", "categoria": "funzione", "capitolo": 16},
-    {"nome": "contenitore generico", "categoria": "concetto", "capitolo": 16},
-    {"nome": "vettore dinamico generico", "categoria": "concetto", "capitolo": 16},
-    {"nome": "strict aliasing", "categoria": "concetto", "capitolo": 16},
-
-    {"nome": "struttura autoreferenziale", "categoria": "concetto", "capitolo": 17},
-    {"nome": "lista concatenata semplice", "categoria": "concetto", "capitolo": 17},
-    {"nome": "lista doppiamente concatenata", "categoria": "concetto", "capitolo": 17},
-    {"nome": "pila", "categoria": "concetto", "capitolo": 17},
-    {"nome": "coda", "categoria": "concetto", "capitolo": 17},
-    {"nome": "albero binario di ricerca", "categoria": "concetto", "capitolo": 17},
-    {"nome": "possesso della memoria", "categoria": "concetto", "capitolo": 17},
-
-    {"nome": "funzione di hash", "categoria": "concetto", "capitolo": 18},
-    {"nome": "collisione e concatenamento", "categoria": "concetto", "capitolo": 18},
-    {"nome": "fattore di carico", "categoria": "concetto", "capitolo": 18},
-    {"nome": "ridimensionamento (rehashing)", "categoria": "concetto", "capitolo": 18},
-    {"nome": "tabella hash generica", "categoria": "concetto", "capitolo": 18},
-
-    {"nome": "extern", "categoria": "parola chiave", "capitolo": 19},
-    {"nome": "inline", "categoria": "parola chiave", "capitolo": 19},
-    {"nome": "include guard", "categoria": "sintassi", "capitolo": 19},
-    {"nome": "unità di traduzione", "categoria": "concetto", "capitolo": 19},
-    {"nome": "compilazione separata e linking", "categoria": "concetto", "capitolo": 19},
-    {"nome": "static a livello di file", "categoria": "concetto", "capitolo": 19},
-    {"nome": "tipo opaco", "categoria": "concetto", "capitolo": 19},
-
-    {"nome": "FILE", "categoria": "tipo", "capitolo": 20},
-    {"nome": "fopen", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fclose", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fputs", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fprintf", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fscanf", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fgetc", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fputc", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fflush", "categoria": "funzione", "capitolo": 20},
-    {"nome": "feof", "categoria": "funzione", "capitolo": 20},
-    {"nome": "ferror", "categoria": "funzione", "capitolo": 20},
-    {"nome": "clearerr", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fread", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fwrite", "categoria": "funzione", "capitolo": 20},
-    {"nome": "fseek", "categoria": "funzione", "capitolo": 20},
-    {"nome": "ftell", "categoria": "funzione", "capitolo": 20},
-    {"nome": "rewind", "categoria": "funzione", "capitolo": 20},
-    {"nome": "tmpfile", "categoria": "funzione", "capitolo": 20},
-    {"nome": "remove", "categoria": "funzione", "capitolo": 20},
-    {"nome": "stdout", "categoria": "costante", "capitolo": 20},
-    {"nome": "stderr", "categoria": "costante", "capitolo": 20},
-    {"nome": "SEEK_SET", "categoria": "costante", "capitolo": 20},
-    {"nome": "SEEK_CUR", "categoria": "costante", "capitolo": 20},
-    {"nome": "SEEK_END", "categoria": "costante", "capitolo": 20},
-    {"nome": "file di testo e binari", "categoria": "concetto", "capitolo": 20},
-    {"nome": "serializzazione portabile", "categoria": "concetto", "capitolo": 20},
-
-    {"nome": "errno.h", "categoria": "header", "capitolo": 21},
-    {"nome": "assert.h", "categoria": "header", "capitolo": 21},
-    {"nome": "stdarg.h", "categoria": "header", "capitolo": 21},
-    {"nome": "signal.h", "categoria": "header", "capitolo": 21},
-    {"nome": "goto", "categoria": "parola chiave", "capitolo": 21},
-    {"nome": "volatile", "categoria": "parola chiave", "capitolo": 21},
-    {"nome": "va_list", "categoria": "tipo", "capitolo": 21},
-    {"nome": "sig_atomic_t", "categoria": "tipo", "capitolo": 21},
-    {"nome": "perror", "categoria": "funzione", "capitolo": 21},
-    {"nome": "strerror", "categoria": "funzione", "capitolo": 21},
-    {"nome": "assert", "categoria": "funzione", "capitolo": 21},
-    {"nome": "va_start", "categoria": "funzione", "capitolo": 21},
-    {"nome": "va_arg", "categoria": "funzione", "capitolo": 21},
-    {"nome": "va_end", "categoria": "funzione", "capitolo": 21},
-    {"nome": "va_copy", "categoria": "funzione", "capitolo": 21},
-    {"nome": "vsnprintf", "categoria": "funzione", "capitolo": 21},
-    {"nome": "vfprintf", "categoria": "funzione", "capitolo": 21},
-    {"nome": "vprintf", "categoria": "funzione", "capitolo": 21},
-    {"nome": "exit", "categoria": "funzione", "capitolo": 21},
-    {"nome": "signal", "categoria": "funzione", "capitolo": 21},
-    {"nome": "raise", "categoria": "funzione", "capitolo": 21},
-    {"nome": "errno", "categoria": "costante", "capitolo": 21},
-    {"nome": "ERANGE", "categoria": "costante", "capitolo": 21},
-    {"nome": "EINVAL", "categoria": "costante", "capitolo": 21},
-    {"nome": "ENOMEM", "categoria": "costante", "capitolo": 21},
-    {"nome": "NDEBUG", "categoria": "costante", "capitolo": 21},
-    {"nome": "__FILE__", "categoria": "costante", "capitolo": 21},
-    {"nome": "__LINE__", "categoria": "costante", "capitolo": 21},
-    {"nome": "__func__", "categoria": "costante", "capitolo": 21},
-    {"nome": "SIGINT", "categoria": "costante", "capitolo": 21},
-    {"nome": "SIGTERM", "categoria": "costante", "capitolo": 21},
-    {"nome": "SIG_DFL", "categoria": "costante", "capitolo": 21},
-    {"nome": "SIG_IGN", "categoria": "costante", "capitolo": 21},
-    {"nome": "SIG_ERR", "categoria": "costante", "capitolo": 21},
-    {"nome": "macro con argomenti", "categoria": "sintassi", "capitolo": 21},
-    {"nome": "compilazione condizionale", "categoria": "sintassi", "capitolo": 21},
-    {"nome": "operatori preprocessore # e ##", "categoria": "sintassi", "capitolo": 21},
-    {"nome": "modello goto cleanup", "categoria": "concetto", "capitolo": 21},
-    {"nome": "funzioni variadiche", "categoria": "concetto", "capitolo": 21},
-    {"nome": "debugger", "categoria": "concetto", "capitolo": 21},
-    {"nome": "gestione dei segnali", "categoria": "concetto", "capitolo": 21}
+    {
+      "nome": "stdio.h",
+      "categoria": "header",
+      "capitolo": 1
+    },
+    {
+      "nome": "int",
+      "categoria": "parola chiave",
+      "capitolo": 1
+    },
+    {
+      "nome": "void",
+      "categoria": "parola chiave",
+      "capitolo": 1
+    },
+    {
+      "nome": "return",
+      "categoria": "parola chiave",
+      "capitolo": 1
+    },
+    {
+      "nome": "printf",
+      "categoria": "funzione",
+      "capitolo": 1
+    },
+    {
+      "nome": "main",
+      "categoria": "sintassi",
+      "capitolo": 1
+    },
+    {
+      "nome": "#include",
+      "categoria": "sintassi",
+      "capitolo": 1
+    },
+    {
+      "nome": "commenti",
+      "categoria": "sintassi",
+      "capitolo": 1
+    },
+    {
+      "nome": "sequenze di escape",
+      "categoria": "sintassi",
+      "capitolo": 1
+    },
+    {
+      "nome": "compilazione",
+      "categoria": "concetto",
+      "capitolo": 1
+    },
+    {
+      "nome": "limits.h",
+      "categoria": "header",
+      "capitolo": 2
+    },
+    {
+      "nome": "stddef.h",
+      "categoria": "header",
+      "capitolo": 2
+    },
+    {
+      "nome": "double",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "float",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "char",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "bool",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "true",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "false",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "const",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "constexpr",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "sizeof",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "short",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "long",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "signed",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "unsigned",
+      "categoria": "parola chiave",
+      "capitolo": 2
+    },
+    {
+      "nome": "size_t",
+      "categoria": "tipo",
+      "capitolo": 2
+    },
+    {
+      "nome": "CHAR_BIT",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "CHAR_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "CHAR_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "SCHAR_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "SCHAR_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "UCHAR_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "SHRT_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "SHRT_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "USHRT_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "INT_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "INT_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "UINT_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "LONG_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "LONG_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "ULONG_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "LLONG_MIN",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "LLONG_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "ULLONG_MAX",
+      "categoria": "costante",
+      "capitolo": 2
+    },
+    {
+      "nome": "specificatori di formato",
+      "categoria": "sintassi",
+      "capitolo": 2
+    },
+    {
+      "nome": "separatore di cifre",
+      "categoria": "sintassi",
+      "capitolo": 2
+    },
+    {
+      "nome": "variabile",
+      "categoria": "concetto",
+      "capitolo": 2
+    },
+    {
+      "nome": "float.h",
+      "categoria": "header",
+      "capitolo": 3
+    },
+    {
+      "nome": "DBL_EPSILON",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "DBL_MAX",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "DBL_MIN",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "DBL_DIG",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "FLT_EPSILON",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "FLT_MAX",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "FLT_MIN",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "FLT_DIG",
+      "categoria": "costante",
+      "capitolo": 3
+    },
+    {
+      "nome": "operatori aritmetici",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "operatore modulo",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "assegnamento composto",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "incremento e decremento",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "operatori relazionali",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "operatori logici",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "cast esplicito",
+      "categoria": "sintassi",
+      "capitolo": 3
+    },
+    {
+      "nome": "overflow",
+      "categoria": "concetto",
+      "capitolo": 3
+    },
+    {
+      "nome": "comportamento indefinito",
+      "categoria": "concetto",
+      "capitolo": 3
+    },
+    {
+      "nome": "if",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "else",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "switch",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "case",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "default",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "break",
+      "categoria": "parola chiave",
+      "capitolo": 4
+    },
+    {
+      "nome": "operatore condizionale",
+      "categoria": "sintassi",
+      "capitolo": 4
+    },
+    {
+      "nome": "valutazione a corto circuito",
+      "categoria": "concetto",
+      "capitolo": 4
+    },
+    {
+      "nome": "stdlib.h",
+      "categoria": "header",
+      "capitolo": 5
+    },
+    {
+      "nome": "nullptr",
+      "categoria": "parola chiave",
+      "capitolo": 5
+    },
+    {
+      "nome": "fgets",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
+      "nome": "sscanf",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
+      "nome": "getchar",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
+      "nome": "putchar",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
+      "nome": "stdin",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "stdout",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "EOF",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "EXIT_SUCCESS",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "EXIT_FAILURE",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "fine dell'input",
+      "categoria": "concetto",
+      "capitolo": 5
+    },
+    {
+      "nome": "while",
+      "categoria": "parola chiave",
+      "capitolo": 6
+    },
+    {
+      "nome": "do",
+      "categoria": "parola chiave",
+      "capitolo": 6
+    },
+    {
+      "nome": "for",
+      "categoria": "parola chiave",
+      "capitolo": 6
+    },
+    {
+      "nome": "continue",
+      "categoria": "parola chiave",
+      "capitolo": 6
+    },
+    {
+      "nome": "invariante di ciclo",
+      "categoria": "concetto",
+      "capitolo": 6
+    },
+    {
+      "nome": "static",
+      "categoria": "parola chiave",
+      "capitolo": 7
+    },
+    {
+      "nome": "abs",
+      "categoria": "funzione",
+      "capitolo": 7
+    },
+    {
+      "nome": "labs",
+      "categoria": "funzione",
+      "capitolo": 7
+    },
+    {
+      "nome": "llabs",
+      "categoria": "funzione",
+      "capitolo": 7
+    },
+    {
+      "nome": "prototipo di funzione",
+      "categoria": "concetto",
+      "capitolo": 7
+    },
+    {
+      "nome": "passaggio per valore",
+      "categoria": "concetto",
+      "capitolo": 7
+    },
+    {
+      "nome": "ricorsione",
+      "categoria": "concetto",
+      "capitolo": 7
+    },
+    {
+      "nome": "array",
+      "categoria": "sintassi",
+      "capitolo": 8
+    },
+    {
+      "nome": "operatore di indicizzazione",
+      "categoria": "sintassi",
+      "capitolo": 8
+    },
+    {
+      "nome": "inizializzatore designato",
+      "categoria": "sintassi",
+      "capitolo": 8
+    },
+    {
+      "nome": "accesso fuori dai limiti",
+      "categoria": "concetto",
+      "capitolo": 8
+    },
+    {
+      "nome": "ricerca binaria",
+      "categoria": "concetto",
+      "capitolo": 8
+    },
+    {
+      "nome": "string.h",
+      "categoria": "header",
+      "capitolo": 9
+    },
+    {
+      "nome": "ctype.h",
+      "categoria": "header",
+      "capitolo": 9
+    },
+    {
+      "nome": "puts",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "snprintf",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strlen",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strcmp",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strncmp",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strcpy",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strncpy",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strcat",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strncat",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strchr",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strrchr",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strstr",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strcspn",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strspn",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "strpbrk",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isalpha",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isdigit",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isalnum",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isspace",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isupper",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "islower",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isxdigit",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "ispunct",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "isprint",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "tolower",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "toupper",
+      "categoria": "funzione",
+      "capitolo": 9
+    },
+    {
+      "nome": "terminatore nullo",
+      "categoria": "concetto",
+      "capitolo": 9
+    },
+    {
+      "nome": "buffer overflow",
+      "categoria": "concetto",
+      "capitolo": 9
+    },
+    {
+      "nome": "ptrdiff_t",
+      "categoria": "tipo",
+      "capitolo": 10
+    },
+    {
+      "nome": "NULL",
+      "categoria": "costante",
+      "capitolo": 10
+    },
+    {
+      "nome": "operatore indirizzo",
+      "categoria": "sintassi",
+      "capitolo": 10
+    },
+    {
+      "nome": "operatore di dereferenziazione",
+      "categoria": "sintassi",
+      "capitolo": 10
+    },
+    {
+      "nome": "puntatore",
+      "categoria": "concetto",
+      "capitolo": 10
+    },
+    {
+      "nome": "decadimento di array",
+      "categoria": "concetto",
+      "capitolo": 10
+    },
+    {
+      "nome": "aritmetica dei puntatori",
+      "categoria": "concetto",
+      "capitolo": 10
+    },
+    {
+      "nome": "malloc",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "calloc",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "realloc",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "free",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "allocazione dinamica",
+      "categoria": "concetto",
+      "capitolo": 11
+    },
+    {
+      "nome": "perdita di memoria",
+      "categoria": "concetto",
+      "capitolo": 11
+    },
+    {
+      "nome": "sanitizer",
+      "categoria": "concetto",
+      "capitolo": 11
+    },
+    {
+      "nome": "struct",
+      "categoria": "parola chiave",
+      "capitolo": 12
+    },
+    {
+      "nome": "enum",
+      "categoria": "parola chiave",
+      "capitolo": 12
+    },
+    {
+      "nome": "typedef",
+      "categoria": "parola chiave",
+      "capitolo": 12
+    },
+    {
+      "nome": "operatore punto",
+      "categoria": "sintassi",
+      "capitolo": 12
+    },
+    {
+      "nome": "operatore freccia",
+      "categoria": "sintassi",
+      "capitolo": 12
+    },
+    {
+      "nome": "letterale composto",
+      "categoria": "sintassi",
+      "capitolo": 12
+    },
+    {
+      "nome": "enumerazione",
+      "categoria": "concetto",
+      "capitolo": 12
+    },
+    {
+      "nome": "stdint.h",
+      "categoria": "header",
+      "capitolo": 13
+    },
+    {
+      "nome": "inttypes.h",
+      "categoria": "header",
+      "capitolo": 13
+    },
+    {
+      "nome": "union",
+      "categoria": "parola chiave",
+      "capitolo": 13
+    },
+    {
+      "nome": "alignof",
+      "categoria": "parola chiave",
+      "capitolo": 13
+    },
+    {
+      "nome": "int8_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "uint8_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "int16_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "uint16_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "int32_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "uint32_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "int64_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "uint64_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "intptr_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "uintptr_t",
+      "categoria": "tipo",
+      "capitolo": 13
+    },
+    {
+      "nome": "SIZE_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT8_MIN",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT8_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "UINT8_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT16_MIN",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT16_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "UINT16_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT32_MIN",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT32_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "UINT32_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT64_MIN",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "INT64_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "UINT64_MAX",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRId8",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIu8",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIx8",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRId16",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIu16",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIx16",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRId32",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIu32",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIx32",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRId64",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIu64",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "PRIx64",
+      "categoria": "costante",
+      "capitolo": 13
+    },
+    {
+      "nome": "offsetof",
+      "categoria": "sintassi",
+      "capitolo": 13
+    },
+    {
+      "nome": "letterale binario",
+      "categoria": "sintassi",
+      "capitolo": 13
+    },
+    {
+      "nome": "letterale esadecimale",
+      "categoria": "sintassi",
+      "capitolo": 13
+    },
+    {
+      "nome": "operatori bit a bit",
+      "categoria": "sintassi",
+      "capitolo": 13
+    },
+    {
+      "nome": "campi di bit",
+      "categoria": "sintassi",
+      "capitolo": 13
+    },
+    {
+      "nome": "complemento a due",
+      "categoria": "concetto",
+      "capitolo": 13
+    },
+    {
+      "nome": "ordine dei byte",
+      "categoria": "concetto",
+      "capitolo": 13
+    },
+    {
+      "nome": "allineamento",
+      "categoria": "concetto",
+      "capitolo": 13
+    },
+    {
+      "nome": "padding",
+      "categoria": "concetto",
+      "capitolo": 13
+    },
+    {
+      "nome": "restrict",
+      "categoria": "parola chiave",
+      "capitolo": 14
+    },
+    {
+      "nome": "strtol",
+      "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "strtoul",
+      "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "strtoll",
+      "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "strtoull",
+      "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "strtod",
+      "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "puntatore a puntatore",
+      "categoria": "sintassi",
+      "capitolo": 14
+    },
+    {
+      "nome": "argc/argv",
+      "categoria": "sintassi",
+      "capitolo": 14
+    },
+    {
+      "nome": "matrice dinamica",
+      "categoria": "concetto",
+      "capitolo": 14
+    },
+    {
+      "nome": "puntatore pendente",
+      "categoria": "concetto",
+      "capitolo": 14
+    },
+    {
+      "nome": "_Generic",
+      "categoria": "parola chiave",
+      "capitolo": 15
+    },
+    {
+      "nome": "typeof",
+      "categoria": "parola chiave",
+      "capitolo": 15
+    },
+    {
+      "nome": "typeof_unqual",
+      "categoria": "parola chiave",
+      "capitolo": 15
+    },
+    {
+      "nome": "auto",
+      "categoria": "parola chiave",
+      "capitolo": 15
+    },
+    {
+      "nome": "static_assert",
+      "categoria": "parola chiave",
+      "capitolo": 15
+    },
+    {
+      "nome": "nullptr_t",
+      "categoria": "tipo",
+      "capitolo": 15
+    },
+    {
+      "nome": "memcpy",
+      "categoria": "funzione",
+      "capitolo": 15
+    },
+    {
+      "nome": "memmove",
+      "categoria": "funzione",
+      "capitolo": 15
+    },
+    {
+      "nome": "memcmp",
+      "categoria": "funzione",
+      "capitolo": 15
+    },
+    {
+      "nome": "memset",
+      "categoria": "funzione",
+      "capitolo": 15
+    },
+    {
+      "nome": "memchr",
+      "categoria": "funzione",
+      "capitolo": 15
+    },
+    {
+      "nome": "puntatore generico",
+      "categoria": "concetto",
+      "capitolo": 15
+    },
+    {
+      "nome": "contenitore generico",
+      "categoria": "concetto",
+      "capitolo": 15
+    },
+    {
+      "nome": "qsort",
+      "categoria": "funzione",
+      "capitolo": 16
+    },
+    {
+      "nome": "bsearch",
+      "categoria": "funzione",
+      "capitolo": 16
+    },
+    {
+      "nome": "puntatore a funzione",
+      "categoria": "concetto",
+      "capitolo": 16
+    },
+    {
+      "nome": "callback",
+      "categoria": "concetto",
+      "capitolo": 16
+    },
+    {
+      "nome": "lista concatenata",
+      "categoria": "concetto",
+      "capitolo": 17
+    },
+    {
+      "nome": "pila",
+      "categoria": "concetto",
+      "capitolo": 17
+    },
+    {
+      "nome": "coda",
+      "categoria": "concetto",
+      "capitolo": 17
+    },
+    {
+      "nome": "albero binario di ricerca",
+      "categoria": "concetto",
+      "capitolo": 17
+    },
+    {
+      "nome": "possesso della memoria",
+      "categoria": "concetto",
+      "capitolo": 17
+    },
+    {
+      "nome": "tabella hash",
+      "categoria": "concetto",
+      "capitolo": 18
+    },
+    {
+      "nome": "funzione di hash",
+      "categoria": "concetto",
+      "capitolo": 18
+    },
+    {
+      "nome": "fattore di carico",
+      "categoria": "concetto",
+      "capitolo": 18
+    },
+    {
+      "nome": "ridimensionamento",
+      "categoria": "concetto",
+      "capitolo": 18
+    },
+    {
+      "nome": "extern",
+      "categoria": "parola chiave",
+      "capitolo": 19
+    },
+    {
+      "nome": "inline",
+      "categoria": "parola chiave",
+      "capitolo": 19
+    },
+    {
+      "nome": "#define",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#undef",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#ifndef",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#ifdef",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#if",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#else",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#elif",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "#endif",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
+      "nome": "compilazione separata",
+      "categoria": "concetto",
+      "capitolo": 19
+    },
+    {
+      "nome": "tipo opaco",
+      "categoria": "concetto",
+      "capitolo": 19
+    },
+    {
+      "nome": "FILE",
+      "categoria": "tipo",
+      "capitolo": 20
+    },
+    {
+      "nome": "fopen",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fclose",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fprintf",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
+      "nome": "fputs",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fputc",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fgetc",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fread",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fwrite",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fseek",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "ftell",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "rewind",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "fflush",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "feof",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "ferror",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "clearerr",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "remove",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "rename",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "tmpfile",
+      "categoria": "funzione",
+      "capitolo": 20
+    },
+    {
+      "nome": "stderr",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "SEEK_SET",
+      "categoria": "costante",
+      "capitolo": 20
+    },
+    {
+      "nome": "SEEK_CUR",
+      "categoria": "costante",
+      "capitolo": 20
+    },
+    {
+      "nome": "SEEK_END",
+      "categoria": "costante",
+      "capitolo": 20
+    },
+    {
+      "nome": "serializzazione",
+      "categoria": "concetto",
+      "capitolo": 20
+    },
+    {
+      "nome": "errno.h",
+      "categoria": "header",
+      "capitolo": 21
+    },
+    {
+      "nome": "assert.h",
+      "categoria": "header",
+      "capitolo": 21
+    },
+    {
+      "nome": "stdarg.h",
+      "categoria": "header",
+      "capitolo": 21
+    },
+    {
+      "nome": "signal.h",
+      "categoria": "header",
+      "capitolo": 21
+    },
+    {
+      "nome": "goto",
+      "categoria": "parola chiave",
+      "capitolo": 21
+    },
+    {
+      "nome": "volatile",
+      "categoria": "parola chiave",
+      "capitolo": 21
+    },
+    {
+      "nome": "va_list",
+      "categoria": "tipo",
+      "capitolo": 21
+    },
+    {
+      "nome": "sig_atomic_t",
+      "categoria": "tipo",
+      "capitolo": 21
+    },
+    {
+      "nome": "perror",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "strerror",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "assert",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "va_start",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "va_arg",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "va_end",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "va_copy",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "vprintf",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "vfprintf",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "vsnprintf",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "signal",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "raise",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "exit",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "abort",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "errno",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "EDOM",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "ERANGE",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "EILSEQ",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "NDEBUG",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "__FILE__",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "__LINE__",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "__func__",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGINT",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGTERM",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGABRT",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGFPE",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGILL",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIGSEGV",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIG_DFL",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIG_IGN",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "SIG_ERR",
+      "categoria": "costante",
+      "capitolo": 21
+    },
+    {
+      "nome": "macro con argomenti",
+      "categoria": "sintassi",
+      "capitolo": 21
+    },
+    {
+      "nome": "funzione variadica",
+      "categoria": "sintassi",
+      "capitolo": 21
+    },
+    {
+      "nome": "goto cleanup",
+      "categoria": "concetto",
+      "capitolo": 21
+    },
+    {
+      "nome": "alignas",
+      "categoria": "parola chiave",
+      "capitolo": 22
+    },
+    {
+      "nome": "max_align_t",
+      "categoria": "tipo",
+      "capitolo": 22
+    },
+    {
+      "nome": "allocatore ad arena",
+      "categoria": "concetto",
+      "capitolo": 22
+    },
+    {
+      "nome": "allocatore a pool",
+      "categoria": "concetto",
+      "capitolo": 22
+    },
+    {
+      "nome": "lista libera",
+      "categoria": "concetto",
+      "capitolo": 22
+    },
+    {
+      "nome": "strict aliasing",
+      "categoria": "concetto",
+      "capitolo": 22
+    },
+    {
+      "nome": "notazione O",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "heap binario",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "coda di priorità",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "albero AVL",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "trie",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "grafo",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "algoritmo di Dijkstra",
+      "categoria": "concetto",
+      "capitolo": 23
+    },
+    {
+      "nome": "setjmp.h",
+      "categoria": "header",
+      "capitolo": 24
+    },
+    {
+      "nome": "jmp_buf",
+      "categoria": "tipo",
+      "capitolo": 24
+    },
+    {
+      "nome": "setjmp",
+      "categoria": "funzione",
+      "capitolo": 24
+    },
+    {
+      "nome": "longjmp",
+      "categoria": "funzione",
+      "capitolo": 24
+    },
+    {
+      "nome": "__VA_ARGS__",
+      "categoria": "sintassi",
+      "capitolo": 24
+    },
+    {
+      "nome": "__VA_OPT__",
+      "categoria": "sintassi",
+      "capitolo": 24
+    },
+    {
+      "nome": "operatore #",
+      "categoria": "sintassi",
+      "capitolo": 24
+    },
+    {
+      "nome": "operatore ##",
+      "categoria": "sintassi",
+      "capitolo": 24
+    },
+    {
+      "nome": "X-macro",
+      "categoria": "concetto",
+      "capitolo": 24
+    },
+    {
+      "nome": "lista intrusiva",
+      "categoria": "concetto",
+      "capitolo": 24
+    },
+    {
+      "nome": "macchina a stati finiti",
+      "categoria": "concetto",
+      "capitolo": 24
+    },
+    {
+      "nome": "time.h",
+      "categoria": "header",
+      "capitolo": 25
+    },
+    {
+      "nome": "clock_t",
+      "categoria": "tipo",
+      "capitolo": 25
+    },
+    {
+      "nome": "clock",
+      "categoria": "funzione",
+      "capitolo": 25
+    },
+    {
+      "nome": "srand",
+      "categoria": "funzione",
+      "capitolo": 25
+    },
+    {
+      "nome": "rand",
+      "categoria": "funzione",
+      "capitolo": 25
+    },
+    {
+      "nome": "CLOCKS_PER_SEC",
+      "categoria": "costante",
+      "capitolo": 25
+    },
+    {
+      "nome": "RAND_MAX",
+      "categoria": "costante",
+      "capitolo": 25
+    },
+    {
+      "nome": "località dei dati",
+      "categoria": "concetto",
+      "capitolo": 25
+    },
+    {
+      "nome": "test automatico",
+      "categoria": "concetto",
+      "capitolo": 25
+    },
+    {
+      "nome": "fuzzing",
+      "categoria": "concetto",
+      "capitolo": 25
+    },
+    {
+      "nome": "math.h",
+      "categoria": "header",
+      "capitolo": 3
+    },
+    {
+      "nome": "fabs",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "sqrt",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "pow",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "floor",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "ceil",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "round",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "fmod",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "void * (solo come tipo restituito da malloc)",
+      "categoria": "sintassi",
+      "capitolo": 11
+    }
   ],
   "non_trattati": [
     "register",
-    "alignas",
-    "thread_local",
-    "typeof_unqual",
-    "_Atomic",
-    "_BitInt",
-    "_Complex",
-    "_Decimal32",
-    "_Decimal64",
-    "_Decimal128",
-    "_Imaginary",
-    "_Noreturn",
-    "_Static_assert",
-    "_Alignof",
-    "_Alignas",
-    "_Bool",
-    "_Thread_local",
     "stdbool.h",
     "stdalign.h",
     "threads.h",
     "stdatomic.h",
+    "thread_local",
     "complex.h",
     "tgmath.h",
-    "setjmp.h",
-    "locale.h",
-    "uchar.h",
     "wchar.h",
     "wctype.h",
-    "fenv.h",
-    "iso646.h",
-    "stdckdint.h",
-    "stdbit.h",
-    "time.h",
-    "unistd.h",
-    "conio.h",
-    "windows.h",
-    "pthread.h",
-    "fcntl.h",
+    "uchar.h",
     "gets",
-    "sprintf",
-    "vsprintf",
-    "strcat",
-    "strncat",
-    "strncpy",
-    "strtok",
+    "_Atomic",
+    "_Complex",
+    "_Imaginary",
+    "_BitInt",
+    "_Noreturn",
+    "scanf",
+    "fscanf",
     "atoi",
-    "atof",
     "atol",
-    "atoll",
-    "setjmp",
-    "longjmp",
-    "system",
-    "alloca",
-    "getch",
-    "sleep",
-    "M_PI"
+    "atof"
   ],
   "glossario": [
-    {"termine": "codice sorgente", "definizione": "Testo leggibile scritto dal programmatore in un linguaggio di programmazione prima della compilazione.", "capitolo": 1, "sinonimi_vietati": ["codice grezzo", "listato sorgente"]},
-    {"termine": "compilatore", "definizione": "Programma che traduce il codice sorgente C in codice macchina verificandone sintassi e tipi.", "capitolo": 1, "sinonimi_vietati": ["traduttore", "interprete"]},
-    {"termine": "eseguibile", "definizione": "File prodotto da compilazione e collegamento che il sistema operativo può avviare direttamente.", "capitolo": 1, "sinonimi_vietati": ["binario lanciabile"]},
-    {"termine": "avviso del compilatore", "definizione": "Segnalazione di codice sintatticamente valido ma sospetto o potenzialmente errato.", "capitolo": 1, "sinonimi_vietati": ["allarme", "notifica"]},
-    {"termine": "header", "definizione": "File di intestazione (.h) che fornisce dichiarazioni di funzioni, tipi e costanti tramite #include.", "capitolo": 1, "sinonimi_vietati": ["testata", "intestatore"]},
-    {"termine": "sequenza di escape", "definizione": "Coppia di caratteri iniziata da barra rovesciata (come \\n o \\t) che rappresenta un carattere speciale.", "capitolo": 1, "sinonimi_vietati": ["codice di fuga"]},
-    {"termine": "variabile", "definizione": "Porzione di memoria dotata di nome e tipo che conserva un valore modificabile durante l'esecuzione.", "capitolo": 2, "sinonimi_vietati": ["contenitore", "scatola"]},
-    {"termine": "tipo di dato", "definizione": "Specifica che stabilisce l'insieme dei valori rappresentabili, la dimensione in byte e le operazioni ammesse.", "capitolo": 2, "sinonimi_vietati": ["categoria di dato"]},
-    {"termine": "dichiarazione", "definizione": "Costrutto che introduce il nome e il tipo di una variabile o funzione rendendoli noti al compilatore.", "capitolo": 2, "sinonimi_vietati": ["presentazione"]},
-    {"termine": "inizializzazione", "definizione": "Assegnazione del valore iniziale a una variabile nel momento stesso in cui viene creata.", "capitolo": 2, "sinonimi_vietati": ["impostazione iniziale"]},
-    {"termine": "costante", "definizione": "Valore che non può essere modificato dopo la definizione; con constexpr è noto a tempo di compilazione.", "capitolo": 2, "sinonimi_vietati": ["variabile fissa"]},
-    {"termine": "specificatore di formato", "definizione": "Segnaposto preceduto da % nelle stringhe di controllo di printf, snprintf e scanf che indica come formattare o leggere un valore.", "capitolo": 2, "sinonimi_vietati": ["segnaposto di stampa"]},
-    {"termine": "espressione", "definizione": "Combinazione di valori, variabili, chiamate e operatori che produce un risultato di un tipo determinato.", "capitolo": 3, "sinonimi_vietati": ["formula"]},
-    {"termine": "operatore", "definizione": "Simbolo o parola chiave che applica un'operazione a uno o più operandi producendo un valore.", "capitolo": 3, "sinonimi_vietati": ["segno di calcolo"]},
-    {"termine": "precedenza", "definizione": "Regola che stabilisce quale operatore viene valutato per primo in un'espressione senza parentesi.", "capitolo": 3, "sinonimi_vietati": ["priorità di calcolo"]},
-    {"termine": "associatività", "definizione": "Regola che determina l'ordine di raggruppamento tra operatori con la stessa precedenza.", "capitolo": 3, "sinonimi_vietati": ["direzione di lettura"]},
-    {"termine": "conversione di tipo", "definizione": "Trasformazione di un valore da un tipo a un altro, eseguita automaticamente dal compilatore o esplicitamente con un cast.", "capitolo": 3, "sinonimi_vietati": ["trasformazione forzata"]},
-    {"termine": "cast", "definizione": "Operatore (tipo) che richiede una conversione esplicita del valore di un'espressione.", "capitolo": 3, "sinonimi_vietati": ["forzatura di tipo"]},
-    {"termine": "overflow", "definizione": "Situazione in cui il risultato di un'operazione supera i limiti rappresentabili dal tipo di destinazione.", "capitolo": 3, "sinonimi_vietati": ["traboccamento", "sforamento numerico"]},
-    {"termine": "comportamento indefinito", "definizione": "Violazione delle regole dello standard C per la quale il linguaggio non impone alcun vincolo su ciò che il programma può fare.", "capitolo": 3, "sinonimi_vietati": ["errore casuale", "comportamento imprevedibile"]},
-    {"termine": "comportamento dipendente dall'implementazione", "definizione": "Aspetto non fissato in modo unico dallo standard ma che ogni compilatore deve scegliere e documentare.", "capitolo": 3, "sinonimi_vietati": ["comportamento arbitrario"]},
-    {"termine": "valutazione a corto circuito", "definizione": "Meccanismo di && e || che evita di valutare l'operando destro quando il risultato è già determinato dal sinistro.", "capitolo": 4, "sinonimi_vietati": ["valutazione pigra"]},
-    {"termine": "fall-through", "definizione": "Proseguimento dell'esecuzione dal corpo di un case al successivo in uno switch quando manca break.", "capitolo": 4, "sinonimi_vietati": ["caduta di ramo"]},
-    {"termine": "flusso di ingresso", "definizione": "Sequenza ordinata di caratteri fornita al programma dall'esterno, tipicamente dalla tastiera o da un file ridiretto.", "capitolo": 5, "sinonimi_vietati": ["canale tastiera"]},
-    {"termine": "valore restituito", "definizione": "Risultato che una funzione consegna al chiamante al termine della propria esecuzione.", "capitolo": 5, "sinonimi_vietati": ["valore rimandato"]},
-    {"termine": "ciclo", "definizione": "Costrutto di controllo che ripete un blocco di istruzioni finché una condizione resta vera.", "capitolo": 6, "sinonimi_vietati": ["anello", "giro"]},
-    {"termine": "valore sentinella", "definizione": "Valore convenzionale che segnala la fine di una sequenza di dati o di un'iterazione.", "capitolo": 6, "sinonimi_vietati": ["valore tappo"]},
-    {"termine": "invariante di ciclo", "definizione": "Proprietà che resta vera prima dell'inizio e al termine di ogni iterazione di un ciclo.", "capitolo": 6, "sinonimi_vietati": ["condizione fissa"]},
-    {"termine": "funzione", "definizione": "Blocco di codice con nome, parametri opzionali e tipo di ritorno richiamabile da altre parti del programma.", "capitolo": 7, "sinonimi_vietati": ["sottoprogramma", "procedura"]},
-    {"termine": "prototipo", "definizione": "Dichiarazione di funzione senza corpo che specifica nome, tipo di ritorno e tipi dei parametri.", "capitolo": 7, "sinonimi_vietati": ["firma anticipata"]},
-    {"termine": "parametro", "definizione": "Variabile locale dichiarata nell'intestazione di una funzione che riceve una copia dell'argomento passato.", "capitolo": 7, "sinonimi_vietati": ["ingresso di funzione"]},
-    {"termine": "argomento", "definizione": "Espressione effettiva passata a una funzione nel punto della chiamata.", "capitolo": 7, "sinonimi_vietati": ["parametro reale"]},
-    {"termine": "passaggio per valore", "definizione": "Meccanismo del C per cui la funzione riceve una copia del valore dell'argomento e non l'oggetto originale.", "capitolo": 7, "sinonimi_vietati": ["passaggio per copia"]},
-    {"termine": "ambito", "definizione": "Regione del codice sorgente all'interno della quale un identificatore è visibile e utilizzabile.", "capitolo": 7, "sinonimi_vietati": ["zona di visibilità"]},
-    {"termine": "durata di memorizzazione", "definizione": "Intervallo di tempo durante l'esecuzione del programma in cui la memoria di un oggetto resta riservata.", "capitolo": 7, "sinonimi_vietati": ["vita della variabile"]},
-    {"termine": "ricorsione", "definizione": "Tecnica in cui una funzione risolve un problema richiamando se stessa su sottoproblemi più piccoli fino a un caso base.", "capitolo": 7, "sinonimi_vietati": ["autochiamata"]},
-    {"termine": "pila delle chiamate", "definizione": "Area di memoria in cui il programma registra i record di attivazione e le variabili locali delle funzioni attive.", "capitolo": 7, "sinonimi_vietati": ["catasta di funzioni"]},
-    {"termine": "array", "definizione": "Sequenza contigua in memoria di un numero fissato di elementi tutti dello stesso tipo, accessibili tramite indice.", "capitolo": 8, "sinonimi_vietati": ["vettore statico", "lista"]},
-    {"termine": "indice", "definizione": "Numero intero non negativo che identifica la posizione di un elemento in un array a partire da zero.", "capitolo": 8, "sinonimi_vietati": ["coordinata di array"]},
-    {"termine": "accesso fuori dai limiti", "definizione": "Lettura o scrittura con un indice negativo o maggiore o uguale alla lunghezza dell'array, che causa comportamento indefinito.", "capitolo": 8, "sinonimi_vietati": ["sforamento di indice"]},
-    {"termine": "complessità algoritmica", "definizione": "Valutazione di come cresce il numero di operazioni o la memoria richiesta da un algoritmo al crescere della dimensione dell'input.", "capitolo": 8, "sinonimi_vietati": ["pesantezza del codice"]},
-    {"termine": "stringa", "definizione": "Sequenza di caratteri memorizzata in un array di char conclusa dal carattere terminatore nullo '\\0'.", "capitolo": 9, "sinonimi_vietati": ["testo C", "catena di caratteri"]},
-    {"termine": "terminatore nullo", "definizione": "Carattere '\\0' (valore zero) che segna la fine logica di una stringa in memoria.", "capitolo": 9, "sinonimi_vietati": ["carattere finale zero", "tappo di stringa"]},
-    {"termine": "buffer", "definizione": "Area di memoria di dimensione finita riservata per contenere dati temporanei in ingresso o in uscita.", "capitolo": 9, "sinonimi_vietati": ["tampone di testo"]},
-    {"termine": "buffer overflow", "definizione": "Scrittura di dati oltre la fine di un buffer allocato, fonte di comportamento indefinito e vulnerabilità di sicurezza.", "capitolo": 9, "sinonimi_vietati": ["traboccamento del tampone"]},
-    {"termine": "puntatore", "definizione": "Variabile che memorizza l'indirizzo di memoria di un oggetto o di una funzione di un tipo determinato.", "capitolo": 10, "sinonimi_vietati": ["indirizzatore", "riferimento"]},
-    {"termine": "indirizzo di memoria", "definizione": "Identificatore numerico della posizione di un byte nella memoria del processo.", "capitolo": 10, "sinonimi_vietati": ["coordinata RAM"]},
-    {"termine": "dereferenziazione", "definizione": "Accesso tramite l'operatore * all'oggetto situato all'indirizzo contenuto in un puntatore.", "capitolo": 10, "sinonimi_vietati": ["sblocco del puntatore"]},
-    {"termine": "puntatore nullo", "definizione": "Valore speciale di puntatore (nullptr in C23, NULL) che non punta ad alcun oggetto valido e non va mai dereferenziato.", "capitolo": 10, "sinonimi_vietati": ["puntatore vuoto"]},
-    {"termine": "decadimento", "definizione": "Conversione implicita del nome di un array in un puntatore al suo primo elemento nella maggior parte delle espressioni.", "capitolo": 10, "sinonimi_vietati": ["degradazione di array"]},
-    {"termine": "aritmetica dei puntatori", "definizione": "Somma, sottrazione e confronto tra puntatori all'interno dello stesso array, scalati automaticamente per sizeof del tipo puntato.", "capitolo": 10, "sinonimi_vietati": ["calcolo di indirizzi"]},
-    {"termine": "stack", "definizione": "Zona di memoria gestita automaticamente in ordine LIFO per variabili locali e chiamate di funzione.", "capitolo": 11, "sinonimi_vietati": ["pila automatica"]},
-    {"termine": "heap", "definizione": "Area di memoria da cui il programma richiede e rilascia blocchi dinamicamente con malloc, calloc, realloc e free.", "capitolo": 11, "sinonimi_vietati": ["mucchio"]},
-    {"termine": "allocazione dinamica", "definizione": "Richiesta di memoria sull'heap durante l'esecuzione del programma, con durata controllata esplicitamente dal programmatore.", "capitolo": 11, "sinonimi_vietati": ["memoria elastica"]},
-    {"termine": "array dinamico", "definizione": "Sequenza ridimensionabile sull'heap gestita tenendo traccia di puntatore ai dati, lunghezza corrente e capacità allocata.", "capitolo": 11, "sinonimi_vietati": ["lista dinamica"]},
-    {"termine": "perdita di memoria", "definizione": "Blocco allocato dinamicamente che non viene mai liberato con free dopo aver perso l'ultimo puntatore che vi si riferiva.", "capitolo": 11, "sinonimi_vietati": ["fuga di RAM"]},
-    {"termine": "uso dopo free", "definizione": "Lettura o scrittura attraverso un puntatore dopo che la memoria a cui puntava è stata liberata, causa di comportamento indefinito.", "capitolo": 11, "sinonimi_vietati": ["riuso di memoria morta"]},
-    {"termine": "doppia liberazione", "definizione": "Chiamata di free più di una volta sullo stesso blocco allocato, che corrompe lo stato dell'allocatore e causa comportamento indefinito.", "capitolo": 11, "sinonimi_vietati": ["doppia cancellazione"]},
-    {"termine": "sanitizer", "definizione": "Strumento integrato nel compilatore (come AddressSanitizer e UBSan) che rileva errori di memoria e comportamento indefinito a tempo di esecuzione.", "capitolo": 11, "sinonimi_vietati": ["pulitore di codice"]},
-    {"termine": "struttura", "definizione": "Tipo composto definito con struct che raggruppa in un unico oggetto più membri anche di tipi diversi.", "capitolo": 12, "sinonimi_vietati": ["record", "classe"]},
-    {"termine": "membro", "definizione": "Campo dotato di nome e tipo che fa parte di una struct o di una union.", "capitolo": 12, "sinonimi_vietati": ["attributo", "proprietà"]},
-    {"termine": "enumerazione", "definizione": "Tipo definito con enum che associa nomi simbolici a un insieme di costanti intere.", "capitolo": 12, "sinonimi_vietati": ["elenco di etichette"]},
-    {"termine": "alias di tipo", "definizione": "Nome alternativo introdotto con typedef per semplificare e chiarire la scrittura di un tipo esistente.", "capitolo": 12, "sinonimi_vietati": ["soprannome di tipo"]},
-    {"termine": "complemento a due", "definizione": "Codifica binaria degli interi con segno in cui l'opposto di un numero si ottiene invertendo tutti i bit e sommando 1.", "capitolo": 13, "sinonimi_vietati": ["notazione negativa binaria"]},
-    {"termine": "maschera di bit", "definizione": "Valore binario usato con operatori bit a bit per isolare, attivare, azzerare o invertire specifici bit.", "capitolo": 13, "sinonimi_vietati": ["filtro binario"]},
-    {"termine": "unione", "definizione": "Tipo definito con union i cui membri condividono la stessa area di memoria, così che solo uno alla volta è attivo.", "capitolo": 13, "sinonimi_vietati": ["struct condivisa"]},
-    {"termine": "unione etichettata", "definizione": "Struct che combina una union con un enum (etichetta) per registrare quale membro della union è attualmente valido.", "capitolo": 13, "sinonimi_vietati": ["variante libera"]},
-    {"termine": "endianness", "definizione": "Ordine (little-endian o big-endian) con cui i byte di un dato multibyte sono disposti in memoria.", "capitolo": 13, "sinonimi_vietati": ["verso dei byte"]},
-    {"termine": "allineamento", "definizione": "Vincolo per cui un oggetto di un certo tipo deve risiedere a un indirizzo multiplo di un dato numero di byte.", "capitolo": 13, "sinonimi_vietati": ["incolonnamento in memoria"]},
-    {"termine": "padding", "definizione": "Byte inutilizzati inseriti automaticamente dal compilatore dentro o in coda a una struct per rispettare l'allineamento.", "capitolo": 13, "sinonimi_vietati": ["riempimento casuale"]},
-    {"termine": "puntatore pendente", "definizione": "Puntatore che conserva l'indirizzo di un oggetto già distrutto o liberato e che quindi non può più essere dereferenziato.", "capitolo": 14, "sinonimi_vietati": ["puntatore penzolante", "puntatore rotto"]},
-    {"termine": "aliasing", "definizione": "Situazione in cui due o più puntatori si riferiscono alla stessa zona di memoria, anche solo parzialmente sovrapposta.", "capitolo": 14, "sinonimi_vietati": ["sovrapposizione di nomi"]},
-    {"termine": "puntatore a funzione", "definizione": "Puntatore che contiene l'indirizzo del codice di una funzione e consente di invocarla indirettamente.", "capitolo": 15, "sinonimi_vietati": ["riferimento a funzione"]},
-    {"termine": "callback", "definizione": "Funzione passata come argomento tramite puntatore a un'altra funzione perché questa la richiami al momento opportuno.", "capitolo": 15, "sinonimi_vietati": ["funzione di ritorno"]},
-    {"termine": "tabella di dispatch", "definizione": "Array o struttura di puntatori a funzione che seleziona dinamicamente l'operazione da eseguire in base a un indice o a una chiave.", "capitolo": 15, "sinonimi_vietati": ["tabella di smistamento"]},
-    {"termine": "puntatore generico", "definizione": "Puntatore di tipo void * capace di conservare l'indirizzo di qualsiasi oggetto senza conoscerne il tipo concreto.", "capitolo": 16, "sinonimi_vietati": ["puntatore universale", "puntatore senza tipo"]},
-    {"termine": "contenitore generico", "definizione": "Struttura dati che memorizza elementi di tipo arbitrario tramite void * e dimensioni o callback fornite dal chiamante.", "capitolo": 16, "sinonimi_vietati": ["collezione generica"]},
-    {"termine": "lista concatenata", "definizione": "Struttura dati dinamica formata da nodi allocati separatamente, ciascuno collegato al successivo tramite un puntatore.", "capitolo": 17, "sinonimi_vietati": ["catena di nodi"]},
-    {"termine": "pila", "definizione": "Struttura dati a disciplina LIFO (ultimo inserito, primo estratto) con operazioni di inserimento ed estrazione in cima.", "capitolo": 17, "sinonimi_vietati": ["catasta"]},
-    {"termine": "coda", "definizione": "Struttura dati a disciplina FIFO (primo inserito, primo estratto) con inserimento in fondo ed estrazione in testa.", "capitolo": 17, "sinonimi_vietati": ["fila"]},
-    {"termine": "albero binario di ricerca", "definizione": "Albero in cui ogni nodo ha al più due figli e tutte le chiavi del sottoalbero sinistro sono minori di quella del nodo, e quelle del destro maggiori.", "capitolo": 17, "sinonimi_vietati": ["albero ordinato"]},
-    {"termine": "possesso della memoria", "definizione": "Contratto chiaro che stabilisce quale modulo o struttura ha la responsabilità di liberare un blocco allocato dinamicamente.", "capitolo": 17, "sinonimi_vietati": ["proprietà esclusiva della RAM"]},
-    {"termine": "tabella hash", "definizione": "Struttura dati associativa che mappa chiavi a valori usando una funzione di hash per calcolare l'indice del bucket.", "capitolo": 18, "sinonimi_vietati": ["dizionario hash", "mappa veloce"]},
-    {"termine": "funzione di hash", "definizione": "Funzione deterministica che trasforma una chiave di dimensione arbitraria in un intero senza segno usato per l'indicizzazione.", "capitolo": 18, "sinonimi_vietati": ["funzione mescolatrice"]},
-    {"termine": "collisione", "definizione": "Caso in cui due chiavi distinte producono lo stesso indice di bucket in una tabella hash.", "capitolo": 18, "sinonimi_vietati": ["scontro di chiavi"]},
-    {"termine": "fattore di carico", "definizione": "Rapporto tra il numero di coppie memorizzate in una tabella hash e il numero totale di bucket.", "capitolo": 18, "sinonimi_vietati": ["densità della tabella"]},
-    {"termine": "rehashing", "definizione": "Ridimensionamento della tabella hash con riallocazione dei bucket e ricalcolo della posizione di tutte le voci esistenti.", "capitolo": 18, "sinonimi_vietati": ["ricalcolo della mappa"]},
-    {"termine": "unità di traduzione", "definizione": "Singolo file sorgente .c dopo l'espansione del preprocessore, compilato indipendentemente in un file oggetto.", "capitolo": 19, "sinonimi_vietati": ["modulo compilabile"]},
-    {"termine": "linking", "definizione": "Fase in cui il linker riunisce i file oggetto e le librerie risolvendo i riferimenti a funzioni e variabili tra unità di traduzione.", "capitolo": 19, "sinonimi_vietati": ["saldatura dei file"]},
-    {"termine": "include guard", "definizione": "Coppia di direttive #ifndef/#define/#endif che impedisce l'inclusione multipla dello stesso header nella medesima unità di traduzione.", "capitolo": 19, "sinonimi_vietati": ["protezione di inclusione"]},
-    {"termine": "tipo opaco", "definizione": "Tipo dichiarato nell'header come struttura incompleta e definito solo nel file .c, così che i chiamanti lo usino solo tramite puntatore e funzioni pubbliche.", "capitolo": 19, "sinonimi_vietati": ["tipo nascosto", "tipo segreto"]},
-    {"termine": "flusso", "definizione": "Astrazione della libreria standard (rappresentata da FILE *) che uniforma lettura e scrittura su tastiera, schermo e file.", "capitolo": 20, "sinonimi_vietati": ["canale file"]},
-    {"termine": "serializzazione", "definizione": "Conversione di una struttura dati in memoria in una sequenza portabile di byte indipendente da padding ed endianness.", "capitolo": 20, "sinonimi_vietati": ["salvataggio grezzo"]},
-    {"termine": "asserzione", "definizione": "Verifica booleana (assert o static_assert) di un invariante che il programmatore assume sempre vero in quel punto.", "capitolo": 21, "sinonimi_vietati": ["controllo di fiducia"]},
-    {"termine": "funzione variadica", "definizione": "Funzione che accetta un numero variabile di argomenti tramite i tre punti (...) e le macro di stdarg.h.", "capitolo": 21, "sinonimi_vietati": ["funzione elastica"]},
-    {"termine": "macro", "definizione": "Regola di sostituzione testuale definita con #define ed espansa dal preprocessore prima della compilazione vera e propria.", "capitolo": 21, "sinonimi_vietati": ["mini-funzione"]},
-    {"termine": "debugger", "definizione": "Strumento che permette di eseguire un programma passo passo, impostare punti di interruzione e ispezionare variabili e stack.", "capitolo": 21, "sinonimi_vietati": ["scova-errori"]},
-    {"termine": "token", "definizione": "Unità lessicale elementare (numero, identificatore, parola chiave, operatore) prodotta dall'analizzatore lessicale a partire dal testo sorgente.", "capitolo": 22, "sinonimi_vietati": ["gettone"]},
-    {"termine": "albero sintattico astratto", "definizione": "Struttura ad albero che rappresenta la struttura grammaticale e le precedenze di un programma pronto per essere valutato.", "capitolo": 22, "sinonimi_vietati": ["albero del codice"]}
+    {
+      "termine": "codice sorgente",
+      "definizione": "Testo leggibile scritto dal programmatore in un linguaggio di programmazione prima della compilazione.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "testo sorgente eseguibile"
+      ]
+    },
+    {
+      "termine": "compilatore",
+      "definizione": "Programma che traduce il codice sorgente C in codice macchina eseguibile verificando sintassi e tipi.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "traduttore istantaneo"
+      ]
+    },
+    {
+      "termine": "eseguibile",
+      "definizione": "File prodotto dalla compilazione e dal collegamento che il sistema operativo può avviare direttamente.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "sorgente compilato"
+      ]
+    },
+    {
+      "termine": "preprocessore",
+      "definizione": "Fase iniziale della traduzione che elabora le direttive con # prima che il compilatore analizzi il codice C.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "precompilatore"
+      ]
+    },
+    {
+      "termine": "errore di compilazione",
+      "definizione": "Violazione delle regole sintattiche o di tipo che impedisce al compilatore di produrre l'eseguibile.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "errore di lancio"
+      ]
+    },
+    {
+      "termine": "avviso del compilatore",
+      "definizione": "Segnalazione di codice potenzialmente errato o ambiguo emessa dal compilatore durante la traduzione.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "allerta di sintassi"
+      ]
+    },
+    {
+      "termine": "sequenza di escape",
+      "definizione": "Coppia di caratteri introdotta da \\ usata in stringhe e caratteri per rappresentare simboli speciali come l'a capo.",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "sequenza di fuga"
+      ]
+    },
+    {
+      "termine": "variabile",
+      "definizione": "Oggetto in memoria dotato di nome e tipo il cui valore può essere letto e modificato durante l'esecuzione.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "scatola di memoria",
+        "contenitore di dati"
+      ]
+    },
+    {
+      "termine": "tipo di dato",
+      "definizione": "Insieme di valori rappresentabili e di operazioni lecite su un oggetto o su un'espressione.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "categoria di variabile"
+      ]
+    },
+    {
+      "termine": "dichiarazione",
+      "definizione": "Costrutto che introduce il nome e il tipo di una variabile, di una funzione o di un tipo nel programma.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "registrazione di nome"
+      ]
+    },
+    {
+      "termine": "inizializzazione",
+      "definizione": "Assegnazione del valore iniziale a una variabile nel momento stesso in cui viene definita.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "avviamento della variabile"
+      ]
+    },
+    {
+      "termine": "costante",
+      "definizione": "Valore o oggetto di sola lettura che non può essere modificato dopo la sua definizione.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "variabile fissa"
+      ]
+    },
+    {
+      "termine": "specificatore di formato",
+      "definizione": "Segnaposto introdotto da % in funzioni come printf e sscanf che indica come interpretare o stampare un valore.",
+      "capitolo": 2,
+      "sinonimi_vietati": [
+        "marcatore percentuale"
+      ]
+    },
+    {
+      "termine": "espressione",
+      "definizione": "Combinazione di operandi e operatori che il programma valuta per produrre un valore o un effetto collaterale.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "formula eseguibile"
+      ]
+    },
+    {
+      "termine": "precedenza degli operatori",
+      "definizione": "Regola che stabilisce in quale ordine gli operatori di un'espressione vengono raggruppati in assenza di parentesi.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "gerarchia di calcolo"
+      ]
+    },
+    {
+      "termine": "conversione implicita",
+      "definizione": "Trasformazione automatica di un valore da un tipo a un altro applicata dal compilatore secondo le regole del C.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "forzatura automatica"
+      ]
+    },
+    {
+      "termine": "cast esplicito",
+      "definizione": "Operatore (tipo) con cui il programmatore richiede esplicitamente la conversione di un valore verso un tipo specifico.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "modellamento di tipo"
+      ]
+    },
+    {
+      "termine": "overflow",
+      "definizione": "Situazione in cui il risultato di un'operazione supera l'intervallo rappresentabile dal tipo di destinazione.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "traboccamento aritmetico"
+      ]
+    },
+    {
+      "termine": "comportamento indefinito",
+      "definizione": "Situazione per cui lo standard C non pone alcun vincolo: il programma può produrre qualunque risultato o interrompersi.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "errore indefinito",
+        "comportamento imprevisto"
+      ]
+    },
+    {
+      "termine": "comportamento dipendente dall'implementazione",
+      "definizione": "Comportamento che può variare tra compilatori o piattaforme, ma che ciascuna implementazione deve documentare.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "comportamento arbitrario"
+      ]
+    },
+    {
+      "termine": "virgola mobile",
+      "definizione": "Rappresentazione binaria approssimata dei numeri reali tramite mantissa ed esponente, usata da float e double.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "numero decimale esatto"
+      ]
+    },
+    {
+      "termine": "flusso di controllo",
+      "definizione": "Ordine con cui vengono eseguite le istruzioni di un programma attraverso selezioni, cicli e chiamate di funzione.",
+      "capitolo": 4,
+      "sinonimi_vietati": [
+        "percorso di compilazione"
+      ]
+    },
+    {
+      "termine": "valutazione a corto circuito",
+      "definizione": "Proprietà di && e || per cui l'operando destro non viene valutato se il sinistro determina già il risultato.",
+      "capitolo": 4,
+      "sinonimi_vietati": [
+        "valutazione abbreviata"
+      ]
+    },
+    {
+      "termine": "fall-through",
+      "definizione": "Prosecuzione dell'esecuzione da un ramo case dello switch al successivo in assenza di break.",
+      "capitolo": 4,
+      "sinonimi_vietati": [
+        "caduta di ramo"
+      ]
+    },
+    {
+      "termine": "stream",
+      "definizione": "Astrazione di un canale sequenziale di caratteri o byte usato per leggere dati in ingresso o scrivere dati in uscita.",
+      "capitolo": 5,
+      "sinonimi_vietati": [
+        "flusso fisico"
+      ]
+    },
+    {
+      "termine": "buffer",
+      "definizione": "Area temporanea di memoria usata per accumulare dati durante la lettura, la scrittura o la formattazione.",
+      "capitolo": 5,
+      "sinonimi_vietati": [
+        "tampone di memoria"
+      ]
+    },
+    {
+      "termine": "fine dell'input",
+      "definizione": "Condizione in cui uno stream non contiene più dati da leggere, segnalata da EOF o da nullptr.",
+      "capitolo": 5,
+      "sinonimi_vietati": [
+        "chiusura tastiera"
+      ]
+    },
+    {
+      "termine": "ciclo",
+      "definizione": "Costrutto di controllo che ripete un blocco di istruzioni finché una condizione rimane vera.",
+      "capitolo": 6,
+      "sinonimi_vietati": [
+        "anello di istruzioni"
+      ]
+    },
+    {
+      "termine": "iterazione",
+      "definizione": "Singola esecuzione del corpo di un ciclo.",
+      "capitolo": 6,
+      "sinonimi_vietati": [
+        "giro di ciclo"
+      ]
+    },
+    {
+      "termine": "invariante di ciclo",
+      "definizione": "Proprietà logica che vale prima del ciclo e resta vera al termine di ogni iterazione.",
+      "capitolo": 6,
+      "sinonimi_vietati": [
+        "costante di ciclo"
+      ]
+    },
+    {
+      "termine": "funzione",
+      "definizione": "Blocco di codice dotato di nome, parametri e tipo di ritorno che svolge un compito definito e può essere richiamato.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "sottoprogramma",
+        "procedura"
+      ]
+    },
+    {
+      "termine": "prototipo",
+      "definizione": "Dichiarazione di una funzione che ne specifica nome, tipo di ritorno e tipi dei parametri senza il corpo.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "firma provvisoria"
+      ]
+    },
+    {
+      "termine": "parametro",
+      "definizione": "Variabile dichiarata nell'intestazione di una funzione che riceve il valore fornito alla chiamata.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "argomento formale"
+      ]
+    },
+    {
+      "termine": "argomento",
+      "definizione": "Espressione passata tra parentesi nel punto in cui si chiama una funzione.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "parametro attuale"
+      ]
+    },
+    {
+      "termine": "passaggio per valore",
+      "definizione": "Meccanismo del C per cui una funzione riceve una copia del valore di ciascun argomento.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "passaggio per copia esterna"
+      ]
+    },
+    {
+      "termine": "visibilità",
+      "definizione": "Regione del codice sorgente all'interno della quale un identificatore può essere utilizzato.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "portata lessicale"
+      ]
+    },
+    {
+      "termine": "durata di vita",
+      "definizione": "Intervallo di tempo durante l'esecuzione del programma in cui la memoria di un oggetto esiste ed è valida.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "tempo di sopravvivenza"
+      ]
+    },
+    {
+      "termine": "ricorsione",
+      "definizione": "Tecnica in cui una funzione richiama se stessa su un sottoproblema più piccolo fino a raggiungere un caso base.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "autorichiamo"
+      ]
+    },
+    {
+      "termine": "caso base",
+      "definizione": "Condizione che termina una funzione ricorsiva restituendo un risultato senza ulteriori chiamate ricorsive.",
+      "capitolo": 7,
+      "sinonimi_vietati": [
+        "condizione terminale ricorsiva"
+      ]
+    },
+    {
+      "termine": "array",
+      "definizione": "Sequenza contigua in memoria di un numero fissato di elementi tutti dello stesso tipo, accessibili tramite indice.",
+      "capitolo": 8,
+      "sinonimi_vietati": [
+        "vettore statico",
+        "matrice monodimensionale"
+      ]
+    },
+    {
+      "termine": "indice",
+      "definizione": "Valore intero non negativo che identifica la posizione di un elemento in un array a partire da 0.",
+      "capitolo": 8,
+      "sinonimi_vietati": [
+        "coordinata di array"
+      ]
+    },
+    {
+      "termine": "accesso fuori dai limiti",
+      "definizione": "Lettura o scrittura di un array con un indice negativo o maggiore o uguale alla sua lunghezza, che causa comportamento indefinito.",
+      "capitolo": 8,
+      "sinonimi_vietati": [
+        "sforamento di indice"
+      ]
+    },
+    {
+      "termine": "stringa",
+      "definizione": "Sequenza di caratteri memorizzata in un array di char e chiusa dal carattere terminatore nullo '\\0'.",
+      "capitolo": 9,
+      "sinonimi_vietati": [
+        "catena di caratteri"
+      ]
+    },
+    {
+      "termine": "terminatore nullo",
+      "definizione": "Carattere '\\0' di valore zero che segna la fine di una stringa in C.",
+      "capitolo": 9,
+      "sinonimi_vietati": [
+        "carattere di chiusura testo"
+      ]
+    },
+    {
+      "termine": "buffer overflow",
+      "definizione": "Scrittura di dati oltre la fine della memoria riservata a un buffer, causa di comportamento indefinito e vulnerabilità.",
+      "capitolo": 9,
+      "sinonimi_vietati": [
+        "traboccamento di tampone"
+      ]
+    },
+    {
+      "termine": "puntatore",
+      "definizione": "Variabile che memorizza l'indirizzo di memoria di un oggetto o di una funzione, oppure il valore nullo.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "indirizzatore"
+      ]
+    },
+    {
+      "termine": "indirizzo di memoria",
+      "definizione": "Posizione numerica che identifica un byte o l'inizio di un oggetto nella memoria del programma.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "coordinata RAM"
+      ]
+    },
+    {
+      "termine": "dereferenziazione",
+      "definizione": "Operazione svolta dall'operatore * per accedere all'oggetto situato all'indirizzo contenuto in un puntatore.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "sreferenziazione",
+        "deindirizzamento"
+      ]
+    },
+    {
+      "termine": "puntatore nullo",
+      "definizione": "Puntatore con valore nullptr o NULL che indica esplicitamente di non puntare ad alcun oggetto valido.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "puntatore vuoto",
+        "puntatore zero"
+      ]
+    },
+    {
+      "termine": "decadimento di array",
+      "definizione": "Conversione automatica del nome di un array in un puntatore al suo primo elemento nella maggior parte delle espressioni.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "degradazione di array"
+      ]
+    },
+    {
+      "termine": "aritmetica dei puntatori",
+      "definizione": "Somma e sottrazione tra puntatori e interi scalate automaticamente per la dimensione del tipo puntato.",
+      "capitolo": 10,
+      "sinonimi_vietati": [
+        "algebra degli indirizzi"
+      ]
+    },
+    {
+      "termine": "stack",
+      "definizione": "Area di memoria gestita automaticamente in ordine ultimo entrato primo uscito per variabili locali e chiamate di funzione.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "catasta di chiamata"
+      ]
+    },
+    {
+      "termine": "heap",
+      "definizione": "Area di memoria da cui il programma richiede e rilascia blocchi di durata controllata esplicitamente con malloc e free.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "mucchio di memoria"
+      ]
+    },
+    {
+      "termine": "allocazione dinamica",
+      "definizione": "Richiesta di memoria a tempo di esecuzione sullo heap mediante funzioni come malloc, calloc e realloc.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "riserva manuale di RAM"
+      ]
+    },
+    {
+      "termine": "perdita di memoria",
+      "definizione": "Errore in cui un blocco allocato dinamicamente non è più raggiungibile ma non viene mai liberato con free.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "fuga di memoria"
+      ]
+    },
+    {
+      "termine": "uso dopo la liberazione",
+      "definizione": "Accesso a memoria dinamica già rilasciata con free, che provoca comportamento indefinito.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "riutilizzo dopo cancellazione"
+      ]
+    },
+    {
+      "termine": "doppia liberazione",
+      "definizione": "Chiamata ripetuta di free sullo stesso blocco di memoria senza una nuova allocazione intermedia.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "doppia cancellazione"
+      ]
+    },
+    {
+      "termine": "sanitizer",
+      "definizione": "Strumento integrato nel compilatore che inserisce controlli a tempo di esecuzione per rilevare errori di memoria o comportamento indefinito.",
+      "capitolo": 11,
+      "sinonimi_vietati": [
+        "igienizzatore di codice"
+      ]
+    },
+    {
+      "termine": "struttura",
+      "definizione": "Tipo aggregato definito con struct che raggruppa più campi, anche di tipi diversi, sotto un unico nome.",
+      "capitolo": 12,
+      "sinonimi_vietati": [
+        "scheda dati"
+      ]
+    },
+    {
+      "termine": "campo",
+      "definizione": "Singola variabile dichiarata all'interno di una struct o di una union.",
+      "capitolo": 12,
+      "sinonimi_vietati": [
+        "attributo di struct"
+      ]
+    },
+    {
+      "termine": "enumerazione",
+      "definizione": "Tipo intero definito con enum che associa nomi simbolici a un insieme finito di costanti intere.",
+      "capitolo": 12,
+      "sinonimi_vietati": [
+        "lista di costanti"
+      ]
+    },
+    {
+      "termine": "complemento a due",
+      "definizione": "Codifica binaria degli interi con segno adottata dal C23 in cui il bit più significativo ha peso negativo.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "notazione binaria invertita"
+      ]
+    },
+    {
+      "termine": "maschera di bit",
+      "definizione": "Valore intero usato con gli operatori bit a bit per leggere, impostare, azzerare o invertire specifici bit.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "filtro binario"
+      ]
+    },
+    {
+      "termine": "unione",
+      "definizione": "Tipo definito con union i cui campi condividono la stessa area di memoria e solo uno alla volta è attivo.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "struttura sovrapposta"
+      ]
+    },
+    {
+      "termine": "unione etichettata",
+      "definizione": "Coppia formata da un'enumerazione (etichetta) e da una union che registra quale campo della union è attualmente valido.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "unione marcata"
+      ]
+    },
+    {
+      "termine": "ordine dei byte",
+      "definizione": "Convenzione dell'architettura (little-endian o big-endian) che stabilisce come i byte di un numero multibyte sono disposti in memoria.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "verso dei byte"
+      ]
+    },
+    {
+      "termine": "allineamento",
+      "definizione": "Vincolo per cui l'indirizzo in memoria di un oggetto di un certo tipo deve essere multiplo di una potenza di due.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "incolonnamento di memoria"
+      ]
+    },
+    {
+      "termine": "padding",
+      "definizione": "Byte di riempimento inseriti dal compilatore dentro o in fondo a una struct per soddisfare i vincoli di allineamento.",
+      "capitolo": 13,
+      "sinonimi_vietati": [
+        "imbottitura di struct"
+      ]
+    },
+    {
+      "termine": "puntatore pendente",
+      "definizione": "Puntatore che conserva l'indirizzo di un oggetto la cui durata di vita è terminata o che è stato liberato.",
+      "capitolo": 14,
+      "sinonimi_vietati": [
+        "puntatore penzolante",
+        "puntatore appeso"
+      ]
+    },
+    {
+      "termine": "valore sentinella",
+      "definizione": "Valore speciale, come nullptr o '\\0', posto al termine di una sequenza per segnalarne la fine senza un contatore separato.",
+      "capitolo": 14,
+      "sinonimi_vietati": [
+        "valore guardiano"
+      ]
+    },
+    {
+      "termine": "puntatore generico",
+      "definizione": "Puntatore di tipo void * capace di contenere l'indirizzo di qualsiasi oggetto, ma non dereferenziabile direttamente.",
+      "capitolo": 15,
+      "sinonimi_vietati": [
+        "puntatore universale"
+      ]
+    },
+    {
+      "termine": "asserzione statica",
+      "definizione": "Controllo verificato dal compilatore con static_assert che interrompe la compilazione se una condizione costante è falsa.",
+      "capitolo": 15,
+      "sinonimi_vietati": [
+        "verifica fissa"
+      ]
+    },
+    {
+      "termine": "puntatore a funzione",
+      "definizione": "Puntatore che contiene l'indirizzo di una funzione con una firma specifica e permette di chiamarla indirettamente.",
+      "capitolo": 16,
+      "sinonimi_vietati": [
+        "riferimento di funzione"
+      ]
+    },
+    {
+      "termine": "callback",
+      "definizione": "Funzione passata come argomento tramite puntatore a funzione affinché un'altra funzione la invochi al momento opportuno.",
+      "capitolo": 16,
+      "sinonimi_vietati": [
+        "funzione di ritorno"
+      ]
+    },
+    {
+      "termine": "lista concatenata",
+      "definizione": "Struttura dati dinamica formata da nodi allocati singolarmente e collegati tra loro mediante puntatori.",
+      "capitolo": 17,
+      "sinonimi_vietati": [
+        "elenco collegato"
+      ]
+    },
+    {
+      "termine": "pila",
+      "definizione": "Struttura dati lineare con politica ultimo entrato primo uscito (LIFO) in cui inserimento e rimozione avvengono in cima.",
+      "capitolo": 17,
+      "sinonimi_vietati": [
+        "catasta di dati"
+      ]
+    },
+    {
+      "termine": "coda",
+      "definizione": "Struttura dati lineare con politica primo entrato primo uscito (FIFO) con inserimento in fondo e rimozione in testa.",
+      "capitolo": 17,
+      "sinonimi_vietati": [
+        "fila di dati"
+      ]
+    },
+    {
+      "termine": "albero binario di ricerca",
+      "definizione": "Struttura dati gerarchica in cui ogni nodo ha al più due figli e mantiene chiavi minori a sinistra e maggiori a destra.",
+      "capitolo": 17,
+      "sinonimi_vietati": [
+        "albero dicotomico"
+      ]
+    },
+    {
+      "termine": "possesso della memoria",
+      "definizione": "Contratto chiaro che stabilisce quale modulo o struttura dati è responsabile di liberare un blocco allocato dinamicamente.",
+      "capitolo": 17,
+      "sinonimi_vietati": [
+        "padronanza della memoria"
+      ]
+    },
+    {
+      "termine": "tabella hash",
+      "definizione": "Struttura dati associativa che mappa chiavi a valori usando una funzione di hash per accedere in tempo medio costante.",
+      "capitolo": 18,
+      "sinonimi_vietati": [
+        "tavola di dispersione"
+      ]
+    },
+    {
+      "termine": "funzione di hash",
+      "definizione": "Funzione deterministica che trasforma una chiave di dimensione arbitraria in un intero usato per scegliere il secchio della tabella.",
+      "capitolo": 18,
+      "sinonimi_vietati": [
+        "funzione mescolatrice"
+      ]
+    },
+    {
+      "termine": "collisione",
+      "definizione": "Caso in cui due chiavi distinte producono lo stesso indice di secchio in una tabella hash.",
+      "capitolo": 18,
+      "sinonimi_vietati": [
+        "scontro di chiavi"
+      ]
+    },
+    {
+      "termine": "fattore di carico",
+      "definizione": "Rapporto tra il numero di elementi memorizzati in una tabella hash e il numero totale dei suoi secchi.",
+      "capitolo": 18,
+      "sinonimi_vietati": [
+        "indice di riempimento hash"
+      ]
+    },
+    {
+      "termine": "ridimensionamento",
+      "definizione": "Operazione di riallocazione di una tabella hash con più secchi e ricalcolo delle posizioni di tutte le chiavi.",
+      "capitolo": 18,
+      "sinonimi_vietati": [
+        "riscalatura della tabella"
+      ]
+    },
+    {
+      "termine": "file di intestazione",
+      "definizione": "File con estensione .h che espone dichiarazioni di tipi, costanti e prototipi condivisi tra più file sorgenti.",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "file di testa"
+      ]
+    },
+    {
+      "termine": "unità di traduzione",
+      "definizione": "Singolo file sorgente .c dopo l'espansione di tutti gli #include e delle direttive del preprocessore.",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "modulo precompilato"
+      ]
+    },
+    {
+      "termine": "compilazione separata",
+      "definizione": "Compilazione indipendente di ciascun file .c in un file oggetto, seguita dal collegamento finale in un unico eseguibile.",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "traduzione disgiunta"
+      ]
+    },
+    {
+      "termine": "protezione di inclusione",
+      "definizione": "Coppia di direttive #ifndef/#define/#endif che impedisce l'inclusione multipla dello stesso file di intestazione.",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "guardia di intestatura"
+      ]
+    },
+    {
+      "termine": "tipo opaco",
+      "definizione": "Struttura dichiarata nell'header in modo incompleto e definita solo nel file .c, accessibile dall'esterno tramite puntatore e funzioni.",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "tipo cieco",
+        "tipo nascosto"
+      ]
+    },
+    {
+      "termine": "serializzazione",
+      "definizione": "Conversione di strutture dati in memoria in una sequenza portabile di byte o testo da salvare su file e ricostruire in seguito.",
+      "capitolo": 20,
+      "sinonimi_vietati": [
+        "linearizzazione binaria"
+      ]
+    },
+    {
+      "termine": "asserzione",
+      "definizione": "Controllo diagnostico espresso con assert che verifica un'ipotesi del programmatore durante lo sviluppo.",
+      "capitolo": 21,
+      "sinonimi_vietati": [
+        "dichiarazione di verita"
+      ]
+    },
+    {
+      "termine": "funzione variadica",
+      "definizione": "Funzione che accetta un numero variabile di argomenti, dichiarata con ... e letta tramite <stdarg.h>.",
+      "capitolo": 21,
+      "sinonimi_vietati": [
+        "funzione a parametri liberi"
+      ]
+    },
+    {
+      "termine": "debugger",
+      "definizione": "Strumento che permette di eseguire un programma passo passo, ispezionare variabili e memoria e analizzare gli arresti anomali.",
+      "capitolo": 21,
+      "sinonimi_vietati": [
+        "spulciatore"
+      ]
+    },
+    {
+      "termine": "allocatore ad arena",
+      "definizione": "Allocatore che assegna memoria avanzando un cursore su un buffer contiguo e libera tutti gli oggetti in un colpo solo.",
+      "capitolo": 22,
+      "sinonimi_vietati": [
+        "allocatore a recinto"
+      ]
+    },
+    {
+      "termine": "allocatore a pool",
+      "definizione": "Allocatore specializzato che gestisce blocchi di dimensione fissa garantendo allocazione e rilascio in tempo costante.",
+      "capitolo": 22,
+      "sinonimi_vietati": [
+        "allocatore a vasca"
+      ]
+    },
+    {
+      "termine": "strict aliasing",
+      "definizione": "Regola dello standard C secondo cui un oggetto in memoria non può essere letto o scritto tramite un puntatore di tipo incompatibile.",
+      "capitolo": 22,
+      "sinonimi_vietati": [
+        "sovrapposizione rigorosa"
+      ]
+    },
+    {
+      "termine": "complessità asintotica",
+      "definizione": "Misura di come cresce il numero di operazioni di un algoritmo al crescere della dimensione dell'input, espressa con la notazione O.",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "velocita teorica"
+      ]
+    },
+    {
+      "termine": "heap binario",
+      "definizione": "Albero binario completo memorizzato in un array in cui ogni nodo rispetta la proprietà d'ordine rispetto ai propri figli.",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "mucchio binario"
+      ]
+    },
+    {
+      "termine": "albero AVL",
+      "definizione": "Albero binario di ricerca autobilanciato in cui le altezze dei due sottoalberi di ogni nodo differiscono al massimo di uno.",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "albero livellato"
+      ]
+    },
+    {
+      "termine": "trie",
+      "definizione": "Albero di ricerca in cui ogni arco rappresenta un carattere e le chiavi condividono i prefissi comuni.",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "albero alfabetico fisso"
+      ]
+    },
+    {
+      "termine": "grafo",
+      "definizione": "Struttura dati composta da un insieme di vertici collegati da archi, eventualmente orientati o pesati.",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "rete di puntatori"
+      ]
+    },
+    {
+      "termine": "lista intrusiva",
+      "definizione": "Lista concatenata i cui puntatori di collegamento sono incorporati direttamente dentro le strutture ospitanti e recuperati con offsetof.",
+      "capitolo": 24,
+      "sinonimi_vietati": [
+        "lista invadente"
+      ]
+    },
+    {
+      "termine": "salto non locale",
+      "definizione": "Trasferimento del controllo eseguito con longjmp verso un punto salvato in precedenza da setjmp attraversando più chiamate di funzione.",
+      "capitolo": 24,
+      "sinonimi_vietati": [
+        "salto globale"
+      ]
+    },
+    {
+      "termine": "macchina a stati finiti",
+      "definizione": "Modello di calcolo che si trova in uno stato alla volta e cambia stato in base agli eventi in ingresso.",
+      "capitolo": 24,
+      "sinonimi_vietati": [
+        "automa a fasi"
+      ]
+    },
+    {
+      "termine": "località dei dati",
+      "definizione": "Proprietà di un programma che accede a indirizzi di memoria vicini tra loro, sfruttando efficacemente la cache del processore.",
+      "capitolo": 25,
+      "sinonimi_vietati": [
+        "vicinanza di RAM"
+      ]
+    },
+    {
+      "termine": "fuzzing",
+      "definizione": "Tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti.",
+      "capitolo": 25,
+      "sinonimi_vietati": [
+        "martellamento casuale"
+      ]
+    },
+    {
+      "termine": "collegatore",
+      "definizione": "programma che unisce i file oggetto e le librerie in un unico eseguibile",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "linkatore"
+      ]
+    },
+    {
+      "termine": "libreria standard",
+      "definizione": "insieme di funzioni, tipi e costanti fornito con ogni compilatore C e dichiarato negli header",
+      "capitolo": 1,
+      "sinonimi_vietati": [
+        "libreria base"
+      ]
+    },
+    {
+      "termine": "puntatore a puntatore",
+      "definizione": "variabile che contiene l'indirizzo di un'altra variabile di tipo puntatore",
+      "capitolo": 14,
+      "sinonimi_vietati": [
+        "doppio indirizzo"
+      ]
+    },
+    {
+      "termine": "contenitore generico",
+      "definizione": "struttura dati che memorizza elementi di tipo qualsiasi, noto al programma solo a tempo di esecuzione",
+      "capitolo": 15,
+      "sinonimi_vietati": [
+        "contenitore universale"
+      ]
+    },
+    {
+      "termine": "notazione O",
+      "definizione": "notazione che descrive come cresce il costo di un algoritmo al crescere della dimensione dei dati",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "notazione grande"
+      ]
+    },
+    {
+      "termine": "coda di priorità",
+      "definizione": "struttura dati da cui si estrae sempre l'elemento con priorità massima o minima",
+      "capitolo": 23,
+      "sinonimi_vietati": [
+        "coda ordinata"
+      ]
+    }
   ]
 }

@@ -79,7 +79,7 @@ Non scrivere nessun altro file.
 - `sotto_sezioni`: esattamente quelle della macro-scaletta (stessi `id`, stesso ordine). Ognuna ha `contenuti` (almeno 2
   punti), `esempio_guidato` (descrizione), `approfondimento` (testo, oppure stringa vuota) ed `esercizio_id`.
 - `esercizi`: UNO per sotto-sezione, con `id` uguale a quello della sotto-sezione (`N.k`). Difficolta' crescente nel
-  capitolo e nel libro: segui le fasce di difficolta' di `PROGRAMMA.md` (capitoli 1-7 da 1 a 3, 8-12 da 2 a 4, 13-21 da 3 a 5). Nel capitolo di progetto: le prime sotto-sezioni hanno esercizi `"tipo": "esercizio"` che
+  capitolo e nel libro: segui le fasce di difficolta' di `PROGRAMMA.md` (capitoli 1-7 da 1 a 3, 8-12 da 2 a 4, 13-21 da 3 a 5, 22-25 da 4 a 5). Nel capitolo di progetto: le prime sotto-sezioni hanno esercizi `"tipo": "esercizio"` che
   preparano i pezzi; l'ultima ha `"tipo": "progetto"` con il campo `"fasi"` (lista di almeno 3 fasi con criterio di verifica).
 - `concetti_introdotti`: SOLO i concetti nuovi di questo capitolo (almeno 2), con i termini ESATTI del glossario.
 - `regole`: gli enunciati formali (almeno 1), corretti rispetto allo standard C23. In `nota_standard` dichiara se il

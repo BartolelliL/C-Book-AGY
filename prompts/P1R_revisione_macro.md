@@ -19,15 +19,20 @@ approvarla.
 4. **Glossario**: termini mancanti, definizioni imprecise, `sinonimi_vietati` utili o inutili.
 5. **Traguardo**: seguendo questi capitoli, il lettore arriva davvero a scrivere da solo una tabella hash generica come
    tipo opaco e il progetto finale (un interprete)? Cosa manca per arrivarci?
-6. **Rischi tecnici**: argomenti in cui un modello sbaglia facilmente (comportamento indefinito, allineamento, aliasing,
+6. **Livello avanzato**: i capitoli dal 13 in poi (Parti III e IV di `PROGRAMMA.md`) arrivano davvero a un livello avanzato
+   o restano troppo elementari? Cosa manca che un programmatore C autonomo dovrebbe sapere (per esempio: allocatori
+   propri, strutture dati e algoritmi non banali, macro avanzate, `setjmp`, test automatici, comportamento indefinito e
+   ottimizzazioni)? Controlla anche che `non_trattati` non contenga cose che `PROGRAMMA.md` richiede.
+7. **Rischi tecnici**: argomenti in cui un modello sbaglia facilmente (comportamento indefinito, allineamento, aliasing,
    `realloc`, `void *`) e che meritano attenzione nei capitoli.
 
 ## Output: `stato/revisione_p1.md`
-Massimo 450 parole, in italiano, con tre sezioni: **Problemi da correggere prima di approvare** (elenco numerato, con
-capitolo e proposta), **Dubbi da decidere tu** e **Giudizio complessivo** (3 righe). Niente lodi generiche.
+Massimo 500 parole, in italiano, con quattro sezioni: **Problemi da correggere prima di approvare** (elenco numerato, con
+capitolo e proposta), **Aggiunte suggerite** (solo argomenti AVANZATI davvero mancanti, ognuno con capitolo o
+sotto-sezione dove metterlo), **Dubbi da decidere tu** e **Giudizio complessivo** (3 righe). Niente lodi generiche.
 
 ## Non fare
-Non modificare altri file. Non proporre capitoli nuovi: solo correzioni a quanto esiste.
+Non modificare altri file. Le aggiunte vanno solo nella sezione "Aggiunte suggerite" e riguardano solo argomenti avanzati mancanti.
 
 ## Messaggio finale
 Formato di `CONVENZIONI.md` §7.

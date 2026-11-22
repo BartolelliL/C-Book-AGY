@@ -42,7 +42,8 @@ rapporto.
    domande guida contengono codice?
 5. **Esercizi**: sono davvero risolvibili con quanto spiegato? descrizione ambigua? l'esempio di esecuzione e' coerente
    con la descrizione?
-6. **Glossario e italiano**: termini non ufficiali, sinonimi vietati, errori di grammatica, ortografia, frasi ambigue.
+6. **Glossario e italiano**: termini non ufficiali, sinonimi vietati, errori di grammatica, ortografia (compreso l'apostrofo
+   al posto dell'accento: `perche'` invece di "perché"), frasi ambigue.
 7. **Didattica**: salti logici, spiegazioni che confondono, analogie fuorvianti (una analogia sbagliata e' un errore
    grave).
 

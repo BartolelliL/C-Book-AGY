@@ -5,7 +5,7 @@
     "hash": null,
     "modificato": false
   },
-  "n_capitoli": 22,
+  "n_capitoli": 26,
   "capitoli": {
     "1": {
       "fase": "blueprint",
@@ -176,6 +176,38 @@
       "note": []
     },
     "22": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "23": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "24": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "25": {
+      "fase": "blueprint",
+      "ciclo": 1,
+      "errori_aperti": false,
+      "gravi_ciclo": false,
+      "audit_applicato": 0,
+      "note": []
+    },
+    "26": {
       "fase": "blueprint",
       "ciclo": 1,
       "errori_aperti": false,

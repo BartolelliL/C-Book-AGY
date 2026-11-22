@@ -72,7 +72,7 @@ fino in fondo, da solo, prima di tutti gli altri. Se ti convince, la sua prima s
 libro; se no, correggi prompt o regole e rifai il capitolo.
 
 L'ordine lo decide lo script: prima il pilota, poi tutte le stesure, poi tutti gli audit.
-**Quanti messaggi?** Con 22 capitoli circa 70-90 in tutto (una sessione per capitolo nella stesura, lotti piu' grandi nei passi
+**Quanti messaggi?** Con 26 capitoli circa 85-110 in tutto (una sessione per capitolo nella stesura, lotti piu' grandi nei passi
 leggeri). I lotti sono in `config.json` (`lotto_capitoli`): alzali se hai margine di quota, abbassali se l'agente perde il filo.
 
 ## 5. Cosa controlla lo script in automatico (e cosa no)

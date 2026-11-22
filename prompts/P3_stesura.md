@@ -60,6 +60,8 @@ nel formato ESATTO di `CONVENZIONI.md` §3. Non scrivere altro.
 - Non spiegare gli stessi concetti piu' volte: se serve richiamare qualcosa di un capitolo precedente, una frase e
   un rinvio.
 - Niente riempitivi, niente frasi entusiastiche generiche, niente emoji.
+- Lettere accentate sempre corrette (è, é, à, ì, ò, ù): mai l'apostrofo al posto dell'accento. Anche se il blueprint o questi
+  prompt usano `e'`, nel libro scrivi "è" (il controllo automatico lo segnala come errore).
 
 ## Controllo finale (obbligatorio)
 1. Esegui `python3 scripts/libro.py controlla N`. Legge i file, compila ed esegue ogni programma, confronta gli output e

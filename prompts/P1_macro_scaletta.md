@@ -75,6 +75,9 @@ capitolo in cui viene introdotto per la prima volta:
   parole chiave, le funzioni, i tipi, le costanti e gli header che userai).
 - Elementi che NON userai mai nel libro (es. `register`, `stdbool.h`, `threads.h`; `stdbool.h` perche' in C23 `bool` e' una
   parola chiave) vanno in `non_trattati`: i controlli automatici segnaleranno ogni uso.
+- **Tutto cio' che `PROGRAMMA.md` richiede va nel registro, mai in `non_trattati`** (per esempio `goto`, `volatile`, `inline`,
+  `restrict`, `extern`, `setjmp`/`longjmp`, `offsetof`, `_Generic`, `static_assert`, `errno`, funzioni variadiche). In
+  `non_trattati` mettici solo cio' che il libro non usera' davvero (di solito poche voci).
 - Rispetta le regole sul codice di `CONVENZIONI.md` §4 (per esempio, niente `scanf("%s")`; l'ordine di introduzione
   delle funzioni di input deve essere coerente con `PROGRAMMA.md`).
 
@@ -85,6 +88,11 @@ capitolo in cui viene introdotto per la prima volta:
   "puntatore").
 - Termini unici (nessun duplicato).
 - Preferisci la terminologia italiana consolidata; il termine inglese tra parentesi sta nel testo del libro, non qui.
+
+### Lingua
+Scrivi TUTTI i testi del JSON (titoli, obiettivi, definizioni, termini del glossario) in italiano corretto con le lettere
+accentate (è, é, à, ì, ò, ù): mai l'apostrofo al posto dell'accento (`perche'`, `visibilita'`) e mai termini senza accento
+(`visibilita`, `complessita`). I termini del glossario sono quelli che finiranno nel libro e nell'indice analitico.
 
 ## Controllo finale (obbligatorio)
 1. Rileggi il JSON: nessuna virgola finale, nessun commento.

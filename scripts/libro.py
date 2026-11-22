@@ -178,6 +178,9 @@ PATTERN_VIETATI = [
     (r'\bscanf\s*\(\s*"[^"]*%s', "scanf con %s senza larghezza e' insicuro: usa fgets()"),
 ]
 
+# apostrofo usato al posto dell'accento (perche', e', piu', citta'): vietato nella prosa del libro
+RE_APOSTROFO_ACCENTO = re.compile(r"(?<![A-Za-z0-9_'\\])(?:e'|[A-Za-z]{2,}[aeiou]')(?=\s|[.,;:!?)\]]|$)")
+
 VIETATI_ESECUZIONE = [
     r"\bsystem\s*\(", r"\bpopen\s*\(", r"\bexec[lv]p?e?\s*\(", r"\bfork\s*\(", r"\bsocket\s*\(",
     r"\bunlink\s*\(", r"\brmdir\s*\(", r"\bchmod\s*\(", r"\bchown\s*\(", r"\bkill\s*\(",
@@ -820,6 +823,10 @@ def controlla_capitolo(n, c, macro, bp):
         parole = len(re.findall(r"\w+", pr))
         info["parole"] += parole
         loc = f
+        trovati = [x.group(0) for x in RE_APOSTROFO_ACCENTO.finditer(pr) if x.group(0).lower() != "po'"]
+        if trovati:
+            err.append("%s: apostrofo al posto dell'accento (%s%s): scrivi le lettere accentate corrette (e, e, a, i, o, u con accento)"
+                       % (loc, ", ".join(sorted(set(trovati))[:4]), "..." if len(set(trovati)) > 4 else ""))
         m = re.match(r"%s_(\d\d)\.md$" % nn(n), f)
         k = int(m.group(1))
         # --- struttura
