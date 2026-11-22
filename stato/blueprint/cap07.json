@@ -1,0 +1,432 @@
+{
+  "capitolo": 7,
+  "titolo": "Funzioni",
+  "obiettivi": [
+    "Definire e dichiarare funzioni con prototipi coerenti e parametri passati per valore",
+    "Prevedere visibilità e durata di vita di variabili locali e variabili static locali",
+    "Scrivere funzioni ricorsive identificando caso base e passo ricorsivo",
+    "Scomporre un problema complesso in funzioni piccole e indipendenti"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "funzione",
+      "definizione": "Blocco di codice dotato di nome, parametri e tipo di ritorno che svolge un compito definito e può essere richiamato."
+    },
+    {
+      "termine": "prototipo",
+      "definizione": "Dichiarazione di una funzione che ne specifica nome, tipo di ritorno e tipi dei parametri senza il corpo."
+    },
+    {
+      "termine": "parametro",
+      "definizione": "Variabile dichiarata nell'intestazione di una funzione che riceve il valore fornito alla chiamata."
+    },
+    {
+      "termine": "argomento",
+      "definizione": "Espressione passata tra parentesi nel punto in cui si chiama una funzione."
+    },
+    {
+      "termine": "passaggio per valore",
+      "definizione": "Meccanismo del C per cui una funzione riceve una copia del valore di ciascun argomento."
+    },
+    {
+      "termine": "visibilità",
+      "definizione": "Regione del codice sorgente all'interno della quale un identificatore può essere utilizzato."
+    },
+    {
+      "termine": "durata di vita",
+      "definizione": "Intervallo di tempo durante l'esecuzione del programma in cui la memoria di un oggetto esiste ed è valida."
+    },
+    {
+      "termine": "ricorsione",
+      "definizione": "Tecnica in cui una funzione richiama se stessa su un sottoproblema più piccolo fino a raggiungere un caso base."
+    },
+    {
+      "termine": "caso base",
+      "definizione": "Condizione che termina una funzione ricorsiva restituendo un risultato senza ulteriori chiamate ricorsive."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "espressione",
+    "conversione implicita",
+    "flusso di controllo",
+    "ciclo",
+    "iterazione",
+    "stream",
+    "fine dell'input",
+    "fgets, sscanf, putchar e fprintf",
+    "EXIT_SUCCESS ed EXIT_FAILURE",
+    "comportamento indefinito",
+    "comportamento non specificato"
+  ],
+  "regole": [
+    {
+      "id": "7.R1",
+      "enunciato": "Una definizione di funzione specifica tipo di ritorno, identificatore, lista dei parametri con i rispettivi tipi (oppure void se la funzione non accetta parametri) e corpo tra parentesi graffe. Una funzione con tipo di ritorno diverso da void deve restituire tramite return un valore convertibile al tipo dichiarato su ogni percorso di esecuzione; una funzione void non restituisce alcun valore e può terminare con return; oppure raggiungendo la graffa di chiusura.",
+      "nota_standard": "indefinito: in C23 la lista vuota () equivale a (void) (mentre in C17/C11 lasciava imprecisati i parametri, perciò nel libro si scrive sempre (void)); raggiungere la chiusura di una funzione non void (diversa da main) senza return provoca comportamento indefinito se il chiamante ne usa il valore."
+    },
+    {
+      "id": "7.R2",
+      "enunciato": "Ogni funzione deve essere dichiarata prima della sua prima chiamata mediante un prototipo o una definizione completa, con tipo di ritorno e tipi dei parametri compatibili. Alla chiamata, ogni argomento viene convertito implicitamente al tipo del parametro corrispondente come in un assegnamento. Le funzioni abs, labs e llabs di <stdlib.h> calcolano il valore assoluto rispettivamente di int, long e long long.",
+      "nota_standard": "indefinito: le conversioni degli argomenti verso i tipi dei parametri del prototipo sono definite dallo standard C23; chiamare abs(INT_MIN), labs(LONG_MIN) o llabs(LLONG_MIN) provoca comportamento indefinito in complemento a due perché il valore assoluto non è rappresentabile nel tipo di ritorno."
+    },
+    {
+      "id": "7.R3",
+      "enunciato": "In C tutti gli argomenti vengono passati per valore: ogni parametro è una variabile locale della funzione inizializzata con una copia del valore dell'argomento. Modificare un parametro all'interno della funzione non altera mai la variabile del chiamante (per modificare variabili del chiamante servono i puntatori, capitolo 10).",
+      "nota_standard": "definito: il passaggio per valore è garantito dallo standard C23; l'ordine di valutazione degli argomenti di una chiamata è invece comportamento non specificato, e modificare e leggere lo stesso oggetto senza ordinamento tra argomenti provoca comportamento indefinito."
+    },
+    {
+      "id": "7.R4",
+      "enunciato": "I parametri e le variabili dichiarate dentro un blocco hanno visibilità limitata a quel blocco e durata di vita automatica: nascono all'ingresso del blocco (senza azzeramento implicito) e cessano di esistere all'uscita. Una dichiarazione in un blocco interno con lo stesso nome di una esterna la nasconde per quel blocco. Una variabile locale dichiarata static mantiene visibilità limitata al blocco ma ha durata di vita statica: esiste per l'intera esecuzione, è inizializzata una sola volta con un'espressione costante (o a zero se omessa) e conserva il proprio valore tra chiamate successive.",
+      "nota_standard": "definito: visibilità di blocco, occultamento di identificatori esterni, durata di vita automatica e durata di vita statica con inizializzazione costante unica sono definiti dallo standard C23; leggere una variabile automatica non inizializzata provoca comportamento indefinito."
+    },
+    {
+      "id": "7.R5",
+      "enunciato": "Ogni funzione ricorsiva deve avere almeno un caso base che restituisce senza nuove chiamate ricorsive e un passo ricorsivo che riduce strettamente il problema verso il caso base. Ogni chiamata ricorsiva attiva dispone di copie indipendenti dei propri parametri e delle variabili locali automatiche.",
+      "nota_standard": "indefinito: lo standard C23 definisce la ricorsione e l'indipendenza delle variabili automatiche per ciascuna invocazione, ma una ricorsione infinita o troppo profonda può esaurire la memoria disponibile per le chiamate causando comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input e restituisce s oppure nullptr in caso di errore o fine dell'input."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza il testo contenuto in s secondo format, memorizza i valori convertiti e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    },
+    {
+      "nome": "abs",
+      "firma": "int abs(int j);",
+      "header": "stdlib.h",
+      "descrizione": "Restituisce il valore assoluto dell'intero int j (comportamento indefinito se il risultato non è rappresentabile, come per INT_MIN)."
+    },
+    {
+      "nome": "labs",
+      "firma": "long int labs(long int j);",
+      "header": "stdlib.h",
+      "descrizione": "Restituisce il valore assoluto dell'intero long int j (comportamento indefinito se il risultato non è rappresentabile, come per LONG_MIN)."
+    },
+    {
+      "nome": "llabs",
+      "firma": "long long int llabs(long long int j);",
+      "header": "stdlib.h",
+      "descrizione": "Restituisce il valore assoluto dell'intero long long int j (comportamento indefinito se il risultato non è rappresentabile, come per LLONG_MIN)."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "7.1",
+      "titolo": "Definire e chiamare una funzione",
+      "contenuti": [
+        "Perché introdurre le funzioni: eliminare codice duplicato, dare nomi chiari alle operazioni e isolare compiti riutilizzabili",
+        "Anatomia di una definizione di funzione: tipo di ritorno, nome in snake_case, lista dei parametri con tipo (o void se non accetta parametri) e corpo tra parentesi graffe",
+        "Distinzione rigorosa tra parametro (variabile nell'intestazione della funzione) e argomento (espressione fornita alla chiamata)",
+        "Istruzione return, uscita anticipata, funzioni che restituiscono valori numerici o bool e funzioni void che eseguono solo azioni senza restituire valori",
+        "Novità C23 sui parametri vuoti: f() equivale a f(void), segnalata con box C23 spiegando perché il libro adotta sempre (void) per chiarezza e portabilità"
+      ],
+      "esempio_guidato": "Un programma di monitoraggio stradale che definisce sopra main tre funzioni: double kmh_a_ms(double kmh) per la conversione di velocità, bool supera_limite(double kmh, double limite) per il controllo booleano e void stampa_separatore(int lunghezza) per stampare una riga di trattini; main le richiama su due rilevazioni diverse.",
+      "approfondimento": "Cosa accade se una funzione dichiarata non void dimentica un'istruzione return lungo un ramo di esecuzione (comportamento indefinito se il valore viene usato e segnalazione immediata con -Wall -Werror).",
+      "esercizio_id": "7.1"
+    },
+    {
+      "id": "7.2",
+      "titolo": "Prototipi e passaggio per valore",
+      "contenuti": [
+        "Cos'è un prototipo di funzione e perché serve dichiararlo prima di main per mantenere leggibile l'ordine del file e permettere al compilatore di verificare le chiamate",
+        "Coerenza tra prototipo e definizione e conversione implicita degli argomenti verso il tipo dei parametri",
+        "Passaggio per valore: la funzione riceve copie degli argomenti e modificarne i parametri non altera mai le variabili nel chiamante (con rinvio al capitolo 10 per i puntatori)",
+        "Ordine di valutazione degli argomenti come comportamento non specificato e divieto di effetti collaterali sulla stessa variabile dentro la stessa chiamata",
+        "Le funzioni di valore assoluto intero di <stdlib.h>: abs, labs e llabs, e perché evitarle sui valori minimi INT_MIN, LONG_MIN e LLONG_MIN"
+      ],
+      "esempio_guidato": "Un programma con prototipi in testa e definizioni dopo main che confronta void tenta_raddoppio(int x) (mostrando che la variabile di main non cambia) con int raddoppia(int x) (che restituisce il nuovo valore), e mostra l'uso di abs e labs per calcolare scarti di quota tra due altitudini.",
+      "approfondimento": "Perché abs(INT_MIN), labs(LONG_MIN) e llabs(LLONG_MIN) causano comportamento indefinito in complemento a due e come controllare il limite prima della chiamata.",
+      "esercizio_id": "7.2"
+    },
+    {
+      "id": "7.3",
+      "titolo": "Visibilità, durata di vita e static locale",
+      "contenuti": [
+        "Visibilità di blocco per variabili locali, parametri e contatori di for, e visibilità di file per prototipi e costanti constexpr (evitando variabili globali mutabili)",
+        "Occultamento (shadowing) quando una variabile di un blocco interno ha lo stesso nome di una variabile esterna e perché conviene evitarlo",
+        "Durata di vita automatica: creazione a ogni chiamata o ingresso nel blocco, distruzione all'uscita e necessità di inizializzazione esplicita",
+        "Variabili locali static: visibilità limitata alla funzione ma durata di vita estesa all'intera esecuzione del programma, inizializzazione costante unica e conservazione del valore tra chiamate successive",
+        "Quando usare static locale (contatori progressivi, statistiche cumulative incapsulate) e quali limiti introduce (dipendenza dallo stato interno, impossibilità di azzerarlo senza logica dedicata)"
+      ],
+      "esempio_guidato": "Un programma per uno sportello che definisce int genera_ticket(void) con un contatore static int prossimo = 1; confrontato con un contatore automatico che si azzera a ogni chiamata, insieme a un blocco annidato che illustra la visibilità di blocco.",
+      "approfondimento": "Differenza tra una variabile locale static (stato persistente ma nascosto dentro la funzione) e una variabile globale mutabile (visibile ovunque e fonte di accoppiamenti nascosti); nel capitolo 19 vedremo l'uso di static a livello di file.",
+      "esercizio_id": "7.3"
+    },
+    {
+      "id": "7.4",
+      "titolo": "Funzioni ricorsive",
+      "contenuti": [
+        "Cos'è la ricorsione e come si riconosce un problema scomponibile in un sottoproblema più piccolo della stessa forma",
+        "I due elementi indispensabili di ogni funzione ricorsiva: caso base e passo ricorsivo strettamente convergente",
+        "Traccia della pila delle chiamate (schema in blocco text): discesa delle chiamate con copie separate dei parametri e risalita dei valori di ritorno",
+        "Errori critici nella ricorsione: caso base assente o saltato (ricorsione infinita ed esaurimento della pila) e ricorsione esponenziale ingenua (es. Fibonacci ricorsivo)",
+        "Criteri per scegliere tra ricorsione e iterazione (chiarezza del modello contro consumo di memoria e numero di chiamate)"
+      ],
+      "esempio_guidato": "Un programma con due funzioni ricorsive: long long fattoriale(int n) (per n da 0 a 20, con schema della pila di chiamate per n = 4) e int mcd_ricorsivo(int a, int b) secondo l'algoritmo di Euclide, confrontato brevemente con la versione iterativa del capitolo 6.",
+      "approfondimento": "Perché la definizione ricorsiva ingenua di Fibonacci ripete esponenzialmente gli stessi calcoli mentre la versione iterativa del capitolo 6 esegue solo n passi.",
+      "esercizio_id": "7.4"
+    },
+    {
+      "id": "7.5",
+      "titolo": "Scomporre un problema in funzioni",
+      "contenuti": [
+        "Progettazione dall'alto verso il basso (top-down): suddividere un problema articolato in sotto-compiti indipendenti con una sola responsabilità",
+        "Definire contratti chiari per ogni funzione: precondizioni sugli argomenti, valore restituito e nomi espressivi",
+        "Separare validazione dell'input, funzioni di calcolo pure (senza I/O interno) e funzioni dedicate alla presentazione dell'output",
+        "Composizione di funzioni: costruire funzioni di livello superiore richiamando funzioni elementari già verificate",
+        "Segnali che indicano quando una funzione va spezzata (lunghezza eccessiva, troppi compiti mescolati, logica ripetuta)"
+      ],
+      "esempio_guidato": "Un programma che calcola il conto di un ordine di cancelleria scomponendo il problema in funzioni piccole e coordinate da main: calcola_subtotale, calcola_sconto, calcola_iva e stampa_riepilogo, con prototipi chiari in testa al file.",
+      "approfondimento": "Perché tenere l'input/output separato dalle funzioni di calcolo rende i calcoli riutilizzabili in altri programmi e facili da verificare su casi limite.",
+      "esercizio_id": "7.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "7.1",
+      "tipo": "esercizio",
+      "titolo": "Scheda di un lotto di terreno rettangolare",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<stdlib.h>` e `<math.h>` e definisca sopra `main` quattro funzioni: `void stampa_intestazione(void)` (stampa `=== SCHEDA LOTTO ===` seguito da ritorno a capo), `double calcola_area(double larghezza, double lunghezza)`, `double calcola_perimetro(double larghezza, double lunghezza)` e `bool e_quadrato(double larghezza, double lunghezza)` (restituisce `true` se `fabs(larghezza - lunghezza) <= 1e-9`, `false` altrimenti). In `main` leggi da `stdin` una riga contenente `larghezza`, `lunghezza` e `prezzo_mq` (`double`) verificando fine dell'input, formato esatto (`\"%lf %lf %lf %c\"` == `3`) e vincoli (`larghezza > 0.0`, `lunghezza > 0.0`, `prezzo_mq >= 0.0`); in caso di errore stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Altrimenti chiama le quattro funzioni, calcola il valore totale (`area * prezzo_mq`) e stampa il riepilogo con due cifre decimali esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "definizione e chiamata di funzioni con tipi di ritorno diversi (void, double, bool)",
+        "differenza tra parametro e argomento",
+        "istruzione return",
+        "confronto in virgola mobile con fabs e tolleranza dentro un predicato bool"
+      ],
+      "domande_guida": [
+        "Quale tipo di ritorno devi usare per una funzione che si limita a stampare l'intestazione senza produrre un risultato numerico?",
+        "Quali parametri devono ricevere rispettivamente le funzioni per l'area, il perimetro e la verifica del quadrato?",
+        "Perché nella funzione che verifica se il lotto è quadrato conviene usare fabs(larghezza - lunghezza) <= 1e-9 invece di larghezza == lunghezza?",
+        "In che modo il valore restituito da calcola_area può essere riutilizzato in main per ricavare il valore economico totale del lotto?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "12.5 20.0 80.0\n",
+          "output": "=== SCHEDA LOTTO ===\nArea: 250.00 mq\nPerimetro: 65.00 m\nForma: Rettangolo\nValore stimato: 20000.00 euro\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "15.0 15.0 100.5\n",
+          "output": "=== SCHEDA LOTTO ===\nArea: 225.00 mq\nPerimetro: 60.00 m\nForma: Quadrato\nValore stimato: 22612.50 euro\n"
+        },
+        {
+          "input": "4.2 3.5 0.0\n",
+          "output": "=== SCHEDA LOTTO ===\nArea: 14.70 mq\nPerimetro: 15.40 m\nForma: Rettangolo\nValore stimato: 0.00 euro\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <math.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nvoid stampa_intestazione(void) {\n    printf(\"=== SCHEDA LOTTO ===\\n\");\n}\n\ndouble calcola_area(double larghezza, double lunghezza) {\n    return larghezza * lunghezza;\n}\n\ndouble calcola_perimetro(double larghezza, double lunghezza) {\n    return 2.0 * (larghezza + lunghezza);\n}\n\nbool e_quadrato(double larghezza, double lunghezza) {\n    return fabs(larghezza - lunghezza) <= 1e-9;\n}\n\nint main(void) {\n    char riga[128];\n    double larghezza = 0.0;\n    double lunghezza = 0.0;\n    double prezzo_mq = 0.0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lf %lf %lf %c\", &larghezza, &lunghezza, &prezzo_mq, &extra) != 3 ||\n        larghezza <= 0.0 || lunghezza <= 0.0 || prezzo_mq < 0.0) {\n        fprintf(stderr, \"Errore: dati del lotto non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    double area = calcola_area(larghezza, lunghezza);\n    double perimetro = calcola_perimetro(larghezza, lunghezza);\n    double valore = area * prezzo_mq;\n\n    stampa_intestazione();\n    printf(\"Area: %.2f mq\\n\", area);\n    printf(\"Perimetro: %.2f m\\n\", perimetro);\n    if (e_quadrato(larghezza, lunghezza)) {\n        printf(\"Forma: Quadrato\\n\");\n    } else {\n        printf(\"Forma: Rettangolo\\n\");\n    }\n    printf(\"Valore stimato: %.2f euro\\n\", valore);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "7.2",
+      "tipo": "esercizio",
+      "titolo": "Percorso di un rover con prototipi, passaggio per valore e abs/labs/llabs",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>` e `<stdlib.h>`, dichiari prima di `main` i prototipi di quattro funzioni e ne collochi le definizioni dopo `main`: `long distanza_manhattan(long x1, long y1, long x2, long y2)` (restituisce `labs(x2 - x1) + labs(y2 - y1)`), `int sbilanciamento_assi(long x1, long y1, long x2, long y2)` (restituisce `abs((int)(labs(x2 - x1) - labs(y2 - y1)))`), `long long differenza_energia(long long e1, long long e2)` (restituisce `llabs(e1 - e2)`) e `int applica_margine(int soglia)` (incrementa il proprio parametro di `10` e lo restituisce, mostrando che il passaggio per valore non modifica la variabile del chiamante). In `main` leggi una riga da `stdin` con cinque interi `x1 y1 x2 y2 soglia` (i primi quattro `long` tra `-1'000'000` e `1'000'000`, `soglia` `int` tra `0` e `10'000'000`), validando formato esatto (`\"%ld %ld %ld %ld %d %c\"` == `5`) e intervalli; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`. Calcola `e1 = (long long)x1 * x1 + (long long)y1 * y1` ed `e2 = (long long)x2 * x2 + (long long)y2 * y2`, invoca le quattro funzioni e stampa distanza di Manhattan, sbilanciamento, differenza di energia, `soglia` originale in `main` (invariata), `soglia_estesa` restituita ed esito del percorso (`Entro soglia estesa` se `distanza <= soglia_estesa`, `Oltre soglia estesa` altrimenti), esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "prototipi dichiarati prima di main e definizioni dopo main",
+        "passaggio per valore dei parametri",
+        "funzioni abs, labs e llabs di <stdlib.h>",
+        "scelta di tipi adeguati per prevenire l'overflow"
+      ],
+      "domande_guida": [
+        "Perché devi dichiarare i prototipi prima di main se scegli di scrivere le definizioni delle funzioni dopo main?",
+        "Dopo aver chiamato applica_margine(soglia), perché la variabile soglia dentro main conserva ancora il suo valore originale?",
+        "Quale differenza esiste tra abs, labs e llabs e quale tipo di argomento accetta ciascuna?",
+        "Perché i limiti imposti sulle coordinate impediscono di incorrere nel comportamento indefinito di abs(INT_MIN), labs(LONG_MIN) e llabs(LLONG_MIN)?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "-3 4 5 -2 10\n",
+          "output": "Distanza Manhattan: 14\nSbilanciamento assi: 2\nDifferenza energia: 4\nSoglia originale in main: 10\nSoglia estesa restituita: 20\nEsito: Entro soglia estesa\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 0 0 0 0\n",
+          "output": "Distanza Manhattan: 0\nSbilanciamento assi: 0\nDifferenza energia: 0\nSoglia originale in main: 0\nSoglia estesa restituita: 10\nEsito: Entro soglia estesa\n"
+        },
+        {
+          "input": "-1000000 0 1000000 500000 1000000\n",
+          "output": "Distanza Manhattan: 2500000\nSbilanciamento assi: 1500000\nDifferenza energia: 250000000000\nSoglia originale in main: 1000000\nSoglia estesa restituita: 1000010\nEsito: Oltre soglia estesa\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nlong distanza_manhattan(long x1, long y1, long x2, long y2);\nint sbilanciamento_assi(long x1, long y1, long x2, long y2);\nlong long differenza_energia(long long e1, long long e2);\nint applica_margine(int soglia);\n\nint main(void) {\n    char riga[128];\n    long x1 = 0, y1 = 0, x2 = 0, y2 = 0;\n    int soglia = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%ld %ld %ld %ld %d %c\", &x1, &y1, &x2, &y2, &soglia, &extra) != 5 ||\n        labs(x1) > 1'000'000L || labs(y1) > 1'000'000L ||\n        labs(x2) > 1'000'000L || labs(y2) > 1'000'000L ||\n        soglia < 0 || soglia > 10'000'000) {\n        fprintf(stderr, \"Errore: parametri del percorso non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    long distanza = distanza_manhattan(x1, y1, x2, y2);\n    int sbilanciamento = sbilanciamento_assi(x1, y1, x2, y2);\n    long long e1 = (long long)x1 * x1 + (long long)y1 * y1;\n    long long e2 = (long long)x2 * x2 + (long long)y2 * y2;\n    long long diff_en = differenza_energia(e1, e2);\n    int soglia_estesa = applica_margine(soglia);\n\n    printf(\"Distanza Manhattan: %ld\\n\", distanza);\n    printf(\"Sbilanciamento assi: %d\\n\", sbilanciamento);\n    printf(\"Differenza energia: %lld\\n\", diff_en);\n    printf(\"Soglia originale in main: %d\\n\", soglia);\n    printf(\"Soglia estesa restituita: %d\\n\", soglia_estesa);\n    if (distanza <= soglia_estesa) {\n        printf(\"Esito: Entro soglia estesa\\n\");\n    } else {\n        printf(\"Esito: Oltre soglia estesa\\n\");\n    }\n    return EXIT_SUCCESS;\n}\n\nlong distanza_manhattan(long x1, long y1, long x2, long y2) {\n    return labs(x2 - x1) + labs(y2 - y1);\n}\n\nint sbilanciamento_assi(long x1, long y1, long x2, long y2) {\n    long dx = labs(x2 - x1);\n    long dy = labs(y2 - y1);\n    return abs((int)(dx - dy));\n}\n\nlong long differenza_energia(long long e1, long long e2) {\n    return llabs(e1 - e2);\n}\n\nint applica_margine(int soglia) {\n    soglia += 10;\n    return soglia;\n}\n"
+    },
+    {
+      "id": "7.3",
+      "tipo": "esercizio",
+      "titolo": "Registratore di consumi elettrici con variabili static locali",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sequenza di lunghezza arbitraria di consumi elettrici in wattora (un `int` per riga compreso tra `0` e `100'000` inclusi) fino alla fine dell'input. Se una riga ha formato errato (`\"%d %c\"` != `1`) o un valore fuori intervallo, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Gestisci lo stato cumulativo esclusivamente tramite variabili locali `static` all'interno di tre funzioni con prototipo prima di `main`: `long aggiorna_totale_wh(int consumo)` (mantiene il totale cumulato e lo restituisce), `int aggiorna_picco_wh(int consumo)` (mantiene il massimo finora osservato e lo restituisce) e `int conta_oltre_soglia(int consumo, int soglia)` (incrementa il proprio contatore `static` ogni volta che `consumo > soglia` e restituisce il conteggio aggiornato). In `main`, usa `constexpr int SOGLIA_WH = 500;` e per ogni ciclo stampa `Ciclo N: consumo=X Wh, cumulato=T Wh, picco=P Wh`. Al termine dello stream, se non è stato letto alcun ciclo stampa `Nessun ciclo registrato.`; altrimenti stampa cicli totali, consumo totale, picco massimo e cicli sopra `500` Wh esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "visibilità di blocco e durata di vita statica",
+        "variabili locali static inizializzate una sola volta",
+        "separazione dello stato interno tra funzioni distinte",
+        "gestione del caso limite di input vuoto"
+      ],
+      "domande_guida": [
+        "Che cosa succederebbe al totale cumulato se la variabile dentro aggiorna_totale_wh non fosse dichiarata static?",
+        "Perché le variabili static dichiarate dentro le tre funzioni non possono essere lette o modificate direttamente da main?",
+        "Come puoi inizializzare la variabile static del picco affinché funzioni correttamente anche se tutti i consumi valessero 0?",
+        "Perché in main conviene comunque salvare l'ultimo valore restituito da ciascuna funzione per poter stampare il riepilogo finale dopo la fine del ciclo?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "320\n640\n480\n510\n",
+          "output": "Ciclo 1: consumo=320 Wh, cumulato=320 Wh, picco=320 Wh\nCiclo 2: consumo=640 Wh, cumulato=960 Wh, picco=640 Wh\nCiclo 3: consumo=480 Wh, cumulato=1440 Wh, picco=640 Wh\nCiclo 4: consumo=510 Wh, cumulato=1950 Wh, picco=640 Wh\nCicli totali: 4\nConsumo totale: 1950 Wh\nPicco massimo: 640 Wh\nCicli sopra 500 Wh: 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Nessun ciclo registrato.\n"
+        },
+        {
+          "input": "0\n",
+          "output": "Ciclo 1: consumo=0 Wh, cumulato=0 Wh, picco=0 Wh\nCicli totali: 1\nConsumo totale: 0 Wh\nPicco massimo: 0 Wh\nCicli sopra 500 Wh: 0\n"
+        },
+        {
+          "input": "500\n501\n",
+          "output": "Ciclo 1: consumo=500 Wh, cumulato=500 Wh, picco=500 Wh\nCiclo 2: consumo=501 Wh, cumulato=1001 Wh, picco=501 Wh\nCicli totali: 2\nConsumo totale: 1001 Wh\nPicco massimo: 501 Wh\nCicli sopra 500 Wh: 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nlong aggiorna_totale_wh(int consumo);\nint aggiorna_picco_wh(int consumo);\nint conta_oltre_soglia(int consumo, int soglia);\n\nint main(void) {\n    constexpr int SOGLIA_WH = 500;\n    char riga[128];\n    int consumo = 0;\n    char extra = '\\0';\n    int cicli = 0;\n    long totale = 0;\n    int picco = 0;\n    int oltre_soglia = 0;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %c\", &consumo, &extra) != 1 ||\n            consumo < 0 || consumo > 100'000) {\n            fprintf(stderr, \"Errore: consumo non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        ++cicli;\n        totale = aggiorna_totale_wh(consumo);\n        picco = aggiorna_picco_wh(consumo);\n        oltre_soglia = conta_oltre_soglia(consumo, SOGLIA_WH);\n        printf(\"Ciclo %d: consumo=%d Wh, cumulato=%ld Wh, picco=%d Wh\\n\",\n               cicli, consumo, totale, picco);\n    }\n\n    if (cicli == 0) {\n        printf(\"Nessun ciclo registrato.\\n\");\n        return EXIT_SUCCESS;\n    }\n    printf(\"Cicli totali: %d\\n\", cicli);\n    printf(\"Consumo totale: %ld Wh\\n\", totale);\n    printf(\"Picco massimo: %d Wh\\n\", picco);\n    printf(\"Cicli sopra %d Wh: %d\\n\", SOGLIA_WH, oltre_soglia);\n    return EXIT_SUCCESS;\n}\n\nlong aggiorna_totale_wh(int consumo) {\n    static long totale = 0;\n    totale += consumo;\n    return totale;\n}\n\nint aggiorna_picco_wh(int consumo) {\n    static int picco = -1;\n    if (consumo > picco) {\n        picco = consumo;\n    }\n    return picco;\n}\n\nint conta_oltre_soglia(int consumo, int soglia) {\n    static int conteggio = 0;\n    if (consumo > soglia) {\n        ++conteggio;\n    }\n    return conteggio;\n}\n"
+    },
+    {
+      "id": "7.4",
+      "tipo": "esercizio",
+      "titolo": "Potenza veloce, somma delle cifre e stampa binaria con ricorsione",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sola riga contenente tre valori: `base` (`int` tra `-10` e `10` inclusi), `esponente` (`int` tra `0` e `15` inclusi) e `numero` (`long long` tra `0` e `1'000'000'000` inclusi). Verifica fine dell'input, formato esatto (`\"%d %d %lld %c\"` == `3`) e intervalli; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`. Implementa tre funzioni ricorsive (senza usare cicli al loro interno) con prototipi prima di `main`: `long long potenza_veloce(int base, int esponente)` (con caso base `esponente == 0` -> `1`, anche per `base == 0`, e passo ricorsivo che calcola una sola volta `meta = potenza_veloce(base, esponente / 2)` restituendo `meta * meta` se `esponente` è pari e `meta * meta * base` se è dispari), `int somma_cifre_ric(long long n)` (somma ricorsiva delle cifre decimali) e `void stampa_binario_ric(long long n)` (stampa la rappresentazione binaria di `n >= 0` usando `putchar` durante la risalita della ricorsione, stampando `0` per `n == 0`). Stampa i risultati esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "ricorsione con caso base e passo ricorsivo convergente",
+        "dimezzamento dell'esponente nella potenza veloce",
+        "ordine di stampa nella risalita della pila delle chiamate",
+        "prevenzione dell'overflow tramite vincoli di ingresso e long long"
+      ],
+      "domande_guida": [
+        "Qual è il caso base di potenza_veloce e perché calcolare meta una sola volta invece di chiamare potenza_veloce due volte riduce drasticamente il numero di chiamate?",
+        "Qual è il caso base di somma_cifre_ric e come garantisci che n diminuisca strettamente a ogni chiamata?",
+        "Perché in stampa_binario_ric devi chiamare ricorsivamente la funzione su n / 2 prima di chiamare putchar per il resto n % 2?",
+        "Cosa stampa stampa_binario_ric quando riceve il caso limite n = 0?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3 5 42\n",
+          "output": "Potenza 3^5: 243\nSomma cifre di 42: 6\nBinario di 42: 101010\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "-2 5 0\n",
+          "output": "Potenza -2^5: -32\nSomma cifre di 0: 0\nBinario di 0: 0\n"
+        },
+        {
+          "input": "0 0 13\n",
+          "output": "Potenza 0^0: 1\nSomma cifre di 13: 4\nBinario di 13: 1101\n"
+        },
+        {
+          "input": "10 12 90807\n",
+          "output": "Potenza 10^12: 1000000000000\nSomma cifre di 90807: 24\nBinario di 90807: 10110001010110111\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nlong long potenza_veloce(int base, int esponente);\nint somma_cifre_ric(long long n);\nvoid stampa_binario_ric(long long n);\n\nint main(void) {\n    char riga[128];\n    int base = 0;\n    int esponente = 0;\n    long long numero = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %lld %c\", &base, &esponente, &numero, &extra) != 3 ||\n        base < -10 || base > 10 || esponente < 0 || esponente > 15 ||\n        numero < 0 || numero > 1'000'000'000LL) {\n        fprintf(stderr, \"Errore: parametri non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    printf(\"Potenza %d^%d: %lld\\n\", base, esponente, potenza_veloce(base, esponente));\n    printf(\"Somma cifre di %lld: %d\\n\", numero, somma_cifre_ric(numero));\n    printf(\"Binario di %lld: \", numero);\n    stampa_binario_ric(numero);\n    putchar('\\n');\n    return EXIT_SUCCESS;\n}\n\nlong long potenza_veloce(int base, int esponente) {\n    if (esponente == 0) {\n        return 1;\n    }\n    long long meta = potenza_veloce(base, esponente / 2);\n    if (esponente % 2 == 0) {\n        return meta * meta;\n    }\n    return meta * meta * base;\n}\n\nint somma_cifre_ric(long long n) {\n    if (n < 10) {\n        return (int)n;\n    }\n    return (int)(n % 10) + somma_cifre_ric(n / 10);\n}\n\nvoid stampa_binario_ric(long long n) {\n    if (n >= 2) {\n        stampa_binario_ric(n / 2);\n    }\n    putchar('0' + (int)(n % 2));\n}\n"
+    },
+    {
+      "id": "7.5",
+      "tipo": "esercizio",
+      "titolo": "Validatore di calendario e distanza tra due date",
+      "descrizione": "Scrivi un programma C che legga da `stdin` due righe, ciascuna contenente una data nel formato `giorno mese anno` (tre `int` separati da spazi, con `anno` compreso tra `1900` e `2100` inclusi). Scomponi il programma in cinque funzioni pure e coese con prototipi prima di `main`: `bool e_bisestile(int anno)` (un anno è bisestile se divisibile per `400`, oppure divisibile per `4` e non per `100`), `int giorni_del_mese(int mese, int anno)` (usa `switch` ed `e_bisestile` per febbraio; restituisce `0` se il mese non è in `1..12`), `bool data_valida(int g, int m, int a)` (controlla anno in `1900..2100`, mese in `1..12` e giorno in `1..giorni_del_mese(m, a)`), `int giorno_dell_anno(int g, int m, int a)` (numero d'ordine del giorno dall'inizio dell'anno, da `1` a `365`/`366`) e `long giorni_dal_1900(int g, int m, int a)` (somma i giorni degli anni interi `1900..a-1` più `giorno_dell_anno`). In `main` verifica fine dell'input, formato esatto (`\"%d %d %d %c\"` == `3`) e validità di ciascuna data tramite `data_valida` (in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`); altrimenti stampa per entrambe le date data, giorno dell'anno e indicazione di anno bisestile (`1` o `0`) e la distanza assoluta in giorni calcolata con `labs`, esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "scomposizione top-down in funzioni piccole con una sola responsabilità",
+        "composizione di funzioni (giorni_dal_1900 richiama giorno_dell_anno ed e_bisestile)",
+        "separazione tra validazione/calcolo puro e I/O in main",
+        "regola completa degli anni bisestili (multipli di 4, 100 e 400)"
+      ],
+      "domande_guida": [
+        "In quale ordine di dipendenza si richiamano le cinque funzioni del calendario, dalla più elementare alla più composta?",
+        "Perché conviene mantenere data_valida e giorni_del_mese completamente prive di chiamate a fgets o printf?",
+        "Come si comporta la regola degli anni bisestili sui casi secolari come 1900 e 2000?",
+        "In che modo convertire ogni data nel numero di giorni trascorsi dal 1900 semplifica il calcolo della distanza rispetto a confrontare direttamente giorni, mesi e anni?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "28 2 2024\n1 3 2024\n",
+          "output": "Data 1: 28/2/2024 (giorno 59, bisestile=1)\nData 2: 1/3/2024 (giorno 61, bisestile=1)\nDistanza: 2 giorni\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "28 2 1900\n1 3 1900\n",
+          "output": "Data 1: 28/2/1900 (giorno 59, bisestile=0)\nData 2: 1/3/1900 (giorno 60, bisestile=0)\nDistanza: 1 giorni\n"
+        },
+        {
+          "input": "1 1 2001\n1 1 2000\n",
+          "output": "Data 1: 1/1/2001 (giorno 1, bisestile=0)\nData 2: 1/1/2000 (giorno 1, bisestile=1)\nDistanza: 366 giorni\n"
+        },
+        {
+          "input": "15 8 2025\n15 8 2025\n",
+          "output": "Data 1: 15/8/2025 (giorno 227, bisestile=0)\nData 2: 15/8/2025 (giorno 227, bisestile=0)\nDistanza: 0 giorni\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nbool e_bisestile(int anno);\nint giorni_del_mese(int mese, int anno);\nbool data_valida(int g, int m, int a);\nint giorno_dell_anno(int g, int m, int a);\nlong giorni_dal_1900(int g, int m, int a);\n\nint main(void) {\n    char riga[128];\n    int g1 = 0, m1 = 0, a1 = 0, g2 = 0, m2 = 0, a2 = 0;\n    char extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %d %c\", &g1, &m1, &a1, &extra) != 3 ||\n        !data_valida(g1, m1, a1)) {\n        fprintf(stderr, \"Errore: prima data non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %d %c\", &g2, &m2, &a2, &extra) != 3 ||\n        !data_valida(g2, m2, a2)) {\n        fprintf(stderr, \"Errore: seconda data non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    long d1 = giorni_dal_1900(g1, m1, a1);\n    long d2 = giorni_dal_1900(g2, m2, a2);\n    printf(\"Data 1: %d/%d/%d (giorno %d, bisestile=%d)\\n\",\n           g1, m1, a1, giorno_dell_anno(g1, m1, a1), e_bisestile(a1));\n    printf(\"Data 2: %d/%d/%d (giorno %d, bisestile=%d)\\n\",\n           g2, m2, a2, giorno_dell_anno(g2, m2, a2), e_bisestile(a2));\n    printf(\"Distanza: %ld giorni\\n\", labs(d2 - d1));\n    return EXIT_SUCCESS;\n}\n\nbool e_bisestile(int anno) {\n    return (anno % 400 == 0) || (anno % 4 == 0 && anno % 100 != 0);\n}\n\nint giorni_del_mese(int mese, int anno) {\n    switch (mese) {\n        case 4: case 6: case 9: case 11: return 30;\n        case 2: return e_bisestile(anno) ? 29 : 28;\n        default: return (mese >= 1 && mese <= 12) ? 31 : 0;\n    }\n}\n\nbool data_valida(int g, int m, int a) {\n    return a >= 1900 && a <= 2100 && m >= 1 && m <= 12 &&\n           g >= 1 && g <= giorni_del_mese(m, a);\n}\n\nint giorno_dell_anno(int g, int m, int a) {\n    int tot = g;\n    for (int i = 1; i < m; ++i) {\n        tot += giorni_del_mese(i, a);\n    }\n    return tot;\n}\n\nlong giorni_dal_1900(int g, int m, int a) {\n    long tot = giorno_dell_anno(g, m, a);\n    for (int y = 1900; y < a; ++y) {\n        tot += e_bisestile(y) ? 366L : 365L;\n    }\n    return tot;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Aspettarsi che modificare un parametro dentro una funzione aggiorni la variabile del chiamante: in C il passaggio è sempre per valore.",
+    "Chiamare una funzione prima di averla definita o averne dichiarato il prototipo, oppure scrivere un prototipo con tipi diversi dalla definizione.",
+    "Dimenticare un'istruzione return in uno dei rami di una funzione non void, oppure scrivere un punto e virgola indesiderato nell'intestazione della definizione di funzione.",
+    "Dichiarare una variabile locale senza static quando serve conservarne il valore tra chiamate successive, oppure inizializzare una variabile static con un'espressione non costante.",
+    "Scrivere una funzione ricorsiva senza caso base (o con un passo ricorsivo che non si avvicina al caso base), provocando una ricorsione infinita e l'esaurimento della pila delle chiamate.",
+    "Chiamare abs, labs o llabs rispettivamente su INT_MIN, LONG_MIN o LLONG_MIN senza controllo preventivo, incorrendo in comportamento indefinito."
+  ],
+  "differenze_python": [
+    "In Python le funzioni si definiscono con def senza dichiarare i tipi di parametri e ritorno e non esistono prototipi; in C ogni funzione dichiara esplicitamente il tipo di ritorno e di ogni parametro, e va dichiarata prima della prima chiamata.",
+    "In Python una funzione può restituire più valori in una tupla con un solo return; in C una funzione restituisce al più un solo valore (per più risultati si useranno puntatori o struct nei capitoli 10 e 12).",
+    "In Python non esistono variabili locali static dentro una funzione; in C una variabile locale static conserva il proprio valore tra chiamate successive pur restando invisibile all'esterno della funzione.",
+    "In Python una ricorsione troppo profonda solleva un'eccezione RecursionError controllata; in C non esiste un limite gestito dal linguaggio e superare lo spazio della pila provoca comportamento indefinito."
+  ]
+}

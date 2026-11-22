@@ -1,0 +1,377 @@
+{
+  "capitolo": 8,
+  "titolo": "Array",
+  "obiettivi": [
+    "Dichiarare, inizializzare e attraversare array mono e bidimensionali di dimensione costante",
+    "Riconoscere gli accessi fuori dai limiti come comportamento indefinito ed evitarli",
+    "Passare un array e la sua lunghezza a una funzione",
+    "Implementare algoritmi elementari di ricerca e ordinamento stimandone il costo"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "array",
+      "definizione": "Sequenza contigua in memoria di un numero fissato di elementi tutti dello stesso tipo, accessibili tramite indice."
+    },
+    {
+      "termine": "indice",
+      "definizione": "Valore intero non negativo che identifica la posizione di un elemento in un array a partire da 0."
+    },
+    {
+      "termine": "accesso fuori dai limiti",
+      "definizione": "Lettura o scrittura di un array con un indice negativo o maggiore o uguale alla sua lunghezza, che causa comportamento indefinito."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "operatore sizeof e tipo size_t",
+    "flusso di controllo",
+    "valutazione a corto circuito",
+    "ciclo",
+    "iterazione",
+    "invariante di ciclo",
+    "funzione",
+    "prototipo",
+    "passaggio per valore",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "8.R1",
+      "enunciato": "La dichiarazione tipo nome[N]; riserva in memoria N elementi contigui di tipo omogeneo, dove N è un'espressione costante intera positiva (nel libro non si usano array a lunghezza variabile, VLA). Gli indici validi vanno da 0 a N - 1. In un inizializzatore ({v0, v1, ...} oppure con inizializzatori designati {[i] = v}) gli elementi omessi sono inizializzati a zero; un array locale non inizializzato contiene valori indeterminati. Nella stessa visibilità della dichiarazione, il numero di elementi è sizeof(a) / sizeof(a[0]).",
+      "nota_standard": "definito: la contiguità degli elementi, l'azzeramento degli elementi omessi in un inizializzatore, gli inizializzatori designati e il calcolo di sizeof(a) / sizeof(a[0]) sono definiti dallo standard C23; leggere un elemento locale non inizializzato provoca comportamento indefinito."
+    },
+    {
+      "id": "8.R2",
+      "enunciato": "Un array non può essere assegnato o confrontato nel suo complesso con = o ==: ogni copia o confronto avviene elemento per elemento con un ciclo. Il linguaggio C non effettua controlli automatici sugli indici: leggere o scrivere a[i] con i < 0 oppure i >= N è un accesso fuori dai limiti.",
+      "nota_standard": "indefinito: in C23 qualsiasi accesso in lettura o scrittura fuori dall'intervallo di indici [0, N - 1] di un array provoca comportamento indefinito."
+    },
+    {
+      "id": "8.R3",
+      "enunciato": "Quando un array viene passato a una funzione con parametro tipo a[] (oppure const tipo a[] per sola lettura), la funzione accede direttamente agli elementi dell'array del chiamante senza copiarli, e sizeof(a) dentro la funzione non restituisce la dimensione dell'array (il meccanismo basato sui puntatori verrà spiegato nel capitolo 10). La lunghezza effettiva va sempre passata come parametro separato (di tipo size_t).",
+      "nota_standard": "definito: lo standard C23 adatta un parametro dichiarato come array tipo a[] a un puntatore al tipo elemento; dichiarare const tipo a[] impedisce alla funzione di modificare gli elementi tramite quel parametro."
+    },
+    {
+      "id": "8.R4",
+      "enunciato": "Un array bidimensionale tipo m[RIGHE][COLONNE] è un array di RIGHE array di COLONNE elementi, memorizzato per righe (row-major order: tutti gli elementi della riga 0 seguiti da quelli della riga 1 e così via). Nei parametri di funzione è obbligatorio specificare la seconda dimensione costante (tipo m[][COLONNE]) affinché il compilatore possa calcolare la posizione di m[r][c].",
+      "nota_standard": "definito: la disposizione contigua per righe degli array multidimensionali e l'obbligo di specificare tutte le dimensioni successive alla prima nei parametri di funzione sono definiti dallo standard C23."
+    },
+    {
+      "id": "8.R5",
+      "enunciato": "La ricerca lineare funziona su qualsiasi array con al più n confronti; la ricerca binaria richiede come precondizione un array ordinato, dimezza a ogni passo l'intervallo di ricerca (al più circa log2(n) passi) e deve calcolare l'indice centrale come sinistra + (destra - sinistra) / 2 per prevenire l'overflow. L'ordinamento per selezione e l'ordinamento per inserzione eseguono nel caso peggiore un numero di operazioni proporzionale a n * n.",
+      "nota_standard": "definito: l'uso dell'intervallo semiaperto [sinistra, destra) su size_t con sinistra + (destra - sinistra) / 2 garantisce l'assenza sia di overflow nella somma sia di underflow su indici senza segno."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input e restituisce s oppure nullptr in caso di errore o fine dell'input."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza il testo contenuto in s secondo format, memorizza i valori convertiti e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "8.1",
+      "titolo": "Dichiarare, inizializzare e scorrere un array",
+      "contenuti": [
+        "Cos'è un array: sequenza contigua in memoria di N elementi dello stesso tipo (schema in blocco text con indici 0..N-1)",
+        "Dichiarazione con dimensione costante (constexpr), operatore di indicizzazione a[i] a base 0 e perché nel libro evitiamo gli array a lunghezza variabile (VLA)",
+        "Inizializzatori: lista completa, lunghezza dedotta (int a[] = {...}), azzeramento con {0}, inizializzazione parziale e inizializzatore designato ({[1] = 10, [4] = 25})",
+        "Calcolo sicuro della lunghezza con sizeof(a) / sizeof(a[0]) (tipo size_t) e attraversamento con for (size_t i = 0; i < n; ++i)",
+        "Divieto di copiare o confrontare array con = o == e spiegazione dell'idioma char riga[128] già incontrato nel capitolo 5"
+      ],
+      "esempio_guidato": "Un programma sulle vendite settimanali di una libreria con un array int vendite[7] inizializzato per lista e un array const int sconti[7] inizializzato con inizializzatori designati ({[0] = 5, [5] = 15, [6] = 20}), che calcola la lunghezza con sizeof(vendite) / sizeof(vendite[0]) e scorre i dati con un ciclo for.",
+      "approfondimento": "Perché un array locale dichiarato senza inizializzatore contiene valori indeterminati mentre basta inizializzare anche un solo elemento ({0} o un inizializzatore designato) affinché tutti gli altri vengano azzerati automaticamente.",
+      "esercizio_id": "8.1"
+    },
+    {
+      "id": "8.2",
+      "titolo": "Accessi fuori dai limiti e comportamento indefinito",
+      "contenuti": [
+        "Cos'è un accesso fuori dai limiti (i < 0 o i >= N) e perché il C non effettua controlli automatici a tempo di esecuzione",
+        "Conseguenze del comportamento indefinito: lettura di memoria estranea, corruzione silenziosa di variabili vicine o arresto del programma (illustrato con un frammento esplicitamente vietato)",
+        "Errori off-by-one ricorrenti: for (size_t i = 0; i <= n; ++i), accesso a[i + 1] all'ultima iterazione e underflow di size_t con i - 1 quando i == 0",
+        "Gestione sicura di array a capacità fissa parzialmente riempiti mantenendo distinti capacità fisica e numero di elementi usati",
+        "Validazione preventiva degli indici e uso della valutazione a corto circuito (idx >= 0 && idx < n && a[idx] > 0) prima di indicizzare; rinvio ai sanitizer del capitolo 11"
+      ],
+      "esempio_guidato": "Un programma che memorizza al massimo CAPACITA = 8 letture di un sensore tenendo traccia del numero effettivo di campioni caricati e risponde a interrogazioni di indice validando ogni richiesta prima dell'accesso, affiancato da un breve frammento vietato che mostra l'errore off-by-one i <= CAPACITA.",
+      "approfondimento": "Come una scrittura oltre la fine di un array locale può sovrascrivere altre variabili vicine sullo stack e perché il programma può sembrare funzionante durante una prova ma fallire su un altro sistema.",
+      "esercizio_id": "8.2"
+    },
+    {
+      "id": "8.3",
+      "titolo": "Array e funzioni",
+      "contenuti": [
+        "Sintassi dei parametri array nelle funzioni: tipo a[] accompagnato sempre dalla lunghezza esplicita size_t n",
+        "Effetto osservabile del passaggio di un array: la funzione legge e modifica direttamente gli elementi dell'array originale del chiamante (spiegazione completa tramite puntatori rinviata al capitolo 10)",
+        "Perché sizeof(a) dentro una funzione non restituisce la dimensione dell'array del chiamante",
+        "Uso sistematico del qualificatore const (const tipo a[]) nelle funzioni che devono solo leggere l'array",
+        "Progettazione di operazioni modulari su array: aggregazione, modifica sul posto e inversione"
+      ],
+      "esempio_guidato": "Un programma con prototipi prima di main che definisce calcola_media (const double a[]), indice_massimo (const double a[]), scala_valori (double a[], modifica sul posto) e stampa_array (const double a[]), mostrando che scala_valori aggiorna l'array del chiamante.",
+      "approfondimento": "Perché qualificare sempre const i parametri array di sola lettura documenta l'intenzione della funzione e consente al compilatore di bloccare modifiche accidentali.",
+      "esercizio_id": "8.3"
+    },
+    {
+      "id": "8.4",
+      "titolo": "Array bidimensionali",
+      "contenuti": [
+        "Dichiarazione e inizializzazione di array bidimensionali tipo m[RIGHE][COLONNE] con liste annidate e azzeramento {0}",
+        "Disposizione lineare in memoria per righe (row-major order): schema in blocco text che mostra la sequenza contigua m[0][0], m[0][1], ..., m[1][0], ...",
+        "Attraversamento con due cicli for annidati (righe all'esterno, colonne all'interno) per elaborare tabelle, righe, colonne e diagonali",
+        "Passaggio di array bidimensionali a funzioni: tipo m[][COLONNE] con la seconda dimensione costante obbligatoria",
+        "Operazioni tipiche su matrici: somme per riga e per colonna, traccia della diagonale principale e trasposizione in una seconda matrice"
+      ],
+      "esempio_guidato": "Un programma che memorizza le temperature di 3 stazioni in 4 fasce orarie in const double temp[3][4] e usa funzioni con parametro const double m[][4] per stampare la tabella, calcolare la media di ogni stazione e individuare la fascia più calda.",
+      "approfondimento": "Perché scorrere una matrice per righe rispetta la contiguità in memoria ed è più efficiente rispetto allo scorrimento per colonne (un'anticipazione della località dei dati del capitolo 25).",
+      "esercizio_id": "8.4"
+    },
+    {
+      "id": "8.5",
+      "titolo": "Ricerca, ordinamento elementare e idea di costo",
+      "contenuti": [
+        "Ricerca lineare su array qualsiasi: funzionamento, caso migliore (1 confronto) e caso peggiore (n confronti)",
+        "Ricerca binaria su array ordinato: precondizione di ordinamento, intervallo semiaperto [sinistra, destra) su size_t, calcolo sicuro medio = sinistra + (destra - sinistra) / 2 e crescita logaritmica dei passi (log2 n)",
+        "Ordinamento per selezione (selection sort) e ordinamento per inserzione (insertion sort): invariante del prefisso ordinato e analisi del numero di confronti e spostamenti (proporzionale a n * n nel caso peggiore, lineare per inserzione su array già ordinato)",
+        "Idea intuitiva di costo di un algoritmo al crescere di n (anticipando la notazione O del capitolo 23) e compromesso tra ordinare una volta e cercare molte volte"
+      ],
+      "esempio_guidato": "Un programma che esegue una ricerca lineare su un array non ordinato contando i confronti, lo ordina con ordinamento per selezione contando i confronti e ripete la ricerca con ricerca binaria contando i passi, confrontando i numeri ottenuti.",
+      "approfondimento": "Due errori classici nella ricerca binaria: scrivere (sinistra + destra) / 2 (rischio di overflow su array grandi) e usare destra = medio - 1 con indici size_t quando medio vale 0 (underflow).",
+      "esercizio_id": "8.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "8.1",
+      "tipo": "esercizio",
+      "titolo": "Istogramma delle valutazioni con inizializzatore designato",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sequenza di lunghezza arbitraria di valutazioni intere comprese tra `1` e `5` inclusi (un `int` per riga, fino alla fine dell'input). Se una riga ha formato non valido (`\"%d %c\"` != `1`) o un valore fuori da `1..5`, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Usa un array `int frequenze[6] = {0};` (gli indici `1..5` contano quante volte compare ciascun voto) e un array `const int punti[6]` inizializzato tramite inizializzatore designato (`{[1] = 0, [2] = 25, [3] = 50, [4] = 75, [5] = 100}`) per convertire ogni voto in punteggio di gradimento. Ricava la dimensione di `frequenze` tramite `sizeof(frequenze) / sizeof(frequenze[0])`. Se non è stata letta alcuna valutazione stampa `Nessuna valutazione inserita.` e restituisci `EXIT_SUCCESS`; altrimenti stampa per ciascun voto da `1` a `5` la riga `Voto V: K (` seguita da `K` asterischi scritti con `putchar('*')` e `)`, quindi il totale delle valutazioni, la media dei voti (`%.2f`), il gradimento medio (`%.2f / 100`) e il voto più frequente (in caso di parità il voto più piccolo), esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "dichiarazione e azzeramento di un array con {0}",
+        "inizializzatore designato {[i] = valore}",
+        "calcolo della lunghezza con sizeof(a) / sizeof(a[0])",
+        "indicizzazione sicura con size_t e gestione dell'input vuoto"
+      ],
+      "domande_guida": [
+        "Perché dichiarare frequenze con 6 elementi (indici 0..5) semplifica l'indicizzazione diretta usando il voto 1..5?",
+        "Quale valore viene assegnato automaticamente all'elemento punti[0] quando usi un inizializzatore designato che specifica solo gli indici da 1 a 5?",
+        "Come ti assicuri che, a parità di frequenza massima, venga conservato il voto numericamente più piccolo?",
+        "Perché conviene calcolare il limite del ciclo con sizeof(frequenze) / sizeof(frequenze[0]) invece di ripetere il numero 6 in più punti?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "5\n4\n5\n2\n4\n5\n",
+          "output": "Voto 1: 0 ()\nVoto 2: 1 (*)\nVoto 3: 0 ()\nVoto 4: 2 (**)\nVoto 5: 3 (***)\nTotale valutazioni: 6\nMedia voti: 4.17\nGradimento medio: 79.17 / 100\nVoto piu frequente: 5 (3 voti)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Nessuna valutazione inserita.\n"
+        },
+        {
+          "input": "3\n1\n3\n1\n",
+          "output": "Voto 1: 2 (**)\nVoto 2: 0 ()\nVoto 3: 2 (**)\nVoto 4: 0 ()\nVoto 5: 0 ()\nTotale valutazioni: 4\nMedia voti: 2.00\nGradimento medio: 25.00 / 100\nVoto piu frequente: 1 (2 voti)\n"
+        },
+        {
+          "input": "5\n",
+          "output": "Voto 1: 0 ()\nVoto 2: 0 ()\nVoto 3: 0 ()\nVoto 4: 0 ()\nVoto 5: 1 (*)\nTotale valutazioni: 1\nMedia voti: 5.00\nGradimento medio: 100.00 / 100\nVoto piu frequente: 5 (1 voti)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    int frequenze[6] = {0};\n    const int punti[6] = {[1] = 0, [2] = 25, [3] = 50, [4] = 75, [5] = 100};\n    const size_t dim = sizeof(frequenze) / sizeof(frequenze[0]);\n    char riga[128];\n    int voto = 0;\n    char extra = '\\0';\n    int totale = 0;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %c\", &voto, &extra) != 1 || voto < 1 || voto > 5) {\n            fprintf(stderr, \"Errore: voto non valido (atteso 1..5).\\n\");\n            return EXIT_FAILURE;\n        }\n        ++frequenze[voto];\n        ++totale;\n    }\n    if (totale == 0) {\n        printf(\"Nessuna valutazione inserita.\\n\");\n        return EXIT_SUCCESS;\n    }\n\n    int somma_voti = 0;\n    int somma_punti = 0;\n    size_t voto_modale = 1;\n    for (size_t i = 1; i < dim; ++i) {\n        printf(\"Voto %zu: %d (\", i, frequenze[i]);\n        for (int k = 0; k < frequenze[i]; ++k) {\n            putchar('*');\n        }\n        printf(\")\\n\");\n        somma_voti += (int)i * frequenze[i];\n        somma_punti += punti[i] * frequenze[i];\n        if (frequenze[i] > frequenze[voto_modale]) {\n            voto_modale = i;\n        }\n    }\n    printf(\"Totale valutazioni: %d\\n\", totale);\n    printf(\"Media voti: %.2f\\n\", (double)somma_voti / totale);\n    printf(\"Gradimento medio: %.2f / 100\\n\", (double)somma_punti / totale);\n    printf(\"Voto piu frequente: %zu (%d voti)\\n\", voto_modale, frequenze[voto_modale]);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "8.2",
+      "tipo": "esercizio",
+      "titolo": "Interrogazioni su sotto-intervalli con controlli sui limiti",
+      "descrizione": "Scrivi un programma C che usi un array di capacità fissa `constexpr int MAX_STAZIONI = 20;` (`double misure[MAX_STAZIONI] = {0};`). Leggi dalla prima riga di `stdin` il numero effettivo di stazioni `n` (`int` compreso tra `1` e `MAX_STAZIONI` inclusi) e dalle successive `n` righe una misura `double` per ciascuna stazione `0..n-1` (controllando fine dell'input e formato esatto; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Leggi poi fino alla fine dell'input una sequenza di righe, ciascuna contenente una coppia di indici interi `inizio fine` (`\"%d %d %c\"` == `2`; se il formato è errato scrivi su `stderr` e restituisci `EXIT_FAILURE`). Prima di accedere all'array controlla sempre i limiti: se `inizio < 0 || fine < inizio || fine >= n`, non accedere a `misure`, incrementa `respinte` e stampa `Intervallo [inizio..fine]: fuori dai limiti (validi 0..n-1)`; altrimenti calcola minimo, massimo e media di `misure[inizio..fine]`, incrementa `valide` e stampa `Intervallo [inizio..fine]: min=..., max=..., media=...` con due cifre decimali. Al termine dello stream stampa `Interrogazioni valide: V, respinte: R` e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "distinzione tra capacità fisica dell'array e lunghezza effettiva",
+        "prevenzione degli accessi fuori dai limiti prima di indicizzare",
+        "controllo di indici negativi, indici >= n e intervalli invertiti",
+        "elaborazione sicura di sotto-intervalli di un array"
+      ],
+      "domande_guida": [
+        "Perché devi distinguere tra la capacità massima MAX_STAZIONI e il numero effettivo n di elementi caricati?",
+        "Quali tre condizioni di errore sugli indici devi verificare prima di accedere a misure[inizio..fine]?",
+        "Come inizializzi min e max per un sotto-intervallo [inizio..fine] già validato senza usare costanti arbitrarie?",
+        "Che cosa rischierebbe il programma se accedessi a misure[fine] quando fine è uguale a n?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\n10.0\n14.5\n12.0\n16.5\n1 3\n-1 2\n0 4\n2 1\n0 0\n",
+          "output": "Intervallo [1..3]: min=12.00, max=16.50, media=14.33\nIntervallo [-1..2]: fuori dai limiti (validi 0..3)\nIntervallo [0..4]: fuori dai limiti (validi 0..3)\nIntervallo [2..1]: fuori dai limiti (validi 0..3)\nIntervallo [0..0]: min=10.00, max=10.00, media=10.00\nInterrogazioni valide: 2, respinte: 3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\n-5.5\n0 0\n0 1\n",
+          "output": "Intervallo [0..0]: min=-5.50, max=-5.50, media=-5.50\nIntervallo [0..1]: fuori dai limiti (validi 0..0)\nInterrogazioni valide: 1, respinte: 1\n"
+        },
+        {
+          "input": "3\n2.0\n4.0\n6.0\n",
+          "output": "Interrogazioni valide: 0, respinte: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    constexpr int MAX_STAZIONI = 20;\n    double misure[MAX_STAZIONI] = {0};\n    char riga[128];\n    int n = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n, &extra) != 1 || n < 1 || n > MAX_STAZIONI) {\n        fprintf(stderr, \"Errore: numero di stazioni non valido (1..20).\\n\");\n        return EXIT_FAILURE;\n    }\n    for (int i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%lf %c\", &misure[i], &extra) != 1) {\n            fprintf(stderr, \"Errore: misura non valida alla stazione %d.\\n\", i);\n            return EXIT_FAILURE;\n        }\n    }\n\n    int valide = 0;\n    int respinte = 0;\n    int inizio = 0;\n    int fine = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %d %c\", &inizio, &fine, &extra) != 2) {\n            fprintf(stderr, \"Errore: formato interrogazione non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (inizio < 0 || fine < inizio || fine >= n) {\n            printf(\"Intervallo [%d..%d]: fuori dai limiti (validi 0..%d)\\n\",\n                   inizio, fine, n - 1);\n            ++respinte;\n            continue;\n        }\n        double minimo = misure[inizio];\n        double massimo = misure[inizio];\n        double somma = 0.0;\n        for (int i = inizio; i <= fine; ++i) {\n            if (misure[i] < minimo) {\n                minimo = misure[i];\n            }\n            if (misure[i] > massimo) {\n                massimo = misure[i];\n            }\n            somma += misure[i];\n        }\n        int lunghezza = fine - inizio + 1;\n        printf(\"Intervallo [%d..%d]: min=%.2f, max=%.2f, media=%.2f\\n\",\n               inizio, fine, minimo, massimo, somma / lunghezza);\n        ++valide;\n    }\n    printf(\"Interrogazioni valide: %d, respinte: %d\\n\", valide, respinte);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "8.3",
+      "tipo": "esercizio",
+      "titolo": "Saturazione e inversione di un segnale con funzioni su array",
+      "descrizione": "Scrivi un programma C che dichiari prima di `main` i prototipi di tre funzioni su array di `int` (`constexpr size_t MAX_CAMPIONI = 30;`) e ne collochi le definizioni dopo `main`: `size_t satura_array(int a[], size_t n, int minimo, int massimo)` (modifica l'array sul posto portando a `minimo` ogni elemento `< minimo` e a `massimo` ogni elemento `> massimo`, restituendo quanti elementi sono stati modificati), `void inverti_array(int a[], size_t n)` (inverte l'ordine degli elementi sul posto) e `void stampa_array(const int a[], size_t n)` (stampa gli elementi separati da un singolo spazio seguiti da ritorno a capo). In `main` leggi dalla prima riga `n minimo massimo` (`1 <= n <= 30`, `minimo <= massimo`, `-10'000 <= minimo`, `massimo <= 10'000`) e dalle successive `n` righe un campione intero ciascuna (`-10'000..10'000`); in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`. Stampa l'array originale con `stampa_array`, applica `satura_array` e `inverti_array` sul posto e stampa l'array elaborato e il numero di elementi modificati dalla saturazione esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "passaggio di un array e della sua lunghezza size_t a una funzione",
+        "qualificatore const per i parametri array di sola lettura",
+        "modifica diretta degli elementi dell'array del chiamante sul posto",
+        "scambio simmetrico di coppie per invertire un array senza array d'appoggio"
+      ],
+      "domande_guida": [
+        "Quale delle tre funzioni deve dichiarare il parametro array come const int a[] e quali invece come int a[]?",
+        "Perché tutte e tre le funzioni richiedono il parametro size_t n oltre all'array?",
+        "In inverti_array, fino a quale indice deve arrivare il ciclo di scambio affinché gli elementi non vengano scambiati due volte tornando all'ordine iniziale?",
+        "Perché satura_array modifica i valori dell'array campioni dentro main senza bisogno di restituire un nuovo array?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "5 0 100\n-15\n40\n120\n75\n100\n",
+          "output": "Originali: -15 40 120 75 100\nElementi modificati: 2\nElaborati: 100 75 100 40 0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1 10 20\n5\n",
+          "output": "Originali: 5\nElementi modificati: 1\nElaborati: 10\n"
+        },
+        {
+          "input": "4 -10 10\n-10\n0\n5\n10\n",
+          "output": "Originali: -10 0 5 10\nElementi modificati: 0\nElaborati: 10 5 0 -10\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nsize_t satura_array(int a[], size_t n, int minimo, int massimo);\nvoid inverti_array(int a[], size_t n);\nvoid stampa_array(const int a[], size_t n);\n\nint main(void) {\n    constexpr size_t MAX_CAMPIONI = 30;\n    int campioni[MAX_CAMPIONI] = {0};\n    char riga[128];\n    int n_in = 0, minimo = 0, massimo = 0;\n    char extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %d %c\", &n_in, &minimo, &massimo, &extra) != 3 ||\n        n_in < 1 || n_in > (int)MAX_CAMPIONI || minimo > massimo ||\n        minimo < -10'000 || massimo > 10'000) {\n        fprintf(stderr, \"Errore: intestazione non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    for (size_t i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %c\", &campioni[i], &extra) != 1 ||\n            campioni[i] < -10'000 || campioni[i] > 10'000) {\n            fprintf(stderr, \"Errore: campione non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"Originali: \");\n    stampa_array(campioni, n);\n    size_t mod = satura_array(campioni, n, minimo, massimo);\n    inverti_array(campioni, n);\n    printf(\"Elementi modificati: %zu\\n\", mod);\n    printf(\"Elaborati: \");\n    stampa_array(campioni, n);\n    return EXIT_SUCCESS;\n}\n\nsize_t satura_array(int a[], size_t n, int minimo, int massimo) {\n    size_t mod = 0;\n    for (size_t i = 0; i < n; ++i) {\n        int orig = a[i];\n        if (a[i] < minimo) { a[i] = minimo; }\n        if (a[i] > massimo) { a[i] = massimo; }\n        if (a[i] != orig) { ++mod; }\n    }\n    return mod;\n}\n\nvoid inverti_array(int a[], size_t n) {\n    for (size_t i = 0; i < n / 2; ++i) {\n        int tmp = a[i];\n        a[i] = a[n - 1 - i];\n        a[n - 1 - i] = tmp;\n    }\n}\n\nvoid stampa_array(const int a[], size_t n) {\n    for (size_t i = 0; i < n; ++i) {\n        if (i > 0) { putchar(' '); }\n        printf(\"%d\", a[i]);\n    }\n    putchar('\\n');\n}\n"
+    },
+    {
+      "id": "8.4",
+      "tipo": "esercizio",
+      "titolo": "Somme per righe, colonne e trasposta di una matrice",
+      "descrizione": "Scrivi un programma C che usi la costante a livello di file `constexpr size_t MAX_DIM = 6;` e dichiari prima di `main` i prototipi di tre funzioni su array bidimensionali con seconda dimensione costante `MAX_DIM`: `void stampa_matrice(const int m[][MAX_DIM], size_t righe, size_t colonne)` (stampa ogni elemento con `%4d` e un ritorno a capo al termine di ogni riga), `int somma_riga(const int m[][MAX_DIM], size_t riga, size_t colonne)` e `void trasponi(const int orig[][MAX_DIM], int trasp[][MAX_DIM], size_t righe, size_t colonne)` (scrive `orig[r][c]` in `trasp[c][r]`). In `main` leggi dalla prima riga di `stdin` `righe colonne` (due interi in `1..6`) e dalle successive `righe * colonne` righe un intero per riga in ordine per righe (`-1000..1000`); in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`. Calcola la trasposta `trasp` con `trasponi`, quindi stampa la matrice originale, le somme di tutte le righe tramite `somma_riga(mat, r, colonne)`, le somme di tutte le colonne riutilizzando `somma_riga(trasp, c, righe)` e infine la matrice trasposta (di dimensioni `colonne x righe`), esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "dichiarazione di array bidimensionali di dimensione massima costante",
+        "disposizione per righe (row-major order) nella lettura e stampa",
+        "seconda dimensione costante obbligatoria nei parametri di funzione (m[][MAX_DIM])",
+        "scambio degli indici [r][c] -> [c][r] nella trasposizione e riuso di somma_riga"
+      ],
+      "domande_guida": [
+        "Perché nei parametri delle funzioni puoi omettere la prima dimensione della matrice ma sei obbligato a indicare la costante MAX_DIM come seconda dimensione?",
+        "Quali sono il numero di righe e il numero di colonne da passare a stampa_matrice quando visualizzi la trasposta di una matrice rettangolare righe x colonne?",
+        "Perché puoi ottenere la somma di ogni colonna della matrice originale applicando somma_riga alle righe della matrice trasposta?",
+        "In quale ordine conviene annidare i cicli su righe e colonne per seguire la disposizione contigua in memoria della matrice?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "2 3\n1\n2\n3\n4\n5\n6\n",
+          "output": "Matrice originale:\n   1   2   3\n   4   5   6\nSomma righe: 6 15\nSomma colonne: 5 7 9\nMatrice trasposta:\n   1   4\n   2   5\n   3   6\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "3 3\n2\n0\n-1\n4\n5\n3\n1\n2\n6\n",
+          "output": "Matrice originale:\n   2   0  -1\n   4   5   3\n   1   2   6\nSomma righe: 1 12 9\nSomma colonne: 7 7 8\nMatrice trasposta:\n   2   4   1\n   0   5   2\n  -1   3   6\n"
+        },
+        {
+          "input": "1 1\n-7\n",
+          "output": "Matrice originale:\n  -7\nSomma righe: -7\nSomma colonne: -7\nMatrice trasposta:\n  -7\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nconstexpr size_t MAX_DIM = 6;\n\nvoid stampa_matrice(const int m[][MAX_DIM], size_t righe, size_t colonne);\nint somma_riga(const int m[][MAX_DIM], size_t riga, size_t colonne);\nvoid trasponi(const int orig[][MAX_DIM], int trasp[][MAX_DIM], size_t righe, size_t colonne);\n\nint main(void) {\n    int mat[MAX_DIM][MAX_DIM] = {0}, trasp[MAX_DIM][MAX_DIM] = {0};\n    char riga[128];\n    int r_in = 0, c_in = 0;\n    char extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &r_in, &c_in, &extra) != 2 ||\n        r_in < 1 || r_in > (int)MAX_DIM || c_in < 1 || c_in > (int)MAX_DIM) {\n        fprintf(stderr, \"Errore: dimensioni matrice non valide (1..6).\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t righe = (size_t)r_in, colonne = (size_t)c_in;\n    for (size_t r = 0; r < righe; ++r) {\n        for (size_t c = 0; c < colonne; ++c) {\n            if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n                sscanf(riga, \"%d %c\", &mat[r][c], &extra) != 1 ||\n                mat[r][c] < -1000 || mat[r][c] > 1000) {\n                fprintf(stderr, \"Errore: elemento matrice non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n        }\n    }\n    trasponi(mat, trasp, righe, colonne);\n    printf(\"Matrice originale:\\n\");\n    stampa_matrice(mat, righe, colonne);\n    printf(\"Somma righe:\");\n    for (size_t r = 0; r < righe; ++r) { printf(\" %d\", somma_riga(mat, r, colonne)); }\n    printf(\"\\nSomma colonne:\");\n    for (size_t c = 0; c < colonne; ++c) { printf(\" %d\", somma_riga(trasp, c, righe)); }\n    printf(\"\\nMatrice trasposta:\\n\");\n    stampa_matrice(trasp, colonne, righe);\n    return EXIT_SUCCESS;\n}\n\nvoid stampa_matrice(const int m[][MAX_DIM], size_t righe, size_t colonne) {\n    for (size_t r = 0; r < righe; ++r) {\n        for (size_t c = 0; c < colonne; ++c) { printf(\"%4d\", m[r][c]); }\n        putchar('\\n');\n    }\n}\n\nint somma_riga(const int m[][MAX_DIM], size_t riga, size_t colonne) {\n    int s = 0;\n    for (size_t c = 0; c < colonne; ++c) { s += m[riga][c]; }\n    return s;\n}\n\nvoid trasponi(const int orig[][MAX_DIM], int trasp[][MAX_DIM], size_t righe, size_t colonne) {\n    for (size_t r = 0; r < righe; ++r) {\n        for (size_t c = 0; c < colonne; ++c) { trasp[c][r] = orig[r][c]; }\n    }\n}\n"
+    },
+    {
+      "id": "8.5",
+      "tipo": "esercizio",
+      "titolo": "Ordinamento per inserzione e confronto tra ricerca lineare e binaria",
+      "descrizione": "Scrivi un programma C (`constexpr size_t MAX_ELEM = 50;`) che dichiari prima di `main` i prototipi di tre funzioni: `size_t ordina_inserzione(int a[], size_t n)` (ordina `a[0..n-1]` in ordine crescente con l'algoritmo di ordinamento per inserzione e restituisce il numero totale di spostamenti `a[j] = a[j - 1]` effettuati), `int ricerca_lineare(const int a[], size_t n, int chiave)` (restituisce il primo indice `0..n-1` in cui compare `chiave`, oppure `-1` se assente) e `int ricerca_binaria(const int a[], size_t n, int chiave)` (usa l'intervallo semiaperto `[sinistra, destra)` su `size_t` con `medio = sinistra + (destra - sinistra) / 2` per restituire il primo indice in cui compare `chiave` nell'array ordinato, oppure `-1` se assente). In `main` leggi dalla prima riga `n` (`1 <= n <= 50`), dalle successive `n` righe gli `n` interi dell'array e dalle eventuali righe restanti fino alla fine dell'input le chiavi intere da cercare (se una riga non è un intero valido stampa su `stderr` e restituisci `EXIT_FAILURE`). Ordina l'array con `ordina_inserzione`, stampa l'array ordinato su una riga (elementi separati da uno spazio) e il numero di spostamenti eseguiti; per ogni chiave letta esegui sia `ricerca_lineare` sia `ricerca_binaria` sull'array ordinato e stampa `Chiave K: lineare=L, binaria=B` (dove `-1` indica chiave assente) esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "ordinamento per inserzione e invariante del prefisso ordinato",
+        "conteggio degli spostamenti per osservare il costo (0 nel caso migliore, n*(n-1)/2 nel caso peggiore)",
+        "ricerca lineare e ricerca binaria con intervallo semiaperto [sinistra, destra)",
+        "calcolo sicuro del punto medio sinistra + (destra - sinistra) / 2"
+      ],
+      "domande_guida": [
+        "Qual è l'invariante del ciclo esterno dell'ordinamento per inserzione all'inizio dell'iterazione i?",
+        "Quanti spostamenti esegue l'ordinamento per inserzione su un array già ordinato rispetto a uno ordinato al contrario?",
+        "Perché l'intervallo semiaperto [sinistra, destra) su size_t nella ricerca binaria evita l'underflow quando la chiave cercata è minore del primo elemento?",
+        "Come riesce la variante con destra = medio quando a[medio] >= chiave a trovare sempre la prima occorrenza della chiave anche in presenza di duplicati?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "6\n40\n10\n30\n20\n30\n5\n30\n15\n5\n",
+          "output": "Array ordinato: 5 10 20 30 30 40\nSpostamenti inserzione: 10\nChiave 30: lineare=3, binaria=3\nChiave 15: lineare=-1, binaria=-1\nChiave 5: lineare=0, binaria=0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "4\n1\n2\n3\n4\n1\n4\n0\n5\n",
+          "output": "Array ordinato: 1 2 3 4\nSpostamenti inserzione: 0\nChiave 1: lineare=0, binaria=0\nChiave 4: lineare=3, binaria=3\nChiave 0: lineare=-1, binaria=-1\nChiave 5: lineare=-1, binaria=-1\n"
+        },
+        {
+          "input": "4\n40\n30\n20\n10\n20\n",
+          "output": "Array ordinato: 10 20 30 40\nSpostamenti inserzione: 6\nChiave 20: lineare=1, binaria=1\n"
+        },
+        {
+          "input": "1\n7\n7\n8\n",
+          "output": "Array ordinato: 7\nSpostamenti inserzione: 0\nChiave 7: lineare=0, binaria=0\nChiave 8: lineare=-1, binaria=-1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nsize_t ordina_inserzione(int a[], size_t n);\nint ricerca_lineare(const int a[], size_t n, int chiave);\nint ricerca_binaria(const int a[], size_t n, int chiave);\n\nint main(void) {\n    constexpr size_t MAX_ELEM = 50;\n    int dati[MAX_ELEM] = {0};\n    char riga[128];\n    int n_in = 0, chiave = 0;\n    char extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 1 || n_in > (int)MAX_ELEM) {\n        fprintf(stderr, \"Errore: numero di elementi non valido (1..50).\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    for (size_t i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %c\", &dati[i], &extra) != 1) {\n            fprintf(stderr, \"Errore: elemento non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    size_t spostamenti = ordina_inserzione(dati, n);\n    printf(\"Array ordinato:\");\n    for (size_t i = 0; i < n; ++i) { printf(\" %d\", dati[i]); }\n    printf(\"\\nSpostamenti inserzione: %zu\\n\", spostamenti);\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %c\", &chiave, &extra) != 1) {\n            fprintf(stderr, \"Errore: chiave non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        printf(\"Chiave %d: lineare=%d, binaria=%d\\n\",\n               chiave, ricerca_lineare(dati, n, chiave), ricerca_binaria(dati, n, chiave));\n    }\n    return EXIT_SUCCESS;\n}\n\nsize_t ordina_inserzione(int a[], size_t n) {\n    size_t spostamenti = 0;\n    for (size_t i = 1; i < n; ++i) {\n        int chiave = a[i];\n        size_t j = i;\n        while (j > 0 && a[j - 1] > chiave) {\n            a[j] = a[j - 1];\n            --j;\n            ++spostamenti;\n        }\n        a[j] = chiave;\n    }\n    return spostamenti;\n}\n\nint ricerca_lineare(const int a[], size_t n, int chiave) {\n    for (size_t i = 0; i < n; ++i) {\n        if (a[i] == chiave) { return (int)i; }\n    }\n    return -1;\n}\n\nint ricerca_binaria(const int a[], size_t n, int chiave) {\n    size_t sinistra = 0, destra = n;\n    while (sinistra < destra) {\n        size_t medio = sinistra + (destra - sinistra) / 2;\n        if (a[medio] < chiave) { sinistra = medio + 1; } else { destra = medio; }\n    }\n    return (sinistra < n && a[sinistra] == chiave) ? (int)sinistra : -1;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Accedere all'elemento a[n] di un array di lunghezza n (errore off-by-one, per esempio scrivendo i <= n invece di i < n): è un accesso fuori dai limiti e provoca comportamento indefinito.",
+    "Provare a copiare o confrontare due array con a = b oppure a == b invece di usare un ciclo elemento per elemento.",
+    "Usare sizeof(a) / sizeof(a[0]) all'interno di una funzione su un parametro array int a[], ottenendo un valore errato invece della lunghezza dell'array del chiamante.",
+    "Dimenticare la seconda dimensione costante nella firma di una funzione che riceve un array bidimensionale (scrivendo int m[][] invece di int m[][COLONNE]).",
+    "Applicare la ricerca binaria su un array non ordinato, oppure calcolare (sinistra + destra) / 2 con rischio di overflow o fare destra = medio - 1 con size_t quando medio vale 0.",
+    "Dimenticare di inizializzare un array locale e leggerne gli elementi dando per scontato che valgano zero."
+  ],
+  "differenze_python": [
+    "In Python le liste possono crescere o ridursi dinamicamente e contenere elementi di tipi diversi; in C un array ha lunghezza fissa e contiene solo elementi dello stesso tipo contigui in memoria.",
+    "In Python un indice negativo come a[-1] accede dalla fine e un indice fuori intervallo solleva IndexError; in C non esistono indici negativi validi né controlli automatici, e qualsiasi accesso fuori dai limiti provoca comportamento indefinito.",
+    "In Python len(a) restituisce la lunghezza di una lista anche dentro una funzione; in C una funzione che riceve un array non ne conosce la lunghezza e deve riceverla come parametro separato."
+  ]
+}
