@@ -1,0 +1,562 @@
+{
+  "capitolo": 9,
+  "titolo": "Stringhe",
+  "obiettivi": [
+    "Manipolare stringhe C come array di char terminati da '\\0'",
+    "Usare correttamente le funzioni di <string.h> e <ctype.h> rispettando il cast a unsigned char",
+    "Costruire stringhe formattate in modo sicuro con snprintf verificando eventuali troncamenti",
+    "Prevenire i buffer overflow nella copia, concatenazione e analisi del testo"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "stringa",
+      "definizione": "Sequenza di caratteri memorizzata in un array di char e chiusa dal carattere terminatore nullo '\\0'."
+    },
+    {
+      "termine": "terminatore nullo",
+      "definizione": "Carattere '\\0' di valore zero che segna la fine di una stringa in C."
+    },
+    {
+      "termine": "buffer overflow",
+      "definizione": "Scrittura di dati oltre la fine della memoria riservata a un buffer, causa di comportamento indefinito e vulnerabilità."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "cast esplicito",
+    "operatore sizeof e tipo size_t",
+    "stream",
+    "buffer",
+    "fine dell'input",
+    "fgets, sscanf, getchar, putchar e fprintf",
+    "ciclo",
+    "funzione",
+    "prototipo",
+    "array",
+    "indice",
+    "accesso fuori dai limiti",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "9.R1",
+      "enunciato": "In C una stringa è un array di char terminato dal terminatore nullo '\\0' (di valore 0, distinto dal carattere cifra '0'). La capacità di un buffer char s[N] è N byte (sizeof(s)), mentre la lunghezza logica della stringa è il numero di caratteri che precedono il primo '\\0' (al più N - 1). Un array di char privo di '\\0' non è una stringa valida.",
+      "nota_standard": "indefinito: lo standard C23 definisce le stringhe come sequenze di caratteri terminate dal carattere nullo; passare un array di char privo di '\\0' a printf(\"%s\", ...), puts o alle funzioni di <string.h> provoca lettura fuori dai limiti e comportamento indefinito."
+    },
+    {
+      "id": "9.R2",
+      "enunciato": "Le funzioni strcmp e strncmp confrontano due stringhe interpretando ciascun carattere come unsigned char e restituiscono un intero minore di 0, uguale a 0 oppure maggiore di 0 (non necessariamente -1 o +1). Le funzioni strcpy, strncpy, strcat e strncat richiedono che sorgente e destinazione non si sovrappongano in memoria; inoltre strncpy non aggiunge '\\0' se la sorgente ha lunghezza maggiore o uguale a n, mentre strncat aggiunge al più n caratteri più '\\0' richiedendo almeno strlen(dest) + n + 1 byte di capacità totale.",
+      "nota_standard": "indefinito: il confronto su unsigned char e il segno del risultato sono definiti dallo standard C23; la copia o concatenazione tra regioni di memoria sovrapposte oppure oltre la capacità del buffer di destinazione provoca comportamento indefinito."
+    },
+    {
+      "id": "9.R3",
+      "enunciato": "Le funzioni strchr, strrchr, strstr e strpbrk cercano rispettivamente un carattere (prima o ultima occorrenza), una sottostringa o uno qualsiasi dei caratteri di un insieme, restituendo nullptr se la ricerca fallisce. Le funzioni strcspn e strspn restituiscono invece un indice di tipo size_t (in particolare s[strcspn(s, \"\\n\")] = '\\0' rimuove il ritorno a capo finale letto da fgets).",
+      "nota_standard": "definito: i valori restituiti da strchr, strrchr, strstr, strpbrk, strcspn e strspn sono definiti dallo standard C23; in C23 strchr, strrchr, strstr e strpbrk preservano inoltre il qualificatore const del primo argomento tramite macro generiche."
+    },
+    {
+      "id": "9.R4",
+      "enunciato": "Le funzioni di classificazione e conversione di <ctype.h> (isalpha, isdigit, isalnum, isspace, isupper, islower, isxdigit, ispunct, isprint, tolower, toupper) accettano un argomento int che deve valere EOF oppure essere rappresentabile come unsigned char. Quando si passa un elemento di tipo char occorre scrivere sempre il cast (unsigned char)c. Le funzioni is* restituiscono 0 (falso) o un intero diverso da zero (vero, non necessariamente 1).",
+      "nota_standard": "indefinito: passare a una funzione di <ctype.h> un valore negativo diverso da EOF (come un char con segno avente valore negativo) provoca comportamento indefinito in C23; il comportamento esatto dipende dal locale attivo (nel locale predefinito \"C\" corrisponde all'insieme ASCII)."
+    },
+    {
+      "id": "9.R5",
+      "enunciato": "La funzione snprintf(dest, capienza, formato, ...) scrive in dest al massimo capienza - 1 caratteri e garantisce la presenza di '\\0' (se capienza > 0). Restituisce il numero di caratteri che sarebbero stati scritti escludendo '\\0', oppure un valore negativo in caso di errore. Si rileva un errore o un troncamento controllando risultato < 0 || (size_t)risultato >= capienza. Chiamare snprintf(nullptr, 0, formato, ...) calcola la lunghezza richiesta senza scrivere nulla.",
+      "nota_standard": "definito: il limite di capienza - 1 caratteri, la terminazione garantita con '\\0' per capienza > 0 e il significato del valore di ritorno sono definiti dallo standard C23; se dest e un argomento stringa si sovrappongono il comportamento è indefinito."
+    },
+    {
+      "id": "9.R6",
+      "enunciato": "Qualsiasi scrittura oltre l'ultimo byte riservato a un buffer provoca un buffer overflow. Per prevenirlo, ogni funzione che modifica una stringa deve ricevere anche la capacità del buffer di destinazione, riservare almeno un byte per '\\0' e gestire esplicitamente le righe di ingresso più lunghe del buffer di fgets.",
+      "nota_standard": "indefinito: in C23 un buffer overflow viola i limiti dell'oggetto allocato e provoca comportamento indefinito, spesso con corruzione di dati adiacenti o vulnerabilità di sicurezza."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "getchar",
+      "firma": "int getchar(void);",
+      "header": "stdio.h",
+      "descrizione": "Legge il prossimo carattere da stdin restituendolo come int oppure EOF in caso di fine dell'input o errore."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    },
+    {
+      "nome": "puts",
+      "firma": "int puts(const char *s);",
+      "header": "stdio.h",
+      "descrizione": "Stampa la stringa s su stdout seguita automaticamente da '\\n' e restituisce un valore non negativo oppure EOF in caso di errore."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta testo nel buffer s scrivendo al più n - 1 caratteri più '\\0' e restituisce la lunghezza che verrebbe prodotta (o negativo in caso di errore)."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce il numero di caratteri della stringa s che precedono il terminatore nullo '\\0'."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strncmp",
+      "firma": "int strncmp(const char *s1, const char *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta al più i primi n caratteri di s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strcpy",
+      "firma": "char *strcpy(char *restrict s1, const char *restrict s2);",
+      "header": "string.h",
+      "descrizione": "Copia la stringa s2 (incluso '\\0') in s1 senza controllare la capacità e restituisce s1."
+    },
+    {
+      "nome": "strncpy",
+      "firma": "char *strncpy(char *restrict s1, const char *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia al più n caratteri da s2 in s1 riempiendo di '\\0' se s2 è più corta di n (senza garantire '\\0' se s2 ha lunghezza >= n)."
+    },
+    {
+      "nome": "strcat",
+      "firma": "char *strcat(char *restrict s1, const char *restrict s2);",
+      "header": "string.h",
+      "descrizione": "Accoda la stringa s2 al termine di s1 (incluso '\\0') senza controllare la capacità e restituisce s1."
+    },
+    {
+      "nome": "strncat",
+      "firma": "char *strncat(char *restrict s1, const char *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Accoda al più n caratteri di s2 al termine di s1 aggiungendo sempre '\\0' finale e restituisce s1."
+    },
+    {
+      "nome": "strchr",
+      "firma": "char *strchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza del carattere (char)c nella stringa s (incluso '\\0') e restituisce un puntatore a essa oppure nullptr."
+    },
+    {
+      "nome": "strrchr",
+      "firma": "char *strrchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca l'ultima occorrenza del carattere (char)c nella stringa s (incluso '\\0') e restituisce un puntatore a essa oppure nullptr."
+    },
+    {
+      "nome": "strstr",
+      "firma": "char *strstr(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza della sottostringa s2 dentro s1 e restituisce un puntatore all'inizio della corrispondenza oppure nullptr."
+    },
+    {
+      "nome": "strcspn",
+      "firma": "size_t strcspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto solo da caratteri assenti in s2."
+    },
+    {
+      "nome": "strspn",
+      "firma": "size_t strspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto esclusivamente da caratteri presenti in s2."
+    },
+    {
+      "nome": "strpbrk",
+      "firma": "char *strpbrk(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Cerca in s1 il primo carattere che appartiene a s2 e restituisce un puntatore a esso oppure nullptr."
+    },
+    {
+      "nome": "isalpha",
+      "firma": "int isalpha(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una lettera alfabetica."
+    },
+    {
+      "nome": "isdigit",
+      "firma": "int isdigit(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una cifra decimale ('0'..'9')."
+    },
+    {
+      "nome": "isalnum",
+      "firma": "int isalnum(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una lettera o una cifra decimale."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    },
+    {
+      "nome": "isupper",
+      "firma": "int isupper(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una lettera maiuscola."
+    },
+    {
+      "nome": "islower",
+      "firma": "int islower(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una lettera minuscola."
+    },
+    {
+      "nome": "isxdigit",
+      "firma": "int isxdigit(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è una cifra esadecimale (0-9, a-f, A-F)."
+    },
+    {
+      "nome": "ispunct",
+      "firma": "int ispunct(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere stampabile di punteggiatura."
+    },
+    {
+      "nome": "isprint",
+      "firma": "int isprint(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere stampabile (spazio incluso)."
+    },
+    {
+      "nome": "tolower",
+      "firma": "int tolower(int c);",
+      "header": "ctype.h",
+      "descrizione": "Converte una lettera maiuscola (passata come unsigned char o EOF) nella corrispondente minuscola, lasciando invariati gli altri caratteri."
+    },
+    {
+      "nome": "toupper",
+      "firma": "int toupper(int c);",
+      "header": "ctype.h",
+      "descrizione": "Converte una lettera minuscola (passata come unsigned char o EOF) nella corrispondente maiuscola, lasciando invariati gli altri caratteri."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "9.1",
+      "titolo": "Array di char e terminatore nullo",
+      "contenuti": [
+        "Cos'è una stringa in C: un array di char chiuso dal terminatore nullo '\\0' (schema in blocco text che mostra indici, caratteri, '\\0' e byte residui del buffer)",
+        "Forme di inizializzazione (char s[] = \"ciao\";, char s[16] = \"ciao\";, stringa vuota \"\") e pericolo di un array di char senza '\\0'",
+        "Distinzione tra capacità del buffer (sizeof(s)) e lunghezza logica della stringa (numero di caratteri fino a '\\0')",
+        "Scorrimento manuale con while/for fino a s[i] != '\\0', rimozione manuale di '\\n' dopo fgets e stampa con printf(\"%s\") e puts",
+        "Passaggio di stringhe a funzioni con const char s[] e char s[], e perché il terminatore nullo basta in sola lettura mentre la capacità è indispensabile in scrittura"
+      ],
+      "esempio_guidato": "Un programma su un codice di spedizione in char codice[16] = \"IT-2026\"; che confronta sizeof(codice) con la lunghezza contata manualmente fino a '\\0', legge un'etichetta da stdin con fgets, rimuove manualmente '\\n', la stampa con puts e mostra come inserire '\\0' a metà array accorci logicamente la stringa.",
+      "approfondimento": "Differenza tra '0' (carattere cifra), '\\0' (terminatore nullo di valore 0) e \"0\" (stringa di due byte), più una breve nota su UTF-8: i caratteri accentati occupano più di un char, perciò negli esercizi del capitolo lavoriamo su testo ASCII.",
+      "esercizio_id": "9.1"
+    },
+    {
+      "id": "9.2",
+      "titolo": "Elaborare stringhe con <string.h>",
+      "contenuti": [
+        "Lunghezza con strlen (tipo size_t) e motivo per cui non va chiamata ripetutamente nella condizione di un ciclo for",
+        "Confronto lessicografico con strcmp e strncmp (valori < 0, 0, > 0; mai usare == tra stringhe né confrontare il ritorno con == 1 o == -1)",
+        "Ricerca con strchr, strrchr, strstr e strpbrk (verifica della presenza tramite != nullptr, rinviando l'uso diretto del puntatore al capitolo 10) e misura di prefissi con strcspn e strspn (incluso l'idioma riga[strcspn(riga, \"\\n\")] = '\\0')",
+        "Copia e concatenazione con strcpy, strncpy, strcat e strncat: controllo preventivo obbligatorio della capacità",
+        "Insidie pratiche di strncpy (possibile assenza di '\\0' finale) e di strncat (terzo argomento pari allo spazio residuo da aggiungere, non alla dimensione totale del buffer)"
+      ],
+      "esempio_guidato": "Un programma che analizza nomi di file di registro (char nome[64]): rimuove '\\n' con strcspn, controlla il prefisso \"log_\" con strncmp, verifica l'estensione e la presenza di sottostringhe con strrchr e strstr, confronta due nomi con strcmp e compone un percorso etichettato verificando la capienza prima di strcpy e strncat.",
+      "approfondimento": "Perché strncpy non garantisce sempre una stringa terminata da '\\0' e come C23 preserva il qualificatore const nei risultati di strchr, strrchr, strstr e strpbrk (lo approfondiremo con i puntatori nel capitolo 10).",
+      "esercizio_id": "9.2"
+    },
+    {
+      "id": "9.3",
+      "titolo": "Classificare e trasformare caratteri con <ctype.h>",
+      "contenuti": [
+        "Funzioni di classificazione in <ctype.h>: isalpha, isdigit, isalnum, isspace, isupper, islower, isxdigit, ispunct e isprint",
+        "Funzioni di conversione del maiuscolo/minuscolo: tolower e toupper (lasciano invariati i caratteri che non sono lettere)",
+        "Regola obbligatoria del cast (unsigned char): perché passare un char negativo diverso da EOF provoca comportamento indefinito e come scrivere sempre isdigit((unsigned char)s[i]) e (char)tolower((unsigned char)s[i])",
+        "Valori di ritorno delle funzioni is*: 0 oppure un intero diverso da zero (mai confrontare con == 1)",
+        "Normalizzazione di stringhe (spazi, maiuscole/minuscole) e validazione di token testuali e codici esadecimali"
+      ],
+      "esempio_guidato": "Un programma che legge una riga da stdin, conta lettere maiuscole, minuscole, cifre decimali, spazi bianchi e punteggiatura con <ctype.h> (usando sempre (unsigned char)) e trasforma la frase con l'iniziale di ogni parola maiuscola tramite toupper e tolower.",
+      "approfondimento": "Perché molte implementazioni di <ctype.h> usano una tabella indicizzata dal parametro int: un char negativo causerebbe un indice negativo fuori tabella, spiegando in concreto il comportamento indefinito.",
+      "esercizio_id": "9.3"
+    },
+    {
+      "id": "9.4",
+      "titolo": "Formattazione sicura con snprintf",
+      "contenuti": [
+        "Perché formattare testo dentro un buffer di memoria e perché la funzione storica sprintf è pericolosa e bandita dal libro",
+        "Uso di snprintf(buffer, sizeof(buffer), formato, ...): garanzia di non superare capienza - 1 caratteri e terminazione assicurata con '\\0' (per capienza > 0)",
+        "Interpretazione rigorosa del valore di ritorno: errore se < 0, troncamento se (size_t)scritti >= capienza",
+        "Calcolo preventivo della lunghezza necessaria con snprintf(nullptr, 0, formato, ...) senza scrivere in memoria",
+        "Assemblaggio sicuro di messaggi composti verificando lo spazio prima di aggiungere ciascun segmento"
+      ],
+      "esempio_guidato": "Un programma che formatta un'etichetta di spedizione con codice, percorso e peso in due buffer (uno da 64 byte e uno da 20 byte) usando snprintf, verifica errore e troncamento su entrambi e stampa sia la lunghezza richiesta sia il contenuto effettivo.",
+      "approfondimento": "Il trucco di snprintf(nullptr, 0, ...) per determinare la lunghezza esatta di una stringa formattata: nel capitolo 11 lo combineremo con malloc per allocare buffer della dimensione esatta.",
+      "esercizio_id": "9.4"
+    },
+    {
+      "id": "9.5",
+      "titolo": "Buffer overflow e gestione sicura del testo",
+      "contenuti": [
+        "Cos'è un buffer overflow (scrittura oltre la fine del buffer) e perché causa comportamento indefinito e gravi vulnerabilità di sicurezza (mostrato solo in un frammento esplicitamente vietato)",
+        "Errori off-by-one sulle stringhe: dimenticare il byte per '\\0' (char s[5] non può contenere una stringa di 5 caratteri)",
+        "Gestione rigorosa delle righe più lunghe del buffer di fgets: riconoscere l'assenza di '\\n' e svuotare i caratteri residui dallo stream con getchar() fino a '\\n' o EOF",
+        "Progettare funzioni di copia e concatenazione sicure che ricevono sempre (char dest[], size_t capienza), restituiscono bool per segnalare un eventuale rifiuto o troncamento e mantengono sempre valido '\\0'",
+        "Lista di controllo per lavorare con il testo in C senza overflow (e rinvio ai sanitizer del capitolo 11 per rilevare automaticamente eventuali sforamenti)"
+      ],
+      "esempio_guidato": "Un programma che definisce le funzioni ausiliarie copia_sicura e accoda_sicura con parametro di capacità esplicito e una funzione che svuota i caratteri eccedenti dopo fgets, affiancato da un breve frammento vietato che illustra un buffer overflow causato da strcpy senza controllo.",
+      "approfondimento": "Schema concettuale in blocco text di un buffer char buf[8] adiacente a un'altra variabile in memoria: come una scrittura oltre i limiti possa alterare dati non correlati, e perché prevenire il bug nel codice è l'unica difesa affidabile.",
+      "esercizio_id": "9.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "9.1",
+      "tipo": "esercizio",
+      "titolo": "Analisi e inversione manuale di una stringa senza <string.h>",
+      "descrizione": "Scrivi un programma C che includa solo `<stddef.h>`, `<stdio.h>` e `<stdlib.h>` (senza usare `<string.h>` né `<ctype.h>`) e dichiari prima di `main` i prototipi di quattro funzioni che lavorano su stringhe terminate da `'\\0'`: `size_t rimuovi_newline(char s[])` (trova `'\\n'`, se presente lo sostituisce con `'\\0'`, e restituisce la lunghezza finale della stringa), `size_t conta_carattere(const char s[], char bersaglio)` (conta le occorrenze di `bersaglio` in `s`), `bool e_palindroma(const char s[], size_t lunghezza)` (verifica se `s` si legge allo stesso modo da sinistra e da destra; una stringa vuota è palindroma) e `void inverti_stringa(char s[], size_t lunghezza)` (inverte i caratteri sul posto lasciando invariato `'\\0'`). In `main` leggi da `stdin` due righe con `fgets` (buffer di `128` byte): la prima è la stringa da analizzare (può essere vuota); la seconda contiene un solo carattere `bersaglio` validato con `sscanf(riga_c, \" %c %c\", &bersaglio, &extra) == 1`. Se manca una riga o il formato della seconda riga non è valido, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Altrimenti stampa lunghezza, numero di occorrenze di `bersaglio`, esito palindromo (`si` o `no`), l'intestazione `Invertita:` e la stringa invertita stampata con `puts`, esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "stringa come array di char terminato da '\\0'",
+        "scorrimento manuale fino a s[i] != '\\0'",
+        "rimozione del ritorno a capo lasciato da fgets",
+        "stampa di una stringa con puts",
+        "conservazione del terminatore nullo durante l'inversione sul posto"
+      ],
+      "domande_guida": [
+        "Come fai a conoscere la fine della stringa dentro rimuovi_newline e conta_carattere senza ricevere un parametro lunghezza né chiamare strlen?",
+        "Che cosa accadrebbe se in inverti_stringa scambiassi anche il carattere in posizione lunghezza (cioè il terminatore nullo)?",
+        "Perché nella funzione e_palindroma il caso limite della stringa vuota (lunghezza == 0) non deve accedere a s[lunghezza - 1]?",
+        "Quale differenza c'è tra stampare la stringa invertita con puts(testo) rispetto a printf(\"%s\", testo)?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "radar\nr\n",
+          "output": "Lunghezza: 5\nOccorrenze di 'r': 2\nPalindroma: si\nInvertita:\nradar\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "informatica\na\n",
+          "output": "Lunghezza: 11\nOccorrenze di 'a': 2\nPalindroma: no\nInvertita:\nacitamrofni\n"
+        },
+        {
+          "input": "\nx\n",
+          "output": "Lunghezza: 0\nOccorrenze di 'x': 0\nPalindroma: si\nInvertita:\n\n"
+        },
+        {
+          "input": "k\nk\n",
+          "output": "Lunghezza: 1\nOccorrenze di 'k': 1\nPalindroma: si\nInvertita:\nk\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nsize_t rimuovi_newline(char s[]);\nsize_t conta_carattere(const char s[], char bersaglio);\nbool e_palindroma(const char s[], size_t lunghezza);\nvoid inverti_stringa(char s[], size_t lunghezza);\n\nint main(void) {\n    char testo[128];\n    char riga_c[32];\n    char bersaglio = '\\0';\n    char extra = '\\0';\n\n    if (fgets(testo, (int)sizeof(testo), stdin) == nullptr ||\n        fgets(riga_c, (int)sizeof(riga_c), stdin) == nullptr ||\n        sscanf(riga_c, \" %c %c\", &bersaglio, &extra) != 1) {\n        fprintf(stderr, \"Errore: input non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t len = rimuovi_newline(testo);\n    size_t occ = conta_carattere(testo, bersaglio);\n    bool pal = e_palindroma(testo, len);\n    inverti_stringa(testo, len);\n\n    printf(\"Lunghezza: %zu\\n\", len);\n    printf(\"Occorrenze di '%c': %zu\\n\", bersaglio, occ);\n    printf(\"Palindroma: %s\\n\", pal ? \"si\" : \"no\");\n    printf(\"Invertita:\\n\");\n    puts(testo);\n    return EXIT_SUCCESS;\n}\n\nsize_t rimuovi_newline(char s[]) {\n    size_t i = 0;\n    while (s[i] != '\\0' && s[i] != '\\n') {\n        ++i;\n    }\n    s[i] = '\\0';\n    return i;\n}\n\nsize_t conta_carattere(const char s[], char bersaglio) {\n    size_t conteggio = 0;\n    for (size_t i = 0; s[i] != '\\0'; ++i) {\n        if (s[i] == bersaglio) { ++conteggio; }\n    }\n    return conteggio;\n}\n\nbool e_palindroma(const char s[], size_t lunghezza) {\n    for (size_t i = 0; i < lunghezza / 2; ++i) {\n        if (s[i] != s[lunghezza - 1 - i]) { return false; }\n    }\n    return true;\n}\n\nvoid inverti_stringa(char s[], size_t lunghezza) {\n    for (size_t i = 0; i < lunghezza / 2; ++i) {\n        char tmp = s[i];\n        s[i] = s[lunghezza - 1 - i];\n        s[lunghezza - 1 - i] = tmp;\n    }\n}\n"
+    },
+    {
+      "id": "9.2",
+      "tipo": "esercizio",
+      "titolo": "Filtro e ordine lessicografico di etichette con <string.h>",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<stdlib.h>` e `<string.h>` per analizzare un elenco di etichette. Leggi dalla prima riga di `stdin` la parola chiave `chiave` (buffer di `32` byte), rimuovi `'\\n'` con `strcspn` e verifica che non sia vuota (`strlen(chiave) > 0`; altrimenti errore su `stderr` e `EXIT_FAILURE`). Leggi poi fino alla fine dell'input una sequenza di etichette (buffer di `48` byte), rimuovendo `'\\n'` con `strcspn`. Ignora le righe vuote; un'etichetta è valida solo se tutti i suoi caratteri appartengono a `\"abcdefghijklmnopqrstuvwxyz0123456789-_\"` (verificato con `strspn(voce, ...) == strlen(voce)`): se non è valida incrementa `scartate` e passa alla successiva. Sulle etichette valide calcola: quante sono uguali a `chiave` (`strcmp == 0`), quante iniziano con `chiave` (`strncmp == 0`), quante contengono `chiave` (`strstr != nullptr`), quante contengono almeno un separatore `'-'` o `'_'` (`strpbrk != nullptr`), e mantieni la prima e l'ultima in ordine lessicografico (`strcmp` + `strcpy` in due buffer da `48` byte). Inoltre raccogli in un buffer `trovate[128] = \"\"` le etichette che contengono `chiave`, separate da `\", \"`, usando `strncat` solo quando c'è spazio sufficiente (controllando `strlen(trovate) + sep + strlen(voce) < sizeof(trovate)`). Se non ci sono etichette valide stampa `Nessuna etichetta valida.` e `Valide: 0, scartate: S`; altrimenti stampa il riepilogo esattamente come nell'esempio di esecuzione (usando `(nessuna)` se `trovate` è vuota).",
+      "concetti_da_tenere_a_mente": [
+        "rimozione di '\\n' con strcspn e validazione dell'alfabeto con strspn",
+        "confronto esatto (strcmp) e per prefisso (strncmp)",
+        "ricerca di sottostringhe (strstr) e di caratteri separatori (strpbrk)",
+        "copia e concatenazione controllata con strcpy e strncat"
+      ],
+      "domande_guida": [
+        "In che modo il confronto strspn(voce, caratteri_ammessi) == strlen(voce) garantisce che l'intera etichetta contenga solo caratteri permessi?",
+        "Perché non puoi confrontare due etichette con voce == chiave ma devi usare strcmp(voce, chiave) == 0?",
+        "Quale controllo devi eseguire prima di chiamare strncat sul buffer trovate per evitare un buffer overflow e non aggiungere un separatore senza l'etichetta successiva?",
+        "Come gestisci l'inizializzazione di prima_less e ultima_less quando incontri la prima etichetta valida?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "net\nnet-core\nalpha\nnet_io\nBad!Tag\nsupernet\n\nnet\n",
+          "output": "Valide: 5, scartate: 1\nUguali a chiave: 1\nCon prefisso chiave: 3\nContengono chiave: 4\nCon separatore (- o _): 2\nPrima lessicografica: alpha\nUltima lessicografica: supernet\nCorrispondenze: net-core, net_io, supernet, net\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "api\nBAD\n123!\n",
+          "output": "Nessuna etichetta valida.\nValide: 0, scartate: 2\n"
+        },
+        {
+          "input": "xml\njson\nyaml\ncsv\n",
+          "output": "Valide: 3, scartate: 0\nUguali a chiave: 0\nCon prefisso chiave: 0\nContengono chiave: 0\nCon separatore (- o _): 0\nPrima lessicografica: csv\nUltima lessicografica: yaml\nCorrispondenze: (nessuna)\n"
+        },
+        {
+          "input": "a\na_1\n",
+          "output": "Valide: 1, scartate: 0\nUguali a chiave: 0\nCon prefisso chiave: 1\nContengono chiave: 1\nCon separatore (- o _): 1\nPrima lessicografica: a_1\nUltima lessicografica: a_1\nCorrispondenze: a_1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    const char AMMESSI[] = \"abcdefghijklmnopqrstuvwxyz0123456789-_\";\n    char chiave[32], voce[48], prima_less[48] = \"\", ultima_less[48] = \"\", trovate[128] = \"\";\n    if (fgets(chiave, (int)sizeof(chiave), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: chiave mancante.\\n\");\n        return EXIT_FAILURE;\n    }\n    chiave[strcspn(chiave, \"\\n\")] = '\\0';\n    size_t len_chiave = strlen(chiave);\n    if (len_chiave == 0) {\n        fprintf(stderr, \"Errore: chiave vuota.\\n\");\n        return EXIT_FAILURE;\n    }\n    int valide = 0, scartate = 0, uguali = 0, prefissi = 0, contenute = 0, con_sep = 0;\n    while (fgets(voce, (int)sizeof(voce), stdin) != nullptr) {\n        voce[strcspn(voce, \"\\n\")] = '\\0';\n        size_t len = strlen(voce);\n        if (len == 0) { continue; }\n        if (strspn(voce, AMMESSI) != len) {\n            ++scartate;\n            continue;\n        }\n        if (valide == 0) {\n            strcpy(prima_less, voce);\n            strcpy(ultima_less, voce);\n        } else {\n            if (strcmp(voce, prima_less) < 0) { strcpy(prima_less, voce); }\n            if (strcmp(voce, ultima_less) > 0) { strcpy(ultima_less, voce); }\n        }\n        ++valide;\n        if (strcmp(voce, chiave) == 0) { ++uguali; }\n        if (strncmp(voce, chiave, len_chiave) == 0) { ++prefissi; }\n        if (strpbrk(voce, \"-_\") != nullptr) { ++con_sep; }\n        if (strstr(voce, chiave) != nullptr) {\n            ++contenute;\n            size_t cur = strlen(trovate);\n            size_t sep = (cur > 0) ? 2 : 0;\n            if (cur + sep + len < sizeof(trovate)) {\n                if (sep > 0) { strncat(trovate, \", \", sizeof(trovate) - cur - 1); }\n                strncat(trovate, voce, sizeof(trovate) - strlen(trovate) - 1);\n            }\n        }\n    }\n    if (valide == 0) {\n        printf(\"Nessuna etichetta valida.\\nValide: 0, scartate: %d\\n\", scartate);\n        return EXIT_SUCCESS;\n    }\n    printf(\"Valide: %d, scartate: %d\\n\", valide, scartate);\n    printf(\"Uguali a chiave: %d\\nCon prefisso chiave: %d\\n\", uguali, prefissi);\n    printf(\"Contengono chiave: %d\\nCon separatore (- o _): %d\\n\", contenute, con_sep);\n    printf(\"Prima lessicografica: %s\\nUltima lessicografica: %s\\n\", prima_less, ultima_less);\n    printf(\"Corrispondenze: %s\\n\", trovate[0] != '\\0' ? trovate : \"(nessuna)\");\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "9.3",
+      "tipo": "esercizio",
+      "titolo": "Normalizzatore di testo e validatore di colore esadecimale con <ctype.h>",
+      "descrizione": "Scrivi un programma C che includa `<ctype.h>`, `<stdio.h>`, `<stdlib.h>` e `<string.h>` e legga due righe da `stdin` (buffer da `128` e `32` byte), rimuovendo `'\\n'` con `strcspn` (se manca una delle due righe stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`). Dichiara prima di `main` i prototipi di due funzioni che usano sempre il cast `(unsigned char)` in ogni chiamata a `<ctype.h>`: `void normalizza_testo(const char orig[], char dest[], size_t cap)` (elimina tutti gli spazi bianchi iniziali e finali tramite `isspace`, comprime ogni sequenza interna di caratteri `isspace` in un singolo spazio `' '` e converte tutte le lettere in minuscolo con `tolower`, terminando `dest` con `'\\0'`) e `bool normalizza_colore_hex(const char orig[], char dest[], size_t cap)` (verifica che `orig` abbia lunghezza `7`, inizi con `'#'` e abbia esattamente `6` cifre `isxdigit`; se valida e `cap >= 8`, copia in `dest` il codice convertito in maiuscolo con `toupper` e restituisce `true`, altrimenti restituisce `false`). In `main`, sulla prima riga normalizzata conta parole (sequenze massimali di caratteri non `isspace`), caratteri alfanumerici (`isalnum`), segni di punteggiatura (`ispunct`) e caratteri stampabili (`isprint`), quindi stampa testo normalizzato (tra parentesi quadre `[...]`), conteggi e risultato della validazione del colore esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "cast obbligatorio a (unsigned char) per tutte le funzioni di <ctype.h>",
+        "classificazione con isspace, isalnum, ispunct, isprint e isxdigit",
+        "conversione con tolower e toupper",
+        "compressione di spazi multipli e rimozione di spazi iniziali e finali"
+      ],
+      "domande_guida": [
+        "Perché ogni chiamata a isspace, isxdigit, tolower o toupper su un elemento di un array char deve applicare prima il cast (unsigned char)?",
+        "Come eviti di lasciare uno spazio finale in dest quando la stringa di ingresso termina con più spazi o tabulazioni?",
+        "Quali condizioni deve verificare normalizza_colore_hex prima di dichiarare valido un codice colore e convertirlo con toupper?",
+        "Perché il risultato di isalnum o ispunct va usato direttamente in un if anziché confrontato con == 1?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "   Ciao,\tMondo   2026!  \n#1a2B3c\n",
+          "output": "Testo normalizzato: [ciao, mondo 2026!]\nParole: 3\nAlfanumerici: 13, punteggiatura: 2, stampabili: 17\nColore valido: #1A2B3C\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "   \t  \n#12345g\n",
+          "output": "Testo normalizzato: []\nParole: 0\nAlfanumerici: 0, punteggiatura: 0, stampabili: 0\nColore non valido\n"
+        },
+        {
+          "input": "C23\n#00ff88\n",
+          "output": "Testo normalizzato: [c23]\nParole: 1\nAlfanumerici: 3, punteggiatura: 0, stampabili: 3\nColore valido: #00FF88\n"
+        },
+        {
+          "input": "Uno,due;tre.\n112233\n",
+          "output": "Testo normalizzato: [uno,due;tre.]\nParole: 1\nAlfanumerici: 9, punteggiatura: 3, stampabili: 12\nColore non valido\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nvoid normalizza_testo(const char orig[], char dest[], size_t cap);\nbool normalizza_colore_hex(const char orig[], char dest[], size_t cap);\n\nint main(void) {\n    char frase[128], pulita[128], colore_in[32], colore_out[8];\n    if (fgets(frase, (int)sizeof(frase), stdin) == nullptr ||\n        fgets(colore_in, (int)sizeof(colore_in), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: righe mancanti in ingresso.\\n\");\n        return EXIT_FAILURE;\n    }\n    frase[strcspn(frase, \"\\n\")] = '\\0';\n    colore_in[strcspn(colore_in, \"\\n\")] = '\\0';\n\n    normalizza_testo(frase, pulita, sizeof(pulita));\n    int parole = 0, alnum = 0, punt = 0, stamp = 0;\n    bool in_parola = false;\n    for (size_t i = 0; pulita[i] != '\\0'; ++i) {\n        unsigned char uc = (unsigned char)pulita[i];\n        if (isalnum(uc)) { ++alnum; }\n        if (ispunct(uc)) { ++punt; }\n        if (isprint(uc)) { ++stamp; }\n        if (!isspace(uc) && !in_parola) { ++parole; in_parola = true; }\n        else if (isspace(uc)) { in_parola = false; }\n    }\n    printf(\"Testo normalizzato: [%s]\\n\", pulita);\n    printf(\"Parole: %d\\n\", parole);\n    printf(\"Alfanumerici: %d, punteggiatura: %d, stampabili: %d\\n\", alnum, punt, stamp);\n    if (normalizza_colore_hex(colore_in, colore_out, sizeof(colore_out))) {\n        printf(\"Colore valido: %s\\n\", colore_out);\n    } else {\n        printf(\"Colore non valido\\n\");\n    }\n    return EXIT_SUCCESS;\n}\n\nvoid normalizza_testo(const char orig[], char dest[], size_t cap) {\n    if (cap == 0) { return; }\n    size_t out = 0;\n    bool spazio_pendente = false;\n    for (size_t i = 0; orig[i] != '\\0'; ++i) {\n        unsigned char uc = (unsigned char)orig[i];\n        if (isspace(uc)) {\n            if (out > 0) { spazio_pendente = true; }\n        } else {\n            if (spazio_pendente && out + 1 < cap) { dest[out++] = ' '; }\n            spazio_pendente = false;\n            if (out + 1 < cap) { dest[out++] = (char)tolower(uc); }\n        }\n    }\n    dest[out] = '\\0';\n}\n\nbool normalizza_colore_hex(const char orig[], char dest[], size_t cap) {\n    if (cap < 8 || strlen(orig) != 7 || orig[0] != '#') { return false; }\n    dest[0] = '#';\n    for (size_t i = 1; i < 7; ++i) {\n        unsigned char uc = (unsigned char)orig[i];\n        if (!isxdigit(uc)) { return false; }\n        dest[i] = (char)toupper(uc);\n    }\n    dest[7] = '\\0';\n    return true;\n}\n"
+    },
+    {
+      "id": "9.4",
+      "tipo": "esercizio",
+      "titolo": "Generatore di record CSV con verifica di troncamento tramite snprintf",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<stdlib.h>` e `<string.h>` per formattare un record di catalogo libri in due buffer di diversa capienza usando `snprintf`. Leggi tre righe da `stdin`: la prima contiene il codice (stringa non vuota senza spazi, buffer `24` byte, estratta con `sscanf(riga, \"%23s %c\", codice, &extra) == 1`); la seconda contiene il titolo (stringa non vuota, buffer `80` byte, rimuovendo `'\\n'` con `strcspn`); la terza contiene anno (`int` in `1900..2100`) e prezzo (`double >= 0.0`) validati con `sscanf(riga, \"%d %lf %c\", &anno, &prezzo, &extra) == 2`. In caso di errore di input stampa su `stderr` e restituisci `EXIT_FAILURE`. Definisci una funzione `int formatta_record(char dest[], size_t cap, const char codice[], const char titolo[], int anno, double prezzo)` che usa `snprintf` per produrre il formato `\"%s;%s;%d;%.2f\"` e restituisce il risultato di `snprintf`. In `main` calcola prima la lunghezza esatta richiesta con `snprintf(nullptr, 0, ...)`, poi formatta il record in `char completo[128]` e in `char anteprima[24]`. Verifica su ciascun buffer se `ris < 0` (errore) oppure `(size_t)ris >= sizeof(buffer)` (troncamento) e stampa lunghezza richiesta, stato e contenuto di `completo`, stato e contenuto di `anteprima` e, se l'anteprima è troncata, il numero di caratteri omessi (`req - (int)(sizeof(anteprima) - 1)`), esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "formattazione sicura in memoria con snprintf",
+        "calcolo preventivo della lunghezza con snprintf(nullptr, 0, ...)",
+        "verifica rigorosa di errore (< 0) e troncamento ((size_t)ris >= capienza)",
+        "garanzia del terminatore nullo anche in caso di troncamento"
+      ],
+      "domande_guida": [
+        "Perché la condizione di troncamento dopo snprintf è (size_t)scritti >= sizeof(buf) e non (size_t)scritti > sizeof(buf)?",
+        "Che cosa restituisce snprintf(nullptr, 0, ...) e quale vantaggio offre rispetto a stimare la lunghezza a occhio?",
+        "Quando anteprima ha dimensione 24 byte ed è troncata, quanti caratteri utili contiene effettivamente al massimo e dove si trova il terminatore nullo?",
+        "Perché nell'estrazione del codice con sscanf scriviamo %23s invece di %s senza larghezza?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "BK-104\nIntroduzione al linguaggio C\n2026 29.5\n",
+          "output": "Lunghezza richiesta: 46\nCompleto (ok): BK-104;Introduzione al linguaggio C;2026;29.50\nAnteprima (troncato): BK-104;Introduzione al \nCaratteri omessi in anteprima: 23\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "A1\nC23\n2024 9.9\n",
+          "output": "Lunghezza richiesta: 16\nCompleto (ok): A1;C23;2024;9.90\nAnteprima (ok): A1;C23;2024;9.90\n"
+        },
+        {
+          "input": "ID-100\nGuida\n2025 12.00\n",
+          "output": "Lunghezza richiesta: 23\nCompleto (ok): ID-100;Guida;2025;12.00\nAnteprima (ok): ID-100;Guida;2025;12.00\n"
+        },
+        {
+          "input": "ID-1000\nGuida\n2025 12.00\n",
+          "output": "Lunghezza richiesta: 24\nCompleto (ok): ID-1000;Guida;2025;12.00\nAnteprima (troncato): ID-1000;Guida;2025;12.0\nCaratteri omessi in anteprima: 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint formatta_record(char dest[], size_t cap, const char codice[],\n                    const char titolo[], int anno, double prezzo);\n\nint main(void) {\n    char riga[128], codice[24], titolo[80], completo[128], anteprima[24];\n    int anno = 0;\n    double prezzo = 0.0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%23s %c\", codice, &extra) != 1) {\n        fprintf(stderr, \"Errore: codice non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (fgets(titolo, (int)sizeof(titolo), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: titolo mancante.\\n\");\n        return EXIT_FAILURE;\n    }\n    titolo[strcspn(titolo, \"\\n\")] = '\\0';\n    if (titolo[0] == '\\0') {\n        fprintf(stderr, \"Errore: titolo vuoto.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %lf %c\", &anno, &prezzo, &extra) != 2 ||\n        anno < 1900 || anno > 2100 || prezzo < 0.0) {\n        fprintf(stderr, \"Errore: anno o prezzo non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    int req = snprintf(nullptr, 0, \"%s;%s;%d;%.2f\", codice, titolo, anno, prezzo);\n    int r_comp = formatta_record(completo, sizeof(completo), codice, titolo, anno, prezzo);\n    int r_ant = formatta_record(anteprima, sizeof(anteprima), codice, titolo, anno, prezzo);\n    if (req < 0 || r_comp < 0 || r_ant < 0) {\n        fprintf(stderr, \"Errore: formattazione fallita.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    bool comp_tronc = (size_t)r_comp >= sizeof(completo);\n    bool ant_tronc = (size_t)r_ant >= sizeof(anteprima);\n    printf(\"Lunghezza richiesta: %d\\n\", req);\n    printf(\"Completo (%s): %s\\n\", comp_tronc ? \"troncato\" : \"ok\", completo);\n    printf(\"Anteprima (%s): %s\\n\", ant_tronc ? \"troncato\" : \"ok\", anteprima);\n    if (ant_tronc) {\n        int omessi = req - (int)(sizeof(anteprima) - 1);\n        printf(\"Caratteri omessi in anteprima: %d\\n\", omessi);\n    }\n    return EXIT_SUCCESS;\n}\n\nint formatta_record(char dest[], size_t cap, const char codice[],\n                    const char titolo[], int anno, double prezzo) {\n    return snprintf(dest, cap, \"%s;%s;%d;%.2f\", codice, titolo, anno, prezzo);\n}\n"
+    },
+    {
+      "id": "9.5",
+      "tipo": "esercizio",
+      "titolo": "Raccolta sicura di nomi in buffer limitati contro il buffer overflow",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<stdlib.h>` e `<string.h>` per leggere una sequenza di nomi di città da `stdin` (uno per riga, fino alla fine dell'input) usando un piccolo buffer di ingresso `char riga[16];` (al massimo `15` caratteri utili per nome) e comporre un elenco in un buffer di uscita di capacità fissa `char elenco[40] = \"\";` con voci separate da `\" | \"`. Dichiara prima di `main` i prototipi di due funzioni sicure: `int leggi_riga_limitata(char buf[], size_t cap)` (usa `fgets`: restituisce `0` alla fine dell'input; se la riga entra interamente nel buffer — incluso il caso limite di esattamente `cap - 1` caratteri seguiti da `'\\n'` o `EOF` — rimuove `'\\n'` e restituisce `1`; se la riga supera `cap - 1` caratteri, svuota tutti i caratteri residui fino a `'\\n'` o `EOF` con `getchar()` e restituisce `2`) e `bool accoda_voce(char dest[], size_t cap, const char voce[], const char sep[])` (verifica in anticipo che `strlen(dest) + (dest[0] != '\\0' ? strlen(sep) : 0) + strlen(voce) < cap`; solo se c'è spazio per entrambi accoda prima l'eventuale separatore e poi `voce` e restituisce `true`, altrimenti lascia `dest` intatto e restituisce `false`). In `main` ignora le righe vuote, conta voci inserite, voci omesse per capienza e righe troncate in ingresso (anche se poi omesse per capienza), quindi stampa il riepilogo finale esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "prevenzione del buffer overflow con controllo preventivo della capacità",
+        "svuotamento dello stream residuo con getchar() dopo una riga troncata da fgets",
+        "caso limite della riga lunga esattamente cap - 1 caratteri",
+        "accodamento atomico di separatore e voce senza lasciare separatori orfani"
+      ],
+      "domande_guida": [
+        "Che cosa succederebbe alla lettura della riga successiva se leggi_riga_limitata non svuotasse i caratteri eccedenti lasciati in stdin da fgets?",
+        "Come distingue leggi_riga_limitata una riga lunga esattamente 15 caratteri seguiti da '\\n' da una riga lunga 16 o più caratteri?",
+        "Perché accoda_voce deve verificare la capienza complessiva di separatore più voce prima di modificare dest?",
+        "Quale è la lunghezza massima possibile di elenco quando la sua capacità è 40 byte?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "Torino\nMilano\nReggio Emilia Centro\nRho\nNapoli\nBologna\n",
+          "output": "Voci inserite: 4\nVoci omesse per capienza: 2\nRighe troncate in ingresso: 1\nElenco (39/39): Torino | Milano | Reggio Emilia C | Rho\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "123456789012345\n1234567890123456\n",
+          "output": "Voci inserite: 2\nVoci omesse per capienza: 0\nRighe troncate in ingresso: 1\nElenco (33/39): 123456789012345 | 123456789012345\n"
+        },
+        {
+          "input": "\n\n",
+          "output": "Voci inserite: 0\nVoci omesse per capienza: 0\nRighe troncate in ingresso: 0\nElenco (0/39): \n"
+        },
+        {
+          "input": "A\nB\nC\n",
+          "output": "Voci inserite: 3\nVoci omesse per capienza: 0\nRighe troncate in ingresso: 0\nElenco (9/39): A | B | C\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint leggi_riga_limitata(char buf[], size_t cap);\nbool accoda_voce(char dest[], size_t cap, const char voce[], const char sep[]);\n\nint main(void) {\n    char riga[16];\n    char elenco[40] = \"\";\n    int inserite = 0;\n    int omesse = 0;\n    int troncate = 0;\n\n    int stato = 0;\n    while ((stato = leggi_riga_limitata(riga, sizeof(riga))) != 0) {\n        if (stato == 2) {\n            ++troncate;\n        }\n        if (riga[0] == '\\0') {\n            continue;\n        }\n        if (accoda_voce(elenco, sizeof(elenco), riga, \" | \")) {\n            ++inserite;\n        } else {\n            ++omesse;\n        }\n    }\n\n    printf(\"Voci inserite: %d\\n\", inserite);\n    printf(\"Voci omesse per capienza: %d\\n\", omesse);\n    printf(\"Righe troncate in ingresso: %d\\n\", troncate);\n    printf(\"Elenco (%zu/%zu): %s\\n\", strlen(elenco), sizeof(elenco) - 1, elenco);\n    return EXIT_SUCCESS;\n}\n\nint leggi_riga_limitata(char buf[], size_t cap) {\n    if (cap == 0 || fgets(buf, (int)cap, stdin) == nullptr) {\n        return 0;\n    }\n    size_t len = strcspn(buf, \"\\n\");\n    if (buf[len] == '\\n') {\n        buf[len] = '\\0';\n        return 1;\n    }\n    int c = getchar();\n    if (c == '\\n' || c == EOF) {\n        return 1;\n    }\n    while (c != '\\n' && c != EOF) {\n        c = getchar();\n    }\n    return 2;\n}\n\nbool accoda_voce(char dest[], size_t cap, const char voce[], const char sep[]) {\n    size_t len_dest = strlen(dest);\n    size_t len_sep = (len_dest > 0) ? strlen(sep) : 0;\n    size_t len_voce = strlen(voce);\n    if (len_dest + len_sep + len_voce >= cap) {\n        return false;\n    }\n    if (len_sep > 0) {\n        strcat(dest, sep);\n    }\n    strcat(dest, voce);\n    return true;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare di riservare un byte per il terminatore nullo '\\0' nella dimensione di un array di char (per esempio dichiarare char s[4] = \"ciao\"; che non lascia spazio per '\\0').",
+    "Confrontare due stringhe con s1 == s2 oppure copiarle con s1 = s2 invece di usare strcmp e una copia sicura.",
+    "Passare direttamente una variabile char a funzioni di <ctype.h> (come isalpha(s[i]) o tolower(s[i])) senza il cast (unsigned char), provocando comportamento indefinito su piattaforme con char con segno.",
+    "Chiamare strlen(s) nella condizione di un ciclo for (for (size_t i = 0; i < strlen(s); ++i)), ricalcolando inutilmente la lunghezza a ogni iterazione.",
+    "Dimenticare che fgets conserva il carattere '\\n' alla fine della riga letta, facendo fallire confronti con strcmp finché non lo si rimuove con strcspn.",
+    "Confondere il terzo argomento di strncat (numero massimo di caratteri da aggiungere) con la dimensione totale del buffer, oppure credere che strncpy garantisca sempre '\\0' finale.",
+    "Controllare il troncamento di snprintf con scritti > sizeof(buf) invece di (size_t)scritti >= sizeof(buf), ignorando il caso esatto in cui manca lo spazio per '\\0'."
+  ],
+  "differenze_python": [
+    "In Python le stringhe sono oggetti immutabili di lunghezza arbitraria gestiti automaticamente; in C una stringa è un array mutabile di char a capacità fissa terminato da '\\0'.",
+    "In Python puoi confrontare e concatenare stringhe direttamente con == e +; in C devi usare funzioni come strcmp, snprintf o concatenazioni controllate verificando sempre la capienza del buffer.",
+    "In Python len(s) restituisce la lunghezza in tempo costante; in C strlen(s) deve scorrere la stringa fino a '\\0' e quindi non va richiamata a ogni iterazione di un ciclo."
+  ]
+}

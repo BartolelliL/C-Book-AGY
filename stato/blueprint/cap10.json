@@ -1,0 +1,500 @@
+{
+  "capitolo": 10,
+  "titolo": "Puntatori",
+  "obiettivi": [
+    "Spiegare il rapporto tra oggetti in memoria, indirizzi, & e dereferenziazione con *",
+    "Gestire i puntatori nulli con nullptr e NULL prevenendo la dereferenziazione nulla",
+    "Prevedere il comportamento del decadimento degli array e dell'aritmetica dei puntatori",
+    "Scrivere funzioni che modificano variabili del chiamante tramite parametri puntatore",
+    "Applicare correttamente const ai puntatori e ai dati puntati"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "puntatore",
+      "definizione": "Variabile che memorizza l'indirizzo di memoria di un oggetto o di una funzione, oppure il valore nullo."
+    },
+    {
+      "termine": "indirizzo di memoria",
+      "definizione": "Posizione numerica che identifica un byte o l'inizio di un oggetto nella memoria del programma."
+    },
+    {
+      "termine": "dereferenziazione",
+      "definizione": "Operazione svolta dall'operatore * per accedere all'oggetto situato all'indirizzo contenuto in un puntatore."
+    },
+    {
+      "termine": "puntatore nullo",
+      "definizione": "Puntatore con valore nullptr o NULL che indica esplicitamente di non puntare ad alcun oggetto valido."
+    },
+    {
+      "termine": "decadimento di array",
+      "definizione": "Conversione automatica del nome di un array in un puntatore al suo primo elemento nella maggior parte delle espressioni."
+    },
+    {
+      "termine": "aritmetica dei puntatori",
+      "definizione": "Somma e sottrazione tra puntatori e interi scalate automaticamente per la dimensione del tipo puntato."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "operatore sizeof e tipo size_t",
+    "valutazione a corto circuito",
+    "funzione",
+    "prototipo",
+    "passaggio per valore",
+    "durata di vita",
+    "array",
+    "indice",
+    "accesso fuori dai limiti",
+    "stringa",
+    "terminatore nullo",
+    "buffer overflow",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "10.R1",
+      "enunciato": "L'operatore indirizzo (&) applicato a un oggetto in memoria ne restituisce l'indirizzo di tipo T *. Un puntatore dichiarato come T *p memorizza l'indirizzo di un oggetto di tipo T (oppure il valore nullo). L'operatore di dereferenziazione (*) applicato a un puntatore valido accede in lettura o scrittura all'oggetto puntato. Nelle dichiarazioni multiple il simbolo * si lega al singolo identificatore (in int *a, b; solo a è un puntatore).",
+      "nota_standard": "indefinito: il comportamento di & e * su puntatori validi è definito dallo standard C23; dereferenziare un puntatore non inizializzato o non valido provoca comportamento indefinito."
+    },
+    {
+      "id": "10.R2",
+      "enunciato": "Un puntatore nullo si rappresenta in C23 con la parola chiave nullptr (preferita perché tipizzata e non confondibile con l'intero 0) oppure con la macro storica NULL (definita in <stddef.h>, <stdio.h>, <stdlib.h> e <string.h>). Tutti i puntatori nulli risultano uguali tra loro al confronto ==. Prima di dereferenziare un puntatore potenzialmente nullo occorre sempre controllarlo (p != nullptr).",
+      "nota_standard": "indefinito: nullptr (C23), NULL e l'uguaglianza tra puntatori nulli sono definiti dallo standard C23; dereferenziare un puntatore nullo provoca comportamento indefinito."
+    },
+    {
+      "id": "10.R3",
+      "enunciato": "Nella maggior parte delle espressioni un array a di tipo T[N] subisce il decadimento di array diventando un puntatore al suo primo elemento (&a[0], di tipo T *). Le principali eccezioni sono sizeof(a), &a e i letterali stringa usati per inizializzare un array di char. Per definizione a[i] equivale a *(a + i). Un parametro di funzione dichiarato T a[] viene adattato dal compilatore a T *a.",
+      "nota_standard": "definito: il decadimento di array, le eccezioni di sizeof e &, l'equivalenza a[i] == *(a + i) e l'adattamento dei parametri array a puntatori sono definiti dallo standard C23; modificare un letterale stringa tramite puntatore provoca comportamento indefinito."
+    },
+    {
+      "id": "10.R4",
+      "enunciato": "Nell'aritmetica dei puntatori, p + k e p - k spostano l'indirizzo di k * sizeof(*p) byte. La differenza q - p tra due puntatori allo stesso array produce il numero di elementi di distanza con tipo con segno ptrdiff_t (definito in <stddef.h>, stampato con %td). È lecito formare e confrontare il puntatore a + n (uno oltre la fine di un array di n elementi), ma non dereferenziarlo.",
+      "nota_standard": "indefinito: l'aritmetica entro [a, a + n] e il tipo ptrdiff_t sono definiti dallo standard C23; formare puntatori fuori da [a, a + n], dereferenziare a + n oppure sottrarre o confrontare con <, <=, >, >= puntatori ad array diversi provoca comportamento indefinito."
+    },
+    {
+      "id": "10.R5",
+      "enunciato": "In C tutti gli argomenti sono passati per valore; per modificare una variabile del chiamante o restituire più risultati si adotta il passaggio per puntatore, passando &variabile a un parametro T * e accedendovi con *parametro dopo aver verificato che il puntatore non sia nullo. Una funzione non deve mai restituire l'indirizzo di una propria variabile locale automatica.",
+      "nota_standard": "indefinito: il passaggio per puntatore su oggetti ancora vivi è definito dallo standard C23; usare il puntatore a una variabile locale automatica dopo il termine della funzione provoca comportamento indefinito."
+    },
+    {
+      "id": "10.R6",
+      "enunciato": "Il qualificatore const applicato ai puntatori distingue tra dati puntati costanti (const T *p: p è modificabile, *p no), puntatore costante (T *const p: *p è modificabile, p no) ed entrambi costanti (const T *const p). La conversione implicita da T * a const T * è sempre consentita; la conversione inversa non è consentita senza cast e modificare un oggetto definito const provoca comportamento indefinito. In C23 strchr, strrchr, strstr e strpbrk preservano const sul puntatore restituito.",
+      "nota_standard": "indefinito: le regole di qualificazione const sui puntatori e la preservazione di const nelle funzioni di ricerca su stringhe sono definite dallo standard C23; tentare di modificare un oggetto definito const tramite un puntatore non const provoca comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout (incluso %td per ptrdiff_t) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "putchar",
+      "firma": "int putchar(int c);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il carattere c su stdout e restituisce il carattere scritto oppure EOF in caso di errore."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce il numero di caratteri della stringa s che precedono il terminatore nullo '\\0'."
+    },
+    {
+      "nome": "strncmp",
+      "firma": "int strncmp(const char *s1, const char *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta al più i primi n caratteri di s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strchr",
+      "firma": "char *strchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza di (char)c in s e restituisce il puntatore corrispondente (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "strrchr",
+      "firma": "char *strrchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca l'ultima occorrenza di (char)c in s e restituisce il puntatore corrispondente (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "strstr",
+      "firma": "char *strstr(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza della sottostringa s2 in s1 e restituisce il puntatore corrispondente (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "strcspn",
+      "firma": "size_t strcspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto solo da caratteri assenti in s2."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "10.1",
+      "titolo": "Indirizzi di memoria, & e *",
+      "contenuti": [
+        "Modello della memoria come sequenza contigua di byte numerati da un indirizzo di memoria (schema in blocco text con variabile int, indirizzo simbolico e variabile puntatore)",
+        "Operatore indirizzo & per ricavare l'indirizzo di una variabile (spiegando finalmente l'idioma &var usato in sscanf dal capitolo 5)",
+        "Dichiarazione e inizializzazione di un puntatore (int *p = &x;), riassegnazione di p a un altro oggetto e trabocchetto sintattico di int* a, b;",
+        "Operatore di dereferenziazione * per leggere e modificare l'oggetto puntato (*p = *p + 1;)",
+        "Dimensione uniforme dei puntatori con sizeof(p), pericolo dei puntatori non inizializzati e nota su %p (gli indirizzi variano a ogni esecuzione e non vanno confrontati sul valore numerico ma tramite == e !=)"
+      ],
+      "esempio_guidato": "Un programma con due contatori int a = 10 e int b = 25 e un puntatore int *p = &a che legge *p, aggiorna a tramite *p += 5, sposta p = &b per aggiornare b, verifica p == &b con un confronto di indirizzi e stampa sizeof(int *) e sizeof(double *) senza usare %p.",
+      "approfondimento": "Perché un puntatore porta con sé il tipo puntato (int * contro double *): conoscere il tipo consente al compilatore di sapere quanti byte accedere durante la dereferenziazione e impedisce assegnazioni tra puntatori incompatibili.",
+      "esercizio_id": "10.1"
+    },
+    {
+      "id": "10.2",
+      "titolo": "Puntatori nulli: nullptr e NULL",
+      "contenuti": [
+        "Cos'è un puntatore nullo e perché inizializzare ogni puntatore che non punta ancora a un oggetto a nullptr",
+        "Confronto tra la parola chiave C23 nullptr e la macro storica NULL (con box C23 che spiega come usare NULL sui compilatori C17/C11)",
+        "Dereferenziazione di un puntatore nullo come comportamento indefinito (illustrata solo in un frammento esplicitamente vietato)",
+        "Controlli difensivi con la valutazione a corto circuito: if (p != nullptr && *p > 0)",
+        "Uso del puntatore nullo come valore di ritorno per segnalare assenza di risultato (collegamento con fgets, strchr e strstr)"
+      ],
+      "esempio_guidato": "Un programma con una funzione const int *cerca_primo_negativo(const int a[], size_t n) che restituisce l'indirizzo del primo valore negativo oppure nullptr; main la chiama su due array (uno con negativi, uno senza), protegge sempre la dereferenziazione con if (p != nullptr) e verifica l'uguaglianza nullptr == NULL.",
+      "approfondimento": "Perché in C23 nullptr migliora la sicurezza rispetto a NULL: la macro NULL può espandersi al semplice intero 0, causando ambiguità in alcuni contesti, mentre nullptr ha un tipo dedicato non convertibile implicitamente a int.",
+      "esercizio_id": "10.2"
+    },
+    {
+      "id": "10.3",
+      "titolo": "Il legame tra puntatori e array",
+      "contenuti": [
+        "Decadimento di array: conversione automatica del nome di un array T[N] in un puntatore T * al suo primo elemento (&a[0]) nella maggior parte delle espressioni",
+        "Le eccezioni al decadimento: sizeof(a), &a e l'inizializzazione di array di char da letterale stringa",
+        "Equivalenza tra a[i] e *(a + i) e uso di p[i] su qualsiasi puntatore a un elemento di array",
+        "Spiegazione definitiva del capitolo 8: i parametri funzione int a[] equivalgono a int *a (per questo la funzione modifica l'array originale e sizeof(a) restituisce la dimensione di un puntatore)",
+        "Differenze tra array (non riassegnabile) e puntatore (riassegnabile a elementi intermedi o altri array), più distinzione tra char buf[] = \"ciao\" e const char *msg = \"ciao\""
+      ],
+      "esempio_guidato": "Un programma che confronta sizeof(valori) con sizeof(p) per int valori[5] e int *p = valori, dimostra valori == &valori[0] e l'equivalenza tra valori[i], p[i] e *(p + i), sposta p = &valori[2] per elaborare una porzione dell'array e stampa un letterale stringa tramite const char *.",
+      "approfondimento": "Perché un letterale stringa va sempre associato a const char * e mai modificato: il C consente al compilatore di memorizzare i letterali stringa in memoria di sola lettura o condividerli, rendendo ogni scrittura comportamento indefinito.",
+      "esercizio_id": "10.3"
+    },
+    {
+      "id": "10.4",
+      "titolo": "Aritmetica dei puntatori e ptrdiff_t",
+      "contenuti": [
+        "Scalatura automatica dell'aritmetica dei puntatori: p + k avanza di k * sizeof(*p) byte (schema in blocco text per un array di int e uno di char)",
+        "Incremento (++p), decremento (--p), spostamenti (p + k, p - k) e scansione con coppia di puntatori [inizio, fine) dove fine = a + n",
+        "Sottrazione di puntatori allo stesso array (q - p): tipo ptrdiff_t in <stddef.h> e specificatore %td",
+        "Regole di validità dello standard: a + n si può formare e confrontare ma mai dereferenziare; formare a - 1 o confrontare/sottrarre puntatori ad array distinti è comportamento indefinito",
+        "Applicazione pratica con <string.h>: ricavare indici e distanze dai puntatori restituiti da strchr, strrchr e strstr"
+      ],
+      "esempio_guidato": "Un programma che scorre un array di double con una coppia di puntatori [inizio, fine) calcolando gli indici con ptrdiff_t (%td) e poi usa strchr e strstr su una stringa per ricavare la posizione esatta delle occorrenze tramite sottrazione di puntatori.",
+      "approfondimento": "Perché ptrdiff_t è un tipo intero con segno (diverso da size_t): la differenza p - q è negativa se p precede q e su piattaforme a 64 bit deve poter rappresentare distanze superiori a INT_MAX.",
+      "esercizio_id": "10.4"
+    },
+    {
+      "id": "10.5",
+      "titolo": "Passaggio per puntatore",
+      "contenuti": [
+        "Superare il limite del solo passaggio per valore: passare &variabile a un parametro puntatore T * per modificare oggetti del chiamante (schema in blocco text della chiamata a scambia(&x, &y))",
+        "Terminologia corretta in C: passaggio per puntatore (mai \"passaggio per riferimento\"), spiegando che l'indirizzo stesso viene copiato per valore",
+        "Parametri di uscita (output parameters) per restituire più valori da una funzione abbinati a un valore di ritorno bool che segnala successo o errore",
+        "Controllo di puntatori nulli nei parametri di ingresso/uscita e progettazione di parametri di uscita opzionali (che il chiamante può passare come nullptr)",
+        "Errore fatale: restituire un puntatore a una variabile locale automatica (durata di vita scaduta, comportamento indefinito; mostrato solo in un frammento esplicitamente vietato con rinvio al capitolo 14)"
+      ],
+      "esempio_guidato": "Un programma con scambia(int *a, int *b), dividi_sicuro(int num, int den, int *quoz, int *resto) e statistiche(const int *a, size_t n, int *min_out, int *max_out, double *media_out) che accetta nullptr per i risultati non richiesti, affiancato da un breve frammento vietato che restituisce l'indirizzo di una variabile locale.",
+      "approfondimento": "Perché modificare il parametro puntatore stesso (p = &altro;) dentro una funzione non altera il puntatore del chiamante: per modificare un puntatore del chiamante servono i puntatori a puntatori (lo vedremo nel capitolo 14).",
+      "esercizio_id": "10.5"
+    },
+    {
+      "id": "10.6",
+      "titolo": "const e puntatori",
+      "contenuti": [
+        "Le quattro combinazioni di const con i puntatori: T *p, const T *p (puntatore a dato costante), T *const p (puntatore costante a dato mutabile) e const T *const p",
+        "Regola di lettura da destra verso sinistra delle dichiarazioni con * e const (e equivalenza tra const int *p e int const *p)",
+        "Conversione sicura implicita da T * a const T * e divieto di scartare const per modificare un oggetto definito const (comportamento indefinito)",
+        "Progettare firme di funzioni chiare usando const T * per i parametri di sola lettura e T * (o T *const) per i parametri di uscita/modifica",
+        "Novità C23: preservazione di const in strchr, strrchr, strstr e strpbrk (con box C23 che segnala il comportamento nei compilatori C17/C11)"
+      ],
+      "esempio_guidato": "Un programma che dimostra const int *p_dati (riassegnabile, dato bloccato), int *const p_fisso (puntatore bloccato, dato modificabile) e const int *const p_bloccato, usa strrchr su const char * in C23 per trovare l'estensione di un percorso e affianca due brevi blocchi di tipo errore che violano i vincoli di const.",
+      "approfondimento": "La regola mnemonica per leggere const: const qualifica sempre ciò che si trova immediatamente alla sua sinistra, oppure ciò che si trova alla sua destra se apre la dichiarazione.",
+      "esercizio_id": "10.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "10.1",
+      "tipo": "esercizio",
+      "titolo": "Controllo di due serbatoi tramite puntatore selettore",
+      "descrizione": "Scrivi un programma C che gestisca i livelli in litri di due serbatoi (`double serbatoio_a` e `double serbatoio_b`) usando un puntatore `double *attivo = &serbatoio_a;` che punta di volta in volta al serbatoio selezionato. Leggi dalla prima riga di `stdin` i due livelli iniziali (`double >= 0.0`, validati con `sscanf(riga, \"%lf %lf %c\", &serbatoio_a, &serbatoio_b, &extra) == 2`). Leggi poi fino alla fine dell'input una sequenza di comandi (uno per riga): `S A` sposta `attivo` su `&serbatoio_a`; `S B` sposta `attivo` su `&serbatoio_b`; `A <delta>` somma `delta` (`double`) al serbatoio puntato tramite `*attivo += delta;` (se `*attivo < 0.0`, azzera `*attivo = 0.0;`); `D` raddoppia il livello del serbatoio puntato tramite `*attivo *= 2.0;`. In caso di comando o formato non valido stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Al termine stampa quale serbatoio è attivo (usando il confronto di indirizzi `attivo == &serbatoio_a`), il valore letto attraverso `*attivo` e i livelli finali di entrambi i serbatoi con due cifre decimali, esattamente come nell'esempio di esecuzione (senza stampare indirizzi con `%p`).",
+      "concetti_da_tenere_a_mente": [
+        "operatore indirizzo & per ottenere l'indirizzo di una variabile",
+        "dichiarazione e riassegnazione di un puntatore double *",
+        "dereferenziazione * per leggere e modificare la variabile puntata",
+        "confronto tra puntatori con == senza dipendere dai valori numerici degli indirizzi"
+      ],
+      "domande_guida": [
+        "Quale operatore usi per fare in modo che il puntatore attivo memorizzi l'indirizzo di serbatoio_a o di serbatoio_b?",
+        "Che differenza c'è tra scrivere attivo = &serbatoio_b e scrivere *attivo = serbatoio_b?",
+        "Come puoi determinare alla fine quale serbatoio è selezionato usando solo il puntatore attivo e gli indirizzi dei due serbatoi?",
+        "Perché quando esegui *attivo *= 2.0 viene aggiornato automaticamente il serbatoio corretto senza bisogno di un if su A o B?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "10.0 25.0\nA 5.5\nS B\nD\nA -60.0\nS A\nD\n",
+          "output": "Serbatoio attivo: A\nLivello attivo (*attivo): 31.00 L\nSerbatoio A: 31.00 L\nSerbatoio B: 0.00 L\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0.0 12.5\n",
+          "output": "Serbatoio attivo: A\nLivello attivo (*attivo): 0.00 L\nSerbatoio A: 0.00 L\nSerbatoio B: 12.50 L\n"
+        },
+        {
+          "input": "4.0 8.0\nS B\nA 2.25\nD\n",
+          "output": "Serbatoio attivo: B\nLivello attivo (*attivo): 20.50 L\nSerbatoio A: 4.00 L\nSerbatoio B: 20.50 L\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    double serbatoio_a = 0.0, serbatoio_b = 0.0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lf %lf %c\", &serbatoio_a, &serbatoio_b, &extra) != 2 ||\n        serbatoio_a < 0.0 || serbatoio_b < 0.0) {\n        fprintf(stderr, \"Errore: livelli iniziali non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    double *attivo = &serbatoio_a;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        char cmd = '\\0', bersaglio = '\\0';\n        double delta = 0.0;\n        if (sscanf(riga, \" %c\", &cmd) != 1) {\n            continue;\n        }\n        if (cmd == 'S' && sscanf(riga, \" S %c %c\", &bersaglio, &extra) == 1) {\n            if (bersaglio == 'A') { attivo = &serbatoio_a; }\n            else if (bersaglio == 'B') { attivo = &serbatoio_b; }\n            else {\n                fprintf(stderr, \"Errore: serbatoio sconosciuto.\\n\");\n                return EXIT_FAILURE;\n            }\n        } else if (cmd == 'A' && sscanf(riga, \" A %lf %c\", &delta, &extra) == 1) {\n            *attivo += delta;\n            if (*attivo < 0.0) { *attivo = 0.0; }\n        } else if (cmd == 'D' && sscanf(riga, \" %c %c\", &cmd, &extra) == 1) {\n            *attivo *= 2.0;\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n\n    char nome_attivo = (attivo == &serbatoio_a) ? 'A' : 'B';\n    printf(\"Serbatoio attivo: %c\\n\", nome_attivo);\n    printf(\"Livello attivo (*attivo): %.2f L\\n\", *attivo);\n    printf(\"Serbatoio A: %.2f L\\n\", serbatoio_a);\n    printf(\"Serbatoio B: %.2f L\\n\", serbatoio_b);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "10.2",
+      "tipo": "esercizio",
+      "titolo": "Ricerca e correzione sicura con puntatori e nullptr",
+      "descrizione": "Scrivi un programma C che dichiari prima di `main` i prototipi di due funzioni che restituiscono un puntatore a un elemento di un array oppure `nullptr` se nessun elemento soddisfa il criterio: `int *trova_massimo(int dati[], size_t n)` (restituisce l'indirizzo del massimo, scegliendo il primo in caso di parità, oppure `nullptr` se `n == 0`) e `int *trova_primo_oltre_soglia(int dati[], size_t n, int soglia)` (restituisce l'indirizzo del primo elemento strettamente maggiore di `soglia`, oppure `nullptr` se assente). In `main` leggi dalla prima riga di `stdin` `n soglia` (`0 <= n <= 20`) e dalle successive `n` righe gli `n` interi dell'array `int misure[20] = {0};` (in caso di errore di input stampa su `stderr` e restituisci `EXIT_FAILURE`). Chiama `trova_massimo`: se restituisce `nullptr`, stampa `Massimo: nessuno (array vuoto)`; altrimenti stampa `Massimo: <val>` dereferenziando il puntatore. Chiama poi `trova_primo_oltre_soglia`: se restituisce `nullptr`, stampa `Oltre soglia: nessuno`; altrimenti stampa `Primo oltre soglia: <val>`, porta quell'elemento a `soglia` direttamente tramite `*p_oltre = soglia;` e stampa tutti gli elementi dell'array aggiornato su una riga (separati da spazio) esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "puntatore nullo con nullptr (C23)",
+        "restituzione di un puntatore a un elemento di array oppure nullptr",
+        "controllo obbligatorio p != nullptr prima della dereferenziazione",
+        "modifica diretta di un elemento trovato tramite *p = valore"
+      ],
+      "domande_guida": [
+        "Perché le due funzioni restituiscono nullptr invece di un valore sentinella come -1 quando non trovano un elemento valido?",
+        "Che cosa succederebbe se dereferenziassi p_max nel caso limite n == 0 senza aver controllato prima p_max != nullptr?",
+        "Come mai assegnare *p_oltre = soglia in main modifica proprio l'elemento corrispondente dentro l'array misure?",
+        "Perché è sicuro restituire &dati[i] da trova_massimo quando dati appartiene a main?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "5 50\n30\n65\n40\n80\n50\n",
+          "output": "Massimo: 80\nPrimo oltre soglia: 65\nDati aggiornati: 30 50 40 80 50\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 50\n",
+          "output": "Massimo: nessuno (array vuoto)\nOltre soglia: nessuno\n"
+        },
+        {
+          "input": "3 100\n-20\n-5\n100\n",
+          "output": "Massimo: 100\nOltre soglia: nessuno\n"
+        },
+        {
+          "input": "4 -10\n-20\n-5\n-5\n-30\n",
+          "output": "Massimo: -5\nPrimo oltre soglia: -5\nDati aggiornati: -20 -10 -5 -30\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nint *trova_massimo(int dati[], size_t n);\nint *trova_primo_oltre_soglia(int dati[], size_t n, int soglia);\n\nint main(void) {\n    constexpr size_t MAX_ELEM = 20;\n    int misure[MAX_ELEM] = {0};\n    char riga[128];\n    int n_in = 0, soglia = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &n_in, &soglia, &extra) != 2 ||\n        n_in < 0 || n_in > (int)MAX_ELEM) {\n        fprintf(stderr, \"Errore: parametri non validi (n in 0..20).\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    for (size_t i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %c\", &misure[i], &extra) != 1) {\n            fprintf(stderr, \"Errore: misura non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n\n    int *p_max = trova_massimo(misure, n);\n    if (p_max != nullptr) {\n        printf(\"Massimo: %d\\n\", *p_max);\n    } else {\n        printf(\"Massimo: nessuno (array vuoto)\\n\");\n    }\n\n    int *p_oltre = trova_primo_oltre_soglia(misure, n, soglia);\n    if (p_oltre != nullptr) {\n        printf(\"Primo oltre soglia: %d\\n\", *p_oltre);\n        *p_oltre = soglia;\n        printf(\"Dati aggiornati:\");\n        for (size_t i = 0; i < n; ++i) { printf(\" %d\", misure[i]); }\n        putchar('\\n');\n    } else {\n        printf(\"Oltre soglia: nessuno\\n\");\n    }\n    return EXIT_SUCCESS;\n}\n\nint *trova_massimo(int dati[], size_t n) {\n    if (n == 0) { return nullptr; }\n    int *migliore = &dati[0];\n    for (size_t i = 1; i < n; ++i) {\n        if (dati[i] > *migliore) { migliore = &dati[i]; }\n    }\n    return migliore;\n}\n\nint *trova_primo_oltre_soglia(int dati[], size_t n, int soglia) {\n    for (size_t i = 0; i < n; ++i) {\n        if (dati[i] > soglia) { return &dati[i]; }\n    }\n    return nullptr;\n}\n"
+    },
+    {
+      "id": "10.3",
+      "tipo": "esercizio",
+      "titolo": "Finestre scorrevoli su array tramite decadimento e puntatori",
+      "descrizione": "Scrivi un programma C (`constexpr size_t MAX_DATI = 30;`) che dichiari prima di `main` i prototipi di due funzioni con parametro puntatore `const int *`: `int somma_finestra(const int *inizio, size_t k)` (somma i `k` elementi a partire da `inizio` usando `*(inizio + i)` oppure `inizio[i]`) e `void stampa_sequenza(const int *p, size_t n)` (stampa gli `n` elementi separati da un singolo spazio seguiti da ritorno a capo). In `main` leggi dalla prima riga di `stdin` `n k` (`1 <= k <= n <= 30`) e dalle successive `n` righe gli `n` valori interi dell'array `dati` (`-10'000..10'000`; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Stampa l'intera serie passando `dati` a `stampa_sequenza` (decadimento di array). Quindi esamina tutte le finestre contigue di lunghezza `k` (per `i` da `0` a `n - k` inclusi), passando `&dati[i]` a `somma_finestra`: stampa la somma di ciascuna finestra (`Finestra i: somma=...`) e conserva in un puntatore `const int *migliore` l'inizio della finestra di somma massima (in caso di parità mantieni la prima). Infine stampa la somma massima e gli elementi della finestra migliore chiamando `stampa_sequenza(migliore, k)`, esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "decadimento di array al primo elemento nel passaggio a funzione",
+        "equivalenza tra parametri const int a[] e const int *a",
+        "puntatore a un elemento intermedio (&dati[i]) come sotto-array",
+        "equivalenza tra p[i] e *(p + i)"
+      ],
+      "domande_guida": [
+        "Perché puoi passare direttamente dati a stampa_sequenza(const int *p, size_t n) senza scrivere &dati[0]?",
+        "Come riesce somma_finestra(const int *inizio, size_t k) a lavorare su una qualsiasi porzione interna dell'array senza ricevere l'indice i?",
+        "Fino a quale valore può arrivare l'indice i di inizio finestra affinché inizio[k - 1] resti sempre dentro i limiti di dati?",
+        "Perché il puntatore migliore può essere passato direttamente a stampa_sequenza(migliore, k) al termine del ciclo?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "6 3\n4\n-1\n7\n2\n5\n-3\n",
+          "output": "Serie: 4 -1 7 2 5 -3\nFinestra 0: somma=10\nFinestra 1: somma=8\nFinestra 2: somma=14\nFinestra 3: somma=4\nSomma massima: 14\nFinestra migliore: 7 2 5\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "4 4\n-5\n-2\n-8\n-1\n",
+          "output": "Serie: -5 -2 -8 -1\nFinestra 0: somma=-16\nSomma massima: -16\nFinestra migliore: -5 -2 -8 -1\n"
+        },
+        {
+          "input": "4 2\n3\n5\n3\n5\n",
+          "output": "Serie: 3 5 3 5\nFinestra 0: somma=8\nFinestra 1: somma=8\nFinestra 2: somma=8\nSomma massima: 8\nFinestra migliore: 3 5\n"
+        },
+        {
+          "input": "3 1\n-10\n0\n-2\n",
+          "output": "Serie: -10 0 -2\nFinestra 0: somma=-10\nFinestra 1: somma=0\nFinestra 2: somma=-2\nSomma massima: 0\nFinestra migliore: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nint somma_finestra(const int *inizio, size_t k);\nvoid stampa_sequenza(const int *p, size_t n);\n\nint main(void) {\n    constexpr size_t MAX_DATI = 30;\n    int dati[MAX_DATI] = {0};\n    char riga[128];\n    int n_in = 0, k_in = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &n_in, &k_in, &extra) != 2 ||\n        n_in < 1 || n_in > (int)MAX_DATI || k_in < 1 || k_in > n_in) {\n        fprintf(stderr, \"Errore: parametri n e k non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in, k = (size_t)k_in;\n    for (size_t i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %c\", &dati[i], &extra) != 1 ||\n            dati[i] < -10'000 || dati[i] > 10'000) {\n            fprintf(stderr, \"Errore: valore non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n\n    printf(\"Serie: \");\n    stampa_sequenza(dati, n);\n    const int *migliore = &dati[0];\n    int somma_max = somma_finestra(migliore, k);\n    for (size_t i = 0; i <= n - k; ++i) {\n        const int *finestra = &dati[i];\n        int somma = somma_finestra(finestra, k);\n        printf(\"Finestra %zu: somma=%d\\n\", i, somma);\n        if (somma > somma_max) {\n            somma_max = somma;\n            migliore = finestra;\n        }\n    }\n    printf(\"Somma massima: %d\\n\", somma_max);\n    printf(\"Finestra migliore: \");\n    stampa_sequenza(migliore, k);\n    return EXIT_SUCCESS;\n}\n\nint somma_finestra(const int *inizio, size_t k) {\n    int somma = 0;\n    for (size_t i = 0; i < k; ++i) {\n        somma += *(inizio + i);\n    }\n    return somma;\n}\n\nvoid stampa_sequenza(const int *p, size_t n) {\n    for (size_t i = 0; i < n; ++i) {\n        if (i > 0) { putchar(' '); }\n        printf(\"%d\", p[i]);\n    }\n    putchar('\\n');\n}\n"
+    },
+    {
+      "id": "10.4",
+      "tipo": "esercizio",
+      "titolo": "Distanze tra delimitatori e inversione di intervalli con aritmetica dei puntatori",
+      "descrizione": "Scrivi un programma C che includa `<stddef.h>`, `<stdio.h>`, `<stdlib.h>` e `<string.h>` e dichiari prima di `main` i prototipi di due funzioni basate su aritmetica dei puntatori: `ptrdiff_t lunghezza_ptr(const char *s)` (avanza un puntatore `p` finché `*p != '\\0'` e restituisce `p - s`) e `void inverti_intervallo(char *inizio, char *fine)` (inverte sul posto i caratteri nell'intervallo semiaperto `[inizio, fine)` senza dereferenziare mai `fine`). In `main` leggi due righe da `stdin`: la prima è una stringa `testo` (buffer `128` byte, rimuovendo `'\\n'` con `strcspn`), la seconda contiene un solo carattere delimitatore `sep` validato con `sscanf(riga_s, \" %c %c\", &sep, &extra) == 1` (in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Calcola `ptrdiff_t len = lunghezza_ptr(testo);` e cerca prima e ultima occorrenza di `sep` con `strchr` e `strrchr`. Se `sep` non compare, stampa `Lunghezza: <len>`, `Delimitatore '<sep>' assente.`, chiama `inverti_intervallo(testo, testo + len)` e stampa `Risultato: <testo>`. Se `sep` compare, conta tutte le occorrenze avanzando un puntatore `const char *cur = prima;` con `strchr` e `++cur`, calcola con `ptrdiff_t` gli indici della prima (`prima - testo`), dell'ultima (`ultima - testo`) e la distanza (`ultima - prima`), poi se `ultima > prima + 1` inverte solo i caratteri strettamente compresi tra la prima e l'ultima occorrenza chiamando `inverti_intervallo(prima + 1, ultima)`. Stampa tutti i valori con `%td` e il risultato finale esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "aritmetica dei puntatori (++p, --p, p + k, q - p)",
+        "tipo ptrdiff_t (<stddef.h>) e specificatore %td",
+        "intervallo semiaperto [inizio, fine) senza dereferenziare fine",
+        "calcolo degli indici a partire dai puntatori restituiti da strchr e strrchr"
+      ],
+      "domande_guida": [
+        "Perché in lunghezza_ptr la sottrazione p - s restituisce un valore di tipo ptrdiff_t e quale specificatore di formato usi in printf?",
+        "In inverti_intervallo(char *inizio, char *fine), perché il puntatore destro va decrementato prima di dereferenziarlo e perché il ciclo usa sx < dx?",
+        "Come fai a evitare di contare sempre la stessa occorrenza del delimitatore nel ciclo con strchr(cur, sep)?",
+        "Perché quando prima e ultima coincidono (una sola occorrenza) oppure sono adiacenti (ultima == prima + 1) l'intervallo [prima + 1, ultima) non contiene caratteri da invertire?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "uno/due/tre/quattro\n/\n",
+          "output": "Lunghezza: 19\nOccorrenze di '/': 3\nPrima: 3, ultima: 11, distanza: 8\nRisultato: uno/ert/eud/quattro\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "abcdef\n:\n",
+          "output": "Lunghezza: 6\nDelimitatore ':' assente.\nRisultato: fedcba\n"
+        },
+        {
+          "input": "inizio-fine\n-\n",
+          "output": "Lunghezza: 11\nOccorrenze di '-': 1\nPrima: 6, ultima: 6, distanza: 0\nRisultato: inizio-fine\n"
+        },
+        {
+          "input": "a--b\n-\n",
+          "output": "Lunghezza: 4\nOccorrenze di '-': 2\nPrima: 1, ultima: 2, distanza: 1\nRisultato: a--b\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nptrdiff_t lunghezza_ptr(const char *s);\nvoid inverti_intervallo(char *inizio, char *fine);\n\nint main(void) {\n    char testo[128], riga_s[32];\n    char sep = '\\0', extra = '\\0';\n    if (fgets(testo, (int)sizeof(testo), stdin) == nullptr ||\n        fgets(riga_s, (int)sizeof(riga_s), stdin) == nullptr ||\n        sscanf(riga_s, \" %c %c\", &sep, &extra) != 1) {\n        fprintf(stderr, \"Errore: input non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    testo[strcspn(testo, \"\\n\")] = '\\0';\n    ptrdiff_t len = lunghezza_ptr(testo);\n    printf(\"Lunghezza: %td\\n\", len);\n\n    char *prima = strchr(testo, (unsigned char)sep);\n    if (prima == nullptr) {\n        printf(\"Delimitatore '%c' assente.\\n\", sep);\n        inverti_intervallo(testo, testo + len);\n        printf(\"Risultato: %s\\n\", testo);\n        return EXIT_SUCCESS;\n    }\n    char *ultima = strrchr(testo, (unsigned char)sep);\n    int occ = 0;\n    const char *cur = prima;\n    while ((cur = strchr(cur, (unsigned char)sep)) != nullptr) {\n        ++occ;\n        ++cur;\n    }\n    printf(\"Occorrenze di '%c': %d\\n\", sep, occ);\n    printf(\"Prima: %td, ultima: %td, distanza: %td\\n\",\n           prima - testo, ultima - testo, ultima - prima);\n    if (ultima > prima + 1) {\n        inverti_intervallo(prima + 1, ultima);\n    }\n    printf(\"Risultato: %s\\n\", testo);\n    return EXIT_SUCCESS;\n}\n\nptrdiff_t lunghezza_ptr(const char *s) {\n    const char *p = s;\n    while (*p != '\\0') { ++p; }\n    return p - s;\n}\n\nvoid inverti_intervallo(char *inizio, char *fine) {\n    char *sx = inizio;\n    char *dx = fine;\n    while (sx < dx) {\n        --dx;\n        char tmp = *sx;\n        *sx = *dx;\n        *dx = tmp;\n        ++sx;\n    }\n}\n"
+    },
+    {
+      "id": "10.5",
+      "tipo": "esercizio",
+      "titolo": "Ordinamento e scomposizione di tempi di gara con passaggio per puntatore",
+      "descrizione": "Scrivi un programma C che dichiari prima di `main` i prototipi di tre funzioni basate sul passaggio per puntatore: `void scambia_int(int *a, int *b)` (se entrambi i puntatori sono diversi da `nullptr`, scambia `*a` e `*b`), `void ordina_tre(int *a, int *b, int *c)` (ordina in senso non decrescente `*a <= *b <= *c` richiamando `scambia_int`) e `bool scomponi_secondi(int secondi_totali, int *ore, int *minuti, int *secondi)` (se `secondi_totali < 0` restituisce `false` senza modificare alcun parametro di uscita; altrimenti scrive ore `tot / 3600`, minuti `(tot % 3600) / 60` e secondi `tot % 60` in ciascun puntatore di uscita diverso da `nullptr` — supportando parametri di uscita opzionali — e restituisce `true`). In `main` leggi da `stdin` una riga contenente tre tempi interi in secondi `t1 t2 t3` (ciascuno compreso tra `0` e `86'399` inclusi, validati con `\"%d %d %d %c\"` == `3`; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Ordina `t1`, `t2`, `t3` chiamando `ordina_tre(&t1, &t2, &t3)`. Stampa i tre tempi ordinati in formato `HH:MM:SS (T s)` usando `scomponi_secondi`, calcola e stampa il distacco `t3 - t1` con `scomponi_secondi`, e infine estrai solo i secondi residui del tempo mediano `t2` passando `nullptr` per ore e minuti (`scomponi_secondi(t2, nullptr, nullptr, &sec_med)`), producendo l'output esatto dell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "passaggio per puntatore per modificare variabili del chiamante",
+        "composizione di funzioni su puntatori (ordina_tre chiama scambia_int)",
+        "parametri di uscita abbinati a un valore di ritorno bool",
+        "supporto sicuro a parametri di uscita opzionali (nullptr)"
+      ],
+      "domande_guida": [
+        "Perché ordina_tre passa direttamente a, b e c a scambia_int invece di scrivere &a, &b e &c?",
+        "Quali tre confronti e scambi in sequenza garantiscono che tre variabili finiscano sempre nell'ordine *a <= *b <= *c?",
+        "Come evita scomponi_secondi la dereferenziazione nulla quando il chiamante passa nullptr per i campi ore e minuti?",
+        "Perché restituire bool da scomponi_secondi è più sicuro che assumere che secondi_totali sia sempre non negativo?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3725 125 3600\n",
+          "output": "1o tempo: 00:02:05 (125 s)\n2o tempo: 01:00:00 (3600 s)\n3o tempo: 01:02:05 (3725 s)\nDistacco primo-ultimo: 01:00:00 (3600 s)\nSecondi residui del mediano: 0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 86399 45\n",
+          "output": "1o tempo: 00:00:00 (0 s)\n2o tempo: 00:00:45 (45 s)\n3o tempo: 23:59:59 (86399 s)\nDistacco primo-ultimo: 23:59:59 (86399 s)\nSecondi residui del mediano: 45\n"
+        },
+        {
+          "input": "500 500 500\n",
+          "output": "1o tempo: 00:08:20 (500 s)\n2o tempo: 00:08:20 (500 s)\n3o tempo: 00:08:20 (500 s)\nDistacco primo-ultimo: 00:00:00 (0 s)\nSecondi residui del mediano: 20\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid scambia_int(int *a, int *b);\nvoid ordina_tre(int *a, int *b, int *c);\nbool scomponi_secondi(int secondi_totali, int *ore, int *minuti, int *secondi);\n\nint main(void) {\n    char riga[128];\n    int t1 = 0, t2 = 0, t3 = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %d %c\", &t1, &t2, &t3, &extra) != 3 ||\n        t1 < 0 || t1 > 86'399 || t2 < 0 || t2 > 86'399 || t3 < 0 || t3 > 86'399) {\n        fprintf(stderr, \"Errore: tempi non validi (0..86399).\\n\");\n        return EXIT_FAILURE;\n    }\n\n    ordina_tre(&t1, &t2, &t3);\n    int tempi[3] = {t1, t2, t3};\n    for (int i = 0; i < 3; ++i) {\n        int h = 0, m = 0, s = 0;\n        scomponi_secondi(tempi[i], &h, &m, &s);\n        printf(\"%do tempo: %02d:%02d:%02d (%d s)\\n\", i + 1, h, m, s, tempi[i]);\n    }\n    int dh = 0, dm = 0, ds = 0, sec_med = 0;\n    scomponi_secondi(t3 - t1, &dh, &dm, &ds);\n    scomponi_secondi(t2, nullptr, nullptr, &sec_med);\n    printf(\"Distacco primo-ultimo: %02d:%02d:%02d (%d s)\\n\", dh, dm, ds, t3 - t1);\n    printf(\"Secondi residui del mediano: %d\\n\", sec_med);\n    return EXIT_SUCCESS;\n}\n\nvoid scambia_int(int *a, int *b) {\n    if (a == nullptr || b == nullptr) { return; }\n    int tmp = *a;\n    *a = *b;\n    *b = tmp;\n}\n\nvoid ordina_tre(int *a, int *b, int *c) {\n    if (a == nullptr || b == nullptr || c == nullptr) { return; }\n    if (*a > *b) { scambia_int(a, b); }\n    if (*b > *c) { scambia_int(b, c); }\n    if (*a > *b) { scambia_int(a, b); }\n}\n\nbool scomponi_secondi(int secondi_totali, int *ore, int *minuti, int *secondi) {\n    if (secondi_totali < 0) { return false; }\n    if (ore != nullptr) { *ore = secondi_totali / 3600; }\n    if (minuti != nullptr) { *minuti = (secondi_totali % 3600) / 60; }\n    if (secondi != nullptr) { *secondi = secondi_totali % 60; }\n    return true;\n}\n"
+    },
+    {
+      "id": "10.6",
+      "tipo": "esercizio",
+      "titolo": "Estrattore di coppie chiave=valore con const, puntatori e C23",
+      "descrizione": "Scrivi un programma C che includa `<ctype.h>`, `<stddef.h>`, `<stdio.h>`, `<stdlib.h>` e `<string.h>` per cercare ed estrarre i valori associati a una chiave da righe nel formato `chiave=valore`. Dichiara prima di `main` i prototipi di due funzioni con uso rigoroso di `const` sui puntatori: `const char *trova_valore(const char *riga, const char *chiave_attesa)` (cerca `'='` in `riga` tramite `const char *eq = strchr(riga, '=');` sfruttando la preservazione di `const` in C23; se `'='` è presente e la parte a sinistra coincide esattamente con `chiave_attesa`, restituisce `eq + 1`, altrimenti `nullptr`) e `bool copia_trim(const char *inizio, char *const dest, size_t cap, ptrdiff_t *lunghezza_out)` (salta gli spazi bianchi iniziali e finali tramite `isspace((unsigned char)...)` e aritmetica dei puntatori; se `inizio == nullptr || dest == nullptr || cap == 0` oppure la lunghezza ripulita `>= cap`, restituisce `false`; altrimenti copia i caratteri ripuliti in `dest` chiudendo con `'\\0'`, scrive la lunghezza in `*lunghezza_out` se non nullo e restituisce `true`). In `main` leggi dalla prima riga di `stdin` la chiave cercata (buffer `32` byte, non vuota dopo rimozione di `'\\n'`; se mancante o vuota stampa su `stderr` e restituisci `EXIT_FAILURE`). Leggi poi le righe di configurazione fino a fine input (`char riga[128]`), numerandole da `1`: per ogni riga in cui `trova_valore` restituisce un puntatore non nullo, chiama `copia_trim` in `char valore[32]`: se riesce incrementa `trovate` e stampa `Riga N: [<valore>] (len=<L>)`, altrimenti stampa `Riga N: valore troppo lungo`. Al termine stampa `Corrispondenze trovate: <trovate>`.",
+      "concetti_da_tenere_a_mente": [
+        "puntatore a dato costante (const char *) e puntatore costante a dato mutabile (char *const)",
+        "preservazione di const in strchr secondo lo standard C23",
+        "aritmetica dei puntatori e ptrdiff_t per isolare sottostringhe senza copiarle prima del controllo",
+        "cast a (unsigned char) in isspace e prevenzione del buffer overflow"
+      ],
+      "domande_guida": [
+        "Quale vincolo esprime la firma const char *trova_valore(const char *riga, const char *chiave_attesa) nei confronti della stringa passata dal chiamante?",
+        "Che differenza c'è tra il parametro const char *inizio e il parametro char *const dest nella funzione copia_trim?",
+        "Perché in copia_trim devi usare una variabile puntatore locale char *d = dest per scorrere la destinazione invece di scrivere ++dest?",
+        "Come evita trova_valore di confondere una chiave come \"porta\" con \"portata\" quando usa strncmp?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "host\n# commento\nhost=  localhost  \nport=8080\nhostname=server1\nhost=\t127.0.0.1\n",
+          "output": "Riga 2: [localhost] (len=9)\nRiga 5: [127.0.0.1] (len=9)\nCorrispondenze trovate: 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "chiave\nchiave=   \naltro=123\n",
+          "output": "Riga 1: [] (len=0)\nCorrispondenze trovate: 1\n"
+        },
+        {
+          "input": "url\nurl=  https://esempio.org/percorso/molto/lungo/di/test  \n",
+          "output": "Riga 1: valore troppo lungo\nCorrispondenze trovate: 0\n"
+        },
+        {
+          "input": "modo\nnessun_uguale\nmodo_extra=1\n",
+          "output": "Corrispondenze trovate: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconst char *trova_valore(const char *riga, const char *chiave_attesa);\nbool copia_trim(const char *inizio, char *const dest, size_t cap, ptrdiff_t *lunghezza_out);\n\nint main(void) {\n    char chiave[32], riga[128], valore[32];\n    if (fgets(chiave, (int)sizeof(chiave), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: chiave mancante.\\n\");\n        return EXIT_FAILURE;\n    }\n    chiave[strcspn(chiave, \"\\n\")] = '\\0';\n    if (chiave[0] == '\\0') {\n        fprintf(stderr, \"Errore: chiave vuota.\\n\");\n        return EXIT_FAILURE;\n    }\n    int num_riga = 0, trovate = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        ++num_riga;\n        riga[strcspn(riga, \"\\n\")] = '\\0';\n        const char *val = trova_valore(riga, chiave);\n        if (val == nullptr) { continue; }\n        ptrdiff_t len = 0;\n        if (copia_trim(val, valore, sizeof(valore), &len)) {\n            ++trovate;\n            printf(\"Riga %d: [%s] (len=%td)\\n\", num_riga, valore, len);\n        } else {\n            printf(\"Riga %d: valore troppo lungo\\n\", num_riga);\n        }\n    }\n    printf(\"Corrispondenze trovate: %d\\n\", trovate);\n    return EXIT_SUCCESS;\n}\n\nconst char *trova_valore(const char *riga, const char *chiave_attesa) {\n    if (riga == nullptr || chiave_attesa == nullptr) { return nullptr; }\n    const char *eq = strchr(riga, '=');\n    if (eq == nullptr) { return nullptr; }\n    size_t len_chiave = strlen(chiave_attesa);\n    if ((size_t)(eq - riga) != len_chiave || strncmp(riga, chiave_attesa, len_chiave) != 0) {\n        return nullptr;\n    }\n    return eq + 1;\n}\n\nbool copia_trim(const char *inizio, char *const dest, size_t cap, ptrdiff_t *lunghezza_out) {\n    if (inizio == nullptr || dest == nullptr || cap == 0) { return false; }\n    while (*inizio != '\\0' && isspace((unsigned char)*inizio)) { ++inizio; }\n    const char *fine = inizio + strlen(inizio);\n    while (fine > inizio && isspace((unsigned char)*(fine - 1))) { --fine; }\n    ptrdiff_t len = fine - inizio;\n    if ((size_t)len >= cap) { return false; }\n    char *d = dest;\n    for (const char *s = inizio; s < fine; ++s) { *d++ = *s; }\n    *d = '\\0';\n    if (lunghezza_out != nullptr) { *lunghezza_out = len; }\n    return true;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dereferenziare un puntatore non inizializzato o un puntatore nullo (nullptr/NULL), provocando comportamento indefinito.",
+    "Scrivere int* a, b; pensando che entrambi siano puntatori: in realtà solo a ha tipo int *, mentre b è un semplice int.",
+    "Confondere il puntatore (p) con il dato puntato (*p), per esempio assegnando un intero direttamente a p oppure confrontando *p == nullptr invece di p == nullptr.",
+    "Restituire da una funzione l'indirizzo di una variabile locale automatica, che cessa di esistere non appena la funzione termina.",
+    "Dereferenziare il puntatore a + n (uno oltre la fine dell'array) oppure sottrarre o confrontare con < puntatori che appartengono ad array diversi.",
+    "Confondere const int *p (dato costante, puntatore modificabile) con int *const p (puntatore costante, dato modificabile) oppure tentare di modificare un letterale stringa tramite un puntatore."
+  ],
+  "differenze_python": [
+    "In Python i riferimenti agli oggetti sono gestiti implicitamente dall'interprete e non esistono indirizzi di memoria né aritmetica sui puntatori; in C i puntatori espongono direttamente gli indirizzi e richiedono disciplina esplicita su validità e limiti.",
+    "In Python una funzione può restituire più valori con una tupla; in C per restituire più risultati o modificare variabili del chiamante si usa spesso il passaggio per puntatore con parametri di uscita.",
+    "In Python il valore assente è None e accedervi solleva un'eccezione controllata (AttributeError o TypeError); in C il puntatore nullo è nullptr (o NULL) e dereferenziarlo senza controllo provoca comportamento indefinito."
+  ]
+}
