@@ -1,0 +1,46 @@
+{
+  "titolo_libro": "C - Il linguaggio di programmazione",
+  "lingua": "it",
+  "standard_c": "C23",
+  "capitoli_min": 16,
+  "capitoli_max": 48,
+  "sotto_sezioni_min": 3,
+  "sotto_sezioni_max": 6,
+  "progetto_finale": true,
+  "capitolo_pilota": 10,
+  "ordine": "per_passo",
+  "max_cicli_audit": 2,
+  "parole_sezione": [
+    500,
+    2800
+  ],
+  "riassunto_stati_max_caratteri": 24000,
+  "compilatori": [
+    "gcc",
+    "clang",
+    "cc"
+  ],
+  "warning_come_errori": true,
+  "usa_sanitizer": true,
+  "timeout_esecuzione_secondi": 10,
+  "git_autocommit": true,
+  "registro_min": 80,
+  "glossario_min": 60,
+  "orchestratore": "Gemini 4 Neon (in alternativa Claude Opus 5.5)",
+  "esecutori": {
+    "P1": "Claude Sonnet 5.5",
+    "P2": "Claude Sonnet 5.5",
+    "P2B": "Gemini 4 Hydrogen",
+    "P3": "Claude Sonnet 5.5",
+    "P4": "Gemini 4 Hydrogen",
+    "P5": "Claude Sonnet 5.5",
+    "P6": "Gemini 4 Hydrogen",
+    "P7": "Gemini 4 Hydrogen"
+  },
+  "lotto_capitoli": {
+    "P2": 5,
+    "P3": 3,
+    "P4": 4,
+    "P5": 4
+  }
+}

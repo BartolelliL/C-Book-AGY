@@ -1,0 +1,15 @@
+{
+  "compilatore": "/usr/bin/gcc",
+  "std": "-std=c23",
+  "sanitizer": true,
+  "c23": {
+    "bool/true/false": true,
+    "nullptr": true,
+    "constexpr": true,
+    "typeof": true,
+    "auto (deduzione di tipo)": true,
+    "letterali binari 0b": true,
+    "separatori di cifre": true,
+    "[[maybe_unused]]": true
+  }
+}
