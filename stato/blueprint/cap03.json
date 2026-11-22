@@ -1,0 +1,416 @@
+{
+  "capitolo": 3,
+  "titolo": "Operatori ed espressioni",
+  "obiettivi": [
+    "Prevedere il risultato di espressioni aritmetiche, relazionali e logiche applicando precedenza e associatività",
+    "Distinguere la divisione intera dalla divisione in virgola mobile e usare l'operatore modulo",
+    "Controllare le conversioni di tipo implicite ed esplicite senza perdere informazioni",
+    "Usare le funzioni matematiche di <math.h> collegando correttamente la libreria matematica (-lm)",
+    "Riconoscere e prevenire l'overflow degli interi con segno e gli errori di arrotondamento in virgola mobile"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "espressione",
+      "definizione": "Combinazione di operandi e operatori che il programma valuta per produrre un valore o un effetto collaterale."
+    },
+    {
+      "termine": "precedenza degli operatori",
+      "definizione": "Regola che stabilisce in quale ordine gli operatori di un'espressione vengono raggruppati in assenza di parentesi."
+    },
+    {
+      "termine": "conversione implicita",
+      "definizione": "Trasformazione automatica di un valore da un tipo a un altro applicata dal compilatore secondo le regole del C."
+    },
+    {
+      "termine": "cast esplicito",
+      "definizione": "Operatore (tipo) con cui il programmatore richiede esplicitamente la conversione di un valore verso un tipo specifico."
+    },
+    {
+      "termine": "overflow",
+      "definizione": "Situazione in cui il risultato di un'operazione supera l'intervallo rappresentabile dal tipo di destinazione."
+    },
+    {
+      "termine": "comportamento indefinito",
+      "definizione": "Situazione per cui lo standard C non pone alcun vincolo: il programma può produrre qualunque risultato o interrompersi."
+    },
+    {
+      "termine": "comportamento dipendente dall'implementazione",
+      "definizione": "Comportamento che può variare tra compilatori o piattaforme, ma che ciascuna implementazione deve documentare."
+    },
+    {
+      "termine": "comportamento non specificato",
+      "definizione": "Comportamento per cui lo standard C ammette due o più possibilità senza obbligare il compilatore a documentare quale sceglie."
+    },
+    {
+      "termine": "virgola mobile",
+      "definizione": "Rappresentazione binaria approssimata dei numeri reali tramite mantissa ed esponente, usata da float e double."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "dichiarazione",
+    "inizializzazione",
+    "costante",
+    "specificatore di formato",
+    "operatore sizeof e costanti di <limits.h>"
+  ],
+  "regole": [
+    {
+      "id": "3.R1",
+      "enunciato": "Gli operatori aritmetici binari sono +, -, *, / e % (oltre a + e - unari). Quando entrambi gli operandi di / sono interi, la divisione è intera e tronca la parte frazionaria verso lo zero. L'operatore modulo % richiede operandi interi e produce il resto tale che (a / b) * b + a % b == a, con il segno del dividendo a se diverso da zero.",
+      "nota_standard": "indefinito: il troncamento verso lo zero e il segno del resto sono definiti dallo standard C23; dividere o calcolare il resto per zero su interi (o eseguire INT_MIN / -1 e INT_MIN % -1) provoca comportamento indefinito."
+    },
+    {
+      "id": "3.R2",
+      "enunciato": "Gli operatori vengono raggruppati per precedenza e associatività, mentre le parentesi tonde impongono sempre l'ordine di raggruppamento desiderato. Gli assegnamenti composti (+=, -=, *=, /=, %=) aggiornano la variabile a sinistra; ++x incrementa prima di produrre il valore, x++ produce il valore precedente e poi incrementa. Non bisogna mai modificare una variabile più volte, né leggerla e modificarla senza ordinamento, dentro la stessa espressione.",
+      "nota_standard": "indefinito: l'ordine di valutazione delle sotto-espressioni e degli argomenti di funzione è in genere comportamento non specificato; due modifiche non sequenziate (o una lettura e una modifica non sequenziate) sullo stesso oggetto provocano comportamento indefinito."
+    },
+    {
+      "id": "3.R3",
+      "enunciato": "Gli operatori relazionali (<, <=, >, >=) e di uguaglianza (==, !=) restituiscono un valore di tipo int pari a 1 (vero) o 0 (falso). Gli operatori logici (&&, ||, !) interpretano 0 come falso e ogni valore diverso da 0 come vero, e restituiscono int (1 o 0). Un intervallo come a <= x <= b va sempre scritto a <= x && x <= b.",
+      "nota_standard": "definito: i valori prodotti (0 o 1 di tipo int), la precedenza (! > relazionali > uguaglianza > && > ||) e l'ordine di valutazione da sinistra a destra di && e || sono definiti dallo standard C23."
+    },
+    {
+      "id": "3.R4",
+      "enunciato": "Nelle espressioni con tipi misti il C applica prima le promozioni intere (char, short e bool sono promossi a int) e poi le conversioni aritmetiche usuali verso il tipo comune. Il cast esplicito (tipo)espressione converte il valore al tipo indicato e ha precedenza superiore a *, / e %. Convertire un double a un tipo intero tronca la parte frazionaria verso lo zero.",
+      "nota_standard": "indefinito: le promozioni intere e le conversioni aritmetiche usuali sono definite dallo standard C23; convertire un valore in virgola mobile in un intero quando la parte intera non è rappresentabile nel tipo di destinazione provoca comportamento indefinito."
+    },
+    {
+      "id": "3.R5",
+      "enunciato": "Le funzioni matematiche fabs, sqrt, pow, floor, ceil, round e fmod sono dichiarate in <math.h>, accettano argomenti double e restituiscono double. Per collegare la libreria matematica in modo portabile occorre aggiungere -lm al termine del comando di compilazione.",
+      "nota_standard": "dipendente dall'implementazione: i risultati per argomenti validi sono definiti dallo standard C23, mentre la necessità del flag -lm e alcuni dettagli della segnalazione di errori di dominio (come sqrt di un numero negativo) dipendono dall'implementazione."
+    },
+    {
+      "id": "3.R6",
+      "enunciato": "L'overflow di un'operazione aritmetica su interi con segno (signed) è illegale e va prevenuto controllando i limiti prima del calcolo o usando un tipo più ampio. Gli interi senza segno (unsigned), invece, non vanno in overflow: il loro risultato viene ridotto automaticamente modulo 2^N (dove N è il numero di bit del tipo).",
+      "nota_standard": "indefinito: l'overflow degli interi con segno provoca comportamento indefinito in C23; l'aritmetica modulare sugli interi senza segno è comportamento definito dallo standard."
+    },
+    {
+      "id": "3.R7",
+      "enunciato": "I numeri in virgola mobile (float e double) rappresentano i numeri reali in base binaria con precisione finita (descritta dalle costanti di <float.h>: FLT_DIG, DBL_DIG, FLT_EPSILON, DBL_EPSILON, FLT_MIN, DBL_MIN, FLT_MAX, DBL_MAX). Poiché molti decimali come 0.1 non hanno rappresentazione binaria esatta, due risultati in virgola mobile si confrontano con fabs(a - b) <= tolleranza invece che con ==.",
+      "nota_standard": "dipendente dall'implementazione: il modello in virgola mobile e i requisiti minimi sulle costanti di <float.h> sono definiti dallo standard C23, mentre i valori concreti (tipicamente IEEE 754) dipendono dall'implementazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sull'uscita standard e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    },
+    {
+      "nome": "sqrt",
+      "firma": "double sqrt(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce la radice quadrata non negativa di x (per x >= 0)."
+    },
+    {
+      "nome": "pow",
+      "firma": "double pow(double x, double y);",
+      "header": "math.h",
+      "descrizione": "Restituisce x elevato alla potenza y."
+    },
+    {
+      "nome": "floor",
+      "firma": "double floor(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il più grande valore intero (come double) minore o uguale a x."
+    },
+    {
+      "nome": "ceil",
+      "firma": "double ceil(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il più piccolo valore intero (come double) maggiore o uguale a x."
+    },
+    {
+      "nome": "round",
+      "firma": "double round(double x);",
+      "header": "math.h",
+      "descrizione": "Arrotonda x al valore intero più vicino (come double), allontanando dallo zero i casi esattamente a metà."
+    },
+    {
+      "nome": "fmod",
+      "firma": "double fmod(double x, double y);",
+      "header": "math.h",
+      "descrizione": "Restituisce il resto in virgola mobile della divisione x / y con lo stesso segno di x."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "3.1",
+      "titolo": "Operatori aritmetici, divisione intera e resto",
+      "contenuti": [
+        "Cos'è un'espressione in C: combinazione di operandi e operatori che produce un valore",
+        "Operatori aritmetici binari (+, -, *, /, %) e operatori unari di segno (+, -)",
+        "Divisione intera contro divisione in virgola mobile: perché 7 / 2 vale 3 mentre 7.0 / 2.0 vale 3.5, e troncamento verso lo zero sui negativi (-7 / 2 vale -3)",
+        "Operatore modulo (%): applicabile solo a interi, calcolo del resto, usi pratici (scomposizione di quantità e divisibilità) e segno del resto (-7 % 2 vale -1)",
+        "Divieto di divisione e modulo per zero sugli interi come primo esempio di comportamento indefinito"
+      ],
+      "esempio_guidato": "Un programma che converte una durata di 3725 secondi in ore, minuti e secondi usando / e %, confronta 7 / 2 con 7.0 / 2.0 e stampa -7 / 2 e -7 % 2 per verificare la regola del segno.",
+      "approfondimento": "Perché in C la divisione intera tra negativi tronca verso lo zero e non verso meno infinito, e come vale sempre l'identità (a / b) * b + a % b == a.",
+      "esercizio_id": "3.1"
+    },
+    {
+      "id": "3.2",
+      "titolo": "Assegnamenti composti, incremento e precedenza",
+      "contenuti": [
+        "Assegnamenti composti (+=, -=, *=, /=, %=) per aggiornare una variabile in modo conciso e leggibile",
+        "Operatori di incremento (++) e decremento (--): differenza tra forma prefissa (++x) e forma postfissa (x++)",
+        "Precedenza degli operatori e associatività: raggruppamento di *, /, % prima di + e -, associatività a destra degli assegnamenti e ruolo delle parentesi tonde per rendere chiara ogni espressione",
+        "Ordine di valutazione delle sotto-espressioni come comportamento non specificato",
+        "Divieto di modificare una variabile più volte o di leggerla e modificarla senza ordinamento nella stessa espressione (per esempio i = i++ + 1 oppure printf(\"%d %d\", i, i++)): comportamento indefinito mostrato in un frammento esplicitamente vietato"
+      ],
+      "esempio_guidato": "Un programma che aggiorna il saldo di un salvadanaio con +=, -=, *= e %=, mostra con due variabili distinte l'effetto di ++a e b++ e confronta 2 + 3 * 4 con (2 + 3) * 4.",
+      "approfondimento": "Differenza tra precedenza degli operatori (come vengono raggruppati sintatticamente) e ordine di valutazione a tempo di esecuzione (spesso non specificato in C).",
+      "esercizio_id": "3.2"
+    },
+    {
+      "id": "3.3",
+      "titolo": "Operatori relazionali e logici",
+      "contenuti": [
+        "Operatori relazionali (<, <=, >, >=) e di uguaglianza (==, !=): il risultato è sempre un int che vale 1 (vero) o 0 (falso)",
+        "Errore classico tra assegnamento (=) e uguaglianza (==)",
+        "Operatori logici && (AND), || (OR) e ! (NOT): tabelle di verità, convenzione 0 = falso e diverso da 0 = vero, e uso di variabili bool per salvare risultati leggibili",
+        "Perché i confronti concatenati come 10 <= x <= 20 sono errati in C e vanno scritti 10 <= x && x <= 20",
+        "Precedenza relativa tra operatori aritmetici, relazionali, di uguaglianza e logici, con un rinvio alla valutazione a corto circuito (lo vedremo nel capitolo 4)"
+      ],
+      "esempio_guidato": "Un programma che verifica i requisiti di accesso a una giostra (età, altezza in centimetri e presenza di un accompagnatore), salvando ogni condizione in una variabile bool e stampando gli esiti (1 o 0).",
+      "approfondimento": "Le leggi di De Morgan (!(a && b) equivale a !a || !b e !(a || b) equivale a !a && !b) per semplificare e leggere senza errori le condizioni negate.",
+      "esercizio_id": "3.3"
+    },
+    {
+      "id": "3.4",
+      "titolo": "Conversioni di tipo implicite ed esplicite",
+      "contenuti": [
+        "Conversione implicita: promozioni intere (char, short e bool promossi a int nelle espressioni) e conversioni aritmetiche usuali tra tipi diversi (per esempio int e double)",
+        "Conversioni negli assegnamenti: troncamento verso lo zero da double a int e rischio di perdita di informazioni passando a un tipo più stretto",
+        "Cast esplicito (tipo)espressione: come ottenere una divisione in virgola mobile tra due int ((double)a / b) ed evitare l'errore di precedenza (double)(a / b)",
+        "Pericolo delle espressioni miste tra signed e unsigned (per esempio un negativo convertito a unsigned diventa un numero molto grande; -Wextra avvisa sui confronti misti)",
+        "Conversione da virgola mobile a intero fuori intervallo come comportamento indefinito"
+      ],
+      "esempio_guidato": "Un programma che calcola la media di tre voti interi (7, 8 e 8), confrontando somma / 3, (double)(somma / 3) e (double)somma / 3, mostrando poi il troncamento esplicito da double a int e la promozione intera di due variabili short.",
+      "approfondimento": "Come funzionano le conversioni aritmetiche usuali tra signed e unsigned di pari ampiezza e perché conviene evitare di mescolare interi con segno e senza segno nella stessa espressione.",
+      "esercizio_id": "3.4"
+    },
+    {
+      "id": "3.5",
+      "titolo": "Funzioni matematiche con <math.h>",
+      "contenuti": [
+        "Inclusione di <math.h> e compilazione portabile con -lm alla fine del comando del compilatore",
+        "Funzioni fondamentali di <math.h>: fabs, sqrt, pow, floor, ceil, round e fmod, tutte con operandi e ritorno di tipo double",
+        "Confronto tra floor, ceil, round e il cast (int) su valori positivi e negativi (per esempio 3.6 e -3.6)",
+        "Quando preferire x * x a pow(x, 2.0) e attenzione agli errori di dominio (sqrt di un numero negativo, fmod con divisore 0.0)"
+      ],
+      "esempio_guidato": "Un programma di geometria analitica che, dati due punti nel piano, calcola la distanza con sqrt, lo scostamento con fabs, normalizza un angolo oltre 360 gradi con fmod e mette a confronto floor, ceil e round su 3.6 e -3.6.",
+      "approfondimento": "Perché l'opzione -lm va collocata alla fine della riga di compilazione: il collegatore risolve i simboli mancanti esaminando file oggetto e librerie da sinistra a destra.",
+      "esercizio_id": "3.5"
+    },
+    {
+      "id": "3.6",
+      "titolo": "Overflow degli interi e imprecisione della virgola mobile",
+      "contenuti": [
+        "Distinzione precisa tra comportamento indefinito, comportamento dipendente dall'implementazione e comportamento non specificato nello standard C23",
+        "Overflow degli interi con segno: perché INT_MAX + 1 è comportamento indefinito (illustrato solo con un frammento vietato) e come evitarlo controllando i limiti prima dell'operazione o usando long long",
+        "Aritmetica modulare degli interi senza segno: comportamento definito (UINT_MAX + 1U vale 0U, 0U - 1U vale UINT_MAX) e rischi logici nei contatori",
+        "Rappresentazione in virgola mobile: perché 0.1 + 0.2 non coincide esattamente con 0.3 in binario",
+        "Le costanti di <float.h> (FLT_DIG, DBL_DIG, FLT_EPSILON, DBL_EPSILON, FLT_MIN, DBL_MIN, FLT_MAX, DBL_MAX) e confronto sicuro tra double con fabs(a - b) <= tolleranza"
+      ],
+      "esempio_guidato": "Un programma che dimostra in modo sicuro l'aritmetica modulare su unsigned int, evita un overflow di int promuovendo a long long, stampa 0.1 + 0.2 con %.17f confrontandolo con 0.3 tramite == e tramite fabs con tolleranza, e visualizza le costanti principali di <float.h>.",
+      "approfondimento": "Come i compilatori moderni sfruttano l'assunzione che l'overflow con segno non avvenga mai per ottimizzare il codice, rendendo inaffidabili i controlli scritti dopo l'operazione.",
+      "esercizio_id": "3.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "3.1",
+      "tipo": "esercizio",
+      "titolo": "Confezionamento di libri in scatole e bancali",
+      "descrizione": "Un magazzino deve spedire `535` libri. Ogni scatola contiene esattamente `12` libri e ogni bancale completo ospita `8` scatole. Inoltre, un campione di `8` libri pesa complessivamente `3.0` kg. Scrivi un programma C che usi costanti e gli operatori aritmetici `/`, `%` e `*` per calcolare e stampare: il numero di scatole complete e i libri rimasti sfusi; il numero di bancali completi e le scatole rimaste fuori dai bancali; il totale dei libri caricati sui bancali completi; il peso medio in chilogrammi di un singolo libro calcolato con divisione in virgola mobile (stampato con tre cifre decimali). Stampa l'output esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "espressione",
+        "divisione intera",
+        "operatore modulo %",
+        "differenza tra divisione intera e divisione in virgola mobile"
+      ],
+      "domande_guida": [
+        "Quali due operatori ti permettono di ricavare sia il numero di scatole complete sia i libri rimanenti da un totale intero?",
+        "Come usi il numero di scatole complete appena ottenuto per ricavare bancali completi e scatole avanzate?",
+        "Cosa otterresti se calcolassi il peso medio dividendo due interi invece di due valori double?",
+        "Quale specificatore di formato mostra il peso medio con esattamente tre cifre dopo la virgola?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Libri totali: 535\nScatole complete: 44 (libri sfusi: 7)\nBancali completi: 5 (scatole avanzate: 4)\nLibri su bancali completi: 480\nPeso medio di un libro: 0.375 kg\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    constexpr int LIBRI_TOTALI = 535;\n    constexpr int LIBRI_PER_SCATOLA = 12;\n    constexpr int SCATOLE_PER_BANCALE = 8;\n    constexpr double PESO_CAMPIONE_KG = 3.0;\n    constexpr double LIBRI_CAMPIONE = 8.0;\n\n    int scatole_complete = LIBRI_TOTALI / LIBRI_PER_SCATOLA;\n    int libri_sfusi = LIBRI_TOTALI % LIBRI_PER_SCATOLA;\n    int bancali_completi = scatole_complete / SCATOLE_PER_BANCALE;\n    int scatole_avanzate = scatole_complete % SCATOLE_PER_BANCALE;\n    int libri_su_bancali = bancali_completi * SCATOLE_PER_BANCALE * LIBRI_PER_SCATOLA;\n    double peso_medio_kg = PESO_CAMPIONE_KG / LIBRI_CAMPIONE;\n\n    printf(\"Libri totali: %d\\n\", LIBRI_TOTALI);\n    printf(\"Scatole complete: %d (libri sfusi: %d)\\n\", scatole_complete, libri_sfusi);\n    printf(\"Bancali completi: %d (scatole avanzate: %d)\\n\", bancali_completi, scatole_avanzate);\n    printf(\"Libri su bancali completi: %d\\n\", libri_su_bancali);\n    printf(\"Peso medio di un libro: %.3f kg\\n\", peso_medio_kg);\n    return 0;\n}\n"
+    },
+    {
+      "id": "3.2",
+      "tipo": "esercizio",
+      "titolo": "Punteggio di una gara ciclistica a tappe",
+      "descrizione": "Un ciclista inizia una gara con `punti = 50` e `tappe = 0`. Scrivi un programma C che aggiorni `punti` e `tappe` in sequenza usando assegnamenti composti e l'operatore di incremento: nella prima tappa incrementa `tappe` e aggiungi `30` punti; nella seconda tappa raddoppia `punti` e incrementa `tappe`; nella terza tappa sottrai `15` punti, dividi `punti` per `3` con divisione intera e incrementa `tappe`. Successivamente, partendo da `bonus_pre = 10` e `bonus_post = 10`, calcola `val_pre = ++bonus_pre` e `val_post = bonus_post++` in istruzioni separate. Infine calcola `senza_parentesi = 10 + 4 * 3 - 6 / 2` e `con_parentesi = (10 + 4) * 3 - 6 / 2`. Stampa il riepilogo esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "assegnamento composto (+=, -=, *=, /=)",
+        "differenza tra pre-incremento (++x) e post-incremento (x++)",
+        "precedenza degli operatori",
+        "uso delle parentesi tonde"
+      ],
+      "domande_guida": [
+        "Quale vantaggio offrono gli assegnamenti composti rispetto a riscrivere il nome della variabile su entrambi i lati di =?",
+        "In quale caso ++bonus_pre e bonus_post++ assegnano valori diversi alla variabile di destinazione, pur portando entrambi il contatore a 11?",
+        "Quali operatori vengono raggruppati per primi nell'espressione 10 + 4 * 3 - 6 / 2 senza parentesi?",
+        "Perché conviene sempre scrivere l'incremento in un'istruzione separata quando non serve usarne il risultato in un'espressione più complessa?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Tappe completate: 3\nPunteggio finale: 48\nPre-incremento: valore=11, variabile=11\nPost-incremento: valore=10, variabile=11\nSenza parentesi: 19\nCon parentesi: 39\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    int punti = 50;\n    int tappe = 0;\n\n    // Prima tappa\n    ++tappe;\n    punti += 30;\n\n    // Seconda tappa\n    punti *= 2;\n    ++tappe;\n\n    // Terza tappa\n    punti -= 15;\n    punti /= 3;\n    ++tappe;\n\n    int bonus_pre = 10;\n    int bonus_post = 10;\n    int val_pre = ++bonus_pre;\n    int val_post = bonus_post++;\n\n    int senza_parentesi = 10 + 4 * 3 - 6 / 2;\n    int con_parentesi = (10 + 4) * 3 - 6 / 2;\n\n    printf(\"Tappe completate: %d\\n\", tappe);\n    printf(\"Punteggio finale: %d\\n\", punti);\n    printf(\"Pre-incremento: valore=%d, variabile=%d\\n\", val_pre, bonus_pre);\n    printf(\"Post-incremento: valore=%d, variabile=%d\\n\", val_post, bonus_post);\n    printf(\"Senza parentesi: %d\\n\", senza_parentesi);\n    printf(\"Con parentesi: %d\\n\", con_parentesi);\n    return 0;\n}\n"
+    },
+    {
+      "id": "3.3",
+      "tipo": "esercizio",
+      "titolo": "Verifica di sicurezza prima del volo di un drone",
+      "descrizione": "Un drone di monitoraggio ambientale dispone dei seguenti dati dei sensori: `batteria = 68` (percentuale), `vento_kmh = 22`, `temperatura_c = 14`, `modalita_volo = 2` (dove `0` indica sistema bloccato), `gps_attivo = true` e `pioggia = false`. Scrivi un programma C che valuti e memorizzi in variabili `bool` le seguenti verifiche usando solo operatori relazionali e logici (senza alcun costrutto condizionale): `batteria_ok` (batteria almeno `30`), `vento_ok` (vento strettamente minore di `35`), `temperatura_ok` (temperatura compresa tra `0` e `40` inclusi), `modalita_ok` (`modalita_volo` diversa da `0`), `meteo_ok` (vento ok, temperatura ok e assenza di pioggia), `pronto_al_volo` (batteria ok, meteo ok, modalità ok e GPS attivo) e `allerta` (batteria minore di `20` oppure GPS non attivo). Stampa tutti i risultati (`1` = vero, `0` = falso) esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "operatori relazionali (<, <=, >=, !=)",
+        "operatori logici (&&, ||, !)",
+        "scrittura corretta degli intervalli con &&",
+        "tipo bool e stampa di 0 o 1 con %d"
+      ],
+      "domande_guida": [
+        "Perché non puoi scrivere 0 <= temperatura_c <= 40 per controllare che la temperatura sia nell'intervallo da 0 a 40?",
+        "Quale operatore logico ti permette di esprimere l'assenza di pioggia a partire dalla variabile bool pioggia?",
+        "Che differenza c'è tra l'operatore = e l'operatore ==, e quale operatore verifica invece la disuguaglianza?",
+        "Come cambia il risultato di allerta quando almeno una delle due condizioni collegate da || diventa vera?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "=== CONTROLLO PRE-VOLO DRONE ===\nBatteria sufficiente : 1\nVento sicuro         : 1\nTemperatura valida   : 1\nModalita attiva      : 1\nMeteo favorevole     : 1\nPronto al volo       : 1\nAllerta attiva       : 0\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    int batteria = 68;\n    int vento_kmh = 22;\n    int temperatura_c = 14;\n    int modalita_volo = 2;\n    bool gps_attivo = true;\n    bool pioggia = false;\n\n    bool batteria_ok = (batteria >= 30);\n    bool vento_ok = (vento_kmh < 35);\n    bool temperatura_ok = (temperatura_c >= 0 && temperatura_c <= 40);\n    bool modalita_ok = (modalita_volo != 0);\n    bool meteo_ok = (vento_ok && temperatura_ok && !pioggia);\n    bool pronto_al_volo = (batteria_ok && meteo_ok && modalita_ok && gps_attivo);\n    bool allerta = (batteria < 20 || !gps_attivo);\n\n    printf(\"=== CONTROLLO PRE-VOLO DRONE ===\\n\");\n    printf(\"Batteria sufficiente : %d\\n\", batteria_ok);\n    printf(\"Vento sicuro         : %d\\n\", vento_ok);\n    printf(\"Temperatura valida   : %d\\n\", temperatura_ok);\n    printf(\"Modalita attiva      : %d\\n\", modalita_ok);\n    printf(\"Meteo favorevole     : %d\\n\", meteo_ok);\n    printf(\"Pronto al volo       : %d\\n\", pronto_al_volo);\n    printf(\"Allerta attiva       : %d\\n\", allerta);\n    return 0;\n}\n"
+    },
+    {
+      "id": "3.4",
+      "tipo": "esercizio",
+      "titolo": "Percentuali e seggi di un sondaggio scolastico",
+      "descrizione": "In un sondaggio scolastico hanno risposto `favorevoli = 118`, `contrari = 39` e `astenuti = 18` studenti (tutti `int`). Inoltre due classi contribuiscono a una raccolta fondi con due variabili `short`: `quota_a = 1200` e `quota_b = 350`. Scrivi un programma C che calcoli: il totale delle risposte; la percentuale intera dei favorevoli (`favorevoli * 100 / totale`); il risultato errato del cast tardivo `(double)(favorevoli / totale) * 100.0`; le percentuali corrette in `double` di favorevoli, contrari e astenuti usando un cast esplicito prima della divisione (stampate con due cifre decimali); la quota teorica di seggi su un comitato di `15` membri (`(double)favorevoli / totale * 15.0`, con due cifre decimali) e i seggi interi ottenuti troncando con `(int)`; la somma `quota_a + quota_b` in `int` e la dimensione in byte dell'espressione `quota_a + quota_b` con `sizeof` per osservare la promozione intera. Stampa l'output esattamente come nell'esempio di esecuzione (riferito alle piattaforme desktop comuni con `int` a 4 byte).",
+      "concetti_da_tenere_a_mente": [
+        "conversione implicita e promozioni intere",
+        "cast esplicito (double) e (int)",
+        "precedenza del cast rispetto alla divisione",
+        "troncamento verso lo zero da double a int"
+      ],
+      "domande_guida": [
+        "Perché `(double)(favorevoli / totale)` restituisce `0.00` anche se poi moltiplichi per `100.0`?",
+        "Come fa il cast `(double)favorevoli / totale` a trasformare l'intera divisione in una divisione in virgola mobile?",
+        "Che cosa succede alla parte decimale di `quota_comitato` quando applichi un cast esplicito a `int`?",
+        "Perché `sizeof(quota_a + quota_b)` è uguale a `sizeof(int)` anche se entrambi gli operandi sono `short`?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Totale risposte: 175\nPercentuale intera favorevoli: 67%\nCast tardivo (errato): 0.00%\nFavorevoli: 67.43%\nContrari: 22.29%\nAstenuti: 10.29%\nQuota comitato (15 seggi): 10.11 -> seggi assegnati: 10\nSomma quote short: 1550 (dimensione espressione: 4 byte)\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n\nint main(void) {\n    int favorevoli = 118;\n    int contrari = 39;\n    int astenuti = 18;\n    int totale = favorevoli + contrari + astenuti;\n    constexpr int SEGGI_TOTALI = 15;\n\n    int perc_intera = favorevoli * 100 / totale;\n    double perc_tardiva = (double)(favorevoli / totale) * 100.0;\n    double perc_favorevoli = (double)favorevoli * 100.0 / totale;\n    double perc_contrari = (double)contrari * 100.0 / totale;\n    double perc_astenuti = (double)astenuti * 100.0 / totale;\n\n    double quota_comitato = (double)favorevoli / totale * SEGGI_TOTALI;\n    int seggi_assegnati = (int)quota_comitato;\n\n    short quota_a = 1200;\n    short quota_b = 350;\n    int somma_quote = quota_a + quota_b;\n    size_t dim_espressione = sizeof(quota_a + quota_b);\n\n    printf(\"Totale risposte: %d\\n\", totale);\n    printf(\"Percentuale intera favorevoli: %d%%\\n\", perc_intera);\n    printf(\"Cast tardivo (errato): %.2f%%\\n\", perc_tardiva);\n    printf(\"Favorevoli: %.2f%%\\n\", perc_favorevoli);\n    printf(\"Contrari: %.2f%%\\n\", perc_contrari);\n    printf(\"Astenuti: %.2f%%\\n\", perc_astenuti);\n    printf(\"Quota comitato (15 seggi): %.2f -> seggi assegnati: %d\\n\",\n           quota_comitato, seggi_assegnati);\n    printf(\"Somma quote short: %d (dimensione espressione: %zu byte)\\n\",\n           somma_quote, dim_espressione);\n    return 0;\n}\n"
+    },
+    {
+      "id": "3.5",
+      "tipo": "esercizio",
+      "titolo": "Preventivo per la pavimentazione di una terrazza",
+      "descrizione": "Devi preparare un preventivo per una terrazza rettangolare lunga `7.4` m e larga `4.8` m. Ogni scatola di piastrelle copre `1.44` m² e costa `48.75` euro; il budget iniziale è di `1200.0` euro. Il bordo decorativo del perimetro si vende in rotoli da `3.5` m. Infine, un fondo di `1000.0` euro viene accantonato per `3` anni al tasso composto annuo del `4%` (`1.04`). Scrivi un programma C che includa `<math.h>` (compilato con `-lm`) e calcoli: area e perimetro; diagonale della terrazza con `sqrt`; numero minimo di scatole intere necessarie con `ceil`; numero di rotoli completi contenuti nel perimetro con `floor` e metri rimanenti del perimetro con `fmod`; costo totale delle scatole, costo arrotondato all'euro più vicino con `round` e scostamento assoluto rispetto al budget con `fabs`; montante del fondo dopo `3` anni con `pow`. Stampa i risultati con due cifre decimali (e `%.0f` per scatole, rotoli e costo arrotondato) esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "inclusione di <math.h> e collegamento con -lm",
+        "funzioni sqrt, pow e fabs",
+        "funzioni di arrotondamento floor, ceil e round",
+        "resto in virgola mobile con fmod"
+      ],
+      "domande_guida": [
+        "Quale funzione tra floor, ceil e round assicura di acquistare abbastanza scatole per coprire l'intera superficie senza restare scoperti?",
+        "Perché per calcolare i metri rimanenti del perimetro dopo i rotoli completi devi usare fmod invece dell'operatore %?",
+        "In che modo fabs ti garantisce di ottenere uno scostamento non negativo dal budget indipendentemente dal fatto che il costo sia maggiore o minore?",
+        "Perché conviene aggiungere sempre l'opzione -lm alla fine del comando di compilazione quando includi <math.h>?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Area terrazza: 35.52 mq\nDiagonale: 8.82 m\nScatole necessarie: 25\nPerimetro: 24.40 m (rotoli completi: 6, resto: 3.40 m)\nCosto piastrelle: 1218.75 euro (arrotondato: 1219 euro)\nScostamento dal budget: 18.75 euro\nFondo dopo 3 anni: 1124.86 euro\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <math.h>\n#include <stdio.h>\n\nint main(void) {\n    constexpr double LUNGHEZZA = 7.4;\n    constexpr double LARGHEZZA = 4.8;\n    constexpr double RESA_SCATOLA = 1.44;\n    constexpr double PREZZO_SCATOLA = 48.75;\n    constexpr double BUDGET = 1200.0;\n    constexpr double LUNGHEZZA_ROTOLO = 3.5;\n    constexpr double CAPITALE_INIZIALE = 1000.0;\n    constexpr double FATTORE_ANNUO = 1.04;\n    constexpr double ANNI = 3.0;\n\n    double area = LUNGHEZZA * LARGHEZZA;\n    double perimetro = 2.0 * (LUNGHEZZA + LARGHEZZA);\n    double diagonale = sqrt(LUNGHEZZA * LUNGHEZZA + LARGHEZZA * LARGHEZZA);\n    double scatole = ceil(area / RESA_SCATOLA);\n    double rotoli_completi = floor(perimetro / LUNGHEZZA_ROTOLO);\n    double resto_perimetro = fmod(perimetro, LUNGHEZZA_ROTOLO);\n    double costo_piastrelle = scatole * PREZZO_SCATOLA;\n    double costo_arrotondato = round(costo_piastrelle);\n    double scostamento = fabs(costo_piastrelle - BUDGET);\n    double fondo_finale = CAPITALE_INIZIALE * pow(FATTORE_ANNUO, ANNI);\n\n    printf(\"Area terrazza: %.2f mq\\n\", area);\n    printf(\"Diagonale: %.2f m\\n\", diagonale);\n    printf(\"Scatole necessarie: %.0f\\n\", scatole);\n    printf(\"Perimetro: %.2f m (rotoli completi: %.0f, resto: %.2f m)\\n\",\n           perimetro, rotoli_completi, resto_perimetro);\n    printf(\"Costo piastrelle: %.2f euro (arrotondato: %.0f euro)\\n\",\n           costo_piastrelle, costo_arrotondato);\n    printf(\"Scostamento dal budget: %.2f euro\\n\", scostamento);\n    printf(\"Fondo dopo 3 anni: %.2f euro\\n\", fondo_finale);\n    return 0;\n}\n"
+    },
+    {
+      "id": "3.6",
+      "tipo": "esercizio",
+      "titolo": "Prevenzione dell'overflow e controllo di tolleranza in virgola mobile",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<limits.h>`, `<float.h>` e `<math.h>` ed esegua tre verifiche numeriche senza provocare alcun comportamento indefinito. Primo: dati `int a = 2'000'000'000;` e `int b = 500'000'000;`, verifica senza eseguire `a + b` in `int` se la somma rientra in `int` (`bool somma_sicura_int = (a <= INT_MAX - b);`) e calcola la somma esatta in `long long` tramite cast esplicito. Secondo: a partire da `unsigned int max_u = UINT_MAX;`, calcola `max_u + 1U` e `0U - 1U` per mostrare l'aritmetica modulare degli interi senza segno. Terzo: calcola `double somma_dec = 0.1 + 0.1 + 0.1;` e `double atteso = 0.3;`, stampali con `%.17f`, calcola `bool uguali_esatti = (somma_dec == atteso);`, `double errore = fabs(somma_dec - atteso);` e `bool uguali_tolleranza = (errore <= 1e-12);`, e stampa infine `FLT_DIG`, `DBL_DIG`, `FLT_EPSILON` e `DBL_EPSILON` (usando `%e` per gli epsilon e per `errore`). L'esempio di esecuzione è riferito alle piattaforme desktop comuni con `int` a 32 bit e virgola mobile IEEE 754.",
+      "concetti_da_tenere_a_mente": [
+        "overflow degli interi con segno e comportamento indefinito",
+        "prevenzione dell'overflow con controllo preventivo e promozione a long long",
+        "aritmetica modulare degli interi senza segno",
+        "virgola mobile e confronto con tolleranza tramite fabs",
+        "costanti di precisione di <float.h>"
+      ],
+      "domande_guida": [
+        "Perché per controllare se a + b supera INT_MAX devi confrontare a con INT_MAX - b anziché calcolare prima a + b?",
+        "Perché castare a in long long prima di sommare b evita l'overflow che avverrebbe scrivendo (long long)(a + b)?",
+        "In che cosa il comportamento di UINT_MAX + 1U differisce profondamente da quello di INT_MAX + 1?",
+        "Perché 0.1 + 0.1 + 0.1 == 0.3 può risultare falso in C e quale ruolo svolge fabs nel confronto con tolleranza?",
+        "Quale informazione forniscono rispettivamente DBL_DIG e DBL_EPSILON definite in <float.h>?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Somma sicura in int: 0\nSomma esatta in long long: 2500000000\nUnsigned UINT_MAX + 1U: 0\nUnsigned 0U - 1U: 4294967295\n0.1 + 0.1 + 0.1 = 0.30000000000000004\n0.3             = 0.29999999999999999\nConfronto con == : 0\nErrore assoluto  : 5.551115e-17\nConfronto tolleranza (1e-12): 1\nPrecisione cifre: float=6, double=15\nEpsilon: float=1.192093e-07, double=2.220446e-16\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <float.h>\n#include <limits.h>\n#include <math.h>\n#include <stdio.h>\n\nint main(void) {\n    int a = 2'000'000'000;\n    int b = 500'000'000;\n    bool somma_sicura_int = (a <= INT_MAX - b);\n    long long somma_esatta = (long long)a + b;\n\n    unsigned int max_u = UINT_MAX;\n    unsigned int dopo_wrap = max_u + 1U;\n    unsigned int sotto_zero = 0U - 1U;\n\n    double somma_dec = 0.1 + 0.1 + 0.1;\n    double atteso = 0.3;\n    bool uguali_esatti = (somma_dec == atteso);\n    double errore = fabs(somma_dec - atteso);\n    bool uguali_tolleranza = (errore <= 1e-12);\n\n    printf(\"Somma sicura in int: %d\\n\", somma_sicura_int);\n    printf(\"Somma esatta in long long: %lld\\n\", somma_esatta);\n    printf(\"Unsigned UINT_MAX + 1U: %u\\n\", dopo_wrap);\n    printf(\"Unsigned 0U - 1U: %u\\n\", sotto_zero);\n    printf(\"0.1 + 0.1 + 0.1 = %.17f\\n\", somma_dec);\n    printf(\"0.3             = %.17f\\n\", atteso);\n    printf(\"Confronto con == : %d\\n\", uguali_esatti);\n    printf(\"Errore assoluto  : %e\\n\", errore);\n    printf(\"Confronto tolleranza (1e-12): %d\\n\", uguali_tolleranza);\n    printf(\"Precisione cifre: float=%d, double=%d\\n\", FLT_DIG, DBL_DIG);\n    printf(\"Epsilon: float=%e, double=%e\\n\", FLT_EPSILON, DBL_EPSILON);\n    return 0;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Aspettarsi un risultato decimale dalla divisione tra due interi (per esempio 5 / 2 che produce 2 e non 2.5) oppure applicare il cast dopo la divisione ((double)(a / b) invece di (double)a / b).",
+    "Scrivere = (assegnamento) al posto di == (confronto di uguaglianza) o concatenare confronti come 0 <= x <= 10 invece di 0 <= x && x <= 10.",
+    "Modificare e leggere la stessa variabile più volte senza ordinamento dentro una stessa espressione (come i = i++ + 1 o printf(\"%d %d\", i, i++)), provocando comportamento indefinito.",
+    "Dimenticare -lm alla fine del comando di compilazione quando si usano funzioni di <math.h>, ottenendo un errore del collegatore sui sistemi che separano la libreria matematica.",
+    "Confrontare due risultati in virgola mobile con == invece di verificare che fabs(a - b) sia entro una tolleranza adeguata.",
+    "Eseguire somme o prodotti di interi con segno senza verificare che il risultato stia entro INT_MIN..INT_MAX, provocando overflow e comportamento indefinito."
+  ],
+  "differenze_python": [
+    "In Python l'operatore / esegue sempre la divisione in virgola mobile e // esegue la divisione intera verso meno infinito; in C / è divisione intera se entrambi gli operandi sono interi (con troncamento verso lo zero) e divisione in virgola mobile se almeno uno è float o double.",
+    "In Python esiste l'operatore ** per l'elevamento a potenza; in C non esiste un operatore di potenza e si usa la funzione pow() di <math.h> (oppure x * x per il quadrato).",
+    "In Python gli operatori logici sono parole (and, or, not) e i confronti concatenati (0 <= x <= 10) sono validi; in C gli operatori logici sono &&, ||, ! e ogni intervallo va spezzato esplicitamente con &&.",
+    "In Python gli interi non vanno mai in overflow perché crescono dinamicamente; in C l'overflow di un intero con segno è comportamento indefinito."
+  ]
+}

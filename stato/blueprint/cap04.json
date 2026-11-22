@@ -1,0 +1,265 @@
+{
+  "capitolo": 4,
+  "titolo": "Decisioni",
+  "obiettivi": [
+    "Scrivere selezioni semplici e annidate con if ed else",
+    "Sfruttare la valutazione a corto circuito di && e || per scrivere condizioni sicure",
+    "Scegliere tra catene di if-else e il costrutto switch con break e default",
+    "Usare l'operatore condizionale ?: quando rende un'espressione più leggibile"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "flusso di controllo",
+      "definizione": "Ordine con cui vengono eseguite le istruzioni di un programma attraverso selezioni, cicli e chiamate di funzione."
+    },
+    {
+      "termine": "valutazione a corto circuito",
+      "definizione": "Proprietà di && e || per cui l'operando destro non viene valutato se il sinistro determina già il risultato."
+    },
+    {
+      "termine": "fall-through",
+      "definizione": "Prosecuzione dell'esecuzione da un ramo case dello switch al successivo in assenza di break."
+    },
+    {
+      "termine": "attributo",
+      "definizione": "Annotazione standard C23 tra doppie parentesi quadre [[...]] che fornisce informazioni aggiuntive al compilatore."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "espressione",
+    "operatori relazionali e logici",
+    "precedenza degli operatori",
+    "comportamento indefinito",
+    "funzioni fabs e sqrt di <math.h>"
+  ],
+  "regole": [
+    {
+      "id": "4.R1",
+      "enunciato": "L'istruzione if (condizione) { ... } esegue il proprio blocco se condizione viene valutata a un valore diverso da zero; l'eventuale ramo else { ... } viene eseguito se condizione vale zero. In una catena if / else if / else viene eseguito al più un solo ramo. Senza parentesi graffe un else si associa sempre all'if aperto più vicino; per evitare ambiguità si racchiude sempre ogni ramo tra parentesi graffe.",
+      "nota_standard": "definito: la semantica di if, else e l'associazione dell'else all'if più interno sono definite dallo standard C23."
+    },
+    {
+      "id": "4.R2",
+      "enunciato": "Gli operatori logici && e || valutano sempre prima l'operando sinistro e introducono un punto di sequenza prima dell'operando destro. In a && b, se a vale 0, b non viene valutato e il risultato è 0; in a || b, se a è diverso da 0, b non viene valutato e il risultato è 1. Questa valutazione a corto circuito consente di proteggere operazioni che altrimenti causerebbero errori o comportamento indefinito.",
+      "nota_standard": "definito: l'ordine di valutazione da sinistra a destra, il punto di sequenza e il corto circuito di && e || sono garantiti dallo standard C23."
+    },
+    {
+      "id": "4.R3",
+      "enunciato": "L'istruzione switch (espressione) accetta un'espressione di tipo intero (inclusi char e bool) e salta all'etichetta case con espressione costante intera corrispondente, oppure a default se nessuna etichetta coincide. Le etichette case di uno stesso switch devono essere tutte distinte. Senza break l'esecuzione prosegue nel ramo successivo (fall-through); se il fall-through dopo istruzioni è intenzionale, in C23 lo si segnala con [[fallthrough]];.",
+      "nota_standard": "definito: i vincoli sui tipi interi, l'unicità delle costanti case, il fall-through e l'attributo standard [[fallthrough]] sono definiti dallo standard C23; nei compilatori C17/C11 precedenti [[fallthrough]] non è disponibile e si usa un commento esplicito."
+    },
+    {
+      "id": "4.R4",
+      "enunciato": "L'operatore condizionale condizione ? expr_vero : expr_falso è un'espressione: valuta condizione e poi valuta esclusivamente expr_vero (se condizione è diversa da zero) oppure expr_falso (se condizione vale zero). Ha precedenza molto bassa (superiore solo agli assegnamenti) e associatività da destra a sinistra, perciò va racchiuso tra parentesi quando compare dentro espressioni più ampie.",
+      "nota_standard": "definito: la valutazione esclusiva di uno solo dei due rami, il punto di sequenza dopo condizione, la precedenza e la determinazione del tipo risultante di ?: sono definiti dallo standard C23."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sull'uscita standard e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    },
+    {
+      "nome": "sqrt",
+      "firma": "double sqrt(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce la radice quadrata non negativa di x (per x >= 0)."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "4.1",
+      "titolo": "Scegliere con if ed else",
+      "contenuti": [
+        "Cos'è il flusso di controllo e perché i programmi hanno bisogno di prendere decisioni",
+        "Sintassi di if (condizione) { ... } e if (...) { ... } else { ... } con qualsiasi espressione valutata vera (diversa da 0) o falsa (0)",
+        "Catene if / else if / else per classificare valori in fasce mutuamente esclusive ordinate",
+        "Istruzioni if annidate e regola stilistica del libro: usare sempre le parentesi graffe anche per una sola istruzione",
+        "Errori classici: punto e virgola indesiderato dopo if (condizione); e confusione tra = e == nella condizione"
+      ],
+      "esempio_guidato": "Un programma che classifica una temperatura corporea (double temperatura = 38.2;) in quattro fasce mutuamente esclusive (ipotermia, normale, lieve alterazione, febbre alta) mediante if / else if / else e usa un if annidato per indicare se è richiesto un controllo immediato.",
+      "approfondimento": "Il problema del dangling else: quando si omettono le parentesi graffe, un else si lega sempre all'if aperto più vicino indipendentemente dall'indentazione, generando bug difficili da individuare.",
+      "esercizio_id": "4.1"
+    },
+    {
+      "id": "4.2",
+      "titolo": "Condizioni composte e valutazione a corto circuito",
+      "contenuti": [
+        "Costruzione di condizioni composte leggibili con &&, ||, ! e parentesi esplicite dentro if",
+        "Valutazione a corto circuito: in a && b l'operando b non viene valutato se a è falso; in a || b l'operando b non viene valutato se a è vero",
+        "Uso difensivo del corto circuito come guardia prima di operazioni pericolose: evitare la divisione intera per zero (n != 0 && somma / n >= 6) e gli errori di dominio di sqrt (x >= 0.0 && sqrt(x) > 3.0)",
+        "Confronto sicuro di valori in virgola mobile dentro if tramite fabs(a - b) <= tolleranza",
+        "Perché evitare effetti collaterali (come ++) nell'operando destro di && o ||: il corto circuito può impedirne l'esecuzione"
+      ],
+      "esempio_guidato": "Un programma che valuta i risultati di un esame proteggendo la divisione per zero con la valutazione a corto circuito (numero_prove > 0 && punti_totali / numero_prove >= 60), mostrando sia il caso con numero_prove == 0 (nessuna divisione eseguita) sia il caso con numero_prove == 4, e un controllo con guardia su sqrt.",
+      "approfondimento": "Perché l'ordine degli operandi in && e || è decisivo: scrivere somma / n >= 6 && n != 0 al posto di n != 0 && somma / n >= 6 esegue prima la divisione e provoca comportamento indefinito quando n è zero.",
+      "esercizio_id": "4.2"
+    },
+    {
+      "id": "4.3",
+      "titolo": "Scelte multiple con switch",
+      "contenuti": [
+        "Quando scegliere switch al posto di una catena if / else if: confronto di un'espressione intera (o char) con più valori costanti discreti",
+        "Struttura di switch (espressione), case costante:, break; e default: (consigliato sempre anche per intercettare valori imprevisti)",
+        "Vincoli di tipo e costanza: solo tipi interi (mai double), costanti distinte nei case (in C23 anche costanti constexpr)",
+        "Meccanismo di fall-through: raggruppamento di più etichette vuote (case 'a': case 'A':) e fall-through intenzionale dopo codice annotato con l'attributo C23 [[fallthrough]]; (con box C23 che spiega come annotarlo con un commento nei compilatori C17/C11)",
+        "Come dichiarare variabili locali all'interno di un ramo case racchiudendo il codice in un blocco { ... }"
+      ],
+      "esempio_guidato": "Un programma con due switch: il primo riceve il numero di un giorno (1..7) e raggruppa le etichette vuote per distinguere giorni lavorativi e fine settimana con default; il secondo riceve il livello di un abbonamento (1..3) e usa [[fallthrough]]; per stampare i vantaggi cumulativi inclusi nei livelli superiori.",
+      "approfondimento": "Perché dimenticare break è una causa frequente di errori logici nello switch e come l'attributo C23 [[fallthrough]]; permette al compilatore di avvisare solo sui fall-through involontari.",
+      "esercizio_id": "4.3"
+    },
+    {
+      "id": "4.4",
+      "titolo": "L'operatore condizionale ?:",
+      "contenuti": [
+        "Sintassi di condizione ? expr_vero : expr_falso e differenza fondamentale rispetto a if/else: ?: è un'espressione che produce un valore",
+        "Valutazione di uno solo dei due rami e determinazione del tipo risultante mediante le conversioni comuni",
+        "Precedenza bassa di ?: e necessità delle parentesi tonde dentro espressioni aritmetiche o di confronto (per esempio base + (flag ? 10 : 0))",
+        "Casi in cui ?: migliora la leggibilità: massimo/minimo tra due valori, inizializzazione diretta di una variabile const, scelta tra due valori o caratteri",
+        "Quando evitarlo: mai annidare più ?: in catene illeggibili né inserire istruzioni complesse, preferendo in quei casi if / else"
+      ],
+      "esempio_guidato": "Un programma di calcolo della tariffa di un parcheggio che usa ?: per inizializzare una const double con la tariffa residente o ordinaria, calcolare il massimo tra ore effettive e minimo fatturabile, selezionare il codice di fascia ('R' o 'O') e sommare un eventuale supplemento usando parentesi esplicite attorno a ?:.",
+      "approfondimento": "Inizializzare una variabile const in base a una condizione con ?: e l'insidia di precedenza in espressioni come 10 + flag ? 1 : 2, che il compilatore raggruppa come (10 + flag) ? 1 : 2.",
+      "esercizio_id": "4.4"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "4.1",
+      "tipo": "esercizio",
+      "titolo": "Tariffa di spedizione a scaglioni",
+      "descrizione": "Un corriere calcola il costo di spedizione a partire dal peso del pacco (`double peso_kg = 6.4;`) e dalla richiesta di consegna prioritaria (`bool prioritaria = true;`). Scrivi un programma C che usi `if`, `else if`, `else` e un `if` annidato secondo queste regole: se `peso_kg <= 0.0` stampa `Peso non valido.`; se `peso_kg > 25.0` stampa `Pacco fuori misura.`; altrimenti assegna la tariffa base e la fascia (`<= 2.0` kg: fascia `Leggero`, `5.00` euro; `<= 10.0` kg: fascia `Medio`, `9.50` euro; `<= 25.0` kg: fascia `Pesante`, `16.00` euro). Per i pacchi validi, se `prioritaria` è `true` aggiungi un supplemento di `4.50` euro, altrimenti `0.00` euro, e stampa peso, fascia, tariffa base, supplemento e totale con due cifre decimali esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "flusso di controllo",
+        "catena if / else if / else mutuamente esclusiva",
+        "selezione annidata con parentesi graffe obbligatorie",
+        "ordine crescente delle soglie negli scaglioni"
+      ],
+      "domande_guida": [
+        "In quale ordine conviene controllare le fasce di peso affinché ogni condizione risulti semplice e priva di sovrapposizioni?",
+        "Perché conviene controllare prima i casi non validi (peso non positivo o superiore a 25.0 kg) rispetto al calcolo del supplemento?",
+        "Quale rischio corri se ometti le parentesi graffe attorno al blocco di un if che contiene un altro if/else?",
+        "Che cosa accadrebbe se scrivessi una sequenza di if separati senza else invece di una catena if / else if / else?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Peso pacco: 6.40 kg\nFascia: Medio\nTariffa base: 9.50 euro\nSupplemento prioritaria: 4.50 euro\nTotale spedizione: 14.00 euro\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    double peso_kg = 6.4;\n    bool prioritaria = true;\n\n    if (peso_kg <= 0.0) {\n        printf(\"Peso non valido.\\n\");\n    } else if (peso_kg > 25.0) {\n        printf(\"Pacco fuori misura.\\n\");\n    } else {\n        double tariffa_base = 0.0;\n        double supplemento = 0.0;\n\n        printf(\"Peso pacco: %.2f kg\\n\", peso_kg);\n        if (peso_kg <= 2.0) {\n            tariffa_base = 5.00;\n            printf(\"Fascia: Leggero\\n\");\n        } else if (peso_kg <= 10.0) {\n            tariffa_base = 9.50;\n            printf(\"Fascia: Medio\\n\");\n        } else {\n            tariffa_base = 16.00;\n            printf(\"Fascia: Pesante\\n\");\n        }\n\n        if (prioritaria) {\n            supplemento = 4.50;\n        }\n\n        double totale = tariffa_base + supplemento;\n        printf(\"Tariffa base: %.2f euro\\n\", tariffa_base);\n        printf(\"Supplemento prioritaria: %.2f euro\\n\", supplemento);\n        printf(\"Totale spedizione: %.2f euro\\n\", totale);\n    }\n\n    return 0;\n}\n"
+    },
+    {
+      "id": "4.2",
+      "tipo": "esercizio",
+      "titolo": "Controlli difensivi con valutazione a corto circuito",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>` e `<math.h>` (compilato con `-lm`) ed esegua tre controlli difensivi basati sulla valutazione a corto circuito. Primo: per il sensore A (`int campioni_a = 0;`, `int somma_a = 420;`) e il sensore B (`int campioni_b = 6;`, `int somma_b = 390;`), usa la condizione con guardia `campioni > 0 && somma / campioni >= 50` per stampare se ciascun sensore ha `media sufficiente`, `media insufficiente` oppure `nessun campione disponibile` (senza mai dividere per zero). Secondo: dati i coefficienti `double a = 1.0;`, `double b = -5.0;`, `double c = 6.0;`, calcola `double delta = b * b - 4.0 * a * c;` e usa `if (fabs(a) > 1e-12 && delta >= 0.0 && sqrt(delta) > 0.0)` per verificare la presenza di due radici reali distinte, calcolandole e stampandole con due cifre decimali (dalla minore alla maggiore). Terzo: verifica se `double tensione = 0.1 + 0.2;` coincide con `double nominale = 0.3;` entro una tolleranza di `1e-9` usando `fabs` e stampa l'esito esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "valutazione a corto circuito di &&",
+        "ordine degli operandi nelle guardie",
+        "prevenzione della divisione intera per zero e degli errori di dominio di sqrt",
+        "confronto in virgola mobile con fabs e tolleranza dentro if"
+      ],
+      "domande_guida": [
+        "Perché nel controllo del sensore A la divisione somma_a / campioni_a non viene mai eseguita anche se campioni_a vale 0?",
+        "Che cosa succederebbe se invertissi i due operandi scrivendo somma_a / campioni_a >= 50 && campioni_a > 0?",
+        "In che modo la catena di condizioni con && su a e delta protegge la chiamata a sqrt(delta) da un argomento negativo?",
+        "Perché per verificare se la tensione corrisponde al valore nominale usi fabs(tensione - nominale) <= 1e-9 invece di tensione == nominale?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Sensore A: nessun campione disponibile\nSensore B: media sufficiente (65)\nEquazione: due radici reali distinte (x1 = 2.00, x2 = 3.00)\nTensione: entro la tolleranza nominale\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <math.h>\n#include <stdio.h>\n\nint main(void) {\n    int campioni_a = 0;\n    int somma_a = 420;\n    if (campioni_a > 0 && somma_a / campioni_a >= 50) {\n        printf(\"Sensore A: media sufficiente (%d)\\n\", somma_a / campioni_a);\n    } else if (campioni_a > 0) {\n        printf(\"Sensore A: media insufficiente (%d)\\n\", somma_a / campioni_a);\n    } else {\n        printf(\"Sensore A: nessun campione disponibile\\n\");\n    }\n\n    int campioni_b = 6;\n    int somma_b = 390;\n    if (campioni_b > 0 && somma_b / campioni_b >= 50) {\n        printf(\"Sensore B: media sufficiente (%d)\\n\", somma_b / campioni_b);\n    } else if (campioni_b > 0) {\n        printf(\"Sensore B: media insufficiente (%d)\\n\", somma_b / campioni_b);\n    } else {\n        printf(\"Sensore B: nessun campione disponibile\\n\");\n    }\n\n    double a = 1.0;\n    double b = -5.0;\n    double c = 6.0;\n    double delta = b * b - 4.0 * a * c;\n    if (fabs(a) > 1e-12 && delta >= 0.0 && sqrt(delta) > 0.0) {\n        double radice_delta = sqrt(delta);\n        double x1 = (-b - radice_delta) / (2.0 * a);\n        double x2 = (-b + radice_delta) / (2.0 * a);\n        printf(\"Equazione: due radici reali distinte (x1 = %.2f, x2 = %.2f)\\n\", x1, x2);\n    } else {\n        printf(\"Equazione: nessuna coppia di radici reali distinte\\n\");\n    }\n\n    double tensione = 0.1 + 0.2;\n    double nominale = 0.3;\n    if (fabs(tensione - nominale) <= 1e-9) {\n        printf(\"Tensione: entro la tolleranza nominale\\n\");\n    } else {\n        printf(\"Tensione: fuori tolleranza\\n\");\n    }\n\n    return 0;\n}\n"
+    },
+    {
+      "id": "4.3",
+      "tipo": "esercizio",
+      "titolo": "Biglietteria ferroviaria con switch e [[fallthrough]]",
+      "descrizione": "Un sistema di biglietteria elabora un viaggio descritto da `char codice_treno = 'i';` (`'R'`/`'r'` = Regionale a `0.12` euro/km; `'I'`/`'i'` = Intercity a `0.18` euro/km; `'A'`/`'a'` = Alta Velocità a `0.26` euro/km; altro = codice non valido), `int distanza_km = 150;` e `int livello_servizio = 2;` (`3` = Executive, `2` = Business, `1` = Standard). Scrivi un programma C con due istruzioni `switch`: il primo `switch` su `codice_treno` raggruppa lettere maiuscole e minuscole, imposta la tariffa chilometrica (gestendo il caso imprevisto in `default`) e stampa categoria e prezzo base con due cifre decimali; il secondo `switch` su `livello_servizio` usa il fall-through intenzionale annotato con l'attributo C23 `[[fallthrough]];` per stampare i servizi cumulativi inclusi (`case 3`: `- Accesso lounge stazione`, `case 2`: `- Posto riservato con presa elettrica`, `case 1`: `- Trasporto bagaglio a mano`, `default`: `- Livello servizio non riconosciuto`). Stampa l'output esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "costrutto switch, case, break e default",
+        "raggruppamento di etichette case vuote",
+        "fall-through intenzionale",
+        "attributo C23 [[fallthrough]]"
+      ],
+      "domande_guida": [
+        "Perché un carattere char come codice_treno può essere usato direttamente come espressione di uno switch?",
+        "Come puoi gestire sia 'I' maiuscola sia 'i' minuscola nello switch senza duplicare le istruzioni?",
+        "Quale differenza c'è tra dimenticare un break per errore e usare [[fallthrough]]; in modo intenzionale?",
+        "Perché conviene inserire sempre un ramo default anche quando ti aspetti solo alcuni valori?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Categoria treno: Intercity\nDistanza: 150 km\nPrezzo base: 27.00 euro\nServizi inclusi (livello 2):\n- Posto riservato con presa elettrica\n- Trasporto bagaglio a mano\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    char codice_treno = 'i';\n    int distanza_km = 150;\n    int livello_servizio = 2;\n\n    double tariffa_km = 0.0;\n    bool codice_valido = true;\n\n    switch (codice_treno) {\n        case 'R':\n        case 'r':\n            tariffa_km = 0.12;\n            printf(\"Categoria treno: Regionale\\n\");\n            break;\n        case 'I':\n        case 'i':\n            tariffa_km = 0.18;\n            printf(\"Categoria treno: Intercity\\n\");\n            break;\n        case 'A':\n        case 'a':\n            tariffa_km = 0.26;\n            printf(\"Categoria treno: Alta Velocita\\n\");\n            break;\n        default:\n            codice_valido = false;\n            printf(\"Codice treno non valido.\\n\");\n            break;\n    }\n\n    if (codice_valido) {\n        double prezzo_base = distanza_km * tariffa_km;\n        printf(\"Distanza: %d km\\n\", distanza_km);\n        printf(\"Prezzo base: %.2f euro\\n\", prezzo_base);\n        printf(\"Servizi inclusi (livello %d):\\n\", livello_servizio);\n\n        switch (livello_servizio) {\n            case 3:\n                printf(\"- Accesso lounge stazione\\n\");\n                [[fallthrough]];\n            case 2:\n                printf(\"- Posto riservato con presa elettrica\\n\");\n                [[fallthrough]];\n            case 1:\n                printf(\"- Trasporto bagaglio a mano\\n\");\n                break;\n            default:\n                printf(\"- Livello servizio non riconosciuto\\n\");\n                break;\n        }\n    }\n\n    return 0;\n}\n"
+    },
+    {
+      "id": "4.4",
+      "tipo": "esercizio",
+      "titolo": "Valutazione di una gara di salto in lungo con ?:",
+      "descrizione": "In una gara di salto in lungo un atleta registra due salti validi (`double salto_1 = 6.45;` e `double salto_2 = 6.78;` in metri), con vento a favore `double vento_ms = 1.6;` e `bool categoria_junior = true;`. Scrivi un programma C che usi l'operatore condizionale `?:` per inizializzare direttamente sette variabili `const`: `miglior_salto` (massimo tra i due salti), `peggior_salto` (minimo tra i due salti), `scarto` (differenza non negativa tra i due salti calcolata con `?:`), `soglia_qualifica` (`6.50` per junior, `7.10` altrimenti), `esito_vento` (`'V'` se `vento_ms <= 2.0`, `'I'` altrimenti), `punti_base` (`100` se `miglior_salto >= soglia_qualifica`, `60` altrimenti) e `punti_totali` (`punti_base + (esito_vento == 'V' ? 15 : 0)`, con parentesi esplicite attorno a `?:`). Usa poi un'istruzione `if / else` leggibile (senza annidare `?:`) per stampare l'esito finale di qualificazione. Produci l'output esatto dell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "operatore condizionale ?:",
+        "inizializzazione diretta di variabili const tramite ?:",
+        "precedenza bassa di ?: e uso delle parentesi tonde",
+        "scelta equilibrata tra ?: e if / else"
+      ],
+      "domande_guida": [
+        "Perché puoi inizializzare direttamente una variabile const usando ?: mentre non potresti farlo direttamente con un'istruzione if / else?",
+        "Che cosa cambierebbe nel risultato di punti_base + (esito_vento == 'V' ? 15 : 0) se togliessi le parentesi tonde attorno all'operatore condizionale?",
+        "Come puoi calcolare la differenza non negativa tra salto_1 e salto_2 usando una sola espressione ?: senza ricorrere a fabs?",
+        "In quali casi conviene comunque usare if / else invece di combinare più operatori ?: annidati?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Miglior salto: 6.78 m\nPeggior salto: 6.45 m\nScarto tra i salti: 0.33 m\nSoglia qualifica: 6.50 m\nCodice vento: V\nPunti base: 100\nPunti totali: 115\nEsito: Qualificato per la finale\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    double salto_1 = 6.45;\n    double salto_2 = 6.78;\n    double vento_ms = 1.6;\n    bool categoria_junior = true;\n\n    const double miglior_salto = (salto_1 >= salto_2) ? salto_1 : salto_2;\n    const double peggior_salto = (salto_1 <= salto_2) ? salto_1 : salto_2;\n    const double scarto = (salto_1 >= salto_2) ? (salto_1 - salto_2) : (salto_2 - salto_1);\n    const double soglia_qualifica = categoria_junior ? 6.50 : 7.10;\n    const char esito_vento = (vento_ms <= 2.0) ? 'V' : 'I';\n    const int punti_base = (miglior_salto >= soglia_qualifica) ? 100 : 60;\n    const int punti_totali = punti_base + (esito_vento == 'V' ? 15 : 0);\n\n    printf(\"Miglior salto: %.2f m\\n\", miglior_salto);\n    printf(\"Peggior salto: %.2f m\\n\", peggior_salto);\n    printf(\"Scarto tra i salti: %.2f m\\n\", scarto);\n    printf(\"Soglia qualifica: %.2f m\\n\", soglia_qualifica);\n    printf(\"Codice vento: %c\\n\", esito_vento);\n    printf(\"Punti base: %d\\n\", punti_base);\n    printf(\"Punti totali: %d\\n\", punti_totali);\n\n    if (miglior_salto >= soglia_qualifica) {\n        printf(\"Esito: Qualificato per la finale\\n\");\n    } else {\n        printf(\"Esito: Non qualificato\\n\");\n    }\n\n    return 0;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Scrivere = (assegnamento) al posto di == (uguaglianza) dentro la condizione di un if, modificando la variabile invece di confrontarla.",
+    "Inserire per errore un punto e virgola subito dopo if (condizione);, trasformando il corpo dell'if in un'istruzione vuota ed eseguendo sempre il blocco successivo.",
+    "Omettere le parentesi graffe in if/else annidati, cadendo nell'ambiguità del dangling else o eseguendo fuori condizione una seconda istruzione aggiunta in seguito.",
+    "Invertire l'ordine degli operandi in una guardia con && (per esempio somma / n >= 6 && n != 0), annullando la protezione della valutazione a corto circuito.",
+    "Dimenticare break al termine di un ramo case nello switch, causando un fall-through involontario nei rami successivi.",
+    "Usare l'operatore condizionale ?: dentro un'espressione aritmetica senza parentesi (come a + flag ? 1 : 0) oppure annidare più ?: rendendo il codice illeggibile."
+  ],
+  "differenze_python": [
+    "In Python i blocchi di if ed else dipendono dall'indentazione e si usa elif; in C la condizione va sempre tra parentesi tonde, i blocchi usano { e }, e si scrive else if.",
+    "In Python l'operatore condizionale si scrive valore_vero if condizione else valore_falso; in C la sintassi è condizione ? valore_vero : valore_falso.",
+    "In Python il costrutto match/case non ha fall-through tra i rami; nello switch del C l'esecuzione prosegue nel case successivo se non si termina il ramo con break (e in C23 il fall-through intenzionale si dichiara con [[fallthrough]];)."
+  ]
+}
