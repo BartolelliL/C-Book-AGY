@@ -91,6 +91,7 @@
         "Prevedere il risultato di espressioni aritmetiche, relazionali e logiche applicando precedenza e associatività",
         "Distinguere la divisione intera dalla divisione in virgola mobile e usare l'operatore modulo",
         "Controllare le conversioni di tipo implicite ed esplicite senza perdere informazioni",
+        "Usare le funzioni matematiche di <math.h> collegando correttamente la libreria matematica (-lm)",
         "Riconoscere e prevenire l'overflow degli interi con segno e gli errori di arrotondamento in virgola mobile"
       ],
       "argomenti": [
@@ -98,6 +99,7 @@
         "assegnamenti composti, incremento e precedenza",
         "operatori relazionali e logici",
         "conversioni di tipo implicite ed esplicite",
+        "funzioni matematiche di <math.h> (fabs, sqrt, pow, floor, ceil, round, fmod) e collegamento con -lm",
         "overflow degli interi e comportamento indefinito",
         "imprecisione dei numeri in virgola mobile e <float.h>"
       ],
@@ -124,6 +126,10 @@
         },
         {
           "id": "3.5",
+          "titolo": "Funzioni matematiche con <math.h>"
+        },
+        {
+          "id": "3.6",
           "titolo": "Overflow degli interi e imprecisione della virgola mobile"
         }
       ]
@@ -141,7 +147,7 @@
       "argomenti": [
         "costrutto if ed else",
         "condizioni composte e valutazione a corto circuito",
-        "costrutto switch, case, default e break",
+        "costrutto switch, case, default, break e attributo C23 [[fallthrough]]",
         "operatore condizionale ?:"
       ],
       "prerequisiti": [
@@ -175,14 +181,14 @@
       "obiettivi": [
         "Leggere una riga di testo dalla tastiera in modo sicuro con fgets",
         "Convertire righe di testo in valori numerici con sscanf verificando il valore restituito",
-        "Gestire in modo corretto gli errori di formato e la fine dell'input (nullptr ed EOF)",
+        "Gestire in modo corretto gli errori di formato e la fine dell'input (nullptr ed EOF), segnalando gli errori su stderr con fprintf",
         "Leggere ed elaborare singoli caratteri con getchar e putchar"
       ],
       "argomenti": [
-        "lettura di righe con fgets e stdin",
+        "lettura di righe con fgets e stdin (buffer char[] e & presentati come idiomi con rinvio ai capitoli 8 e 10)",
         "valore nullo nullptr in C23 per la fine dell'input",
         "estrazione di numeri con sscanf",
-        "controllo degli errori e codici di uscita EXIT_SUCCESS e EXIT_FAILURE",
+        "controllo degli errori, messaggi su stderr con fprintf e codici di uscita EXIT_SUCCESS e EXIT_FAILURE",
         "lettura carattere per carattere con getchar ed EOF"
       ],
       "prerequisiti": [
@@ -462,7 +468,7 @@
       ],
       "argomenti": [
         "stack e heap",
-        "malloc, calloc e free",
+        "malloc, calloc, free, duplicazione dinamica di stringhe con strdup e strndup (C23), gestione dei fallimenti con exit e cenno al puntatore generico void * con rinvio al capitolo 15",
         "realloc e array dinamici",
         "perdite di memoria, uso dopo la liberazione e doppia liberazione",
         "strumenti di diagnostica e sanitizer"
@@ -470,6 +476,7 @@
       "prerequisiti": [
         7,
         8,
+        9,
         10
       ],
       "sotto_sezioni": [
@@ -599,13 +606,13 @@
       "obiettivi": [
         "Usare puntatori a puntatori per modificare un puntatore dentro una funzione e gestire array di puntatori",
         "Allocare e liberare matrici dinamiche in modo contiguo o per righe senza perdite di memoria",
-        "Elaborare argomenti da riga di comando con argc/argv e convertire stringhe in numeri con strtol e strtod",
+        "Elaborare argomenti da riga di comando con argc/argv e convertire stringhe in numeri con strtol e strtod controllando gli overflow con errno, ERANGE e HUGE_VAL",
         "Applicare correttamente const e restrict e prevenire puntatori pendenti usando valori sentinella"
       ],
       "argomenti": [
         "puntatori a puntatori",
         "array di puntatori e matrici dinamiche",
-        "argc/argv e conversioni rigorose con strtol e strtod",
+        "argc/argv, conversioni rigorose con strtol e strtod e controllo degli errori con <errno.h> (errno, ERANGE, HUGE_VAL)",
         "correttezza di const e qualificatore restrict",
         "valori sentinella e puntatori pendenti"
       ],
@@ -881,7 +888,7 @@
       ],
       "argomenti": [
         "fopen, fclose, fprintf, fgets e gestione di FILE",
-        "feof, ferror, clearerr e stderr",
+        "feof, ferror e clearerr",
         "file binari con fread e fwrite",
         "accesso casuale con fseek, ftell e rewind",
         "serializzazione portabile di strutture e versioni di formato"
@@ -889,6 +896,7 @@
       "prerequisiti": [
         5,
         9,
+        11,
         12,
         13,
         19
@@ -921,18 +929,18 @@
       "titolo": "Robustezza e qualità",
       "tipo": "teoria",
       "obiettivi": [
-        "Propagare e diagnosticare errori con codici di ritorno, errno, perror e strerror",
+        "Propagare e diagnosticare errori con codici di ritorno, errno, perror, strerror e operazioni intere controllate di <stdckdint.h>",
         "Strutturare il rilascio deterministico di più risorse con il modello goto cleanup",
         "Scrivere asserzioni con assert e funzioni variadiche con <stdarg.h>",
-        "Usare macro con argomenti, compilazione condizionale, __FILE__ e __LINE__ evitando le trappole del preprocessore",
+        "Usare macro con argomenti, compilazione condizionale, __FILE__, __LINE__ e attributi C23 ([[nodiscard]], [[maybe_unused]], [[noreturn]]) evitando le trappole del preprocessore",
         "Spiegare i casi critici di comportamento indefinito e il ruolo di volatile e <signal.h>"
       ],
       "argomenti": [
-        "gestione degli errori, errno, perror e strerror",
+        "gestione degli errori, errno, perror, strerror e aritmetica controllata con <stdckdint.h> (ckd_add, ckd_sub, ckd_mul)",
         "modello goto cleanup per il rilascio delle risorse",
         "assert e NDEBUG",
         "funzioni variadiche con <stdarg.h> e vfprintf/vsnprintf",
-        "macro con argomenti, __FILE__ e __LINE__",
+        "macro con argomenti, __FILE__, __LINE__ e attributi standard C23 ([[nodiscard]], [[maybe_unused]], [[noreturn]])",
         "comportamento indefinito, diagnostica, volatile e <signal.h>"
       ],
       "prerequisiti": [
@@ -974,15 +982,15 @@
       "tipo": "teoria",
       "obiettivi": [
         "Allineare buffer statici e blocchi allocati con alignas, alignof e max_align_t",
-        "Implementare da zero un allocatore ad arena, un allocatore a pool e un allocatore con lista libera",
+        "Implementare da zero un allocatore ad arena, un allocatore a pool e un allocatore con lista libera (anche con campo array flessibile) garantendo allineamento corretto",
         "Ridurre frammentazione e numero di chiamate a malloc scegliendo l'allocatore adatto al ciclo di vita dei dati",
         "Spiegare le regole di strict aliasing e di restrict e diagnosticare corruzioni della memoria"
       ],
       "argomenti": [
         "allineamento pratico con alignas e max_align_t",
-        "allocatore ad arena su buffer statico",
-        "allocatore a pool per blocchi a dimensione fissa",
-        "allocatore con lista libera (free list)",
+        "allocatore ad arena su buffer statico con arrotondamento degli indirizzi a alignof(max_align_t)",
+        "allocatore a pool per blocchi a dimensione fissa allineati e rispetto del tipo effettivo nei blocchi riciclati",
+        "allocatore con lista libera (free list), arrotondamento all'allineamento massimo e campo array flessibile",
         "strict aliasing, restrict e corruzioni di memoria"
       ],
       "prerequisiti": [
@@ -1029,12 +1037,14 @@
       "argomenti": [
         "notazione O e conteggio delle operazioni",
         "heap binario e coda di priorità generica",
-        "albero AVL e rotazioni",
+        "albero AVL e rotazioni (esempio guidato sulla rotazione singola, rotazioni doppie nell'esercizio)",
         "trie per chiavi testuali",
         "grafi con liste di adiacenza, BFS e DFS",
-        "cammini minimi con l'algoritmo di Dijkstra"
+        "cammini minimi con l'algoritmo di Dijkstra (esempio guidato compatto, integrazione con la coda di priorità generica nell'esercizio)"
       ],
       "prerequisiti": [
+        11,
+        12,
         15,
         16,
         17,
@@ -1188,8 +1198,10 @@
         "integrazione su più file, gestione errori e test automatici"
       ],
       "prerequisiti": [
+        11,
         12,
         13,
+        14,
         15,
         16,
         17,
@@ -1471,6 +1483,46 @@
       "capitolo": 3
     },
     {
+      "nome": "math.h",
+      "categoria": "header",
+      "capitolo": 3
+    },
+    {
+      "nome": "fabs",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "sqrt",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "pow",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "floor",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "ceil",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "round",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
+      "nome": "fmod",
+      "categoria": "funzione",
+      "capitolo": 3
+    },
+    {
       "nome": "DBL_EPSILON",
       "categoria": "costante",
       "capitolo": 3
@@ -1591,6 +1643,11 @@
       "capitolo": 4
     },
     {
+      "nome": "[[fallthrough]]",
+      "categoria": "sintassi",
+      "capitolo": 4
+    },
+    {
       "nome": "valutazione a corto circuito",
       "categoria": "concetto",
       "capitolo": 4
@@ -1626,12 +1683,22 @@
       "capitolo": 5
     },
     {
+      "nome": "fprintf",
+      "categoria": "funzione",
+      "capitolo": 5
+    },
+    {
       "nome": "stdin",
       "categoria": "costante",
       "capitolo": 5
     },
     {
       "nome": "stdout",
+      "categoria": "costante",
+      "capitolo": 5
+    },
+    {
+      "nome": "stderr",
       "categoria": "costante",
       "capitolo": 5
     },
@@ -1946,6 +2013,26 @@
       "capitolo": 11
     },
     {
+      "nome": "strdup",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "strndup",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "exit",
+      "categoria": "funzione",
+      "capitolo": 11
+    },
+    {
+      "nome": "void * (solo come tipo restituito da malloc)",
+      "categoria": "sintassi",
+      "capitolo": 11
+    },
+    {
       "nome": "allocazione dinamica",
       "categoria": "concetto",
       "capitolo": 11
@@ -2236,6 +2323,11 @@
       "capitolo": 13
     },
     {
+      "nome": "errno.h",
+      "categoria": "header",
+      "capitolo": 14
+    },
+    {
       "nome": "restrict",
       "categoria": "parola chiave",
       "capitolo": 14
@@ -2263,6 +2355,21 @@
     {
       "nome": "strtod",
       "categoria": "funzione",
+      "capitolo": 14
+    },
+    {
+      "nome": "errno",
+      "categoria": "costante",
+      "capitolo": 14
+    },
+    {
+      "nome": "ERANGE",
+      "categoria": "costante",
+      "capitolo": 14
+    },
+    {
+      "nome": "HUGE_VAL",
+      "categoria": "costante",
       "capitolo": 14
     },
     {
@@ -2466,6 +2573,11 @@
       "capitolo": 19
     },
     {
+      "nome": "defined",
+      "categoria": "sintassi",
+      "capitolo": 19
+    },
+    {
       "nome": "compilazione separata",
       "categoria": "concetto",
       "capitolo": 19
@@ -2489,11 +2601,6 @@
       "nome": "fclose",
       "categoria": "funzione",
       "capitolo": 20
-    },
-    {
-      "nome": "fprintf",
-      "categoria": "funzione",
-      "capitolo": 5
     },
     {
       "nome": "fputs",
@@ -2571,11 +2678,6 @@
       "capitolo": 20
     },
     {
-      "nome": "stderr",
-      "categoria": "costante",
-      "capitolo": 5
-    },
-    {
       "nome": "SEEK_SET",
       "categoria": "costante",
       "capitolo": 20
@@ -2596,17 +2698,17 @@
       "capitolo": 20
     },
     {
-      "nome": "errno.h",
-      "categoria": "header",
-      "capitolo": 21
-    },
-    {
       "nome": "assert.h",
       "categoria": "header",
       "capitolo": 21
     },
     {
       "nome": "stdarg.h",
+      "categoria": "header",
+      "capitolo": 21
+    },
+    {
+      "nome": "stdckdint.h",
       "categoria": "header",
       "capitolo": 21
     },
@@ -2696,27 +2798,27 @@
       "capitolo": 21
     },
     {
-      "nome": "exit",
-      "categoria": "funzione",
-      "capitolo": 11
-    },
-    {
       "nome": "abort",
       "categoria": "funzione",
       "capitolo": 21
     },
     {
-      "nome": "errno",
-      "categoria": "costante",
+      "nome": "ckd_add",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "ckd_sub",
+      "categoria": "funzione",
+      "capitolo": 21
+    },
+    {
+      "nome": "ckd_mul",
+      "categoria": "funzione",
       "capitolo": 21
     },
     {
       "nome": "EDOM",
-      "categoria": "costante",
-      "capitolo": 21
-    },
-    {
-      "nome": "ERANGE",
       "categoria": "costante",
       "capitolo": 21
     },
@@ -2801,6 +2903,21 @@
       "capitolo": 21
     },
     {
+      "nome": "[[nodiscard]]",
+      "categoria": "sintassi",
+      "capitolo": 21
+    },
+    {
+      "nome": "[[maybe_unused]]",
+      "categoria": "sintassi",
+      "capitolo": 21
+    },
+    {
+      "nome": "[[noreturn]]",
+      "categoria": "sintassi",
+      "capitolo": 21
+    },
+    {
       "nome": "goto cleanup",
       "categoria": "concetto",
       "capitolo": 21
@@ -2813,6 +2930,11 @@
     {
       "nome": "max_align_t",
       "categoria": "tipo",
+      "capitolo": 22
+    },
+    {
+      "nome": "campo array flessibile",
+      "categoria": "sintassi",
       "capitolo": 22
     },
     {
@@ -2974,51 +3096,6 @@
       "nome": "fuzzing",
       "categoria": "concetto",
       "capitolo": 25
-    },
-    {
-      "nome": "math.h",
-      "categoria": "header",
-      "capitolo": 3
-    },
-    {
-      "nome": "fabs",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "sqrt",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "pow",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "floor",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "ceil",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "round",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "fmod",
-      "categoria": "funzione",
-      "capitolo": 3
-    },
-    {
-      "nome": "void * (solo come tipo restituito da malloc)",
-      "categoria": "sintassi",
-      "capitolo": 11
     }
   ],
   "non_trattati": [
@@ -3034,6 +3111,8 @@
     "wctype.h",
     "uchar.h",
     "gets",
+    "sprintf",
+    "vsprintf",
     "_Atomic",
     "_Complex",
     "_Imaginary",
@@ -3209,6 +3288,14 @@
       ]
     },
     {
+      "termine": "comportamento non specificato",
+      "definizione": "Comportamento per cui lo standard C ammette due o più possibilità senza obbligare il compilatore a documentare quale sceglie.",
+      "capitolo": 3,
+      "sinonimi_vietati": [
+        "comportamento casuale"
+      ]
+    },
+    {
       "termine": "virgola mobile",
       "definizione": "Rappresentazione binaria approssimata dei numeri reali tramite mantissa ed esponente, usata da float e double.",
       "capitolo": 3,
@@ -3238,6 +3325,14 @@
       "capitolo": 4,
       "sinonimi_vietati": [
         "caduta di ramo"
+      ]
+    },
+    {
+      "termine": "attributo",
+      "definizione": "Annotazione standard C23 tra doppie parentesi quadre [[...]] che fornisce informazioni aggiuntive al compilatore.",
+      "capitolo": 4,
+      "sinonimi_vietati": [
+        "decoratore"
       ]
     },
     {
@@ -3294,7 +3389,8 @@
       "capitolo": 7,
       "sinonimi_vietati": [
         "sottoprogramma",
-        "procedura"
+        "procedura",
+        "metodo"
       ]
     },
     {
@@ -3415,7 +3511,8 @@
       "definizione": "Variabile che memorizza l'indirizzo di memoria di un oggetto o di una funzione, oppure il valore nullo.",
       "capitolo": 10,
       "sinonimi_vietati": [
-        "indirizzatore"
+        "indirizzatore",
+        "passaggio per riferimento"
       ]
     },
     {
@@ -3529,7 +3626,8 @@
       "definizione": "Singola variabile dichiarata all'interno di una struct o di una union.",
       "capitolo": 12,
       "sinonimi_vietati": [
-        "attributo di struct"
+        "attributo di struct",
+        "membro di struct"
       ]
     },
     {
@@ -3750,6 +3848,15 @@
       ]
     },
     {
+      "termine": "collegamento",
+      "definizione": "Proprietà che stabilisce se un identificatore dichiarato in più unità di traduzione indica lo stesso oggetto o funzione (esterno, interno o assente).",
+      "capitolo": 19,
+      "sinonimi_vietati": [
+        "visibilità globale",
+        "condivisione automatica"
+      ]
+    },
+    {
       "termine": "protezione di inclusione",
       "definizione": "Coppia di direttive #ifndef/#define/#endif che impedisce l'inclusione multipla dello stesso file di intestazione.",
       "capitolo": 19,
@@ -3779,7 +3886,7 @@
       "definizione": "Controllo diagnostico espresso con assert che verifica un'ipotesi del programmatore durante lo sviluppo.",
       "capitolo": 21,
       "sinonimi_vietati": [
-        "dichiarazione di verita"
+        "dichiarazione di verità"
       ]
     },
     {
@@ -3823,11 +3930,19 @@
       ]
     },
     {
+      "termine": "campo array flessibile",
+      "definizione": "Ultimo campo di una struct dichiarato come array senza dimensione (tipo nome[]) per allocare intestazione e dati in un unico blocco.",
+      "capitolo": 22,
+      "sinonimi_vietati": [
+        "array a dimensione zero"
+      ]
+    },
+    {
       "termine": "complessità asintotica",
       "definizione": "Misura di come cresce il numero di operazioni di un algoritmo al crescere della dimensione dell'input, espressa con la notazione O.",
       "capitolo": 23,
       "sinonimi_vietati": [
-        "velocita teorica"
+        "velocità teorica"
       ]
     },
     {
@@ -3904,7 +4019,7 @@
     },
     {
       "termine": "collegatore",
-      "definizione": "programma che unisce i file oggetto e le librerie in un unico eseguibile",
+      "definizione": "Programma che unisce i file oggetto e le librerie in un unico eseguibile.",
       "capitolo": 1,
       "sinonimi_vietati": [
         "linkatore"
@@ -3912,7 +4027,7 @@
     },
     {
       "termine": "libreria standard",
-      "definizione": "insieme di funzioni, tipi e costanti fornito con ogni compilatore C e dichiarato negli header",
+      "definizione": "Insieme di funzioni, tipi e costanti fornito con ogni compilatore C e dichiarato negli header.",
       "capitolo": 1,
       "sinonimi_vietati": [
         "libreria base"
@@ -3920,7 +4035,7 @@
     },
     {
       "termine": "puntatore a puntatore",
-      "definizione": "variabile che contiene l'indirizzo di un'altra variabile di tipo puntatore",
+      "definizione": "Variabile che contiene l'indirizzo di un'altra variabile di tipo puntatore.",
       "capitolo": 14,
       "sinonimi_vietati": [
         "doppio indirizzo"
@@ -3928,7 +4043,7 @@
     },
     {
       "termine": "contenitore generico",
-      "definizione": "struttura dati che memorizza elementi di tipo qualsiasi, noto al programma solo a tempo di esecuzione",
+      "definizione": "Struttura dati che memorizza elementi di tipo qualsiasi, noto al programma solo a tempo di esecuzione.",
       "capitolo": 15,
       "sinonimi_vietati": [
         "contenitore universale"
@@ -3936,7 +4051,7 @@
     },
     {
       "termine": "notazione O",
-      "definizione": "notazione che descrive come cresce il costo di un algoritmo al crescere della dimensione dei dati",
+      "definizione": "Notazione che descrive come cresce il costo di un algoritmo al crescere della dimensione dei dati.",
       "capitolo": 23,
       "sinonimi_vietati": [
         "notazione grande"
@@ -3944,10 +4059,18 @@
     },
     {
       "termine": "coda di priorità",
-      "definizione": "struttura dati da cui si estrae sempre l'elemento con priorità massima o minima",
+      "definizione": "Struttura dati da cui si estrae sempre l'elemento con priorità massima o minima.",
       "capitolo": 23,
       "sinonimi_vietati": [
         "coda ordinata"
+      ]
+    },
+    {
+      "termine": "albero di sintassi astratta",
+      "definizione": "Rappresentazione ad albero della struttura grammaticale di un programma, costruita dall'analizzatore sintattico ed eseguita dal valutatore.",
+      "capitolo": 26,
+      "sinonimi_vietati": [
+        "albero di codice grezzo"
       ]
     }
   ]

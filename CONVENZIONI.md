@@ -9,7 +9,7 @@ in conflitto, vince questo file e lo segnali nel messaggio finale.
 
 | Voce | Valore |
 |---|---|
-| Titolo di lavoro | Imparare il C con gli esercizi |
+| Titolo di lavoro | C - Il linguaggio di programmazione |
 | Lingua del libro | Italiano |
 | Standard del linguaggio | C23 (ISO/IEC 9899:2024) |
 | Lettori | Studenti di 16-18 anni, partono da zero in C. Possono conoscere un altro linguaggio (per esempio Python) ma non e' garantito: ogni concetto va spiegato da zero |

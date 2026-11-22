@@ -1,8 +1,8 @@
 {
   "p1": {
     "verificato": true,
-    "approvato": false,
-    "hash": null,
+    "approvato": true,
+    "hash": "7563949675c538fa478c0a39799031efc285962ca721fe2322efa0e0738e62ac",
     "modificato": false
   },
   "n_capitoli": 26,
