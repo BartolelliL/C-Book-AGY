@@ -1,0 +1,317 @@
+{
+  "capitolo": 2,
+  "titolo": "Variabili e tipi",
+  "obiettivi": [
+    "Dichiarare e inizializzare variabili dei tipi fondamentali del C23",
+    "Scegliere lo specificatore di formato corretto in printf per ciascun tipo",
+    "Definire valori immutabili con const e costanti a tempo di compilazione con constexpr",
+    "Determinare la dimensione e i limiti numerici dei tipi con sizeof e <limits.h>"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "variabile",
+      "definizione": "Oggetto in memoria dotato di nome e tipo il cui valore può essere letto e modificato durante l'esecuzione."
+    },
+    {
+      "termine": "tipo di dato",
+      "definizione": "Insieme di valori rappresentabili e di operazioni lecite su un oggetto o su un'espressione."
+    },
+    {
+      "termine": "dichiarazione",
+      "definizione": "Costrutto che introduce il nome e il tipo di una variabile, di una funzione o di un tipo nel programma."
+    },
+    {
+      "termine": "inizializzazione",
+      "definizione": "Assegnazione del valore iniziale a una variabile nel momento stesso in cui viene definita."
+    },
+    {
+      "termine": "costante",
+      "definizione": "Valore o oggetto di sola lettura che non può essere modificato dopo la sua definizione."
+    },
+    {
+      "termine": "specificatore di formato",
+      "definizione": "Segnaposto introdotto da % in funzioni come printf e sscanf che indica come interpretare o stampare un valore."
+    }
+  ],
+  "concetti_richiesti": [
+    "codice sorgente",
+    "compilatore",
+    "eseguibile",
+    "struttura di un programma con main e #include",
+    "stampa con printf e sequenze di escape"
+  ],
+  "regole": [
+    {
+      "id": "2.R1",
+      "enunciato": "Ogni variabile va dichiarata indicando il tipo di dato seguito dall'identificatore (lettere, cifre e _, mai iniziando con una cifra e mai usando parole chiave). Le variabili locali devono essere sempre inizializzate prima di leggerne il valore.",
+      "nota_standard": "indefinito: in C23 una variabile locale con durata automatica non inizializzata ha rappresentazione indeterminata; leggerne il valore prima di scriverlo provoca comportamento indefinito."
+    },
+    {
+      "id": "2.R2",
+      "enunciato": "In C23 bool, true e false sono parole chiave predefinite del linguaggio senza bisogno di includere <stdbool.h>. Una variabile bool assume esclusivamente i valori 0 (false) o 1 (true).",
+      "nota_standard": "definito: lo standard C23 definisce bool, true e false come parole chiave; sui compilatori C17/C11 precedenti occorre includere <stdbool.h>."
+    },
+    {
+      "id": "2.R3",
+      "enunciato": "Il tipo char occupa sempre esattamente 1 byte e rappresenta un singolo carattere o un piccolo intero. I letterali di carattere usano gli apici singoli ('A'), distinti dalle stringhe tra doppi apici (\"A\").",
+      "nota_standard": "dipendente dall'implementazione: lo standard C23 garantisce sizeof(char) == 1 e CHAR_BIT >= 8, ma lascia all'implementazione decidere se il tipo char semplice sia con segno (signed) o senza segno (unsigned)."
+    },
+    {
+      "id": "2.R4",
+      "enunciato": "I modificatori short, long, long long, signed e unsigned controllano intervallo e segno dei tipi interi. Nei letterali numerici il C23 ammette l'apice singolo come separatore di cifre (per esempio 1'000'000) senza alterare il valore.",
+      "nota_standard": "definito: lo standard C23 garantisce le ampiezze minime di char (almeno 8 bit), short e int (almeno 16 bit), long (almeno 32 bit), long long (almeno 64 bit) e la sintassi dei separatori di cifre; le dimensioni esatte oltre tali minimi sono dipendenti dall'implementazione."
+    },
+    {
+      "id": "2.R5",
+      "enunciato": "In printf ogni specificatore di formato (%d, %u, %ld, %lu, %lld, %llu, %f, %c, %zu, %%) deve corrispondere esattamente al tipo dell'argomento corrispondente (tenuto conto delle promozioni predefinite di char/short/bool a int e di float a double).",
+      "nota_standard": "indefinito: fornire a printf un argomento di tipo incompatibile con lo specificatore di formato, oppure un numero di argomenti inferiore agli specificatori, provoca comportamento indefinito."
+    },
+    {
+      "id": "2.R6",
+      "enunciato": "Il qualificatore const definisce un oggetto di sola lettura da inizializzare alla dichiarazione; lo specificatore constexpr del C23 definisce una costante nota a tempo di compilazione il cui inizializzatore deve essere costante e rappresentabile esattamente nel tipo dichiarato.",
+      "nota_standard": "definito: lo standard C23 definisce const e introduce constexpr per oggetti con valore costante a tempo di compilazione; modificare un oggetto definito const è un errore di compilazione se fatto direttamente (e comportamento indefinito se aggirato)."
+    },
+    {
+      "id": "2.R7",
+      "enunciato": "L'operatore sizeof restituisce la dimensione in byte di un tipo (sizeof(tipo)) o di un'espressione (sizeof espressione) come valore di tipo size_t (definito in <stddef.h>, da stampare con %zu). Le costanti di <limits.h> indicano i limiti dei tipi interi sulla piattaforma in uso.",
+      "nota_standard": "dipendente dall'implementazione: il tipo restituito size_t e sizeof(char) == 1 sono definiti dallo standard C23, mentre le dimensioni degli altri tipi e i valori concreti in <limits.h> dipendono dall'implementazione entro i minimi garantiti."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sull'uscita standard in base agli specificatori di formato e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "2.1",
+      "titolo": "Dichiarare e inizializzare variabili",
+      "contenuti": [
+        "Cos'è una variabile in C: un oggetto in memoria con nome, tipo di dato e valore modificabile",
+        "Dichiarazione (tipo nome;) e inizializzazione (tipo nome = valore;) e differenza rispetto a un assegnamento successivo",
+        "Regole per gli identificatori (lettere, cifre, _, niente cifra iniziale, niente parole chiave) e convenzione snake_case del libro",
+        "Perché inizializzare sempre le variabili locali: leggere una variabile locale non inizializzata provoca comportamento indefinito (lo vedremo in dettaglio nel capitolo 3)",
+        "Uso essenziale di %d in printf per stampare una variabile int prima dello studio completo degli specificatori nella sotto-sezione 2.3"
+      ],
+      "esempio_guidato": "Un programma che gestisce i punti vita di un personaggio (int punti_vita = 100;), stampa il valore iniziale, lo aggiorna con un assegnamento successivo (punti_vita = 75;) e stampa il nuovo valore.",
+      "approfondimento": "",
+      "esercizio_id": "2.1"
+    },
+    {
+      "id": "2.2",
+      "titolo": "I tipi fondamentali: int, double, char e bool",
+      "contenuti": [
+        "Cos'è un tipo di dato e perché il C richiede un tipo esplicito per ogni variabile",
+        "Interi con int e modificatori short, long, long long, signed e unsigned per adattare segno e intervallo",
+        "Separatore di cifre C23 con apice singolo nei letterali numerici (es. 1'000'000), segnalato con box C23 per chi usa compilatori più vecchi",
+        "Numeri con parte frazionaria: double come scelta predefinita e cenno a float",
+        "Singoli caratteri con char e letterali tra apici singoli ('A', '7'), distinguendoli dalle stringhe tra doppi apici",
+        "Tipo booleano bool e costanti true e false come parole chiave native del C23, segnalate con box C23 (indicando #include <stdbool.h> per C17/C11)"
+      ],
+      "esempio_guidato": "Un programma che descrive un volume di una biblioteca dichiarando una variabile per ciascun tipo fondamentale (int per l'anno, long con separatore di cifre per il codice di catalogo, double per il peso in kg, char per la sezione e bool per la disponibilità al prestito) e stampandone i valori.",
+      "approfondimento": "Perché preferire double a float nella maggior parte dei programmi (precisione e compatibilità con printf) e perché char è tecnicamente un piccolo tipo intero che codifica i simboli con numeri (ASCII).",
+      "esercizio_id": "2.2"
+    },
+    {
+      "id": "2.3",
+      "titolo": "Stampare valori con gli specificatori di formato",
+      "contenuti": [
+        "Come printf sostituisce gli specificatori di formato nell'ordine esatto degli argomenti passati",
+        "Mappa completa degli specificatori principali: %d, %u, %ld, %lu, %lld, %llu, %f, %c, %zu e %% per stampare il simbolo percentuale",
+        "Formattazione dell'output: precisione decimale (%.2f, %.1f), larghezza minima di campo (%6u, %6.2f) e allineamento a sinistra (%-10c)",
+        "Stampare più variabili in un'unica chiamata a printf combinando testo e specificatori",
+        "Conseguenze della mancata corrispondenza tra tipo e specificatore (comportamento indefinito) e aiuto degli avvisi del compilatore (-Wall)"
+      ],
+      "esempio_guidato": "Un programma che stampa un bollettino meteorologico formattato con colonne allineate, usando %d con %% per l'umidità, %.1f e %.2f per temperatura e pressione, %u per i millimetri annui di pioggia e %c per la zona.",
+      "approfondimento": "Le promozioni predefinite degli argomenti in printf: perché float viene promosso automaticamente a double (e si stampa con %f) e perché char, short e bool vengono promossi a int.",
+      "esercizio_id": "2.3"
+    },
+    {
+      "id": "2.4",
+      "titolo": "Costanti con const e constexpr",
+      "contenuti": [
+        "Perché sostituire i numeri sparsi nel codice con costanti dotate di nome esplicito in MAIUSCOLO",
+        "Il qualificatore const: oggetto di sola lettura che deve essere inizializzato alla dichiarazione e non può essere modificato",
+        "Lo specificatore constexpr introdotto in C23 per costanti note a tempo di compilazione, segnalato con box C23 (indicando const nei compilatori precedenti)",
+        "Differenza tra const (sola lettura, anche inizializzabile a tempo di esecuzione) e constexpr (valore noto a tempo di compilazione con controllo rigoroso sul tipo dell'inizializzatore)",
+        "Rifiuto del compilatore in caso di tentativo di riassegnazione di una costante"
+      ],
+      "esempio_guidato": "Un programma di configurazione di una sala cinematografica che usa constexpr per i parametri fissi (POSTI_MASSIMI, PREZZO_INTERO, SALA_CODICE) e const per un valore di sola lettura della serata, affiancato da un breve blocco di tipo errore che tenta di riassegnare una costante.",
+      "approfondimento": "Controlli più severi di constexpr in C23: perché il compilatore rifiuta un inizializzatore che causerebbe perdita di valore (per esempio un decimale non intero assegnato a un constexpr int).",
+      "esercizio_id": "2.4"
+    },
+    {
+      "id": "2.5",
+      "titolo": "Dimensione e limiti dei tipi: sizeof e <limits.h>",
+      "contenuti": [
+        "L'operatore sizeof per ottenere la dimensione in byte di un tipo (sizeof(int)) o di una variabile (sizeof x) a tempo di compilazione",
+        "Il tipo size_t definito in <stddef.h> e il suo specificatore di formato %zu",
+        "Cosa è garantito dallo standard C23 (sizeof(char) == 1, CHAR_BIT >= 8, ampiezze minime) e cosa dipende dall'implementazione (per esempio sizeof(long) pari a 4 byte su Windows a 64 bit e 8 byte su Linux e macOS a 64 bit)",
+        "Le costanti di <limits.h>: CHAR_BIT, CHAR_MIN, CHAR_MAX, SCHAR_MIN, SCHAR_MAX, UCHAR_MAX, SHRT_MIN, SHRT_MAX, USHRT_MAX, INT_MIN, INT_MAX, UINT_MAX, LONG_MIN, LONG_MAX, ULONG_MAX, LLONG_MIN, LLONG_MAX, ULLONG_MAX",
+        "Abbinamento corretto tra ciascuna costante di <limits.h> e il relativo specificatore di formato in printf"
+      ],
+      "esempio_guidato": "Un programma diagnostico che include <stdio.h>, <stddef.h> e <limits.h>, salva in variabili size_t le dimensioni di char, int, long e double con sizeof e stampa sia le dimensioni (con %zu) sia alcuni limiti (CHAR_BIT, INT_MIN, INT_MAX, ULONG_MAX), spiegando quali valori possono variare tra sistemi operativi.",
+      "approfondimento": "Perché sizeof è un operatore e non una funzione: con un nome di tipo le parentesi sono obbligatorie (sizeof(double)), mentre con una variabile sono facoltative ma usate spesso per chiarezza.",
+      "esercizio_id": "2.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "2.1",
+      "tipo": "esercizio",
+      "titolo": "Aggiornare il contatore di un'aula studio",
+      "descrizione": "Scrivi un programma C che dichiari e inizializzi una variabile intera `posti_liberi` al valore `24` e stampi `Posti liberi iniziali: 24`. Successivamente assegna alla stessa variabile il valore `18` e stampa `Posti liberi dopo la pausa: 18`. Infine assegna il valore `0` e stampa `Posti liberi a fine giornata: 0`. Ogni riga deve terminare con un ritorno a capo.",
+      "concetti_da_tenere_a_mente": [
+        "variabile",
+        "dichiarazione e inizializzazione",
+        "assegnamento successivo",
+        "stampa di un intero con %d"
+      ],
+      "domande_guida": [
+        "Qual è la differenza tra inizializzare una variabile nella sua dichiarazione e assegnarle un nuovo valore più avanti nel programma?",
+        "Quando aggiorni il valore di una variabile già dichiarata, devi riscrivere il tipo di dato davanti al suo nome?",
+        "Perché è buona regola inizializzare sempre una variabile locale nel momento in cui la dichiari?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Posti liberi iniziali: 24\nPosti liberi dopo la pausa: 18\nPosti liberi a fine giornata: 0\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    int posti_liberi = 24;\n    printf(\"Posti liberi iniziali: %d\\n\", posti_liberi);\n\n    posti_liberi = 18;\n    printf(\"Posti liberi dopo la pausa: %d\\n\", posti_liberi);\n\n    posti_liberi = 0;\n    printf(\"Posti liberi a fine giornata: %d\\n\", posti_liberi);\n    return 0;\n}\n"
+    },
+    {
+      "id": "2.2",
+      "tipo": "esercizio",
+      "titolo": "Scheda di un satellite meteorologico",
+      "descrizione": "Scrivi un programma C che memorizzi i dati di un satellite meteorologico in cinque variabili inizializzate con il tipo più adatto: `codice_orbita` (`long`, valore `1'450'000` scritto con il separatore di cifre del C23), `anno_lancio` (`int`, valore `2025`), `quota_km` (`double`, valore `824.5`), `classe_orbita` (`char`, valore `'P'`) e `attivo` (`bool`, valore `true`). Stampa i cinque dati su righe separate esattamente come mostrato nell'esempio di esecuzione (usando `%f` per `quota_km` e `%d` per `attivo`).",
+      "concetti_da_tenere_a_mente": [
+        "tipo di dato",
+        "tipi int, long, double, char e bool (C23)",
+        "letterali di carattere tra apici singoli",
+        "separatore di cifre C23"
+      ],
+      "domande_guida": [
+        "Quale differenza sintattica distingue un carattere singolo da una stringa letterale?",
+        "Perché in C23 puoi usare bool, true e false senza includere nessun header dedicato?",
+        "L'uso del separatore di cifre con apice singolo nel letterale numerico modifica in qualche modo ciò che viene stampato a schermo?",
+        "Quale valore numerico stampa printf quando visualizza una variabile bool con valore true usando %d?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Codice orbita: 1450000\nAnno di lancio: 2025\nQuota (km): 824.500000\nClasse: P\nAttivo (1=vero, 0=falso): 1\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    long codice_orbita = 1'450'000L;\n    int anno_lancio = 2025;\n    double quota_km = 824.5;\n    char classe_orbita = 'P';\n    bool attivo = true;\n\n    printf(\"Codice orbita: %ld\\n\", codice_orbita);\n    printf(\"Anno di lancio: %d\\n\", anno_lancio);\n    printf(\"Quota (km): %f\\n\", quota_km);\n    printf(\"Classe: %c\\n\", classe_orbita);\n    printf(\"Attivo (1=vero, 0=falso): %d\\n\", attivo);\n    return 0;\n}\n"
+    },
+    {
+      "id": "2.3",
+      "tipo": "esercizio",
+      "titolo": "Prospetto di un impianto fotovoltaico",
+      "descrizione": "Scrivi un programma C che dichiari e inizializzi i dati di un impianto fotovoltaico con i tipi appropriati: `numero_pannelli` (`unsigned int`, valore `12`), `energia_totale_wh` (`long long`, valore `12'450'800`), `potenza_kw` (`double`, valore `4.35`), `rendimento` (`double`, valore `21.8`) e `classe_efficienza` (`char`, valore `'A'`). Stampa la tabella esattamente come nell'esempio di esecuzione usando gli specificatori di formato corretti, larghezze minime di campo (`6` caratteri per pannelli, potenza e classe; `5` caratteri per il rendimento), precisione di `2` cifre decimali per la potenza e `1` cifra decimale per il rendimento, e `%%` per il simbolo percentuale.",
+      "concetti_da_tenere_a_mente": [
+        "specificatore di formato",
+        "larghezza minima di campo e precisione decimale",
+        "corrispondenza tra tipo e specificatore in printf",
+        "stampa del simbolo percentuale con %%"
+      ],
+      "domande_guida": [
+        "Quale specificatore di formato corrisponde a un unsigned int e quale a un long long?",
+        "Come si combinano larghezza minima di campo e numero di cifre decimali in uno specificatore per double?",
+        "Perché per stampare il simbolo % nella riga del rendimento devi raddoppiarlo nella stringa di formato?",
+        "Che cosa rischia di accadere se usi %d per stampare un valore di tipo long long o double?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "=== IMPIANTO FOTOVOLTAICO ===\nPannelli installati :     12\nEnergia prodotta    : 12450800 Wh\nPotenza nominale    :   4.35 kW\nRendimento          :  21.8%\nClasse energetica   :      A\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    unsigned int numero_pannelli = 12U;\n    long long energia_totale_wh = 12'450'800LL;\n    double potenza_kw = 4.35;\n    double rendimento = 21.8;\n    char classe_efficienza = 'A';\n\n    printf(\"=== IMPIANTO FOTOVOLTAICO ===\\n\");\n    printf(\"Pannelli installati : %6u\\n\", numero_pannelli);\n    printf(\"Energia prodotta    : %lld Wh\\n\", energia_totale_wh);\n    printf(\"Potenza nominale    : %6.2f kW\\n\", potenza_kw);\n    printf(\"Rendimento          : %5.1f%%\\n\", rendimento);\n    printf(\"Classe energetica   : %6c\\n\", classe_efficienza);\n    return 0;\n}\n"
+    },
+    {
+      "id": "2.4",
+      "tipo": "esercizio",
+      "titolo": "Parametri di configurazione di una stampante 3D",
+      "descrizione": "Scrivi un programma C che definisca tramite `constexpr` quattro parametri hardware fissi di una stampante 3D: `LARGHEZZA_PIATTO_MM` (`int`, `220`), `ALTEZZA_MAX_MM` (`int`, `250`), `DIAMETRO_UGELLO_MM` (`double`, `0.40`) e `PROFILO_QUALITA` (`char`, `'M'`). Definisci poi tramite `const` due impostazioni di sola lettura della stampa corrente: `TEMPERATURA_ESTRUSORE` (`int`, `210`) e `VENTOLA_ATTIVA` (`bool`, `true`). Stampa il riepilogo esattamente come nell'esempio di esecuzione (con due cifre decimali per il diametro dell'ugello).",
+      "concetti_da_tenere_a_mente": [
+        "costante",
+        "qualificatore const",
+        "specificatore constexpr (C23)",
+        "nomi di costanti in MAIUSCOLO"
+      ],
+      "domande_guida": [
+        "In che cosa si distingue una costante definita con constexpr da un oggetto qualificato const?",
+        "Perché conviene raccogliere i parametri di configurazione in costanti con nomi chiari anziché scrivere i numeri direttamente dentro printf?",
+        "Che cosa fa il compilatore se provi a riassegnare una costante dopo la sua dichiarazione?",
+        "Quale specificatore di formato usi per mostrare il diametro dell'ugello esattamente con due cifre dopo la virgola?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "=== CONFIGURAZIONE STAMPANTE 3D ===\nPiatto (mm): 220 x 250\nUgello (mm): 0.40\nProfilo: M\nTemperatura estrusore (C): 210\nVentola attiva (1=vero, 0=falso): 1\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    constexpr int LARGHEZZA_PIATTO_MM = 220;\n    constexpr int ALTEZZA_MAX_MM = 250;\n    constexpr double DIAMETRO_UGELLO_MM = 0.40;\n    constexpr char PROFILO_QUALITA = 'M';\n\n    const int TEMPERATURA_ESTRUSORE = 210;\n    const bool VENTOLA_ATTIVA = true;\n\n    printf(\"=== CONFIGURAZIONE STAMPANTE 3D ===\\n\");\n    printf(\"Piatto (mm): %d x %d\\n\", LARGHEZZA_PIATTO_MM, ALTEZZA_MAX_MM);\n    printf(\"Ugello (mm): %.2f\\n\", DIAMETRO_UGELLO_MM);\n    printf(\"Profilo: %c\\n\", PROFILO_QUALITA);\n    printf(\"Temperatura estrusore (C): %d\\n\", TEMPERATURA_ESTRUSORE);\n    printf(\"Ventola attiva (1=vero, 0=falso): %d\\n\", VENTOLA_ATTIVA);\n    return 0;\n}\n"
+    },
+    {
+      "id": "2.5",
+      "tipo": "esercizio",
+      "titolo": "Tabella di dimensioni e limiti dei tipi",
+      "descrizione": "Scrivi un programma C che includa `<stdio.h>`, `<stddef.h>` e `<limits.h>`, salvi in costanti di tipo `size_t` la dimensione in byte dei tipi `char`, `bool`, `short`, `int`, `long long` e `double` ottenuta con `sizeof`, e stampi il numero di bit per byte (`CHAR_BIT`) seguito dalla tabella delle dimensioni e dei limiti (`SCHAR_MIN`, `SCHAR_MAX`, `UCHAR_MAX`, `SHRT_MIN`, `SHRT_MAX`, `INT_MIN`, `INT_MAX`, `UINT_MAX`, `LLONG_MIN`, `LLONG_MAX`, `ULLONG_MAX`) esattamente nel formato mostrato nell'esempio di esecuzione (riferito alle piattaforme desktop comuni a 32/64 bit). Usa sempre `%zu` per i valori di tipo `size_t` e gli specificatori di formato esatti per ciascun limite.",
+      "concetti_da_tenere_a_mente": [
+        "operatore sizeof",
+        "tipo size_t e specificatore %zu",
+        "costanti di <limits.h>",
+        "comportamento dipendente dall'implementazione per le dimensioni dei tipi"
+      ],
+      "domande_guida": [
+        "Quale header standard definisce il tipo size_t e quale definisce le costanti come CHAR_BIT e INT_MAX?",
+        "Quale specificatore di formato è richiesto da printf per stampare un valore restituito da sizeof?",
+        "Perché in questo esercizio è più portabile usare SCHAR_MIN e SCHAR_MAX al posto di CHAR_MIN e CHAR_MAX?",
+        "Quale specificatore di formato devi scegliere rispettivamente per UINT_MAX, LLONG_MIN e ULLONG_MAX?",
+        "Perché le dimensioni e i limiti di short, int e long long non vanno mai scritti come numeri fissi nel codice quando servono i valori effettivi del sistema?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Bit per byte: 8\nchar       : 1 byte (signed: -128 .. 127, unsigned max: 255)\nbool       : 1 byte\nshort      : 2 byte (-32768 .. 32767)\nint        : 4 byte (-2147483648 .. 2147483647, unsigned max: 4294967295)\nlong long  : 8 byte (-9223372036854775808 .. 9223372036854775807, unsigned max: 18446744073709551615)\ndouble     : 8 byte\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <limits.h>\n#include <stddef.h>\n#include <stdio.h>\n\nint main(void) {\n    const size_t DIM_CHAR = sizeof(char);\n    const size_t DIM_BOOL = sizeof(bool);\n    const size_t DIM_SHORT = sizeof(short);\n    const size_t DIM_INT = sizeof(int);\n    const size_t DIM_LLONG = sizeof(long long);\n    const size_t DIM_DOUBLE = sizeof(double);\n\n    printf(\"Bit per byte: %d\\n\", CHAR_BIT);\n    printf(\"char       : %zu byte (signed: %d .. %d, unsigned max: %d)\\n\",\n           DIM_CHAR, SCHAR_MIN, SCHAR_MAX, UCHAR_MAX);\n    printf(\"bool       : %zu byte\\n\", DIM_BOOL);\n    printf(\"short      : %zu byte (%d .. %d)\\n\", DIM_SHORT, SHRT_MIN, SHRT_MAX);\n    printf(\"int        : %zu byte (%d .. %d, unsigned max: %u)\\n\",\n           DIM_INT, INT_MIN, INT_MAX, UINT_MAX);\n    printf(\"long long  : %zu byte (%lld .. %lld, unsigned max: %llu)\\n\",\n           DIM_LLONG, LLONG_MIN, LLONG_MAX, ULLONG_MAX);\n    printf(\"double     : %zu byte\\n\", DIM_DOUBLE);\n    return 0;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Leggere una variabile locale senza averla prima inizializzata: il suo valore è indeterminato e provoca comportamento indefinito.",
+    "Usare uno specificatore di formato non coerente con il tipo dell'argomento in printf (per esempio %d per un double, per un long long o per il risultato di sizeof al posto di %zu).",
+    "Scrivere i doppi apici (\"A\") invece degli apici singoli ('A') quando si inizializza una variabile di tipo char.",
+    "Provare a riassegnare una costante dichiarata con const o constexpr, oppure dichiararla senza inizializzatore.",
+    "Riscrivere il tipo di dato davanti al nome della variabile quando si vuole soltanto aggiornarne il valore, causando un errore di ridefinizione.",
+    "Dare per scontato che tipi come int o long occupino sempre lo stesso numero di byte su qualunque macchina invece di usare sizeof e <limits.h>."
+  ],
+  "differenze_python": [
+    "In Python le variabili non dichiarano un tipo e possono cambiare tipo durante l'esecuzione; in C ogni variabile ha un tipo fisso dichiarato in anticipo.",
+    "In Python gli interi crescono senza un limite fisso; in C ogni tipo intero occupa uno spazio limitato in byte con intervalli definiti in <limits.h>.",
+    "In Python non esiste un tipo carattere distinto da una stringa lunga 1, né costanti bloccate dal compilatore come const e constexpr.",
+    "In Python i valori booleani sono True e False con l'iniziale maiuscola; in C23 sono parole chiave tutte minuscole: true e false."
+  ]
+}

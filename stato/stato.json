@@ -8,7 +8,7 @@
   "n_capitoli": 26,
   "capitoli": {
     "1": {
-      "fase": "blueprint",
+      "fase": "stesura",
       "ciclo": 1,
       "errori_aperti": false,
       "gravi_ciclo": false,
@@ -16,7 +16,7 @@
       "note": []
     },
     "2": {
-      "fase": "blueprint",
+      "fase": "stesura",
       "ciclo": 1,
       "errori_aperti": false,
       "gravi_ciclo": false,

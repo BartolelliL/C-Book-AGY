@@ -1,0 +1,277 @@
+{
+  "capitolo": 1,
+  "titolo": "Il primo programma",
+  "obiettivi": [
+    "Compilare ed eseguire un programma C da riga di comando in modo indipendente dal sistema operativo",
+    "Spiegare il ruolo di #include, della funzione main e dell'istruzione return",
+    "Scrivere programmi che stampano testo formattato con printf e sequenze di escape",
+    "Distinguere gli errori di compilazione dagli avvisi e correggere i messaggi più comuni"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "codice sorgente",
+      "definizione": "Testo leggibile scritto dal programmatore in un linguaggio di programmazione prima della compilazione."
+    },
+    {
+      "termine": "compilatore",
+      "definizione": "Programma che traduce il codice sorgente C in codice macchina eseguibile verificando sintassi e tipi."
+    },
+    {
+      "termine": "eseguibile",
+      "definizione": "File prodotto dalla compilazione e dal collegamento che il sistema operativo può avviare direttamente."
+    },
+    {
+      "termine": "preprocessore",
+      "definizione": "Fase iniziale della traduzione che elabora le direttive con # prima che il compilatore analizzi il codice C."
+    },
+    {
+      "termine": "collegatore",
+      "definizione": "Programma che unisce i file oggetto e le librerie in un unico eseguibile."
+    },
+    {
+      "termine": "libreria standard",
+      "definizione": "Insieme di funzioni, tipi e costanti fornito con ogni compilatore C e dichiarato negli header."
+    },
+    {
+      "termine": "sequenza di escape",
+      "definizione": "Coppia di caratteri introdotta da \\ usata in stringhe e caratteri per rappresentare simboli speciali come l'a capo."
+    },
+    {
+      "termine": "errore di compilazione",
+      "definizione": "Violazione delle regole sintattiche o di tipo che impedisce al compilatore di produrre l'eseguibile."
+    },
+    {
+      "termine": "avviso del compilatore",
+      "definizione": "Segnalazione di codice potenzialmente errato o ambiguo emessa dal compilatore durante la traduzione."
+    }
+  ],
+  "concetti_richiesti": [],
+  "regole": [
+    {
+      "id": "1.R1",
+      "enunciato": "Ogni programma C destinato a un ambiente ospitato deve definire la funzione main come punto di ingresso; la forma standard senza argomenti da riga di comando è int main(void).",
+      "nota_standard": "definito: lo standard C23 definisce int main(void) (oltre alla forma con parametri argc/argv) per gli ambienti ospitati; firme come void main() non sono conformi allo standard."
+    },
+    {
+      "id": "1.R2",
+      "enunciato": "Il valore intero restituito da main comunica al sistema operativo l'esito dell'esecuzione: 0 segnala la terminazione corretta, un valore diverso da 0 indica un errore. Nel libro si scrive sempre return 0; in modo esplicito.",
+      "nota_standard": "definito: lo standard C23 stabilisce che return 0 (e il raggiungimento della parentesi graffa di chiusura di main) equivalgano a terminazione con successo; il significato di codici non nulli arbitrari è dipendente dall'implementazione."
+    },
+    {
+      "id": "1.R3",
+      "enunciato": "Per chiamare una funzione della libreria standard come printf è obbligatorio includere prima l'header che la dichiara tramite la direttiva del preprocessore #include <stdio.h>.",
+      "nota_standard": "definito: in C23 ogni funzione deve essere dichiarata prima dell'uso; chiamare printf senza includere <stdio.h> viola i vincoli dello standard ed è un errore di compilazione."
+    },
+    {
+      "id": "1.R4",
+      "enunciato": "Ogni istruzione semplice termina con il punto e virgola (;), i blocchi di istruzioni sono racchiusi tra parentesi graffe ({ e }) e il linguaggio C distingue sempre tra lettere maiuscole e minuscole.",
+      "nota_standard": "definito: la grammatica delle istruzioni e la distinzione tra maiuscole e minuscole negli identificatori e nelle parole chiave sono fissate dallo standard C23."
+    },
+    {
+      "id": "1.R5",
+      "enunciato": "All'interno di una stringa letterale, le sequenze di escape standard (\\n, \\t, \\\", \\', \\\\) rappresentano caratteri di controllo o simboli con significato sintattico speciale.",
+      "nota_standard": "definito: il significato delle sequenze di escape semplici è definito dallo standard C23; una sequenza introdotta da \\ non riconosciuta viola la grammatica e non è portabile."
+    },
+    {
+      "id": "1.R6",
+      "enunciato": "I commenti // si estendono fino alla fine della riga; i commenti /* ... */ si chiudono al primo */ incontrato e non possono essere annidati. Durante la traduzione ogni commento viene sostituito da un singolo spazio.",
+      "nota_standard": "definito: le regole sui commenti e la loro sostituzione con un singolo spazio prima della fase di preprocessamento sono definite dallo standard C23."
+    },
+    {
+      "id": "1.R7",
+      "enunciato": "La traduzione del codice sorgente in eseguibile attraversa preprocessore, compilatore e collegatore; attivare gli avvisi del compilatore (-Wall -Wextra -Wpedantic -Werror) aiuta a intercettare difetti prima dell'esecuzione.",
+      "nota_standard": "dipendente dall'implementazione: le fasi logiche di traduzione sono definite dallo standard C23, mentre i nomi delle opzioni da riga di comando e la formulazione dei messaggi diagnostici dipendono dal compilatore."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo formattato sull'uscita standard e restituisce il numero di caratteri scritti oppure un valore negativo in caso di errore."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "1.1",
+      "titolo": "Dal codice sorgente all'eseguibile",
+      "contenuti": [
+        "Perché studiare il linguaggio C oggi (sistemi operativi, programmi ad alte prestazioni, controllo diretto sulla macchina) e cosa indica lo standard C23",
+        "Differenza tra codice sorgente (file .c leggibile da esseri umani) ed eseguibile (file in codice macchina avviabile dal sistema operativo)",
+        "Il percorso di traduzione in tre tappe: preprocessore, compilatore e collegatore",
+        "Compilazione da terminale in modo indipendente dal sistema operativo con gcc o clang usando -std=c23 -Wall -Wextra -Wpedantic -Werror",
+        "Avvio dell'eseguibile su macOS, Linux e Windows senza dipendere da un IDE specifico"
+      ],
+      "esempio_guidato": "Un programma minimale ciao.c che include <stdio.h> e usa printf per stampare la singola riga \"Ciao, mondo!\\n\", accompagnato dai comandi generici per compilare ed eseguire da terminale.",
+      "approfondimento": "Uno sguardo alle tre tappe della traduzione: cosa fa il preprocessore quando incontra #include, cosa produce il compilatore come codice oggetto e come il collegatore collega il programma alla libreria standard.",
+      "esercizio_id": "1.1"
+    },
+    {
+      "id": "1.2",
+      "titolo": "La struttura di un programma C",
+      "contenuti": [
+        "Ruolo di #include <stdio.h> e della libreria standard",
+        "La funzione main come punto di ingresso obbligatorio del programma e significato della forma int main(void)",
+        "Il blocco di codice tra parentesi graffe { e }, la sequenza delle istruzioni e il punto e virgola finale",
+        "L'istruzione return 0; come segnale di terminazione corretta al sistema operativo",
+        "Distinzione tra maiuscole e minuscole, spazi bianchi e indentazione coerente a 4 spazi"
+      ],
+      "esempio_guidato": "Un programma che simula l'avvio di una stazione meteo stampando tre righe tramite tre chiamate consecutive a printf (intestazione, stato dei sensori e conferma di avvio), spiegando ogni riga della struttura del file.",
+      "approfondimento": "Perché usare sempre int main(void) invece di forme non standard come void main() e perché in C23 conviene comunque scrivere return 0; in modo esplicito.",
+      "esercizio_id": "1.2"
+    },
+    {
+      "id": "1.3",
+      "titolo": "Stampare testo con printf e sequenze di escape",
+      "contenuti": [
+        "Comportamento di printf con stringhe letterali: nessun ritorno a capo automatico al termine della stampa",
+        "Le sequenze di escape essenziali: \\n (a capo), \\t (tabulazione), \\\" (virgolette doppie), \\' (apice singolo) e \\\\ (barra rovesciata)",
+        "Motivo sintattico delle sequenze di escape per i caratteri non stampabili direttamente e per i delimitatori di stringa",
+        "Stampare più righe con una sola chiamata a printf oppure costruire una riga con più chiamate consecutive",
+        "Nota sul carattere % dentro printf: ha un ruolo speciale per la formattazione dei valori (lo vedremo nel capitolo 2)"
+      ],
+      "esempio_guidato": "Un programma che stampa la locandina di un cineforum usando \\\" per il titolo del film, \\t per allineare giorni e orari e \\\\ per disegnare una piccola decorazione, mostrando l'output esatto.",
+      "approfondimento": "",
+      "esercizio_id": "1.3"
+    },
+    {
+      "id": "1.4",
+      "titolo": "Commenti, errori e avvisi del compilatore",
+      "contenuti": [
+        "Sintassi dei commenti su una riga (//) e su più righe (/* ... */), e divieto di annidare /* ... */",
+        "Quando e come scrivere commenti utili (spiegare scopo e scelte, evitare commenti ridondanti)",
+        "Differenza tra errore di compilazione e avviso del compilatore, e ruolo di -Wall -Wextra -Wpedantic -Werror",
+        "Come leggere le indicazioni del compilatore (file, riga, colonna, tipo di problema) partendo sempre dal primo errore",
+        "Gli errori più frequenti all'inizio: punto e virgola mancante, header omesso, maiuscole errate, virgolette o parentesi non chiuse"
+      ],
+      "esempio_guidato": "Un programma ben commentato (con commento di intestazione /* ... */ e commenti // mirati) che stampa il riepilogo delle tre fasi di traduzione, affiancato da due brevi blocchi di tipo errore (uno senza punto e virgola e uno senza #include <stdio.h>) per illustrare le segnalazioni del compilatore.",
+      "approfondimento": "Errori di compilazione, errori di collegamento ed errori logici: perché un programma che compila senza avvisi può comunque stampare un risultato sbagliato se non verifichi l'output.",
+      "esercizio_id": "1.4"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "1.1",
+      "tipo": "esercizio",
+      "titolo": "Scheda di benvenuto del laboratorio",
+      "descrizione": "Scrivi un programma C completo che stampi esattamente la riga `Laboratorio di informatica: postazione pronta.` seguita da un ritorno a capo. Compilalo da riga di comando con `-std=c23 -Wall -Wextra -Wpedantic -Werror` ed eseguilo verificando che l'output corrisponda carattere per carattere, inclusi maiuscole, spazi e punteggiatura.",
+      "concetti_da_tenere_a_mente": [
+        "codice sorgente",
+        "compilatore",
+        "eseguibile",
+        "libreria standard"
+      ],
+      "domande_guida": [
+        "Quale file di intestazione devi includere per rendere disponibile la funzione di stampa?",
+        "Quale azione devi ripetere ogni volta che modifichi il codice sorgente prima di rieseguire il programma?",
+        "Perché è importante includere un ritorno a capo al termine del messaggio stampato?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Laboratorio di informatica: postazione pronta.\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    printf(\"Laboratorio di informatica: postazione pronta.\\n\");\n    return 0;\n}\n"
+    },
+    {
+      "id": "1.2",
+      "tipo": "esercizio",
+      "titolo": "Biglietto del museo",
+      "descrizione": "Scrivi un programma C completo che stampi un biglietto d'ingresso di quattro righe usando una chiamata separata a `printf` per ogni riga. Le quattro righe devono essere esattamente `MUSEO DELLA SCIENZA`, `Ingresso: Mostra di Astronomia`, `Settore: Planetario` e `Stato: Valido`, ciascuna terminata da un ritorno a capo. Il programma deve terminare restituendo il codice di uscita che segnala successo.",
+      "concetti_da_tenere_a_mente": [
+        "preprocessore",
+        "struttura di main",
+        "esecuzione sequenziale delle istruzioni",
+        "valore restituito da main"
+      ],
+      "domande_guida": [
+        "In quale ordine vengono eseguite le istruzioni all'interno delle parentesi graffe di main?",
+        "Che cosa succederebbe all'output se dimenticassi il ritorno a capo in una delle prime tre stampe?",
+        "Quale simbolo chiude ogni singola istruzione di stampa in C?",
+        "Quale valore conviene restituire al termine di main per indicare che il programma si è concluso senza errori?"
+      ],
+      "difficolta": 1,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "MUSEO DELLA SCIENZA\nIngresso: Mostra di Astronomia\nSettore: Planetario\nStato: Valido\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    printf(\"MUSEO DELLA SCIENZA\\n\");\n    printf(\"Ingresso: Mostra di Astronomia\\n\");\n    printf(\"Settore: Planetario\\n\");\n    printf(\"Stato: Valido\\n\");\n    return 0;\n}\n"
+    },
+    {
+      "id": "1.3",
+      "tipo": "esercizio",
+      "titolo": "Scheda di archivio con sequenze di escape",
+      "descrizione": "Scrivi un programma C completo che stampi una scheda di archivio di cinque righe usando le sequenze di escape per virgolette doppie, barre rovesciate, tabulazioni e ritorni a capo. La prima riga deve stampare `Archivio: \"Progetto C\"`; la seconda `Percorso: C:\\progetti\\capitolo_1\\note.txt`; le ultime tre righe devono formare una tabella a due colonne separate da una singola tabulazione (`Voce` e `Stato`, `Sorgente` e `Pronto`, `Manuale` e `In attesa`). Ogni riga deve terminare con un ritorno a capo.",
+      "concetti_da_tenere_a_mente": [
+        "sequenza di escape",
+        "delimitatori delle stringhe letterali",
+        "tabulazione orizzontale e ritorno a capo"
+      ],
+      "domande_guida": [
+        "Perché non puoi inserire direttamente virgolette doppie non precedute da barra rovesciata dentro una stringa?",
+        "Quante barre rovesciate servono nel codice sorgente per stampare una sola barra rovesciata a schermo?",
+        "Come puoi separare due colonne con una tabulazione senza inserire spazi a mano?",
+        "Preferisci scrivere una chiamata di stampa per ogni riga oppure combinare più righe in un'unica stringa, e perché?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "Archivio: \"Progetto C\"\nPercorso: C:\\progetti\\capitolo_1\\note.txt\nVoce\tStato\nSorgente\tPronto\nManuale\tIn attesa\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "#include <stdio.h>\n\nint main(void) {\n    printf(\"Archivio: \\\"Progetto C\\\"\\n\");\n    printf(\"Percorso: C:\\\\progetti\\\\capitolo_1\\\\note.txt\\n\");\n    printf(\"Voce\\tStato\\n\");\n    printf(\"Sorgente\\tPronto\\n\");\n    printf(\"Manuale\\tIn attesa\\n\");\n    return 0;\n}\n"
+    },
+    {
+      "id": "1.4",
+      "tipo": "esercizio",
+      "titolo": "Programma di controllo pulito e commentato",
+      "descrizione": "Una bozza di programma per stampare una scheda di verifica prima della consegna non compila perché omette `<stdio.h>`, scrive `Printf` con la lettera maiuscola, dimentica un punto e virgola e annida un commento `/* ... */` dentro un altro. Scrivi una versione corretta da zero che si apra con un commento su più righe sullo scopo del programma, includa almeno un commento su singola riga dentro `main`, compili senza errori né avvisi con `-std=c23 -Wall -Wextra -Wpedantic -Werror` e stampi esattamente le cinque righe dell'esempio di esecuzione (con una tabulazione tra `Esito:` e `Pronto per la consegna`).",
+      "concetti_da_tenere_a_mente": [
+        "errore di compilazione",
+        "avviso del compilatore",
+        "commenti su singola riga e su più righe",
+        "distinzione tra maiuscole e minuscole"
+      ],
+      "domande_guida": [
+        "Perché un commento su più righe annidato dentro un altro interrompe la compilazione?",
+        "Quale indizio ti offre il compilatore quando dimentichi un punto e virgola o sbagli una lettera maiuscola?",
+        "In che cosa cambia la compilazione quando aggiungi le opzioni per gli avvisi e li tratti come errori?",
+        "Quali informazioni è davvero utile inserire nei commenti senza ripetere banalmente l'istruzione successiva?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "",
+          "output": "=== Controllo programma ===\n1) Compilato con \"-Wall -Wextra -Wpedantic -Werror\"\n2) Nessun errore di compilazione\n3) Nessun avviso del compilatore\nEsito:\tPronto per la consegna\n"
+        }
+      ],
+      "test": [],
+      "soluzione_riferimento": "/*\n * Scheda di controllo prima della consegna di un programma C.\n */\n#include <stdio.h>\n\nint main(void) {\n    // Stampa l'intestazione e l'elenco delle verifiche completate\n    printf(\"=== Controllo programma ===\\n\");\n    printf(\"1) Compilato con \\\"-Wall -Wextra -Wpedantic -Werror\\\"\\n\");\n    printf(\"2) Nessun errore di compilazione\\n\");\n    printf(\"3) Nessun avviso del compilatore\\n\");\n\n    // Riepilogo finale separato da tabulazione\n    printf(\"Esito:\\tPronto per la consegna\\n\");\n    return 0;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare il punto e virgola (;) alla fine di un'istruzione: il compilatore segnala spesso il problema all'inizio della riga successiva.",
+    "Omettere #include <stdio.h> prima di chiamare printf, provocando un errore di compilazione per funzione non dichiarata.",
+    "Confondere maiuscole e minuscole (per esempio scrivere Printf o Main): il C considera diversi identificatori che differiscono anche solo per una maiuscola.",
+    "Dimenticare \\n in fondo alla stringa di printf, ottenendo più righe incollate tra loro o unite al prompt del terminale.",
+    "Annidare un commento /* ... */ dentro un altro commento /* ... */: il blocco si chiude al primo */ e il resto genera errori sintattici.",
+    "Inserire virgolette doppie \" o una barra rovesciata \\ dentro una stringa senza precederle da \\."
+  ],
+  "differenze_python": [
+    "In Python il codice si esegue direttamente tramite l'interprete; in C il codice sorgente va prima tradotto dal compilatore in un file eseguibile e poi lanciato.",
+    "In Python print() aggiunge automaticamente un ritorno a capo alla fine; in C printf() stampa solo ciò che scrivi, quindi devi aggiungere \\n quando vuoi andare a capo.",
+    "In Python i blocchi dipendono dall'indentazione e non si usa il punto e virgola a fine riga; in C i blocchi usano { e } e le istruzioni terminano con ;, mentre l'indentazione serve alla leggibilità."
+  ]
+}
