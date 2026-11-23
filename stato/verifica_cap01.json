@@ -1,0 +1,30 @@
+{
+  "capitolo": 1,
+  "errori": [],
+  "avvisi": [
+    "01_00.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_01.md: usa il termine 'dichiarazione' che il glossario introduce al capitolo 2",
+    "01_01.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_01.md: usa il termine 'struttura' che il glossario introduce al capitolo 12",
+    "01_01.md: usa il termine 'file di intestazione' che il glossario introduce al capitolo 19",
+    "01_01.md: usa il termine 'collegamento' che il glossario introduce al capitolo 19",
+    "01_02.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_02.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "01_02.md: usa il termine 'struttura' che il glossario introduce al capitolo 12",
+    "01_03.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_03.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "01_04.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_04.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "01_04.md: usa il termine 'collegamento' che il glossario introduce al capitolo 19",
+    "01_99.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "01_99.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "01_99.md: usa il termine 'struttura' che il glossario introduce al capitolo 12"
+  ],
+  "info": {
+    "programmi": 4,
+    "frammenti": 2,
+    "errori_voluti": 2,
+    "tracce": 0,
+    "parole": 5350
+  }
+}
