@@ -1,0 +1,145 @@
+## 5.1 Leggere una riga di testo con `fgets`
+
+Finora i tuoi programmi hanno soltanto scritto verso lo schermo tramite `printf`. Per interagire davvero con chi li esegue devono poter fare anche il percorso inverso: ricevere testo dalla tastiera. In C, l'ingresso e l'uscita non sono legati direttamente a uno specifico dispositivo fisico, ma passano attraverso un concetto più generale.
+
+Quando un programma legge caratteri dalla tastiera o stampa testo sul terminale, opera su uno **stream** (*stream*): l'astrazione di un canale sequenziale di caratteri o byte usato per leggere dati in ingresso o scrivere dati in uscita. Trattare tastiera, schermo e file come stream significa poter usare le stesse funzioni della libreria standard indipendentemente da dove arrivino davvero i dati. All'avvio di ogni programma C, `<stdio.h>` mette automaticamente a disposizione lo stream di ingresso predefinito, chiamato `stdin` (*standard input*), collegato di norma alla tastiera.
+
+Per conservare una riga di testo letta da `stdin`, una singola variabile `char` non basta, perché contiene un solo carattere. Serve un **buffer** (*buffer*): un'area temporanea di memoria usata per accumulare dati durante la lettura, la scrittura o la formattazione. In questo capitolo dichiariamo un buffer di testo usando l'idioma:
+
+<!-- cod: id=5.1-b tipo=frammento -->
+```c
+char riga[100];
+```
+
+Questa dichiarazione riserva in memoria 100 byte contigui capaci di ospitare una sequenza di caratteri. Per ora trattala come una formula fissa per preparare spazio sufficiente a una riga di testo: studieremo in dettaglio gli array nel capitolo 8 e le stringhe nel capitolo 9.
+
+Per riempire il buffer leggendo da `stdin` usiamo la funzione `fgets`, dichiarata in `<stdio.h>`:
+
+<!-- cod: id=5.1-c tipo=frammento -->
+```c
+char riga[100];
+fgets(riga, (int)sizeof(riga), stdin);
+```
+
+I tre argomenti di `fgets(buffer, n, stream)` hanno un significato preciso:
+
+- `buffer`: il nome del buffer in cui salvare i caratteri letti (qui `riga`);
+- `n`: la capienza massima del buffer in byte, passata come `int`. Usare `(int)sizeof(riga)` invece di ripetere `100` evita disallineamenti se in futuro cambi la dimensione del buffer (ricorda dal capitolo 2 che `sizeof` produce un `size_t`, quindi il cast `(int)` rende esplicita la conversione al tipo richiesto da `fgets`);
+- `stream`: il canale da cui leggere, cioè `stdin` per la tastiera.
+
+La regola di comportamento di `fgets` è definita con esattezza dallo standard C23 (a patto che `n >= 1` e che `buffer` abbia almeno `n` byte): `fgets(buffer, n, stdin)` legge dallo stream `stdin` al più `n - 1` caratteri, fermandosi non appena incontra il carattere di ritorno a capo `'\n'` oppure la fine dell'input, e aggiunge automaticamente un carattere di chiusura interna nell'ultima posizione occupata. Proprio per lasciare spazio a questo carattere di chiusura interna, in un buffer di `100` byte possono entrare al massimo `99` caratteri letti dall'utente.
+
+Un dettaglio fondamentale è che `fgets` **conserva `'\n'` nel buffer** se la riga letta è abbastanza corta da farlo entrare. Per esempio, se digiti `Anna` e premi Invio, dentro `riga` vengono memorizzati i caratteri `'A'`, `'n'`, `'n'`, `'a'`, `'\n'` seguiti dal carattere di chiusura interna:
+
+```text
+Indice:      0     1     2     3     4     5    ...  99
+Contenuto: [ 'A' | 'n' | 'n' | 'a' | '\n'| '\0'| ... ]
+```
+
+Quando poi stampi il contenuto del buffer con `printf` usando lo specificatore di formato `%s`, `printf` scrive tutti i caratteri fino al carattere di chiusura interna, compreso quel `'\n'` finale. Per questo motivo, scrivendo `printf("Nome: %s", riga);`, il cursore andrà già a capo senza bisogno di un secondo `\n` nella stringa di formato.
+
+Che cosa succede se l'utente non fornisce più dati e chiude lo stream di ingresso prima che `fgets` riesca a leggere anche un solo carattere? Si verifica la condizione di **fine dell'input** (*end of file*): la condizione in cui uno stream non contiene più dati da leggere, segnalata da `EOF` o da `nullptr`. Nel caso di `fgets`, se la lettura fallisce per fine dell'input o per un errore di lettura, la funzione restituisce la parola chiave `nullptr` (in caso di successo restituisce invece il buffer stesso). Il controllo va fatto sempre, subito dopo la chiamata:
+
+<!-- cod: id=5.1-d tipo=frammento -->
+```c
+if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {
+    printf("Errore: nessuna riga letta.\n");
+    return 1;
+}
+```
+
+> **C23** — La parola chiave `nullptr` è stata introdotta dallo standard C23 per rappresentare in modo sicuro e tipizzato il valore nullo (lo approfondiremo nel capitolo 10). Se compili con uno standard precedente (C17 o C11), al posto di `nullptr` devi scrivere la macro `NULL`, definita in `<stdio.h>` e `<stddef.h>`.
+
+Potresti incontrare in vecchi manuali una funzione chiamata `gets` per leggere una riga dalla tastiera. Non usarla mai: `gets` non accetta la dimensione del buffer, quindi se l'utente digita più caratteri di quelli disponibili la funzione scrive oltre la fine della memoria riservata, provocando comportamento indefinito e gravi falle di sicurezza. Per questa ragione `gets` è stata rimossa dallo standard C già da anni e in questo libro è vietata. Adottare `fgets` fin dal primo giorno significa abituarsi a leggere sempre per righe intere e con un limite esplicito di lunghezza.
+
+> **Se vieni da Python** — In Python `input()` restituisce una stringa di lunghezza arbitraria eliminando automaticamente il ritorno a capo finale. In C `fgets` legge in un buffer di dimensione fissa, conserva `'\n'` se rientra nella capienza del buffer e segnala la fine dell'input restituendo `nullptr`.
+
+### Esempio guidato
+
+Il programma seguente simula la registrazione a un circolo di lettura. Legge da `stdin` il nome del lettore e il titolo del libro preferito in due buffer da 100 byte usando `fgets`, verifica che nessuna delle due letture incontri `nullptr` e stampa il riepilogo con `%s`.
+
+<!-- cod: id=5.1-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    char nome_lettore[100];
+    char titolo_libro[100];
+
+    printf("Inserisci il tuo nome:\n");
+    if (fgets(nome_lettore, (int)sizeof(nome_lettore), stdin) == nullptr) {
+        printf("Errore: fine dell'input durante la lettura del nome.\n");
+        return 1;
+    }
+
+    printf("Inserisci il titolo del libro preferito:\n");
+    if (fgets(titolo_libro, (int)sizeof(titolo_libro), stdin) == nullptr) {
+        printf("Errore: fine dell'input durante la lettura del titolo.\n");
+        return 1;
+    }
+
+    printf("--- Scheda circolo di lettura ---\n");
+    printf("Lettore: %s", nome_lettore);
+    printf("Libro preferito: %s", titolo_libro);
+    return 0;
+}
+```
+
+```input
+Sara Conti
+Il barone rampante
+```
+
+```output
+Inserisci il tuo nome:
+Inserisci il titolo del libro preferito:
+--- Scheda circolo di lettura ---
+Lettore: Sara Conti
+Libro preferito: Il barone rampante
+```
+
+Analizziamo il funzionamento del programma blocco per blocco:
+
+- Le righe `char nome_lettore[100];` e `char titolo_libro[100];` riservano due buffer distinti, ciascuno capace di contenere fino a 99 caratteri utili più il carattere di chiusura interna.
+- Prima di ogni `fgets`, `printf` stampa un invito terminato da `\n`.
+- La condizione `if (fgets(nome_lettore, (int)sizeof(nome_lettore), stdin) == nullptr)` esegue la lettura e controlla immediatamente il risultato. Se lo stream termina prima di leggere qualsiasi carattere, il programma avvisa l'utente e termina con `return 1;`.
+- Nelle ultime due `printf` manca `\n` alla fine della stringa di formato (`"Lettore: %s"` e `"Libro preferito: %s"`). Nell'output, però, le due righe compaiono regolarmente una sotto l'altra, perché `fgets` ha conservato in ciascun buffer il `'\n'` digitato con il tasto Invio. Se avessi scritto `"Lettore: %s\n"`, avresti ottenuto una riga vuota indesiderata tra una voce e l'altra.
+
+> **Approfondimento — Quando la riga supera la capienza del buffer**
+> Che cosa accade se dichiari `char riga[10];` e l'utente digita una parola di 15 caratteri seguita da Invio? `fgets` non scrive mai fuori dal buffer: legge in sicurezza soltanto i primi 9 caratteri, aggiunge il carattere di chiusura interna e termina. I caratteri rimanenti (insieme al `'\n'`) non vanno perduti, ma restano in attesa nello stream `stdin` e saranno restituiti dalla chiamata a `fgets` successiva. Inoltre, in questo caso il buffer non contiene `'\n'`. Nei capitoli 6 e 9 vedrai come riconoscere una riga troncata e svuotare i caratteri residui con un ciclo.
+
+### Esercizio 5.1 — Scheda di iscrizione al torneo di scacchi
+
+**Descrizione**
+
+Scrivi un programma C che chieda all'utente il nome del giocatore e il nome del circolo di appartenenza, leggendo due righe da `stdin` in due buffer `char` di `100` byte mediante `fgets` e `(int)sizeof(...)`. Prima di ciascuna lettura stampa l'invito terminato da ritorno a capo (`Inserisci il nome del giocatore:` e `Inserisci il circolo di appartenenza:`). Dopo ogni chiamata a `fgets`, controlla se il valore restituito è `nullptr`; in tal caso stampa un messaggio di errore e termina restituendo `1`. Se entrambe le letture riescono, stampa il riepilogo esattamente come nell'esempio di esecuzione usando `%s` (ricordando che `fgets` conserva il ritorno a capo presente nell'input) e restituisci `0`.
+
+**Concetti da tenere a mente**
+
+- stream `stdin`
+- buffer `char[]` e `(int)sizeof(...)`
+- lettura sicura di righe con `fgets`
+- controllo della fine dell'input con `nullptr` (C23)
+- stampa del testo del buffer con `%s`
+
+**Domande guida**
+
+1. Quale vantaggio offre passare `(int)sizeof(buffer)` a `fgets` rispetto a scrivere la dimensione numerica in due punti diversi del programma?
+2. Che cosa restituisce `fgets` quando incontra la fine dell'input prima di leggere qualsiasi carattere?
+3. Perché nelle righe finali di stampa con `%s` non devi aggiungere un altro ritorno a capo se la riga letta da `fgets` termina già con `'\n'`?
+4. Quanti caratteri utili al massimo può contenere un buffer dichiarato di 100 byte quando viene passato a `fgets`?
+
+**Esempio di esecuzione**
+
+```input
+Marco Bianchi
+Cavallo Nero
+```
+
+```output
+Inserisci il nome del giocatore:
+Inserisci il circolo di appartenenza:
+=== ISCRIZIONE TORNEO ===
+Giocatore: Marco Bianchi
+Circolo: Cavallo Nero
+```

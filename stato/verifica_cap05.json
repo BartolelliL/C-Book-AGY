@@ -1,0 +1,26 @@
+{
+  "capitolo": 5,
+  "errori": [],
+  "avvisi": [
+    "05_01.md: usa il termine 'ciclo' che il glossario introduce al capitolo 6",
+    "05_01.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "05_01.md: usa il termine 'array' che il glossario introduce al capitolo 8",
+    "05_01.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "05_02.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "05_02.md: usa il termine 'argomento' che il glossario introduce al capitolo 7",
+    "05_02.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "05_03.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "05_03.md: usa il termine 'argomento' che il glossario introduce al capitolo 7",
+    "05_03.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "05_04.md: usa il termine 'ciclo' che il glossario introduce al capitolo 6",
+    "05_04.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "05_99.md: usa il termine 'array' che il glossario introduce al capitolo 8"
+  ],
+  "info": {
+    "programmi": 4,
+    "frammenti": 9,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 6320
+  }
+}
