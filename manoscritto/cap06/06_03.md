@@ -1,0 +1,177 @@
+## 6.3 Il ciclo `for`
+
+Molti cicli seguono sempre lo stesso schema: inizializzi un contatore prima del ciclo, ripeti finché il contatore soddisfa una condizione e aggiorni il contatore alla fine di ogni iterazione. Con `while` questi tre pezzi finiscono sparsi in punti diversi del codice, e in un corpo lungo è facile dimenticare l'aggiornamento o non vedere subito i limiti del conteggio.
+
+Il ciclo `for` raccoglie i tre elementi di controllo in una sola intestazione:
+
+<!-- cod: id=6.3-b tipo=frammento -->
+```c
+for (inizializzazione; condizione; aggiornamento) {
+    // corpo del ciclo
+}
+```
+
+Il suo funzionamento segue esattamente quest'ordine:
+
+1. Esegue `inizializzazione` **una sola volta**, prima di iniziare.
+2. Valuta `condizione` **prima di ogni iterazione**. Se è zero (falso), il ciclo termina immediatamente (può quindi compiere anche zero iterazioni).
+3. Se `condizione` è diversa da zero (vero), esegue il corpo tra le parentesi graffe.
+4. Al termine del corpo esegue `aggiornamento` e torna al passo 2.
+
+Concettualmente, un ciclo `for` corrisponde quasi del tutto a questo `while` (l'unica sottile differenza riguarda `continue`, che vedrai nella prossima sotto-sezione):
+
+<!-- cod: id=6.3-c tipo=frammento -->
+```c
+inizializzazione;
+while (condizione) {
+    // corpo del ciclo
+    aggiornamento;
+}
+```
+
+### Visibilità della variabile di controllo e clausole facoltative
+
+In C puoi dichiarare la variabile di controllo direttamente nella prima clausola del `for`:
+
+<!-- cod: id=6.3-d tipo=frammento -->
+```c
+for (int i = 0; i < n; ++i) {
+    printf("%d\n", i);
+}
+```
+
+Una variabile dichiarata nell'intestazione del `for` è **visibile esclusivamente all'interno del ciclo**: dopo la parentesi graffa di chiusura `}` non esiste più. Questo è un grande vantaggio: evita conflitti di nomi e ti permette di usare di nuovo `int i` in un secondo ciclo `for` poco sotto, senza sporcare il resto di `main`.
+
+Ciascuna delle tre clausole del `for` può essere omessa (lasciando comunque i due punti e virgola `;`). In particolare, se `condizione` viene omessa — come in `for (;;)` — lo standard C23 la considera sempre vera (`1`), ottenendo un ciclo che prosegue finché non interviene un'uscita esplicita dal corpo. Sia la semantica delle tre clausole, sia la visibilità circoscritta della dichiarazione iniziale, sia il significato della condizione omessa sono pienamente definiti dallo standard C23.
+
+### Conteggi in avanti, a ritroso, a passo arbitrario e valori `double`
+
+Il ciclo `for` si adatta a ogni schema di conteggio regolare:
+
+- **Da `0` a `n - 1`** (`n` iterazioni): `for (int i = 0; i < n; ++i)`. È la convenzione più usata in C, soprattutto quando lavorerai con gli array (lo vedremo nel capitolo 8).
+- **Da `1` a `n`** (`n` iterazioni): `for (int i = 1; i <= n; ++i)`. È comoda quando il contatore rappresenta un numero ordinale naturale, come il numero di un mese o di una riga di tabella.
+- **A ritroso**: `for (int i = n; i >= 1; --i)` conta all'indietro da `n` fino a `1`.
+- **A passo arbitrario**: `for (int i = 0; i <= 20; i += 2)` avanza di due in due (`0, 2, 4, ..., 20`).
+
+Quando invece ti serve una sequenza di valori in virgola mobile — per esempio `20.0`, `20.2`, `20.4`, ... — **non usare mai una variabile `double` come contatore del `for`**. Usa un contatore intero `i` e calcola il valore `double` dentro il corpo (per esempio `double t = 20.0 + i * 0.2;`): in questo modo ogni passo subisce al massimo un singolo arrotondamento e il numero di iterazioni resta esatto.
+
+### Tre errori classici del ciclo `for`
+
+1. **Errori *off-by-one* (sfasamento di un'unità)**: scambiare `<` con `<=` (o partire da `1` invece che da `0`) fa compiere un'iterazione in più o in meno. Verifica sempre con un esempio minuscolo (come `n = 1` o `n = 2`): con `int i = 0; i < n; ++i` esegui `n` iterazioni (`0` .. `n - 1`); con `int i = 1; i <= n; ++i` esegui ancora `n` iterazioni (`1` .. `n`).
+2. **Underflow di contatori `unsigned` nei cicli decrescenti**: se scrivi `for (unsigned int i = 5; i >= 0; --i)`, quando `i` vale `0` il decremento `--i` non produce `-1` ma `UINT_MAX` (aritmetica modulare degli interi senza segno, capitolo 3). La condizione `i >= 0` rimane quindi *sempre* vera e il ciclo diventa infinito. Per contare a ritroso fino a `0`, usa un tipo con segno (`int`).
+3. **Punto e virgola dopo `for (...);`**: proprio come per `while`, scrivere `for (int i = 0; i < n; ++i); { ... }` esegue `n` iterazioni vuote e poi esegue il blocco tra graffe una sola volta, fuori dal ciclo (e se nel blocco usassi `i`, il compilatore segnalerebbe che `i` non è dichiarato).
+
+### Come scegliere tra `for`, `while` e `do-while`
+
+| Situazione | Ciclo consigliato | Motivo |
+|---|---|---|
+| Numero di iterazioni noto in anticipo o conteggio regolare | `for` | Inizializzazione, limite e passo sono leggibili a colpo d'occhio |
+| Lettura fino alla fine dell'input o condizione che può essere falsa da subito | `while` | Controllo in testa senza contatore artificiale |
+| Il corpo deve essere eseguito almeno una volta (validazione input, cifre di `0`) | `do-while` | Controllo in coda garantito |
+
+> **Se vieni da Python** — In Python il ciclo `for` itera direttamente sugli elementi di una sequenza o di `range(n)`. In C il `for` non ha sequenze incorporate: controlli esplicitamente inizializzazione, condizione di permanenza e aggiornamento del contatore, il che richiede qualche carattere in più ma ti dà controllo completo su passo, direzione e tipo della variabile.
+
+### Esempio guidato
+
+Il programma seguente legge da `stdin` un intero `n` compreso tra `1` e `20` e usa due cicli `for` indipendenti: il primo stampa `n` righe di una tabella Celsius–Fahrenheit calcolando il passo decimale `0.2` a partire da un contatore intero `i` (`0..n-1`); il secondo stampa i primi `n` numeri di Fibonacci (`1..n`) memorizzati in variabili `long long`.
+
+<!-- cod: id=6.3-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    char riga[128];
+    int n = 0;
+    char extra = '\0';
+
+    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||
+        sscanf(riga, "%d %c", &n, &extra) != 1 || n < 1 || n > 20) {
+        fprintf(stderr, "Errore: inserisci un intero tra 1 e 20.\n");
+        return EXIT_FAILURE;
+    }
+
+    printf("Tabella Celsius -> Fahrenheit:\n");
+    for (int i = 0; i < n; ++i) {
+        double celsius = 20.0 + i * 0.2;
+        double fahrenheit = celsius * 9.0 / 5.0 + 32.0;
+        printf("%5.1f C = %6.2f F\n", celsius, fahrenheit);
+    }
+
+    long long prec = 0;
+    long long corr = 1;
+    printf("Primi %d numeri di Fibonacci:\n", n);
+    for (int i = 1; i <= n; ++i) {
+        printf("F(%d) = %lld\n", i, prec);
+        long long prox = prec + corr;
+        prec = corr;
+        corr = prox;
+    }
+
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+5
+```
+
+```output
+Tabella Celsius -> Fahrenheit:
+ 20.0 C =  68.00 F
+ 20.2 C =  68.36 F
+ 20.4 C =  68.72 F
+ 20.6 C =  69.08 F
+ 20.8 C =  69.44 F
+Primi 5 numeri di Fibonacci:
+F(1) = 0
+F(2) = 1
+F(3) = 1
+F(4) = 2
+F(5) = 3
+```
+
+Analizziamo le scelte fatte nei due cicli:
+
+- Entrambi i cicli dichiarano `int i` nella propria intestazione. Non c'è alcun conflitto perché la visibilità del primo `i` termina alla chiusura del primo `for`.
+- Il primo ciclo usa lo schema `0..n-1` (`int i = 0; i < n; ++i`) e ricava `celsius` tramite `20.0 + i * 0.2`: così le iterazioni sono esattamente `n` e gli errori di arrotondamento non si sommano da un passo all'altro.
+- Il secondo ciclo usa lo schema `1..n` (`int i = 1; i <= n; ++i`) per numerare in modo naturale i termini `F(1)` .. `F(n)`. Le variabili `prec` e `corr` sono di tipo `long long` per evitare overflow anche su valori di `n` più grandi, e vengono dichiarate prima del ciclo perché devono conservare il proprio valore da un'iterazione alla successiva.
+
+> **Approfondimento — Due insidie del `for`: contatori `double` e contatori `unsigned` decrescenti**
+> Se scrivi `for (double x = 0.0; x != 1.0; x += 0.1)`, lo 0.1 non è rappresentabile esattamente in binario (capitolo 3): dopo dieci somme `x` non vale esattamente `1.0`, `x != 1.0` resta vero e il ciclo non si ferma! Perfino con `x <= 1.0` rischi di eseguire 10 oppure 11 iterazioni a seconda dell'arrotondamento. Usa sempre un contatore intero (`for (int i = 0; i <= 10; ++i)`) e calcola `i * 0.1`.
+> Analogamente, in `for (unsigned int i = 3; i >= 0; --i)`, dopo `i = 0` il decremento `--i` avvolge `i` al valore `UINT_MAX`: la condizione `i >= 0` è vera per qualunque `unsigned int` e il ciclo è infinito. Con i cicli decrescenti fino a zero, scegli un tipo intero con segno (`int`).
+
+### Esercizio 6.3 — Piano di risparmio mensile con ciclo `for`
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una sola riga contenente quattro valori separati da spazi: `capitale_iniziale` (`double >= 0.0`), `versamento_mensile` (`double >= 0.0`), `tasso_annuo` in percentuale (`double` tra `0.0` e `50.0` inclusi) e `mesi` (`int` tra `1` e `60` inclusi). Verifica fine dell'input, formato esatto rifiutando caratteri extra (`"%lf %lf %lf %d %c"` con valore restituito `4`) e validità dei domini; in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`. Calcola il tasso mensile come `(tasso_annuo / 100.0) / 12.0` e usa un ciclo `for` con contatore intero `mese` da `1` a `mesi` inclusi: in ogni mese calcola `interessi = saldo * tasso_mensile`, somma `interessi` a `interessi_totali`, aggiungi `interessi + versamento_mensile` a `saldo`, aggiorna `totale_versato` e stampa la riga del mese (`%2d` per il numero del mese, `%.2f` per gli importi). Dopo il ciclo stampa il riepilogo finale esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- ciclo `for` con contatore intero dichiarato nell'intestazione
+- aggiornamento di più accumulatori a ogni iterazione
+- condizione esatta `<=` per evitare errori off-by-one
+- formattazione allineata con `%2d` e `%.2f`
+
+**Domande guida**
+
+1. Perché in questo problema il ciclo `for` è più adatto di `while` e `do-while`?
+2. Quale condizione devi scrivere nel `for` (con `mese` che parte da `1`) affinché vengano simulati esattamente tutti i mesi richiesti senza saltarne l'ultimo?
+3. In quale ordine vanno calcolati interessi e aggiornamento del saldo all'interno di ogni mese?
+4. Perché conviene dichiarare `int mese` direttamente nella prima clausola del `for`?
+
+**Esempio di esecuzione**
+
+```input
+1000.0 100.0 12.0 3
+```
+
+```output
+Mese  1: interessi = 10.00, saldo = 1110.00
+Mese  2: interessi = 11.10, saldo = 1221.10
+Mese  3: interessi = 12.21, saldo = 1333.31
+Totale versato: 1300.00
+Interessi maturati: 33.31
+Saldo finale: 1333.31
+```

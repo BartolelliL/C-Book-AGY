@@ -1,0 +1,27 @@
+## Riepilogo
+
+- Un **ciclo** ripete un blocco di istruzioni finché una condizione rimane vera; ogni esecuzione del corpo è un'**iterazione**.
+- Il ciclo `while (condizione) { ... }` valuta la condizione in testa e può compiere anche zero iterazioni. I due idiomi standard per leggere fino alla fine dell'input sono `while (fgets(riga, (int)sizeof(riga), stdin) != nullptr)` e `while ((c = getchar()) != EOF)` con `c` di tipo `int`.
+- Il ciclo `do { ... } while (condizione);` esegue il corpo almeno una volta, valuta la condizione in coda e termina obbligatoriamente con `;`. Le variabili usate nella condizione finale vanno dichiarate prima del blocco `do` (lo vedremo nel capitolo 7).
+- Il ciclo `for (inizializzazione; condizione; aggiornamento) { ... }` raccoglie le tre parti di un conteggio in un'unica intestazione; una variabile dichiarata in `inizializzazione` è visibile solo dentro il ciclo. Per generare sequenze `double` usa sempre un contatore intero invece di un contatore in virgola mobile.
+- L'istruzione `break` interrompe solo il ciclo (o lo `switch`) più interno che la racchiude; `continue` salta il resto dell'iterazione corrente del solo ciclo più interno, eseguendo prima la clausola di aggiornamento nel `for` e tornando subito al test in `while` e `do-while`.
+- I cicli annidati permettono di elaborare tabelle e griglie usando nomi distinti per i contatori e, quando serve uscire da più livelli insieme, una variabile `bool` di controllo.
+- Un **invariante di ciclo** (verificato su inizializzazione, mantenimento e conclusione) abbinato a una grandezza strettamente decrescente verso la condizione di arresto permette di dimostrare correttezza e terminazione di un ciclo.
+
+## Errori comuni
+
+- **Scrivere un punto e virgola subito dopo `while (condizione);` oppure `for (...);`**: trasforma il ciclo in un ciclo a corpo vuoto e fa eseguire il blocco tra graffe una sola volta fuori dal ciclo (o causa un ciclo infinito).
+- **Dimenticare il punto e virgola finale dopo `do { ... } while (condizione);` oppure dichiarare dentro il blocco `do` una variabile usata nella condizione**: entrambi producono errori di compilazione perché il `do-while` richiede `;` in coda e le variabili del blocco terminano la loro visibilità alla graffa di chiusura.
+- **Dimenticare le parentesi in `while ((c = getchar()) != EOF)`**: poiché `!=` ha precedenza su `=`, scrivere `c = getchar() != EOF` assegna a `c` soltanto `0` o `1` invece del carattere letto.
+- **Commettere errori *off-by-one* o usare un contatore `unsigned int` in un ciclo decrescente con `i >= 0`**: scambiare `<` e `<=` sposta di uno il numero di iterazioni, mentre decrementare `0u` provoca un underflow a `UINT_MAX`, rendendo `i >= 0` sempre vero.
+- **Usare una variabile `double` come contatore di un ciclo `for` (per esempio con passo `0.1`)**: accumula errori di arrotondamento binari e può alterare il numero di iterazioni; deriva sempre il valore `double` da un contatore intero.
+- **Inserire `continue` in un ciclo `while` prima dell'aggiornamento del contatore**: `continue` salta direttamente al controllo di testa senza eseguire l'incremento posto più in basso, creando un ciclo infinito.
+- **Dimenticare di azzerare un contatore o un accumulatore locale a ogni iterazione del ciclo esterno**: in una coppia di cicli annidati, i totali di una riga si sommerebbero erroneamente a quelli delle righe precedenti.
+
+## Prima di proseguire
+
+- [ ] So scrivere cicli `while` per leggere da `stdin` fino alla fine dell'input con `fgets` (`nullptr`) e `getchar` (`EOF`), gestendo anche il caso di zero elementi letti.
+- [ ] So usare `do-while` quando serve almeno una iterazione, dichiarando prima di `do` le variabili usate nella condizione e gestendo la chiusura inattesa dello stream.
+- [ ] So scrivere cicli `for` crescenti, decrescenti e a passo arbitrario senza errori off-by-one, senza underflow di contatori `unsigned` e senza contatori `double`.
+- [ ] So usare `break` e `continue` con misura, distinguendo il comportamento di `continue` tra `for` e `while` e l'interazione con `switch`.
+- [ ] So scrivere cicli annidati con contatori distinti e formulare l'invariante di ciclo e la prova di terminazione per un ciclo.

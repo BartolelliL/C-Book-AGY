@@ -1,0 +1,19 @@
+{
+  "capitolo": 6,
+  "errori": [],
+  "avvisi": [
+    "06_02.md: usa il termine 'visibilità' che il glossario introduce al capitolo 7",
+    "06_03.md: usa il termine 'visibilità' che il glossario introduce al capitolo 7",
+    "06_03.md: usa il termine 'array' che il glossario introduce al capitolo 8",
+    "06_04.md: usa il termine 'valore sentinella' che il glossario introduce al capitolo 14",
+    "06_05.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "06_99.md: usa il termine 'visibilità' che il glossario introduce al capitolo 7"
+  ],
+  "info": {
+    "programmi": 6,
+    "frammenti": 8,
+    "errori_voluti": 1,
+    "tracce": 0,
+    "parole": 7660
+  }
+}
