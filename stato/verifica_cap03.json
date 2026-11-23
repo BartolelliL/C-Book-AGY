@@ -1,0 +1,20 @@
+{
+  "capitolo": 3,
+  "errori": [],
+  "avvisi": [
+    "03_00.md: usa il termine 'struttura' che il glossario introduce al capitolo 12",
+    "03_01.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "03_03.md: usa il termine 'valutazione a corto circuito' che il glossario introduce al capitolo 4",
+    "03_05.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "03_05.md: usa il termine 'collegamento' che il glossario introduce al capitolo 19",
+    "03_06.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "03_99.md: usa il termine 'valutazione a corto circuito' che il glossario introduce al capitolo 4"
+  ],
+  "info": {
+    "programmi": 6,
+    "frammenti": 7,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 8671
+  }
+}

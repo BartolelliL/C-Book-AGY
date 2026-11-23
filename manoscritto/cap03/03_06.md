@@ -1,0 +1,165 @@
+## 3.6 Overflow degli interi e imprecisione della virgola mobile
+
+In matematica i numeri interi sono infiniti e i numeri reali hanno precisione illimitata. In un calcolatore, invece, ogni variabile occupa un numero finito di byte. Questa limitazione fisica ha due conseguenze fondamentali che ogni programmatore C deve conoscere bene: l'**overflow** sugli interi e l'imprecisione dei calcoli in **virgola mobile**.
+
+### Le tre categorie di comportamento nello standard C23
+
+Nel corso di questo capitolo hai già incontrato tre espressioni tecniche molto precise. Prima di esaminare l'overflow, fissiamole in modo netto:
+
+- **Comportamento indefinito** (*undefined behavior*): lo standard C23 non pone alcun vincolo su ciò che accade. Il programma può restituire un risultato assurdo, interrompersi, oppure sembrare funzionante oggi e fallire domani cambiando compilatore o livello di ottimizzazione. Va **sempre** evitato (esempi: divisione intera per zero, `i = i++ + 1`, overflow di un intero con segno).
+- **Comportamento dipendente dall'implementazione** (*implementation-defined behavior*): può variare tra piattaforme o compilatori, ma ciascuna implementazione deve scegliere una regola fissa e documentarla (esempi: quanti byte occupa `int`, il valore di `DBL_DIG`, se occorre `-lm`).
+- **Comportamento non specificato** (*unspecified behavior*): lo standard ammette due o più possibilità senza obbligare il compilatore a documentare quale sceglie, e la scelta può cambiare anche tra due punti diversi dello stesso programma (esempio: l'ordine di valutazione degli argomenti di una funzione).
+
+### Overflow degli interi con segno
+
+Si verifica un **overflow** quando il risultato di un'operazione supera l'intervallo rappresentabile dal tipo di destinazione (per un `int`, l'intervallo `INT_MIN..INT_MAX` definito in `<limits.h>`).
+
+In C23 l'overflow di un'operazione aritmetica su **interi con segno** (`signed`, come `int`, `long`, `long long`) provoca **comportamento indefinito**:
+
+> **Attenzione — Codice vietato (comportamento indefinito)**
+> Non scrivere mai un'operazione che supera `INT_MAX` (o scende sotto `INT_MIN`) su un tipo con segno:
+
+<!-- cod: id=3.6-b tipo=frammento -->
+```c
+int massimo = INT_MAX;
+int rotto = massimo + 1;  // VIETATO: overflow con segno -> comportamento indefinito!
+```
+
+Per prevenire l'overflow hai due strategie sicure:
+
+1. **Controllare prima dell'operazione**, riformulando la disuguaglianza senza mai far traboccare il calcolo. Per esempio, se `a` e `b` sono positivi, invece di calcolare `a + b` e controllare dopo (troppo tardi!), verifica `a <= INT_MAX - b`. Poiché `INT_MAX - b` è certamente dentro l'intervallo di `int`, questo controllo è completamente sicuro.
+2. **Promuovere a un tipo più ampio** prima di calcolare: se `a` e `b` sono `int`, scrivere `(long long)a + b` esegue la somma in `long long` (che ha almeno 64 bit) evitando l'overflow di `int`. Fai attenzione a non scrivere `(long long)(a + b)`, perché in quel caso la somma avverrebbe comunque prima in `int`!
+
+### Aritmetica modulare degli interi senza segno
+
+Gli interi **senza segno** (`unsigned int`, `unsigned long`, `size_t`) seguono una regola completamente diversa e **definita dallo standard C23**: non vanno mai in overflow nel senso di comportamento indefinito. Quando il risultato esce da `0..UINT_MAX`, viene ridotto automaticamente modulo $2^N$ (dove $N$ è il numero di bit del tipo), avvolgendosi come il contachilometri di un'auto:
+
+- `UINT_MAX + 1U` vale esattamente `0U`.
+- `0U - 1U` vale esattamente `UINT_MAX` (`4294967295U` con `unsigned int` a 32 bit).
+
+Anche se questo comportamento è definito, può comunque generare errori logici insidiosi — per esempio quando sottrai una quantità da un contatore `unsigned` che vale `0` e ti ritrovi un numero di miliardi invece di un numero negativo.
+
+### Imprecisione della virgola mobile e `<float.h>`
+
+Passiamo ora ai numeri in **virgola mobile** (`float` e `double`), che rappresentano i numeri reali in base binaria tramite mantissa ed esponente con un numero finito di bit. Proprio come in base 10 la frazione $1/3$ non ha una scrittura decimale finita (`0.333333...`), in base 2 molte frazioni decimali comuni — come `0.1`, `0.2` e `0.3` — sono periodiche e vengono quindi memorizzate con una piccolissima approssimazione.
+
+Di conseguenza, in C l'espressione `0.1 + 0.2 == 0.3` può risultare **falsa (`0`)**! Stampando `0.1 + 0.2` con diciassette cifre decimali (`%.17f`), scoprirai che vale circa `0.30000000000000004`, mentre `0.3` vale circa `0.29999999999999999`.
+
+Per conoscere con esattezza i limiti e la precisione dei tipi in virgola mobile sulla tua piattaforma, la libreria standard fornisce l'header `<float.h>` con queste costanti principali (i valori concreti dipendono dall'implementazione, di solito lo standard IEEE 754):
+
+| Costante (`float` / `double`) | Significato | Valori tipici (IEEE 754) |
+|---|---|---|
+| `FLT_DIG` / `DBL_DIG` | cifre decimali significative garantite | `6` / `15` |
+| `FLT_EPSILON` / `DBL_EPSILON` | minima differenza tra `1.0` e il valore successivo | $\approx 1.19 \times 10^{-7}$ / $\approx 2.22 \times 10^{-16}$ |
+| `FLT_MIN` / `DBL_MIN` | più piccolo valore positivo normalizzato | $\approx 1.18 \times 10^{-38}$ / $\approx 2.23 \times 10^{-308}$ |
+| `FLT_MAX` / `DBL_MAX` | più grande valore finito rappresentabile | $\approx 3.40 \times 10^{38}$ / $\approx 1.80 \times 10^{308}$ |
+
+Proprio perché i calcoli in virgola mobile accumulano piccoli errori di arrotondamento, **non confrontare mai due risultati `double` con `==`**. Verifica invece che la loro distanza assoluta, calcolata con `fabs` di `<math.h>`, sia inferiore o uguale a una tolleranza scelta in base al problema:
+
+<!-- cod: id=3.6-c tipo=frammento -->
+```c
+bool vicini = (fabs(a - b) <= 1e-12);
+```
+
+Per stampare numeri molto piccoli o molto grandi come `DBL_EPSILON` o `DBL_MAX` in notazione scientifica, `printf` mette a disposizione lo specificatore `%e` (che formatta un `double` nella forma `1.234567e-16`).
+
+> **Se vieni da Python** — In Python gli interi (`int`) hanno precisione arbitraria e crescono automaticamente in memoria senza mai andare in overflow. In C gli interi hanno dimensione fissa e l'overflow di un intero con segno è comportamento indefinito. Al contrario, i numeri in virgola mobile (`float` in Python corrisponde a `double` in C) soffrono esattamente dello stesso fenomeno di `0.1 + 0.2 != 0.3` in entrambi i linguaggi.
+
+### Esempio guidato
+
+Il programma seguente mostra in modo sicuro l'aritmetica modulare su `unsigned int`, previene un overflow di `int` con un controllo preventivo e la promozione a `long long`, mette a confronto `0.1 + 0.2` con `0.3` sia tramite `==` sia tramite `fabs` con tolleranza, e stampa le costanti principali di `<float.h>`.
+
+<!-- cod: id=3.6-a tipo=programma -->
+```c
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+
+int main(void) {
+    unsigned int max_u = UINT_MAX;
+    unsigned int dopo_wrap = max_u + 1U;
+    unsigned int sotto_zero = 0U - 1U;
+    printf("Unsigned: UINT_MAX + 1U = %u, 0U - 1U = %u\n", dopo_wrap, sotto_zero);
+
+    int x = 1'500'000'000;
+    int y = 1'000'000'000;
+    bool somma_sta_in_int = (x <= INT_MAX - y);
+    long long somma_sicura = (long long)x + y;
+    printf("Somma 1.5B + 1.0B sta in int: %d\n", somma_sta_in_int);
+    printf("Somma esatta in long long: %lld\n", somma_sicura);
+
+    double somma_dec = 0.1 + 0.2;
+    double atteso = 0.3;
+    bool uguali_esatti = (somma_dec == atteso);
+    bool uguali_tolleranza = (fabs(somma_dec - atteso) <= 1e-12);
+    printf("0.1 + 0.2 = %.17f\n", somma_dec);
+    printf("0.3       = %.17f\n", atteso);
+    printf("Confronto == : %d, con tolleranza 1e-12: %d\n",
+           uguali_esatti, uguali_tolleranza);
+
+    printf("Cifre garantite: float=%d, double=%d\n", FLT_DIG, DBL_DIG);
+    printf("Epsilon: float=%e, double=%e\n", FLT_EPSILON, DBL_EPSILON);
+    printf("Intervallo double: min=%e, max=%e\n", DBL_MIN, DBL_MAX);
+    return 0;
+}
+```
+
+```output
+Unsigned: UINT_MAX + 1U = 0, 0U - 1U = 4294967295
+Somma 1.5B + 1.0B sta in int: 0
+Somma esatta in long long: 2500000000
+0.1 + 0.2 = 0.30000000000000004
+0.3       = 0.29999999999999999
+Confronto == : 0, con tolleranza 1e-12: 1
+Cifre garantite: float=6, double=15
+Epsilon: float=1.192093e-07, double=2.220446e-16
+Intervallo double: min=2.225074e-308, max=1.797693e+308
+```
+
+Esaminiamo i tre blocchi del programma:
+
+- Su `unsigned int`, `UINT_MAX + 1U` torna a `0` e `0U - 1U` produce `4294967295`: è aritmetica modulare perfettamente definita.
+- Per `x = 1'500'000'000` e `y = 1'000'000'000` (scritti con i separatori di cifre del C23), il controllo preventivo `x <= INT_MAX - y` restituisce `0` senza causare alcun overflow, e `(long long)x + y` calcola il valore esatto `2500000000`.
+- `0.1 + 0.2` e `0.3` differiscono sulla diciassettesima cifra decimale: `==` produce `0`, mentre il confronto con `fabs` e tolleranza `1e-12` produce `1`. Infine `<float.h>` documenta precisione e intervallo di `float` e `double` sulla macchina in uso.
+
+> **Approfondimento — Perché i controlli dopo l'overflow non funzionano**
+> Potresti pensare di scrivere `int s = a + b;` e poi controllare se `s < a` per scoprire se è avvenuto un overflow con segno. È un grave errore: siccome lo standard C23 stabilisce che l'overflow con segno non deve mai accadere in un programma valido, un compilatore moderno con le ottimizzazioni attive può assumere che, per `b > 0`, `a + b` sia *sempre* maggiore di `a` e **rimuovere completamente il tuo controllo**! L'unico modo corretto e portabile di proteggersi è verificare i limiti *prima* di eseguire l'operazione, oppure calcolare in un tipo più ampio.
+
+### Esercizio 3.6 — Prevenzione dell'overflow e controllo di tolleranza in virgola mobile
+
+**Descrizione**
+
+Scrivi un programma C che includa `<stdio.h>`, `<limits.h>`, `<float.h>` e `<math.h>` ed esegua tre verifiche numeriche senza provocare alcun comportamento indefinito. Primo: dati `int a = 2'000'000'000;` e `int b = 500'000'000;`, verifica senza eseguire `a + b` in `int` se la somma rientra in `int` (`bool somma_sicura_int = (a <= INT_MAX - b);`) e calcola la somma esatta in `long long` tramite cast esplicito. Secondo: a partire da `unsigned int max_u = UINT_MAX;`, calcola `max_u + 1U` e `0U - 1U` per mostrare l'aritmetica modulare degli interi senza segno. Terzo: calcola `double somma_dec = 0.1 + 0.1 + 0.1;` e `double atteso = 0.3;`, stampali con `%.17f`, calcola `bool uguali_esatti = (somma_dec == atteso);`, `double errore = fabs(somma_dec - atteso);` e `bool uguali_tolleranza = (errore <= 1e-12);`, e stampa infine `FLT_DIG`, `DBL_DIG`, `FLT_EPSILON` e `DBL_EPSILON` (usando `%e` per gli epsilon e per `errore`). L'esempio di esecuzione è riferito alle piattaforme desktop comuni con `int` a 32 bit e virgola mobile IEEE 754.
+
+**Concetti da tenere a mente**
+
+- overflow degli interi con segno e comportamento indefinito
+- prevenzione dell'overflow con controllo preventivo e promozione a `long long`
+- aritmetica modulare degli interi senza segno
+- virgola mobile e confronto con tolleranza tramite `fabs`
+- costanti di precisione di `<float.h>`
+
+**Domande guida**
+
+1. Perché per controllare se `a + b` supera `INT_MAX` devi confrontare `a` con `INT_MAX - b` anziché calcolare prima `a + b`?
+2. Perché castare `a` in `long long` prima di sommare `b` evita l'overflow che avverrebbe scrivendo `(long long)(a + b)`?
+3. In che cosa il comportamento di `UINT_MAX + 1U` differisce profondamente da quello di `INT_MAX + 1`?
+4. Perché `0.1 + 0.1 + 0.1 == 0.3` può risultare falso in C e quale ruolo svolge `fabs` nel confronto con tolleranza?
+5. Quale informazione forniscono rispettivamente `DBL_DIG` e `DBL_EPSILON` definite in `<float.h>`?
+
+**Esempio di esecuzione**
+
+```output
+Somma sicura in int: 0
+Somma esatta in long long: 2500000000
+Unsigned UINT_MAX + 1U: 0
+Unsigned 0U - 1U: 4294967295
+0.1 + 0.1 + 0.1 = 0.30000000000000004
+0.3             = 0.29999999999999999
+Confronto con == : 0
+Errore assoluto  : 5.551115e-17
+Confronto tolleranza (1e-12): 1
+Precisione cifre: float=6, double=15
+Epsilon: float=1.192093e-07, double=2.220446e-16
+```
