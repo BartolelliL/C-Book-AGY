@@ -436,7 +436,7 @@
         "Che cosa succederebbe in PURGE_PAUSED se usassi LISTA_PER_OGNI anziché LISTA_PER_OGNI_SICURO per scollegare e liberare con free i lavori in pausa?",
         "Perché in una lista circolare con sentinella un nodo scollegato viene riportato a n->prev = n; n->next = n;?"
       ],
-      "difficolta": 4,
+      "difficolta": 5,
       "verificabile": true,
       "esempi_io": [
         {

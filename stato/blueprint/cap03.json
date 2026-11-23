@@ -83,7 +83,7 @@
     },
     {
       "id": "3.R6",
-      "enunciato": "L'overflow di un'operazione aritmetica su interi con segno (signed) è illegale e va prevenuto controllando i limiti prima del calcolo o usando un tipo più ampio. Gli interi senza segno (unsigned), invece, non vanno in overflow: il loro risultato viene ridotto automaticamente modulo 2^N (dove N è il numero di bit del tipo).",
+      "enunciato": "L'overflow di un'operazione aritmetica su interi con segno (signed) provoca comportamento indefinito e va prevenuto controllando i limiti prima del calcolo o usando un tipo più ampio. Gli interi senza segno (unsigned), invece, non vanno in overflow: il loro risultato viene ridotto automaticamente modulo 2^N (dove N è il numero di bit del tipo).",
       "nota_standard": "indefinito: l'overflow degli interi con segno provoca comportamento indefinito in C23; l'aritmetica modulare sugli interi senza segno è comportamento definito dallo standard."
     },
     {

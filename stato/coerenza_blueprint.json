@@ -1,0 +1,50 @@
+{
+  "verdetto": "corretto",
+  "problemi": [
+    {
+      "id": "c1",
+      "capitoli": [3],
+      "gravita": "media",
+      "tipo": "glossario",
+      "descrizione": "Nella regola 3.R6 del cap. 3 l'enunciato usa l'espressione imprecisa 'è illegale' per l'overflow degli interi con segno, invece del termine ufficiale del glossario 'comportamento indefinito' introdotto nello stesso capitolo.",
+      "correzione_proposta": "Sostituire 'è illegale e va prevenuto' con 'provoca comportamento indefinito e va prevenuto' nell'enunciato di 3.R6 in stato/blueprint/cap03.json.",
+      "applicata": true
+    },
+    {
+      "id": "c2",
+      "capitoli": [24],
+      "gravita": "media",
+      "tipo": "difficolta",
+      "descrizione": "Nel cap. 24 la difficoltà degli esercizi non cresce in modo monotono dentro il capitolo (4, 4, 5, 4, 5, 5): l'esercizio 24.4 ha difficoltà 4 dopo l'esercizio 24.3 di difficoltà 5, pur essendo un esercizio avanzato su tre file con doppia lista intrusiva circolare e offsetof.",
+      "correzione_proposta": "Impostare 'difficolta': 5 nell'esercizio 24.4 in stato/blueprint/cap24.json per rendere la progressione monotona (4, 4, 5, 5, 5, 5).",
+      "applicata": true
+    },
+    {
+      "id": "c3",
+      "capitoli": [25],
+      "gravita": "media",
+      "tipo": "difficolta",
+      "descrizione": "Nel cap. 25 la difficoltà degli esercizi non cresce in modo monotono dentro il capitolo (4, 4, 5, 4, 5): l'esercizio 25.4 ha difficoltà 4 dopo l'esercizio 25.3 di difficoltà 5, pur essendo un esercizio avanzato su quattro file che realizza un framework di test automatici e una libreria opaca.",
+      "correzione_proposta": "Impostare 'difficolta': 5 nell'esercizio 25.4 in stato/blueprint/cap25.json per rendere la progressione monotona (4, 4, 5, 5, 5).",
+      "applicata": true
+    },
+    {
+      "id": "c4",
+      "capitoli": [25],
+      "gravita": "media",
+      "tipo": "correttezza",
+      "descrizione": "Nella descrizione dell'esercizio 25.4 la macro T_EQ_I32 è indicata con tre argomenti T_EQ_I32(ctx, att, ott) e prefisso di errore '[FAIL] <__func__>: ...', mentre soluzione_file ed esempi_io usano quattro argomenti T_EQ_I32(ctx, att, ott, expr_txt) e prefisso '  [ASS_FAIL] <__func__>: ...'.",
+      "correzione_proposta": "Allineare la descrizione dell'esercizio 25.4 in stato/blueprint/cap25.json a T_EQ_I32(ctx, att, ott, expr_txt) e al prefisso '[ASS_FAIL] <__func__>: ...'.",
+      "applicata": true
+    },
+    {
+      "id": "c5",
+      "capitoli": [18, 21, 26],
+      "gravita": "bassa",
+      "tipo": "dipendenza_mancante",
+      "descrizione": "In stato/blueprint/cap26.json l'elenco concetti_richiesti omette 'goto cleanup' (introdotto nel cap. 21 e usato nella regola 26.R6, nella sotto-sezione 26.6 e nel progetto 26.6) e i concetti 'funzione di hash', 'collisione', 'fattore di carico' e 'ridimensionamento' (introdotti nel cap. 18 e usati in tabella_hash.c in 26.4 e 26.6).",
+      "correzione_proposta": "Aggiungere 'funzione di hash', 'collisione', 'fattore di carico', 'ridimensionamento' e 'goto cleanup' a concetti_richiesti in stato/blueprint/cap26.json.",
+      "applicata": true
+    }
+  ]
+}
