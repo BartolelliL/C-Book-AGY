@@ -1,0 +1,550 @@
+{
+  "capitolo": 20,
+  "titolo": "File e dati binari",
+  "obiettivi": [
+    "Aprire, leggere, scrivere e chiudere file di testo con fopen, fgets, fprintf e fclose controllando ogni errore",
+    "Distinguere la fine del file dagli errori di lettura con feof e ferror",
+    "Leggere e scrivere dati binari con fread e fwrite e posizionarsi nel file con fseek e ftell",
+    "Progettare formati binari portabili e versionati per salvare e ricaricare strutture"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "file di testo",
+      "definizione": "File aperto in modalità testo contenente righe di caratteri leggibili, con eventuale traduzione automatica dei fine riga da parte della libreria standard."
+    },
+    {
+      "termine": "file binario",
+      "definizione": "File aperto con il modificatore \"b\" in cui i byte vengono letti e scritti esattamente come sequenza grezza senza traduzioni dei caratteri di fine riga."
+    },
+    {
+      "termine": "accesso casuale",
+      "definizione": "Spostamento diretto dell'indicatore di posizione all'interno di un file binario mediante fseek, ftell e rewind per leggere o aggiornare record senza scorrere l'intero file."
+    },
+    {
+      "termine": "serializzazione",
+      "definizione": "Conversione di strutture dati in memoria in una sequenza portabile di byte o testo da salvare su file e ricostruire in seguito."
+    }
+  ],
+  "concetti_richiesti": [
+    "stream",
+    "buffer",
+    "fine dell'input",
+    "stringa",
+    "terminatore nullo",
+    "puntatore",
+    "puntatore nullo",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "struttura",
+    "campo",
+    "enumerazione",
+    "ordine dei byte",
+    "allineamento",
+    "padding",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco"
+  ],
+  "regole": [
+    {
+      "id": "20.R1",
+      "enunciato": "Il tipo FILE in <stdio.h> è un oggetto opaco gestito sempre tramite puntatore FILE *: non va mai copiato per valore. fopen(percorso, modo) apre un file nelle modalità di testo (\"r\", \"w\", \"a\", \"r+\", \"w+\", \"a+\", oppure con \"x\" esclusivo insieme a \"w\") e restituisce nullptr in caso di errore. fprintf, fputs e fputc scrivono sullo stream (restituendo negativo o EOF in caso di errore); fflush(fp) svuota il buffer di uno stream di uscita; fclose(fp) svuota i buffer, chiude il file e restituisce 0 in caso di successo o EOF in caso di errore. rename e remove gestiscono la rinomina e l'eliminazione di file su disco.",
+      "nota_standard": "indefinito: le modalità di fopen (incluso \"wx\"), le funzioni di scrittura/chiusura e rename/remove sono definite dallo standard C23; copiare un oggetto FILE per valore, invocare fflush su uno stream di ingresso o riutilizzare un FILE * dopo fclose provoca comportamento indefinito."
+    },
+    {
+      "id": "20.R2",
+      "enunciato": "Per leggere file di testo si usano fgets (verificando eventuali righe troncate rispetto alla dimensione del buffer) e fgetc (salvando il valore restituito in un int, mai in un char, per distinguere EOF da ogni byte 0..255), analizzando le righe con sscanf, strtol o strtod. La funzione feof(fp) restituisce diverso da zero solo dopo che una lettura ha già tentato di leggere oltre la fine del file: il ciclo while (!feof(fp)) è errato. Il ciclo corretto controlla il valore restituito dalla lettura e, solo al termine, interroga ferror(fp) e feof(fp) per distinguere un errore di I/O dalla fine regolare del file; clearerr(fp) azzera entrambi gli indicatori.",
+      "nota_standard": "definito: il comportamento post-lettura di feof, la segnalazione di errori di I/O tramite ferror e il ripristino tramite clearerr sono definiti dallo standard C23; memorizzare il ritorno di fgetc in char può confondere EOF con un byte valido a seconda del segno di char (dipendente dall'implementazione)."
+    },
+    {
+      "id": "20.R3",
+      "enunciato": "I file binari si aprono aggiungendo il modificatore \"b\" al modo di fopen (\"rb\", \"wb\", \"ab\", \"r+b\", \"w+b\", \"a+b\") per impedire traduzioni dei fine riga. fwrite(ptr, size, nmemb, fp) e fread(ptr, size, nmemb, fp) trasferiscono fino a nmemb elementi di size byte e restituiscono il numero di elementi completi trasferiti: un ritorno di fwrite minore di nmemb indica errore, mentre un ritorno di fread minore di nmemb richiede ferror(fp) e feof(fp) per distinguere errore di I/O da fine del file. Su uno stream di aggiornamento non si può passare direttamente da scrittura a lettura (o da lettura non giunta a EOF a scrittura) senza interporre fflush, fseek o rewind.",
+      "nota_standard": "indefinito: fread, fwrite e le modalità binarie sono definiti dallo standard C23; alternare lettura e scrittura su uno stream aperto in aggiornamento senza una chiamata intermedia a fflush, fseek o rewind provoca comportamento indefinito."
+    },
+    {
+      "id": "20.R4",
+      "enunciato": "fseek(fp, offset, whence) sposta l'indicatore di posizione rispetto all'inizio (SEEK_SET), alla posizione corrente (SEEK_CUR) o alla fine (SEEK_END), restituendo 0 in caso di successo e azzerando l'indicatore di fine file. ftell(fp) restituisce la posizione corrente come long int (in byte sui file binari) oppure -1L in caso di errore. rewind(fp) riporta lo stream all'inizio e azzera sia feof sia ferror senza restituire un codice di errore. tmpfile() apre un file binario temporaneo in modalità \"wb+\" rimosso automaticamente alla chiusura. Sui file di testo fseek è portabile solo con offset 0 oppure con un offset ottenuto in precedenza da ftell sullo stesso stream con SEEK_SET.",
+      "nota_standard": "dipendente dall'implementazione: fseek, ftell, rewind e tmpfile sono definiti dallo standard C23; il supporto di SEEK_END sugli stream binari e il significato numerico di ftell sugli stream di testo sono dipendenti dall'implementazione, e superare l'intervallo di long fa fallire ftell con -1L."
+    },
+    {
+      "id": "20.R5",
+      "enunciato": "Scrivere o leggere una struct direttamente in blocco con fwrite/fread non è portabile perché dipende dall'ordine dei byte, dall'allineamento e dal padding della piattaforma, espone byte di padding non specificati e rende invalidi eventuali puntatori. La serializzazione binaria portabile codifica esplicitamente ogni campo in tipi a larghezza fissa (<stdint.h>) con ordine dei byte fissato tramite spostamenti e maschere, salva le stringhe come lunghezza seguita dai byte, e antepone un'intestazione con numero magico, versione del formato, conteggio dei record e somma di controllo, validando ogni lunghezza letta prima di allocare memoria.",
+      "nota_standard": "definito: la codifica esplicita campo per campo con tipi di <stdint.h> e spostamenti bit a bit è completamente definita e portabile nello standard C23; i byte di padding delle struct hanno contenuto non specificato e rileggere struct grezze tra architetture o compilatori diversi può produrre dati errati o comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "fopen",
+      "firma": "FILE *fopen(const char *restrict filename, const char *restrict mode);",
+      "header": "stdio.h",
+      "descrizione": "Apre il file filename nella modalità indicata (testo o binaria) e restituisce un puntatore FILE * oppure nullptr in caso di errore."
+    },
+    {
+      "nome": "fclose",
+      "firma": "int fclose(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Svuota i buffer dello stream, chiude il file associato e restituisce 0 in caso di successo oppure EOF in caso di errore."
+    },
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o EOF, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "fputs",
+      "firma": "int fputs(const char *restrict s, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Scrive la stringa s (senza terminatore nullo e senza aggiungere '\\n') su stream e restituisce un valore non negativo oppure EOF in caso di errore."
+    },
+    {
+      "nome": "fputc",
+      "firma": "int fputc(int c, FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Scrive il singolo carattere (unsigned char)c su stream e lo restituisce oppure restituisce EOF in caso di errore."
+    },
+    {
+      "nome": "fgetc",
+      "firma": "int fgetc(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge il prossimo byte da stream restituendolo come unsigned char convertito a int, oppure EOF alla fine del file o in caso di errore."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "fread",
+      "firma": "size_t fread(void *restrict ptr, size_t size, size_t nmemb, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge fino a nmemb elementi di size byte da stream nel buffer ptr e restituisce il numero di elementi completi letti."
+    },
+    {
+      "nome": "fwrite",
+      "firma": "size_t fwrite(const void *restrict ptr, size_t size, size_t nmemb, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Scrive fino a nmemb elementi di size byte da ptr su stream e restituisce il numero di elementi completi scritti."
+    },
+    {
+      "nome": "fseek",
+      "firma": "int fseek(FILE *stream, long int offset, int whence);",
+      "header": "stdio.h",
+      "descrizione": "Sposta l'indicatore di posizione di stream a offset byte rispetto a SEEK_SET, SEEK_CUR o SEEK_END e restituisce 0 se riesce."
+    },
+    {
+      "nome": "ftell",
+      "firma": "long int ftell(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Restituisce la posizione corrente dello stream come long int oppure -1L in caso di errore."
+    },
+    {
+      "nome": "rewind",
+      "firma": "void rewind(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Riporta l'indicatore di posizione di stream all'inizio del file e azzera gli indicatori di fine file e di errore."
+    },
+    {
+      "nome": "fflush",
+      "firma": "int fflush(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Forza la scrittura dei dati bufferizzati di uno stream di uscita (o di tutti se nullptr) e restituisce 0 oppure EOF in caso di errore."
+    },
+    {
+      "nome": "feof",
+      "firma": "int feof(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Restituisce diverso da zero se è stato impostato l'indicatore di fine file sullo stream."
+    },
+    {
+      "nome": "ferror",
+      "firma": "int ferror(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Restituisce diverso da zero se è stato impostato l'indicatore di errore di I/O sullo stream."
+    },
+    {
+      "nome": "clearerr",
+      "firma": "void clearerr(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Azzera gli indicatori di fine file e di errore associati allo stream."
+    },
+    {
+      "nome": "remove",
+      "firma": "int remove(const char *filename);",
+      "header": "stdio.h",
+      "descrizione": "Elimina il file filename dal filesystem e restituisce 0 in caso di successo o diverso da zero in caso di errore."
+    },
+    {
+      "nome": "rename",
+      "firma": "int rename(const char *old, const char *new);",
+      "header": "stdio.h",
+      "descrizione": "Rinomina il file old in new e restituisce 0 in caso di successo o diverso da zero in caso di errore."
+    },
+    {
+      "nome": "tmpfile",
+      "firma": "FILE *tmpfile(void);",
+      "header": "stdio.h",
+      "descrizione": "Crea e apre un file binario temporaneo in modalità \"wb+\" che viene eliminato automaticamente alla chiusura."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte restituendo il nuovo indirizzo oppure nullptr lasciando valido ptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; su nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strtol",
+      "firma": "long int strtol(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte nptr in long int nella base indicata, imposta *endptr sul primo carattere residuo e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza della stringa s in byte escluso il terminatore nullo."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strchr",
+      "firma": "char *strchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza di (char)c in s e ne restituisce il puntatore oppure nullptr."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memcmp",
+      "firma": "int memcmp(const void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta i primi n byte di s1 e s2 come unsigned char restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "20.1",
+      "titolo": "Aprire, scrivere e chiudere file di testo",
+      "contenuti": [
+        "Il tipo FILE come astrazione opaca di uno stream di file e il suo legame con stdin, stdout e stderr già usati dal capitolo 5",
+        "Apertura con fopen e scelta della modalità di testo (\"r\", \"w\", \"a\", \"r+\", \"w+\", \"a+\" e il modificatore esclusivo \"wx\"), verificando sempre fp != nullptr",
+        "Scrittura su file con fprintf, fputs (che non aggiunge '\\n') e fputc, svuotamento controllato del buffer con fflush(fp) e chiusura con controllo obbligatorio di fclose(fp) == 0",
+        "Gestione sicura dei file su disco tramite rename (scrittura su file temporaneo seguita da rinomina) e remove per ripulire file temporanei o obsoleti"
+      ],
+      "esempio_guidato": "Un programma che crea un rapporto meteorologico giornaliero su un file temporaneo usando fopen(\"w\"), fprintf, fputs, fputc, fflush e controllo di fclose, lo promuove al file definitivo con rename, aggiunge un'osservazione finale in modalità append (\"a\"), lo rilegge su stdout e lo elimina con remove.",
+      "approfondimento": "Perché controllare il valore restituito da fclose quando si scrive: i byte prodotti da fprintf o fputs restano spesso nel buffer dello stream in RAM e un errore di disco pieno o di permesso può emergere soltanto al momento dello svuotamento eseguito dentro fclose.",
+      "esercizio_id": "20.1"
+    },
+    {
+      "id": "20.2",
+      "titolo": "Leggere file di testo e distinguere feof da ferror",
+      "contenuti": [
+        "Lettura sicura per righe con fgets e carattere per carattere con fgetc (salvando sempre il risultato in int per distinguere EOF da ogni byte 0..255), abbinata al parsing con sscanf, strtol e strtod invece di fscanf",
+        "Gestione delle righe più lunghe del buffer di fgets: riconoscere la mancanza di '\\n' per scartare il resto della riga o riallocare senza corrompere le righe successive",
+        "Perché while (!feof(fp)) è un errore classico: feof diventa vero solo dopo che una lettura è già fallita per fine file, producendo una ripetizione spuria dell'ultima riga",
+        "Schema corretto di diagnostica post-ciclo con ferror(fp), feof(fp) e ripristino degli indicatori mediante clearerr(fp)"
+      ],
+      "esempio_guidato": "Un programma che genera un piccolo file di configurazione con commenti e una riga intenzionalmente più lunga di un buffer di 24 byte, lo rilegge con fgets scartando le righe troncate con fgetc, verifica feof e ferror al termine del ciclo e dimostra il rilevamento di un errore di scrittura su stream in sola lettura seguito da clearerr.",
+      "approfondimento": "La trappola di char c = fgetc(fp);: su piattaforme dove char è senza segno il test c != EOF è sempre vero causando un ciclo infinito, mentre dove char è con segno il byte 0xFF viene confuso con EOF troncando la lettura.",
+      "esercizio_id": "20.2"
+    },
+    {
+      "id": "20.3",
+      "titolo": "File binari con fread e fwrite",
+      "contenuti": [
+        "Differenza tra file di testo e file binari (\"rb\", \"wb\", \"ab\", \"r+b\", \"w+b\"): conservazione fedele dei byte grezzi senza traduzione dei fine riga",
+        "Uso di fwrite e fread: scelta di size ed nmemb (perché size = 1 e nmemb = cap restituisce il conteggio esatto dei byte anche sull'ultimo blocco parziale) e controllo di ferror/feof sui trasferimenti parziali",
+        "Elaborazione a blocchi (streaming) con un buffer fisso uint8_t buf[N] per copiare, trasformare o confrontare file di qualsiasi dimensione con uso costante di memoria",
+        "Regola di alternanza tra lettura e scrittura sugli stream di aggiornamento (\"r+b\", \"w+b\"): interporre sempre fflush, fseek o rewind"
+      ],
+      "esempio_guidato": "Un programma che scrive una sequenza di campioni binari su file con fwrite, la rilegge a blocchi con fread(buf, 1, sizeof(buf), fp) per calcolare una checksum XOR e produrre una copia trasformata byte per byte, verificando l'integrità della trasformazione inversa con memcmp.",
+      "approfondimento": "fread(buf, 1, N, fp) contro fread(buf, N, 1, fp): invertire size e nmemb su un file la cui dimensione non è multipla di N fa restituire 0 sull'ultimo blocco, impedendo di sapere quanti byte validi siano stati letti.",
+      "esercizio_id": "20.3"
+    },
+    {
+      "id": "20.4",
+      "titolo": "Accesso casuale con fseek, ftell e rewind",
+      "contenuti": [
+        "Posizionamento diretto in un file binario con fseek(fp, offset, whence) usando SEEK_SET, SEEK_CUR e SEEK_END e controllo del valore di ritorno 0",
+        "Interrogazione della posizione corrente con ftell(fp) (controllando -1L) e ritorno all'inizio con azzeramento degli indicatori tramite rewind(fp)",
+        "Gestione di un archivio a record di dimensione fissa: calcolo dello spiazzamento (long)idx * (long)DIM_REC, lettura selettiva e aggiornamento in loco con fseek(..., -DIM_REC, SEEK_CUR) rispettando la regola di alternanza lettura-scrittura",
+        "Creazione di file binari temporanei portabili con tmpfile() e limiti di portabilità di SEEK_END sui file binari e di fseek sui file di testo"
+      ],
+      "esempio_guidato": "Un programma che apre uno stream binario temporaneo con tmpfile(), vi scrive quattro record a dimensione fissa in byte, usa fseek (con SEEK_SET e SEEK_CUR) e ftell per ispezionare e aggiornare il secondo record in loco, poi invoca rewind per stampare la tabella aggiornata.",
+      "approfondimento": "Perché ftell restituisce long int: su piattaforme con long a 32 bit (come Windows a 64 bit) ftell e fseek gestiscono offset fino a circa 2 GiB; verificare sempre ftell(fp) < 0 e tenere traccia del numero di record per evitare overflow.",
+      "esercizio_id": "20.4"
+    },
+    {
+      "id": "20.5",
+      "titolo": "Salvare e caricare strutture: formati binari e versioni",
+      "contenuti": [
+        "Perché salvare una struct grezza con fwrite(&s, sizeof(s), 1, fp) è fragile: dipendenza da ordine dei byte, allineamento, padding non specificato e invalidità dei puntatori",
+        "Serializzazione portabile campo per campo con tipi a larghezza fissa (<stdint.h>), funzioni helper little-endian/big-endian con spostamenti e maschere, e stringhe salvate con prefisso di lunghezza",
+        "Progettazione di un'intestazione binaria robusta: numero magico (magic number), numero di versione del formato, conteggio degli elementi e somma di controllo (checksum) per rilevare file errati, corrotti o troncati",
+        "Retrocompatibilità tra versioni di formato (valori predefiniti per campi introdotti nelle versioni successive) e validazione difensiva delle lunghezze lette dal file prima di chiamare malloc"
+      ],
+      "esempio_guidato": "Un modulo su più file (formato_stazioni.h, formato_stazioni.c, main.c) che salva e ricarica un elenco dinamico di stazioni con nomi allocati sullo heap usando un'intestazione big-endian con magic \"STAZ\", versione 1 o 2 (la v2 aggiunge la quota) e checksum, verificando retrocompatibilità e rifiuto di file corrotti.",
+      "approfondimento": "Trattare ogni file come input non fidato: prima di allocare memoria in base a un conteggio o a una lunghezza letti dal file binario, confrontarli con un limite massimo ragionevole per evitare allocazioni spropositate o attacchi di esaurimento memoria su file alterati.",
+      "esercizio_id": "20.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "20.1",
+      "tipo": "esercizio",
+      "titolo": "Generatore di ricevute testuali con aggiornamento sicuro tramite rename e remove",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una sequenza di righe di comando fino a fine input per costruire una ricevuta su file di testo: `VOCE <articolo> <quantita> <prezzo_cent>` (`1 <= quantita <= 1000`, `0 <= prezzo_cent <= 1000000`, `<articolo>` senza spazi, max 31 caratteri, fino a 64 voci) e `NOTA <testo>` (fino a 16 note, max 127 caratteri ciascuna, rimuovendo il `'\n'` finale). Il programma deve: (1) aprire il file temporaneo `\"ricevuta_20_1.tmp\"` in modalità `\"w\"`, scrivere `\"=== RICEVUTA ===\\n\"` con `fputs`, scrivere per ciascuna voce `<articolo> x<quantita> = <euro>.<cent>` con `fprintf` (oppure `\"Nessuna voce.\\n\"` se non ci sono voci), disegnare una riga separatrice di esattamente 16 caratteri `'-'` seguita da `'\\n'` usando `fputc`, scrivere `\"Totale: <euro>.<cent>\\n\"` con `fprintf`, chiamare `fflush`, verificare `ferror` e controllare che `fclose` restituisca `0`; (2) rinominare `\"ricevuta_20_1.tmp\"` in `\"ricevuta_20_1.txt\"` con `rename`; (3) se è presente almeno una nota, riaprire `\"ricevuta_20_1.txt\"` in modalità `\"a\"`, scrivere `\"Note:\\n\"` e ciascuna riga `\"- <testo>\\n\"`, controllando `fclose`; (4) riaprire `\"ricevuta_20_1.txt\"` in modalità `\"r\"`, copiare integralmente il contenuto su `stdout` usando `fgets` e `fputs`, chiudere il file e rimuoverlo con `remove`, stampando infine `\"Archivio rimosso: OK\\n\"`. In caso di errore di input o di I/O ripulisci eventuali file temporanei, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`.",
+      "concetti_da_tenere_a_mente": [
+        "apertura di file di testo in modalità \"w\", \"a\" e \"r\" con controllo obbligatorio di fopen != nullptr",
+        "uso combinato di fputs, fputc, fprintf, fflush e controllo del valore restituito da fclose",
+        "aggiornamento sicuro tramite scrittura su file temporaneo seguita da rename",
+        "rimozione controllata dei file temporanei e finali con remove"
+      ],
+      "domande_guida": [
+        "Perché conviene scrivere la ricevuta su un file temporaneo e spostarlo poi con rename invece di sovrascrivere direttamente il file definitivo?",
+        "Quale errore potresti perdere se ignorassi il valore restituito da fclose dopo aver chiamato fprintf e fputs?",
+        "Qual è la differenza di comportamento tra fputs e puts riguardo al carattere di fine riga '\\n'?",
+        "Che cosa succederebbe alle voci già salvate se nella fase delle note riaprissi ricevuta_20_1.txt con \"w\" anziché con \"a\"?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "VOCE Quaderno 2 150\nVOCE Penna 3 85\nNOTA Pagamento contanti\nNOTA Scontrino richiesto\n",
+          "output": "=== RICEVUTA ===\nQuaderno x2 = 3.00\nPenna x3 = 2.55\n----------------\nTotale: 5.55\nNote:\n- Pagamento contanti\n- Scontrino richiesto\nArchivio rimosso: OK\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "=== RICEVUTA ===\nNessuna voce.\n----------------\nTotale: 0.00\nArchivio rimosso: OK\n"
+        },
+        {
+          "input": "VOCE Omaggio 1 0\nNOTA Campione gratuito\n",
+          "output": "=== RICEVUTA ===\nOmaggio x1 = 0.00\n----------------\nTotale: 0.00\nNote:\n- Campione gratuito\nArchivio rimosso: OK\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_VOCI = 64;\nconstexpr size_t MAX_NOTE = 16;\n\ntypedef struct voce {\n    char nome[32];\n    int qty;\n    long long prezzo_cent;\n} voce_t;\n\nstatic bool scrivi_ricevuta(const char *path_tmp, const voce_t *voci, size_t n_voci) {\n    FILE *fp = fopen(path_tmp, \"w\");\n    if (fp == nullptr) { return false; }\n    bool ok = (fputs(\"=== RICEVUTA ===\\n\", fp) != EOF);\n    long long totale = 0;\n    if (n_voci == 0) {\n        ok = ok && (fputs(\"Nessuna voce.\\n\", fp) != EOF);\n    } else {\n        for (size_t i = 0; i < n_voci && ok; ++i) {\n            long long sub = (long long)voci[i].qty * voci[i].prezzo_cent;\n            totale += sub;\n            ok = (fprintf(fp, \"%s x%d = %lld.%02lld\\n\", voci[i].nome, voci[i].qty, sub / 100, sub % 100) >= 0);\n        }\n    }\n    for (int i = 0; i < 16 && ok; ++i) {\n        ok = (fputc('-', fp) != EOF);\n    }\n    ok = ok && (fputc('\\n', fp) != EOF);\n    ok = ok && (fprintf(fp, \"Totale: %lld.%02lld\\n\", totale / 100, totale % 100) >= 0);\n    ok = ok && (fflush(fp) == 0) && (ferror(fp) == 0);\n    if (fclose(fp) != 0) { ok = false; }\n    return ok;\n}\n\nstatic bool aggiungi_note(const char *path, char note[MAX_NOTE][128], size_t n_note) {\n    if (n_note == 0) { return true; }\n    FILE *fp = fopen(path, \"a\");\n    if (fp == nullptr) { return false; }\n    bool ok = (fputs(\"Note:\\n\", fp) != EOF);\n    for (size_t i = 0; i < n_note && ok; ++i) {\n        ok = (fprintf(fp, \"- %s\\n\", note[i]) >= 0);\n    }\n    if (fclose(fp) != 0) { ok = false; }\n    return ok;\n}\n\nint main(void) {\n    const char *file_tmp = \"ricevuta_20_1.tmp\";\n    const char *file_fin = \"ricevuta_20_1.txt\";\n    voce_t voci[MAX_VOCI] = {};\n    char note[MAX_NOTE][128] = {};\n    size_t n_voci = 0, n_note = 0;\n    char riga[256], cmd[16], extra = '\\0';\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"VOCE\") == 0) {\n            voce_t v = {};\n            if (n_voci >= MAX_VOCI ||\n                sscanf(riga, \"VOCE %31s %d %lld %c\", v.nome, &v.qty, &v.prezzo_cent, &extra) != 3 ||\n                v.qty < 1 || v.qty > 1000 || v.prezzo_cent < 0 || v.prezzo_cent > 1000000) {\n                fprintf(stderr, \"Errore: voce non valida.\\n\");\n                return EXIT_FAILURE;\n            }\n            voci[n_voci++] = v;\n        } else if (strcmp(cmd, \"NOTA\") == 0) {\n            const char *p = riga + 4;\n            while (*p == ' ' || *p == '\\t') { ++p; }\n            size_t len = strlen(p);\n            while (len > 0 && (p[len - 1] == '\\n' || p[len - 1] == '\\r')) { --len; }\n            if (n_note >= MAX_NOTE || len == 0 || len >= sizeof(note[0])) {\n                fprintf(stderr, \"Errore: nota non valida.\\n\");\n                return EXIT_FAILURE;\n            }\n            memcpy(note[n_note], p, len);\n            note[n_note][len] = '\\0';\n            ++n_note;\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    if (!scrivi_ricevuta(file_tmp, voci, n_voci) || rename(file_tmp, file_fin) != 0 ||\n        !aggiungi_note(file_fin, note, n_note)) {\n        remove(file_tmp);\n        remove(file_fin);\n        fprintf(stderr, \"Errore di scrittura file.\\n\");\n        return EXIT_FAILURE;\n    }\n    FILE *in = fopen(file_fin, \"r\");\n    if (in == nullptr) {\n        remove(file_fin);\n        return EXIT_FAILURE;\n    }\n    while (fgets(riga, (int)sizeof(riga), in) != nullptr) {\n        fputs(riga, stdout);\n    }\n    bool err = (ferror(in) != 0);\n    fclose(in);\n    if (err || remove(file_fin) != 0) {\n        fprintf(stderr, \"Errore di lettura o rimozione.\\n\");\n        return EXIT_FAILURE;\n    }\n    printf(\"Archivio rimosso: OK\\n\");\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "20.2",
+      "tipo": "esercizio",
+      "titolo": "Analizzatore di file di log con gestione delle righe lunghe e diagnostica feof/ferror/clearerr",
+      "descrizione": "Scrivi un programma C che simuli la lettura rigorosa di un file di log testuale. (1) Copia integralmente `stdin` in un file di testo temporaneo `\"log_20_2.txt\"` usando `fgetc`/`fputc` (memorizzando ogni carattere in `int`), verifica l'assenza di errori e chiudi il file. (2) Riapri `\"log_20_2.txt\"` in modalità `\"r\"` e leggilo con `fgets` in un buffer di esattamente `32` byte (`char buf[32]`). Se una riga supera i 31 caratteri utili (cioè `buf` contiene 31 caratteri senza `'\\n'` e il carattere successivo letto con `fgetc` non è né `'\\n'` né `EOF`), scarta i caratteri residui della riga fino a `'\\n'` o `EOF` con `fgetc` e incrementa il contatore `troncate`. Altrimenti rimuovi eventuale `'\\n'`/`'\\r'` finale: se la riga è vuota o inizia (dopo eventuali spazi) con `'#'`, incrementa `ignorate`; altrimenti verifica il formato esatto `<livello>;<codice>;<durata_ms>` dove `<livello>` è `INFO`, `WARN` o `ERR`, `<codice>` è un intero nell'intervallo `int32_t` e `<durata_ms>` è un intero non negativo nell'intervallo `int64_t` (entrambi convertiti con `strtol` azzerando `errno = 0` e controllando `ERANGE` e assenza di caratteri residui). Se valida, aggiorna il contatore del livello e la somma delle durate; altrimenti incrementa `malformate`. (3) Al termine del ciclo `fgets`, stampa lo stato `Stato fine lettura: EOF=<0|1> ERR=<0|1>` interrogando `feof` e `ferror`, provoca un errore di scrittura chiamando `fputc('X', fp)` sullo stream aperto in sola lettura e stampa `Dopo scrittura su sola lettura: ERR=<0|1>`, chiama `clearerr(fp)` e stampa `Dopo clearerr: EOF=<0|1> ERR=<0|1>`. (4) Chiudi il file, rimuovilo con `remove` e stampa il riepilogo esatto dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "ciclo di lettura basato sul ritorno di fgets/fgetc anziché su while (!feof(fp))",
+        "memorizzazione del ritorno di fgetc in int per distinguere EOF da ogni byte valido",
+        "rilevamento e smaltimento delle righe più lunghe del buffer di fgets senza corrompere le righe successive",
+        "distinzione tra feof e ferror e azzeramento degli indicatori con clearerr"
+      ],
+      "domande_guida": [
+        "Perché controllare while (!feof(fp)) prima di chiamare fgets produrrebbe un conteggio errato sull'ultima riga del file?",
+        "Come fai a distinguere una riga lunga esattamente 31 caratteri (seguita da '\\n') da una riga realmente troncata lunga 32 o più caratteri quando il buffer è di 32 byte?",
+        "Perché il valore restituito da fgetc va sempre salvato in una variabile int e non in un char?",
+        "Quale effetto produce clearerr(fp) sugli indicatori interni dello stream dopo un errore di scrittura su uno stream aperto in sola lettura?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "# Log di sistema\nINFO;100;15\n\nWARN;205;40\nERR;500;120\nINFO;abc;10\nWARN;99;-5\nINFO;101;999;questa_riga_supera_i_trentuno_caratteri\n",
+          "output": "Stato fine lettura: EOF=1 ERR=0\nDopo scrittura su sola lettura: ERR=1\nDopo clearerr: EOF=0 ERR=0\nValide: 3 (INFO=1 WARN=1 ERR=1) Durata=175 ms\nIgnorate: 2 Malformate: 2 Troncate: 1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Stato fine lettura: EOF=1 ERR=0\nDopo scrittura su sola lettura: ERR=1\nDopo clearerr: EOF=0 ERR=0\nValide: 0 (INFO=0 WARN=0 ERR=0) Durata=0 ms\nIgnorate: 0 Malformate: 0 Troncate: 0\n"
+        },
+        {
+          "input": "ERR;404;25",
+          "output": "Stato fine lettura: EOF=1 ERR=0\nDopo scrittura su sola lettura: ERR=1\nDopo clearerr: EOF=0 ERR=0\nValide: 1 (INFO=0 WARN=0 ERR=1) Durata=25 ms\nIgnorate: 0 Malformate: 0 Troncate: 0\n"
+        },
+        {
+          "input": "INFO;12345678901234567890123;1\n   # commento indentato\nWARN;0;0\n",
+          "output": "Stato fine lettura: EOF=1 ERR=0\nDopo scrittura su sola lettura: ERR=1\nDopo clearerr: EOF=0 ERR=0\nValide: 1 (INFO=0 WARN=1 ERR=0) Durata=0 ms\nIgnorate: 1 Malformate: 1 Troncate: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <errno.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic bool parsa_intero(const char *s, long *out) {\n    if (s == nullptr || *s == '\\0' || isspace((unsigned char)*s)) { return false; }\n    char *end = nullptr;\n    errno = 0;\n    long v = strtol(s, &end, 10);\n    if (errno == ERANGE || end == s || *end != '\\0') { return false; }\n    *out = v;\n    return true;\n}\n\nstatic bool parsa_record(char *riga, int *livello, long long *durata) {\n    char *p1 = strchr(riga, ';');\n    if (p1 == nullptr) { return false; }\n    char *p2 = strchr(p1 + 1, ';');\n    if (p2 == nullptr || strchr(p2 + 1, ';') != nullptr) { return false; }\n    *p1 = '\\0';\n    *p2 = '\\0';\n    if (strcmp(riga, \"INFO\") == 0) { *livello = 0; }\n    else if (strcmp(riga, \"WARN\") == 0) { *livello = 1; }\n    else if (strcmp(riga, \"ERR\") == 0) { *livello = 2; }\n    else { return false; }\n    long cod = 0, dur = 0;\n    if (!parsa_intero(p1 + 1, &cod) || cod < INT32_MIN || cod > INT32_MAX) { return false; }\n    if (!parsa_intero(p2 + 1, &dur) || dur < 0) { return false; }\n    *durata = (long long)dur;\n    return true;\n}\n\nint main(void) {\n    const char *path = \"log_20_2.txt\";\n    FILE *out = fopen(path, \"w\");\n    if (out == nullptr) { return EXIT_FAILURE; }\n    int ch = 0;\n    while ((ch = fgetc(stdin)) != EOF) {\n        if (fputc(ch, out) == EOF) { fclose(out); remove(path); return EXIT_FAILURE; }\n    }\n    if (ferror(stdin) != 0 || fclose(out) != 0) { remove(path); return EXIT_FAILURE; }\n\n    FILE *fp = fopen(path, \"r\");\n    if (fp == nullptr) { remove(path); return EXIT_FAILURE; }\n    size_t c_liv[3] = {0, 0, 0};\n    size_t ignorate = 0, malformate = 0, troncate = 0;\n    long long somma_durata = 0;\n    char buf[32];\n    while (fgets(buf, (int)sizeof(buf), fp) != nullptr) {\n        size_t len = strlen(buf);\n        bool ha_nl = (len > 0 && buf[len - 1] == '\\n');\n        if (!ha_nl && len == sizeof(buf) - 1) {\n            int extra = fgetc(fp);\n            if (extra != EOF && extra != '\\n') {\n                while (extra != EOF && extra != '\\n') { extra = fgetc(fp); }\n                ++troncate;\n                continue;\n            }\n        }\n        while (len > 0 && (buf[len - 1] == '\\n' || buf[len - 1] == '\\r')) { buf[--len] = '\\0'; }\n        size_t pos = 0;\n        while (buf[pos] != '\\0' && isspace((unsigned char)buf[pos])) { ++pos; }\n        if (buf[pos] == '\\0' || buf[pos] == '#') { ++ignorate; continue; }\n        int liv = 0;\n        long long dur = 0;\n        if (parsa_record(buf + pos, &liv, &dur)) {\n            ++c_liv[liv];\n            somma_durata += dur;\n        } else {\n            ++malformate;\n        }\n    }\n    printf(\"Stato fine lettura: EOF=%d ERR=%d\\n\", (feof(fp) != 0) ? 1 : 0, (ferror(fp) != 0) ? 1 : 0);\n    (void)fputc('X', fp);\n    printf(\"Dopo scrittura su sola lettura: ERR=%d\\n\", (ferror(fp) != 0) ? 1 : 0);\n    clearerr(fp);\n    printf(\"Dopo clearerr: EOF=%d ERR=%d\\n\", (feof(fp) != 0) ? 1 : 0, (ferror(fp) != 0) ? 1 : 0);\n    fclose(fp);\n    if (remove(path) != 0) { return EXIT_FAILURE; }\n    size_t valide = c_liv[0] + c_liv[1] + c_liv[2];\n    printf(\"Valide: %zu (INFO=%zu WARN=%zu ERR=%zu) Durata=%lld ms\\n\", valide, c_liv[0], c_liv[1], c_liv[2], somma_durata);\n    printf(\"Ignorate: %zu Malformate: %zu Troncate: %zu\\n\", ignorate, malformate, troncate);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "20.3",
+      "tipo": "esercizio",
+      "titolo": "Compressore e decompressore binario RLE a blocchi con fread e fwrite",
+      "descrizione": "Scrivi un programma C che implementi la compressione e decompressione binaria Run-Length Encoding (RLE) su file reali usando `fread` e `fwrite` a blocchi di `16` byte. Nel formato RLE ogni sequenza di byte uguali consecutivi è codificata come coppia di 2 byte `[conteggio (1..255), valore]`; sequenze più lunghe di `255` byte vanno spezzate in più coppie consecutive (es. 260 byte `0x00` diventano `[255, 0x00]` seguito da `[5, 0x00]`). (1) Leggi da `stdin` zero o più righe nel formato `RUN <conteggio> <hex>` (`1 <= conteggio <= 600`, `<hex>` valore esadecimale `00..FF`) e scrivi i byte grezzi corrispondenti nel file binario `\"orig_20_3.bin\"` (`\"wb\"`). (2) Implementa `bool comprimi_rle(const char *src, const char *dst, size_t *byte_orig, size_t *byte_comp)` che legge `src` (`\"rb\"`) a blocchi di `16` byte con `fread(buf, 1, sizeof(buf), fin)`, fonde correttamente le sequenze di byte uguali anche attraverso i confini dei blocchi e scrive le coppie su `dst` (`\"wb\"`) con `fwrite`. (3) Implementa `bool decomprimi_rle(const char *src, const char *dst)` che legge `src` a blocchi di `16` byte (8 coppie), rifiuta file con lunghezza dispari o conteggio `0`, e ricostruisce i byte originali su `dst`. (4) Implementa `bool file_identici(const char *a, const char *b)` che confronta `orig_20_3.bin` e `ric_20_3.bin` a blocchi di `16` byte usando `fread` e `memcmp`, verificando che entrambi terminino esattamente insieme. (5) Stampa la dimensione originale, quella compressa con il numero di coppie, l'elenco delle coppie RLE lette dal file compresso (`<cnt>x<HEX2>`, oppure `(vuoto)` se 0 coppie) e `Integrita: OK`, poi elimina tutti e tre i file con `remove`.",
+      "concetti_da_tenere_a_mente": [
+        "apertura in modalità binaria \"rb\" e \"wb\" per preservare esattamente ogni byte",
+        "uso di fread(buf, 1, sizeof(buf), fp) per conoscere il numero esatto di byte letti nei blocchi parziali",
+        "mantenimento dello stato della sequenza corrente tra blocchi consecutivi e controllo di ferror/feof",
+        "verifica dell'integrità binaria con confronti a blocchi tramite memcmp e pulizia con remove"
+      ],
+      "domande_guida": [
+        "Perché nell'elaborazione a blocchi conviene chiamare fread(buf, 1, sizeof(buf), fp) invece di fread(buf, sizeof(buf), 1, fp)?",
+        "Che cosa succederebbe a una sequenza di 20 byte uguali letta con un buffer di 16 byte se azzerassi lo stato RLE a ogni iterazione del ciclo fread?",
+        "Come verifichi in decomprimi_rle che il file compresso non sia stato troncato a metà di una coppia di 2 byte?",
+        "Perché in file_identici non basta controllare che i blocchi letti coincidano con memcmp, ma occorre anche verificare che entrambi i file raggiungano la fine nello stesso momento?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "RUN 10 41\nRUN 10 41\nRUN 1 42\nRUN 260 00\n",
+          "output": "Originale: 281 byte\nCompresso: 8 byte (4 coppie)\nRLE: 20x41 1x42 255x00 5x00\nIntegrita: OK\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Originale: 0 byte\nCompresso: 0 byte (0 coppie)\nRLE: (vuoto)\nIntegrita: OK\n"
+        },
+        {
+          "input": "RUN 1 FF\n",
+          "output": "Originale: 1 byte\nCompresso: 2 byte (1 coppie)\nRLE: 1xFF\nIntegrita: OK\n"
+        },
+        {
+          "input": "RUN 16 0A\nRUN 16 0D\nRUN 1 0A\n",
+          "output": "Originale: 33 byte\nCompresso: 6 byte (3 coppie)\nRLE: 16x0A 16x0D 1x0A\nIntegrita: OK\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t DIM_BLOCCO = 16;\n\nstatic bool comprimi_rle(const char *src, const char *dst, size_t *byte_orig, size_t *byte_comp) {\n    FILE *fin = fopen(src, \"rb\");\n    FILE *fout = fopen(dst, \"wb\");\n    if (fin == nullptr || fout == nullptr) {\n        if (fin != nullptr) { fclose(fin); }\n        if (fout != nullptr) { fclose(fout); }\n        return false;\n    }\n    uint8_t buf[DIM_BLOCCO];\n    bool attivo = false;\n    uint8_t val = 0, cnt = 0;\n    size_t tot_in = 0, tot_out = 0;\n    bool ok = true;\n    size_t letti = 0;\n    while (ok && (letti = fread(buf, 1, sizeof(buf), fin)) > 0) {\n        tot_in += letti;\n        for (size_t i = 0; i < letti && ok; ++i) {\n            if (!attivo) {\n                val = buf[i]; cnt = 1; attivo = true;\n            } else if (buf[i] == val && cnt < 255) {\n                ++cnt;\n            } else {\n                uint8_t coppia[2] = {cnt, val};\n                ok = (fwrite(coppia, 1, 2, fout) == 2);\n                tot_out += 2;\n                val = buf[i]; cnt = 1;\n            }\n        }\n    }\n    if (ok && ferror(fin) != 0) { ok = false; }\n    if (ok && attivo) {\n        uint8_t coppia[2] = {cnt, val};\n        ok = (fwrite(coppia, 1, 2, fout) == 2);\n        tot_out += 2;\n    }\n    if (fclose(fin) != 0) { ok = false; }\n    if (fclose(fout) != 0) { ok = false; }\n    if (ok) { *byte_orig = tot_in; *byte_comp = tot_out; }\n    return ok;\n}\n\nstatic bool decomprimi_rle(const char *src, const char *dst) {\n    FILE *fin = fopen(src, \"rb\");\n    FILE *fout = fopen(dst, \"wb\");\n    if (fin == nullptr || fout == nullptr) {\n        if (fin != nullptr) { fclose(fin); }\n        if (fout != nullptr) { fclose(fout); }\n        return false;\n    }\n    uint8_t buf[DIM_BLOCCO], espanso[255];\n    bool ok = true;\n    size_t letti = 0;\n    while (ok && (letti = fread(buf, 1, sizeof(buf), fin)) > 0) {\n        if ((letti % 2) != 0) { ok = false; break; }\n        for (size_t i = 0; i < letti && ok; i += 2) {\n            if (buf[i] == 0) { ok = false; break; }\n            memset(espanso, buf[i + 1], buf[i]);\n            ok = (fwrite(espanso, 1, buf[i], fout) == buf[i]);\n        }\n    }\n    if (ok && ferror(fin) != 0) { ok = false; }\n    if (fclose(fin) != 0) { ok = false; }\n    if (fclose(fout) != 0) { ok = false; }\n    return ok;\n}\n\nstatic bool file_identici(const char *a, const char *b) {\n    FILE *fa = fopen(a, \"rb\");\n    FILE *fb = fopen(b, \"rb\");\n    if (fa == nullptr || fb == nullptr) {\n        if (fa != nullptr) { fclose(fa); }\n        if (fb != nullptr) { fclose(fb); }\n        return false;\n    }\n    uint8_t ba[DIM_BLOCCO], bb[DIM_BLOCCO];\n    bool uguali = true;\n    while (true) {\n        size_t na = fread(ba, 1, sizeof(ba), fa);\n        size_t nb = fread(bb, 1, sizeof(bb), fb);\n        if (na != nb || (na > 0 && memcmp(ba, bb, na) != 0)) { uguali = false; break; }\n        if (na == 0) {\n            if (ferror(fa) != 0 || ferror(fb) != 0) { uguali = false; }\n            break;\n        }\n    }\n    fclose(fa);\n    fclose(fb);\n    return uguali;\n}\n\nint main(void) {\n    const char *f_orig = \"orig_20_3.bin\", *f_comp = \"comp_20_3.rle\", *f_ric = \"ric_20_3.bin\";\n    FILE *fo = fopen(f_orig, \"wb\");\n    if (fo == nullptr) { return EXIT_FAILURE; }\n    char riga[128], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        int cnt = 0;\n        unsigned int hexv = 0;\n        if (sscanf(riga, \" %c\", &extra) != 1) { continue; }\n        if (sscanf(riga, \"RUN %d %x %c\", &cnt, &hexv, &extra) != 2 || cnt < 1 || cnt > 600 || hexv > 0xFFU) {\n            fclose(fo); remove(f_orig); return EXIT_FAILURE;\n        }\n        uint8_t b = (uint8_t)hexv;\n        for (int i = 0; i < cnt; ++i) {\n            if (fwrite(&b, 1, 1, fo) != 1) { fclose(fo); remove(f_orig); return EXIT_FAILURE; }\n        }\n    }\n    if (fclose(fo) != 0) { remove(f_orig); return EXIT_FAILURE; }\n\n    size_t n_orig = 0, n_comp = 0;\n    if (!comprimi_rle(f_orig, f_comp, &n_orig, &n_comp) || !decomprimi_rle(f_comp, f_ric) ||\n        !file_identici(f_orig, f_ric)) {\n        remove(f_orig); remove(f_comp); remove(f_ric); return EXIT_FAILURE;\n    }\n    printf(\"Originale: %zu byte\\nCompresso: %zu byte (%zu coppie)\\nRLE:\", n_orig, n_comp, n_comp / 2);\n    if (n_comp == 0) {\n        printf(\" (vuoto)\\n\");\n    } else {\n        FILE *fc = fopen(f_comp, \"rb\");\n        if (fc == nullptr) { remove(f_orig); remove(f_comp); remove(f_ric); return EXIT_FAILURE; }\n        uint8_t coppia[2];\n        while (fread(coppia, 1, 2, fc) == 2) {\n            printf(\" %\" PRIu8 \"x%02\" PRIX8, coppia[0], coppia[1]);\n        }\n        printf(\"\\n\");\n        fclose(fc);\n    }\n    printf(\"Integrita: OK\\n\");\n    if (remove(f_orig) != 0 || remove(f_comp) != 0 || remove(f_ric) != 0) { return EXIT_FAILURE; }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "20.4",
+      "tipo": "esercizio",
+      "titolo": "Archivio binario a record fissi con accesso casuale e aggiornamento in loco su più file",
+      "descrizione": "Scrivi un programma C organizzato su tre file (`archivio_rec.h`, `archivio_rec.c`, `main.c`) che incapsuli un archivio binario a record di dimensione fissa (`24` byte per record) come **tipo opaco** `archivio_rec_t` appoggiato su un file temporaneo aperto con `tmpfile()`. (1) Ogni record su file è codificato esplicitamente in `24` byte little-endian senza scrivere la `struct` direttamente: byte `0..3` `uint32_t id`, byte `4` `uint8_t attivo` (`1` o `0`), byte `5..7` zeri riservati, byte `8..15` `int64_t saldo_cent` (come `uint64_t` LE), byte `16..23` `char codice[8]` (fino a 7 caratteri utili + `'\\0'`). (2) In `archivio_rec.h` (protetto da `ARCHIVIO_REC_H`) dichiara `typedef struct archivio_rec archivio_rec_t;`, `typedef struct record_conto { uint32_t id; bool attivo; int64_t saldo_cent; char codice[8]; } record_conto_t;` e le funzioni: `archivio_rec_t *arch_crea(void);`, `void arch_distruggi(archivio_rec_t *a);`, `bool arch_aggiungi(archivio_rec_t *a, const record_conto_t *r, size_t *idx_out);` (usa `fseek` con `SEEK_SET` alla posizione `num_record * 24` e `fwrite`), `bool arch_leggi(archivio_rec_t *a, size_t idx, record_conto_t *out);` (`fseek` + `fread`), `bool arch_aggiorna_saldo(archivio_rec_t *a, size_t idx, int64_t delta_cent, int64_t *nuovo_saldo);` (legge il record, verifica `attivo`, torna indietro di `-24` byte con `fseek(..., -(long)24, SEEK_CUR)` rispettando la regola di alternanza lettura-scrittura e riscrive con `fwrite` + `fflush`), `bool arch_disattiva(archivio_rec_t *a, size_t idx);`, `size_t arch_scansiona_attivi(archivio_rec_t *a, int64_t *somma_saldi);` (usa `rewind` e legge sequenzialmente tutti i record) e `long arch_dimensione_byte(archivio_rec_t *a);` (usa `fseek` e `ftell`). (3) In `main.c` leggi da `stdin` i comandi `ADD <id> <codice> <saldo_cent>`, `GET <idx>`, `DELTA <idx> <variazione>`, `DEL <idx>`, `SUM` e `SIZE`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "file binario temporaneo aperto in aggiornamento con tmpfile() e chiuso da arch_distruggi",
+        "calcolo dello spiazzamento di un record fisso con fseek(..., SEEK_SET) e riposizionamento relativo con fseek(..., -24, SEEK_CUR)",
+        "rispetto della regola di alternanza tra lettura e scrittura su stream di aggiornamento tramite fseek e fflush",
+        "interrogazione della dimensione con ftell e scansione dall'inizio con rewind"
+      ],
+      "domande_guida": [
+        "Perché in arch_aggiorna_saldo occorre chiamare fseek(fp, -(long)DIM_REC, SEEK_CUR) tra fread e fwrite invece di scrivere subito dopo aver letto?",
+        "Quale vantaggio offre posizionarsi a (long)(a->num_record * DIM_REC) con SEEK_SET rispetto all'uso di SEEK_END su un file binario?",
+        "Che cosa fa rewind(fp) in arch_scansiona_attivi oltre a riportare l'indicatore di posizione all'inizio del file?",
+        "Perché tmpfile() garantisce che non restino file residui sul disco al termine del programma?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 1001 ALFA 5000\nADD 1002 BETA 1200\nADD 1003 GAMMA -300\nSIZE\nGET 1\nDELTA 1 800\nGET 1\nDEL 2\nDELTA 2 100\nSUM\nGET 5\n",
+          "output": "ADD idx=0 id=1001\nADD idx=1 id=1002\nADD idx=2 id=1003\nSIZE: 72 byte\nGET[1]: id=1002 cod=BETA saldo=1200 stato=ATTIVO\nDELTA[1]: saldo=2000\nGET[1]: id=1002 cod=BETA saldo=2000 stato=ATTIVO\nDEL[2]: OK\nDELTA[2]: NON VALIDO\nSUM: attivi=2/3 totale=7000\nGET[5]: FUORI LIMITI\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SIZE\nSUM\nGET 0\nDEL 0\n",
+          "output": "SIZE: 0 byte\nSUM: attivi=0/0 totale=0\nGET[0]: FUORI LIMITI\nDEL[0]: NON VALIDO\n"
+        },
+        {
+          "input": "ADD 7 SOLO 100\nDELTA 0 -250\nGET 0\nDEL 0\nDEL 0\nSUM\n",
+          "output": "ADD idx=0 id=7\nDELTA[0]: saldo=-150\nGET[0]: id=7 cod=SOLO saldo=-150 stato=ATTIVO\nDEL[0]: OK\nDEL[0]: NON VALIDO\nSUM: attivi=0/1 totale=0\n"
+        }
+      ],
+      "soluzione_file": {
+        "archivio_rec.h": "#ifndef ARCHIVIO_REC_H\n#define ARCHIVIO_REC_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct archivio_rec archivio_rec_t;\n\ntypedef struct record_conto {\n    uint32_t id;\n    bool attivo;\n    int64_t saldo_cent;\n    char codice[8];\n} record_conto_t;\n\narchivio_rec_t *arch_crea(void);\nvoid arch_distruggi(archivio_rec_t *a);\nbool arch_aggiungi(archivio_rec_t *a, const record_conto_t *r, size_t *idx_out);\nbool arch_leggi(archivio_rec_t *a, size_t idx, record_conto_t *out);\nbool arch_aggiorna_saldo(archivio_rec_t *a, size_t idx, int64_t delta_cent, int64_t *nuovo_saldo);\nbool arch_disattiva(archivio_rec_t *a, size_t idx);\nsize_t arch_scansiona_attivi(archivio_rec_t *a, int64_t *somma_saldi);\nlong arch_dimensione_byte(archivio_rec_t *a);\nsize_t arch_num_record(const archivio_rec_t *a);\n\n#endif\n",
+        "archivio_rec.c": "#include \"archivio_rec.h\"\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic constexpr size_t DIM_REC = 24;\n\nstruct archivio_rec {\n    FILE *fp;\n    size_t num_record;\n};\n\nstatic void codifica_rec(const record_conto_t *r, uint8_t out[DIM_REC]) {\n    memset(out, 0, DIM_REC);\n    for (size_t i = 0; i < 4; ++i) { out[i] = (uint8_t)((r->id >> (8 * i)) & 0xFFU); }\n    out[4] = r->attivo ? 1U : 0U;\n    uint64_t s = (uint64_t)r->saldo_cent;\n    for (size_t i = 0; i < 8; ++i) { out[8 + i] = (uint8_t)((s >> (8 * i)) & 0xFFU); }\n    for (size_t i = 0; i < 7 && r->codice[i] != '\\0'; ++i) { out[16 + i] = (uint8_t)r->codice[i]; }\n}\n\nstatic void decodifica_rec(const uint8_t in[DIM_REC], record_conto_t *r) {\n    uint32_t id = 0;\n    for (size_t i = 0; i < 4; ++i) { id |= ((uint32_t)in[i]) << (8 * i); }\n    uint64_t s = 0;\n    for (size_t i = 0; i < 8; ++i) { s |= ((uint64_t)in[8 + i]) << (8 * i); }\n    r->id = id;\n    r->attivo = (in[4] != 0);\n    r->saldo_cent = (int64_t)s;\n    memcpy(r->codice, in + 16, 7);\n    r->codice[7] = '\\0';\n}\n\narchivio_rec_t *arch_crea(void) {\n    archivio_rec_t *a = malloc(sizeof(*a));\n    if (a == nullptr) { return nullptr; }\n    a->fp = tmpfile();\n    if (a->fp == nullptr) { free(a); return nullptr; }\n    a->num_record = 0;\n    return a;\n}\n\nvoid arch_distruggi(archivio_rec_t *a) {\n    if (a == nullptr) { return; }\n    if (a->fp != nullptr) { fclose(a->fp); }\n    free(a);\n}\n\nbool arch_aggiungi(archivio_rec_t *a, const record_conto_t *r, size_t *idx_out) {\n    if (a == nullptr || r == nullptr) { return false; }\n    uint8_t raw[DIM_REC];\n    codifica_rec(r, raw);\n    if (fseek(a->fp, (long)(a->num_record * DIM_REC), SEEK_SET) != 0) { return false; }\n    if (fwrite(raw, 1, DIM_REC, a->fp) != DIM_REC || fflush(a->fp) != 0) { return false; }\n    if (idx_out != nullptr) { *idx_out = a->num_record; }\n    ++a->num_record;\n    return true;\n}\n\nbool arch_leggi(archivio_rec_t *a, size_t idx, record_conto_t *out) {\n    if (a == nullptr || out == nullptr || idx >= a->num_record) { return false; }\n    uint8_t raw[DIM_REC];\n    if (fseek(a->fp, (long)(idx * DIM_REC), SEEK_SET) != 0) { return false; }\n    if (fread(raw, 1, DIM_REC, a->fp) != DIM_REC) { return false; }\n    decodifica_rec(raw, out);\n    return true;\n}\n\nbool arch_aggiorna_saldo(archivio_rec_t *a, size_t idx, int64_t delta_cent, int64_t *nuovo_saldo) {\n    record_conto_t rec = {};\n    if (!arch_leggi(a, idx, &rec) || !rec.attivo) { return false; }\n    rec.saldo_cent += delta_cent;\n    uint8_t raw[DIM_REC];\n    codifica_rec(&rec, raw);\n    if (fseek(a->fp, -(long)DIM_REC, SEEK_CUR) != 0) { return false; }\n    if (fwrite(raw, 1, DIM_REC, a->fp) != DIM_REC || fflush(a->fp) != 0) { return false; }\n    if (nuovo_saldo != nullptr) { *nuovo_saldo = rec.saldo_cent; }\n    return true;\n}\n\nbool arch_disattiva(archivio_rec_t *a, size_t idx) {\n    record_conto_t rec = {};\n    if (!arch_leggi(a, idx, &rec) || !rec.attivo) { return false; }\n    rec.attivo = false;\n    uint8_t raw[DIM_REC];\n    codifica_rec(&rec, raw);\n    if (fseek(a->fp, -(long)DIM_REC, SEEK_CUR) != 0) { return false; }\n    return fwrite(raw, 1, DIM_REC, a->fp) == DIM_REC && fflush(a->fp) == 0;\n}\n\nsize_t arch_scansiona_attivi(archivio_rec_t *a, int64_t *somma_saldi) {\n    if (a == nullptr) { return 0; }\n    rewind(a->fp);\n    size_t attivi = 0;\n    int64_t somma = 0;\n    uint8_t raw[DIM_REC];\n    for (size_t i = 0; i < a->num_record; ++i) {\n        if (fread(raw, 1, DIM_REC, a->fp) != DIM_REC) { break; }\n        record_conto_t rec = {};\n        decodifica_rec(raw, &rec);\n        if (rec.attivo) { ++attivi; somma += rec.saldo_cent; }\n    }\n    if (somma_saldi != nullptr) { *somma_saldi = somma; }\n    return attivi;\n}\n\nlong arch_dimensione_byte(archivio_rec_t *a) {\n    if (a == nullptr || fseek(a->fp, (long)(a->num_record * DIM_REC), SEEK_SET) != 0) { return -1L; }\n    return ftell(a->fp);\n}\n\nsize_t arch_num_record(const archivio_rec_t *a) { return (a != nullptr) ? a->num_record : 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"archivio_rec.h\"\n\nint main(void) {\n    archivio_rec_t *a = arch_crea();\n    if (a == nullptr) { return EXIT_FAILURE; }\n    char riga[256], cmd[16], cod[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned long id = 0;\n        long long val = 0;\n        size_t idx = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %lu %7s %lld %c\", &id, cod, &val, &extra) == 3 && id <= UINT32_MAX) {\n            record_conto_t r = {.id = (uint32_t)id, .attivo = true, .saldo_cent = (int64_t)val};\n            memcpy(r.codice, cod, strlen(cod) + 1);\n            if (!arch_aggiungi(a, &r, &idx)) { arch_distruggi(a); return EXIT_FAILURE; }\n            printf(\"ADD idx=%zu id=%\" PRIu32 \"\\n\", idx, r.id);\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %zu %c\", &idx, &extra) == 1) {\n            record_conto_t r = {};\n            if (arch_leggi(a, idx, &r)) {\n                printf(\"GET[%zu]: id=%\" PRIu32 \" cod=%s saldo=%\" PRId64 \" stato=%s\\n\",\n                       idx, r.id, r.codice, r.saldo_cent, r.attivo ? \"ATTIVO\" : \"DISATTIVO\");\n            } else { printf(\"GET[%zu]: FUORI LIMITI\\n\", idx); }\n        } else if (strcmp(cmd, \"DELTA\") == 0 && sscanf(riga, \"DELTA %zu %lld %c\", &idx, &val, &extra) == 2) {\n            int64_t nuovo = 0;\n            if (arch_aggiorna_saldo(a, idx, (int64_t)val, &nuovo)) {\n                printf(\"DELTA[%zu]: saldo=%\" PRId64 \"\\n\", idx, nuovo);\n            } else { printf(\"DELTA[%zu]: NON VALIDO\\n\", idx); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %zu %c\", &idx, &extra) == 1) {\n            printf(\"DEL[%zu]: %s\\n\", idx, arch_disattiva(a, idx) ? \"OK\" : \"NON VALIDO\");\n        } else if (strcmp(cmd, \"SUM\") == 0 && sscanf(riga, \"SUM %c\", &extra) != 1) {\n            int64_t tot = 0;\n            size_t att = arch_scansiona_attivi(a, &tot);\n            printf(\"SUM: attivi=%zu/%zu totale=%\" PRId64 \"\\n\", att, arch_num_record(a), tot);\n        } else if (strcmp(cmd, \"SIZE\") == 0 && sscanf(riga, \"SIZE %c\", &extra) != 1) {\n            printf(\"SIZE: %ld byte\\n\", arch_dimensione_byte(a));\n        } else { arch_distruggi(a); return EXIT_FAILURE; }\n    }\n    arch_distruggi(a);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "20.5",
+      "tipo": "esercizio",
+      "titolo": "Serializzatore binario portabile e versionato (v1/v2) con numero magico e checksum",
+      "descrizione": "Realizza una libreria su tre file (`catalogo_bin.h`, `catalogo_bin.c`, `main.c`) per la **serializzazione** e deserializzazione binaria portabile di un catalogo dinamico di articoli (`typedef struct articolo { uint32_t codice; char *titolo; int32_t prezzo_cent; uint16_t giacenza; uint8_t priorita; } articolo_t;`). (1) Il formato binario è interamente in **little-endian** (nessuna `fwrite` diretta di `struct`) e inizia con un'intestazione fissa di `16` byte: byte `0..3` numero magico `\"CATB\"`, byte `4..5` `uint16_t versione` (`1` oppure `2`), byte `6..7` `uint16_t riservato` (`0`), byte `8..11` `uint32_t num_articoli` (limite difensivo `<= 1024`), byte `12..15` `uint32_t checksum` (FNV-1a a 32 bit calcolata su tutti i byte del payload: valore iniziale `2166136261U`, per ogni byte `h ^= b; h *= 16777619U;`). (2) Ogni articolo nel payload è serializzato come: `codice` (4 byte LE), `prezzo_cent` (4 byte LE come `uint32_t`), `giacenza` (2 byte LE), solo se `versione == 2` il campo `priorita` (1 byte), `len_titolo` (2 byte LE, limite difensivo `<= 128`) seguito dai `len_titolo` byte grezzi del titolo (senza `'\\0'`). Al caricamento di un file `v1`, `priorita` assume il valore predefinito `1`. (3) In `catalogo_bin.h` definisci `cat_esito_t` (`CAT_OK`, `CAT_ERR_IO`, `CAT_ERR_MAGIC`, `CAT_ERR_VERSIONE`, `CAT_ERR_CHECKSUM`, `CAT_ERR_TRONCATO`, `CAT_ERR_LIMITE`, `CAT_ERR_MEM`), `catalogo_t` e le funzioni `cat_libera`, `cat_aggiungi`, `cat_salva(const catalogo_t *c, const char *path, uint16_t versione, size_t *byte_scritti)`, `cat_carica(catalogo_t *c, const char *path, uint16_t *ver_letta)` e `cat_esito_nome(cat_esito_t e)`. (4) In `main.c` usa il file `\"catalogo_20_5.bin\"` (rimuovendolo al termine) e gestisci da `stdin` i comandi `ADD <codice> <prezzo_cent> <giacenza> <priorita> <titolo>`, `SAVE <1|2>`, `LOAD`, `LIST`, `CORROMPI <offset> <hex>` (sovrascrive 1 byte del file con `fopen(..., \"r+b\")` + `fseek` + `fwrite`) e `TRONCA <nuova_len>` (ricopia solo i primi `nuova_len` byte tramite file temporaneo e `rename`), producendo l'output esatto dell'esempio senza perdite di memoria.",
+      "concetti_da_tenere_a_mente": [
+        "codifica esplicita in little-endian dei campi interi e prefisso di lunghezza per le stringhe allocate sullo heap",
+        "intestazione binaria con numero magico, versione del formato, conteggio e checksum FNV-1a a 32 bit",
+        "retrocompatibilità tra versione 1 (priorita predefinita a 1) e versione 2",
+        "validazione difensiva dei limiti e rilascio pulito della memoria parziale in caso di file corrotto o troncato"
+      ],
+      "domande_guida": [
+        "Perché non puoi salvare un articolo_t con una singola fwrite(&a, sizeof(a), 1, fp) nemmeno se lo ricarichi sulla stessa macchina?",
+        "In quale ordine conviene controllare numero magico, versione, limiti di num_articoli/len_titolo, troncamento e checksum durante cat_carica?",
+        "Come gestisce cat_carica il campo priorita quando legge un file salvato in versione 1 rispetto alla versione 2?",
+        "Perché in caso di errore a metà del caricamento cat_carica deve liberare tutti i titoli già allocati prima di restituire il codice di errore?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 10 2500 4 3 Tastiera\nADD 20 1200 10 2 Mouse\nSAVE 2\nLOAD\nLIST\nSAVE 1\nLOAD\nLIST\nCORROMPI 16 FF\nLOAD\nCORROMPI 0 00\nLOAD\nSAVE 2\nCORROMPI 4 09\nLOAD\nSAVE 2\nTRONCA 20\nLOAD\n",
+          "output": "ADD 10: OK\nADD 20: OK\nSAVE v2: OK (2 articoli, 55 byte)\nLOAD v2: OK (2 articoli)\n#0 cod=10 prezzo=2500 giac=4 prio=3 titolo=Tastiera\n#1 cod=20 prezzo=1200 giac=10 prio=2 titolo=Mouse\nSAVE v1: OK (2 articoli, 53 byte)\nLOAD v1: OK (2 articoli)\n#0 cod=10 prezzo=2500 giac=4 prio=1 titolo=Tastiera\n#1 cod=20 prezzo=1200 giac=10 prio=1 titolo=Mouse\nCORROMPI[16]: OK\nLOAD ERRORE: CHECKSUM\nCORROMPI[0]: OK\nLOAD ERRORE: MAGIC\nSAVE v2: OK (2 articoli, 55 byte)\nCORROMPI[4]: OK\nLOAD ERRORE: VERSIONE\nSAVE v2: OK (2 articoli, 55 byte)\nTRONCA 20: OK\nLOAD ERRORE: TRONCATO\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SAVE 2\nLOAD\nLIST\nSAVE 1\nLOAD\n",
+          "output": "SAVE v2: OK (0 articoli, 16 byte)\nLOAD v2: OK (0 articoli)\n(vuoto)\nSAVE v1: OK (0 articoli, 16 byte)\nLOAD v1: OK (0 articoli)\n"
+        },
+        {
+          "input": "ADD 5 -100 1 5 Sconto\nSAVE 2\nLOAD\nLIST\nCORROMPI 28 01\nLOAD\n",
+          "output": "ADD 5: OK\nSAVE v2: OK (1 articoli, 35 byte)\nLOAD v2: OK (1 articoli)\n#0 cod=5 prezzo=-100 giac=1 prio=5 titolo=Sconto\nCORROMPI[28]: OK\nLOAD ERRORE: LIMITE\n"
+        }
+      ],
+      "soluzione_file": {
+        "catalogo_bin.h": "#ifndef CATALOGO_BIN_H\n#define CATALOGO_BIN_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef enum cat_esito {\n    CAT_OK = 0,\n    CAT_ERR_IO,\n    CAT_ERR_MAGIC,\n    CAT_ERR_VERSIONE,\n    CAT_ERR_CHECKSUM,\n    CAT_ERR_TRONCATO,\n    CAT_ERR_LIMITE,\n    CAT_ERR_MEM\n} cat_esito_t;\n\ntypedef struct articolo {\n    uint32_t codice;\n    char *titolo;\n    int32_t prezzo_cent;\n    uint16_t giacenza;\n    uint8_t priorita;\n} articolo_t;\n\ntypedef struct catalogo {\n    articolo_t *dati;\n    size_t len;\n    size_t cap;\n} catalogo_t;\n\nvoid cat_libera(catalogo_t *c);\nbool cat_aggiungi(catalogo_t *c, uint32_t codice, const char *titolo, int32_t prezzo_cent, uint16_t giacenza, uint8_t priorita);\ncat_esito_t cat_salva(const catalogo_t *c, const char *path, uint16_t versione, size_t *byte_scritti);\ncat_esito_t cat_carica(catalogo_t *c, const char *path, uint16_t *ver_letta);\nconst char *cat_esito_nome(cat_esito_t e);\n\n#endif\n",
+        "catalogo_bin.c": "#include \"catalogo_bin.h\"\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic constexpr uint32_t MAX_ARTICOLI = 1024;\nstatic constexpr uint16_t MAX_LEN_TITOLO = 128;\nstatic const uint8_t MAGIC[4] = {'C', 'A', 'T', 'B'};\n\nstatic void scrivi_u16_le(uint8_t b[2], uint16_t v) { b[0] = (uint8_t)(v & 0xFFU); b[1] = (uint8_t)((v >> 8) & 0xFFU); }\nstatic void scrivi_u32_le(uint8_t b[4], uint32_t v) {\n    for (size_t i = 0; i < 4; ++i) { b[i] = (uint8_t)((v >> (8 * i)) & 0xFFU); }\n}\nstatic uint16_t leggi_u16_le(const uint8_t b[2]) { return (uint16_t)((uint16_t)b[0] | ((uint16_t)b[1] << 8)); }\nstatic uint32_t leggi_u32_le(const uint8_t b[4]) {\n    uint32_t v = 0; for (size_t i = 0; i < 4; ++i) { v |= ((uint32_t)b[i]) << (8 * i); } return v;\n}\nstatic uint32_t fnv1a_aggiorna(uint32_t h, const uint8_t *dati, size_t n) {\n    for (size_t i = 0; i < n; ++i) { h ^= dati[i]; h *= 16777619U; } return h;\n}\n\nvoid cat_libera(catalogo_t *c) {\n    if (c == nullptr) { return; }\n    for (size_t i = 0; i < c->len; ++i) { free(c->dati[i].titolo); }\n    free(c->dati); c->dati = nullptr; c->len = 0; c->cap = 0;\n}\n\nbool cat_aggiungi(catalogo_t *c, uint32_t codice, const char *titolo, int32_t prezzo_cent, uint16_t giacenza, uint8_t priorita) {\n    if (c == nullptr || titolo == nullptr || c->len >= MAX_ARTICOLI) { return false; }\n    size_t tlen = strlen(titolo);\n    if (tlen > MAX_LEN_TITOLO) { return false; }\n    if (c->len == c->cap) {\n        size_t nuova = (c->cap == 0) ? 4 : c->cap * 2;\n        articolo_t *tmp = realloc(c->dati, nuova * sizeof(*tmp));\n        if (tmp == nullptr) { return false; }\n        c->dati = tmp; c->cap = nuova;\n    }\n    char *copia = malloc(tlen + 1);\n    if (copia == nullptr) { return false; }\n    memcpy(copia, titolo, tlen + 1);\n    c->dati[c->len++] = (articolo_t){.codice = codice, .titolo = copia, .prezzo_cent = prezzo_cent, .giacenza = giacenza, .priorita = priorita};\n    return true;\n}\n\ncat_esito_t cat_salva(const catalogo_t *c, const char *path, uint16_t versione, size_t *byte_scritti) {\n    if (c == nullptr || path == nullptr || (versione != 1 && versione != 2)) { return CAT_ERR_VERSIONE; }\n    FILE *fp = fopen(path, \"wb\");\n    if (fp == nullptr) { return CAT_ERR_IO; }\n    uint8_t hdr[16] = {};\n    if (fwrite(hdr, 1, 16, fp) != 16) { fclose(fp); return CAT_ERR_IO; }\n    uint32_t h = 2166136261U;\n    size_t tot = 16;\n    for (size_t i = 0; i < c->len; ++i) {\n        const articolo_t *a = &c->dati[i];\n        uint16_t tlen = (uint16_t)strlen(a->titolo);\n        uint8_t rec[13]; size_t rlen = 0;\n        scrivi_u32_le(rec + 0, a->codice); scrivi_u32_le(rec + 4, (uint32_t)a->prezzo_cent); scrivi_u16_le(rec + 8, a->giacenza);\n        rlen = 10;\n        if (versione == 2) { rec[rlen++] = a->priorita; }\n        scrivi_u16_le(rec + rlen, tlen); rlen += 2;\n        h = fnv1a_aggiorna(h, rec, rlen);\n        h = fnv1a_aggiorna(h, (const uint8_t *)a->titolo, tlen);\n        if (fwrite(rec, 1, rlen, fp) != rlen || (tlen > 0 && fwrite(a->titolo, 1, tlen, fp) != tlen)) {\n            fclose(fp); return CAT_ERR_IO;\n        }\n        tot += rlen + tlen;\n    }\n    memcpy(hdr, MAGIC, 4); scrivi_u16_le(hdr + 4, versione); scrivi_u16_le(hdr + 6, 0);\n    scrivi_u32_le(hdr + 8, (uint32_t)c->len); scrivi_u32_le(hdr + 12, h);\n    if (fseek(fp, 0L, SEEK_SET) != 0 || fwrite(hdr, 1, 16, fp) != 16 || fclose(fp) != 0) { return CAT_ERR_IO; }\n    if (byte_scritti != nullptr) { *byte_scritti = tot; }\n    return CAT_OK;\n}\n\ncat_esito_t cat_carica(catalogo_t *c, const char *path, uint16_t *ver_letta) {\n    if (c == nullptr || path == nullptr) { return CAT_ERR_IO; }\n    FILE *fp = fopen(path, \"rb\");\n    if (fp == nullptr) { return CAT_ERR_IO; }\n    uint8_t hdr[16];\n    if (fread(hdr, 1, 16, fp) != 16) { bool e = (ferror(fp) != 0); fclose(fp); return e ? CAT_ERR_IO : CAT_ERR_TRONCATO; }\n    if (memcmp(hdr, MAGIC, 4) != 0) { fclose(fp); return CAT_ERR_MAGIC; }\n    uint16_t ver = leggi_u16_le(hdr + 4);\n    if (ver != 1 && ver != 2) { fclose(fp); return CAT_ERR_VERSIONE; }\n    uint32_t n = leggi_u32_le(hdr + 8), csum = leggi_u32_le(hdr + 12);\n    if (n > MAX_ARTICOLI) { fclose(fp); return CAT_ERR_LIMITE; }\n    catalogo_t tmp = {};\n    uint32_t h = 2166136261U;\n    size_t fissa = (ver == 2) ? 13 : 12;\n    for (uint32_t i = 0; i < n; ++i) {\n        uint8_t rec[13];\n        if (fread(rec, 1, fissa, fp) != fissa) { cat_libera(&tmp); fclose(fp); return CAT_ERR_TRONCATO; }\n        uint32_t cod = leggi_u32_le(rec + 0); int32_t prezzo = (int32_t)leggi_u32_le(rec + 4); uint16_t giac = leggi_u16_le(rec + 8);\n        uint8_t prio = (ver == 2) ? rec[10] : 1;\n        uint16_t tlen = leggi_u16_le(rec + ((ver == 2) ? 11 : 10));\n        if (tlen > MAX_LEN_TITOLO) { cat_libera(&tmp); fclose(fp); return CAT_ERR_LIMITE; }\n        char titolo[MAX_LEN_TITOLO + 1];\n        if (tlen > 0 && fread(titolo, 1, tlen, fp) != tlen) { cat_libera(&tmp); fclose(fp); return CAT_ERR_TRONCATO; }\n        titolo[tlen] = '\\0';\n        h = fnv1a_aggiorna(h, rec, fissa); h = fnv1a_aggiorna(h, (const uint8_t *)titolo, tlen);\n        if (!cat_aggiungi(&tmp, cod, titolo, prezzo, giac, prio)) { cat_libera(&tmp); fclose(fp); return CAT_ERR_MEM; }\n    }\n    bool extra = (fgetc(fp) != EOF); fclose(fp);\n    if (extra || h != csum) { cat_libera(&tmp); return CAT_ERR_CHECKSUM; }\n    cat_libera(c); *c = tmp;\n    if (ver_letta != nullptr) { *ver_letta = ver; }\n    return CAT_OK;\n}\n\nconst char *cat_esito_nome(cat_esito_t e) {\n    switch (e) {\n        case CAT_OK: return \"OK\"; case CAT_ERR_IO: return \"IO\"; case CAT_ERR_MAGIC: return \"MAGIC\";\n        case CAT_ERR_VERSIONE: return \"VERSIONE\"; case CAT_ERR_CHECKSUM: return \"CHECKSUM\";\n        case CAT_ERR_TRONCATO: return \"TRONCATO\"; case CAT_ERR_LIMITE: return \"LIMITE\";\n        case CAT_ERR_MEM: return \"MEM\"; default: return \"SCONOSCIUTO\";\n    }\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"catalogo_bin.h\"\n\nstatic bool corrompi_byte(const char *path, long off, uint8_t val) {\n    FILE *fp = fopen(path, \"r+b\");\n    if (fp == nullptr) { return false; }\n    bool ok = (fseek(fp, off, SEEK_SET) == 0 && fwrite(&val, 1, 1, fp) == 1);\n    if (fclose(fp) != 0) { ok = false; }\n    return ok;\n}\n\nstatic bool tronca_file(const char *path, size_t nuova_len) {\n    const char *tmp = \"catalogo_20_5.tmp\";\n    FILE *fin = fopen(path, \"rb\"), *fout = fopen(tmp, \"wb\");\n    if (fin == nullptr || fout == nullptr) {\n        if (fin != nullptr) { fclose(fin); }\n        if (fout != nullptr) { fclose(fout); }\n        return false;\n    }\n    bool ok = true;\n    for (size_t i = 0; i < nuova_len && ok; ++i) {\n        int c = fgetc(fin);\n        if (c == EOF) { break; }\n        ok = (fputc(c, fout) != EOF);\n    }\n    if (fclose(fin) != 0) { ok = false; }\n    if (fclose(fout) != 0) { ok = false; }\n    if (!ok || rename(tmp, path) != 0) { remove(tmp); return false; }\n    return true;\n}\n\nint main(void) {\n    const char *path = \"catalogo_20_5.bin\";\n    catalogo_t cat = {};\n    char riga[256], cmd[16], titolo[129], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned long cod = 0; long long prezzo = 0; unsigned int giac = 0, prio = 0, ver = 0, hexv = 0;\n        long off = 0; size_t nlen = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %lu %lld %u %u %128s %c\", &cod, &prezzo, &giac, &prio, titolo, &extra) == 5) {\n            if (!cat_aggiungi(&cat, (uint32_t)cod, titolo, (int32_t)prezzo, (uint16_t)giac, (uint8_t)prio)) { cat_libera(&cat); remove(path); return EXIT_FAILURE; }\n            printf(\"ADD %lu: OK\\n\", cod);\n        } else if (strcmp(cmd, \"SAVE\") == 0 && sscanf(riga, \"SAVE %u %c\", &ver, &extra) == 1) {\n            size_t scritti = 0;\n            cat_esito_t es = cat_salva(&cat, path, (uint16_t)ver, &scritti);\n            if (es != CAT_OK) { printf(\"SAVE ERRORE: %s\\n\", cat_esito_nome(es)); }\n            else { printf(\"SAVE v%u: OK (%zu articoli, %zu byte)\\n\", ver, cat.len, scritti); }\n        } else if (strcmp(cmd, \"LOAD\") == 0 && sscanf(riga, \"LOAD %c\", &extra) != 1) {\n            uint16_t vl = 0;\n            cat_esito_t es = cat_carica(&cat, path, &vl);\n            if (es != CAT_OK) { printf(\"LOAD ERRORE: %s\\n\", cat_esito_nome(es)); }\n            else { printf(\"LOAD v%\" PRIu16 \": OK (%zu articoli)\\n\", vl, cat.len); }\n        } else if (strcmp(cmd, \"LIST\") == 0 && sscanf(riga, \"LIST %c\", &extra) != 1) {\n            if (cat.len == 0) { printf(\"(vuoto)\\n\"); }\n            for (size_t i = 0; i < cat.len; ++i) {\n                const articolo_t *a = &cat.dati[i];\n                printf(\"#%zu cod=%\" PRIu32 \" prezzo=%\" PRId32 \" giac=%\" PRIu16 \" prio=%\" PRIu8 \" titolo=%s\\n\", i, a->codice, a->prezzo_cent, a->giacenza, a->priorita, a->titolo);\n            }\n        } else if (strcmp(cmd, \"CORROMPI\") == 0 && sscanf(riga, \"CORROMPI %ld %x %c\", &off, &hexv, &extra) == 2 && off >= 0 && hexv <= 0xFFU) {\n            if (!corrompi_byte(path, off, (uint8_t)hexv)) { cat_libera(&cat); remove(path); return EXIT_FAILURE; }\n            printf(\"CORROMPI[%ld]: OK\\n\", off);\n        } else if (strcmp(cmd, \"TRONCA\") == 0 && sscanf(riga, \"TRONCA %zu %c\", &nlen, &extra) == 1) {\n            if (!tronca_file(path, nlen)) { cat_libera(&cat); remove(path); return EXIT_FAILURE; }\n            printf(\"TRONCA %zu: OK\\n\", nlen);\n        } else { cat_libera(&cat); remove(path); return EXIT_FAILURE; }\n    }\n    cat_libera(&cat);\n    remove(path);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Scrivere il ciclo di lettura come while (!feof(fp)) invece di controllare il valore restituito da fgets o fgetc, elaborando due volte l'ultima riga del file o leggendo dati non inizializzati.",
+    "Salvare il valore restituito da fgetc in una variabile char anziché in int, causando cicli infiniti (su char senza segno) o interruzioni premature sul byte 0xFF (su char con segno).",
+    "Dimenticare di controllare il valore restituito da fopen (nullptr) o da fclose (EOF in scrittura), oppure omettere il modificatore \"b\" aprendo un file binario.",
+    "Alternare lettura e scrittura su uno stream aperto in aggiornamento (\"r+b\" o \"w+b\") senza chiamare fseek, rewind o fflush nel mezzo, provocando comportamento indefinito.",
+    "Serializzare una struct direttamente con fwrite(&s, sizeof(s), 1, fp) generando file non portabili dipendenti da padding, allineamento, ordine dei byte e contenenti indirizzi di puntatori non validi."
+  ],
+  "differenze_python": [
+    "In Python il costrutto with open(...) chiude automaticamente il file all'uscita dal blocco e lancia eccezioni in caso di errore; in C occorre verificare manualmente fopen != nullptr, controllare ferror/feof/fclose e garantire sempre la chiusura con fclose su tutti i percorsi di uscita.",
+    "In Python i moduli struct o json offrono serializzazione ad alto livello integrata; in C i formati binari portabili si costruiscono esplicitamente codificando ciascun campo con tipi a larghezza fissa (<stdint.h>), spostamenti bit a bit, numero magico, versione e checksum."
+  ]
+}

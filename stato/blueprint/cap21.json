@@ -1,0 +1,631 @@
+{
+  "capitolo": 21,
+  "titolo": "Robustezza e qualità",
+  "obiettivi": [
+    "Propagare e diagnosticare errori con codici di ritorno, errno, perror, strerror e operazioni intere controllate di <stdckdint.h>",
+    "Strutturare il rilascio deterministico di più risorse con il modello goto cleanup",
+    "Scrivere asserzioni con assert e funzioni variadiche con <stdarg.h>",
+    "Usare macro con argomenti, compilazione condizionale, __FILE__, __LINE__ e attributi C23 ([[nodiscard]], [[maybe_unused]], [[noreturn]]) evitando le trappole del preprocessore",
+    "Spiegare i casi critici di comportamento indefinito e il ruolo di volatile e <signal.h>"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "goto cleanup",
+      "definizione": "Modello idiomatico che usa salti in avanti con goto verso un'unica etichetta finale per rilasciare più risorse in ordine inverso senza perdite di memoria."
+    },
+    {
+      "termine": "asserzione",
+      "definizione": "Controllo diagnostico espresso con assert che verifica un'ipotesi del programmatore durante lo sviluppo."
+    },
+    {
+      "termine": "funzione variadica",
+      "definizione": "Funzione che accetta un numero variabile di argomenti, dichiarata con ... e letta tramite <stdarg.h>."
+    },
+    {
+      "termine": "debugger",
+      "definizione": "Strumento che permette di eseguire un programma passo passo, ispezionare variabili e memoria e analizzare gli arresti anomali."
+    }
+  ],
+  "concetti_richiesti": [
+    "overflow",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "attributo",
+    "stream",
+    "funzione",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "sanitizer",
+    "struttura",
+    "enumerazione",
+    "puntatore a puntatore",
+    "puntatore pendente",
+    "valore sentinella",
+    "asserzione statica",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco",
+    "file di testo"
+  ],
+  "regole": [
+    {
+      "id": "21.R1",
+      "enunciato": "In C gli errori si propagano tramite codici di ritorno espliciti (enum, bool, nullptr, EOF) e, per le funzioni di libreria che lo impostano, tramite la macro errno (<errno.h>, con le costanti standard EDOM, ERANGE ed EILSEQ). Prima di chiamare una funzione che usa errno occorre azzerarlo (errno = 0) e, in caso di fallimento, salvarlo subito in una variabile locale prima di eseguire altre chiamate. perror(s) (<stdio.h>) stampa su stderr il messaggio associato a errno; strerror(errnum) (<string.h>) restituisce una stringa descrittiva non modificabile. Le macro C23 ckd_add, ckd_sub e ckd_mul di <stdckdint.h> eseguono operazioni intere controllate memorizzando il risultato in *result e restituendo false se è esatto oppure true se si è verificato overflow (con risultato avvolto modulo 2^N, senza comportamento indefinito).",
+      "nota_standard": "dipendente dall'implementazione: errno, EDOM, ERANGE, EILSEQ, perror, strerror e le macro C23 ckd_add/ckd_sub/ckd_mul sono definiti dallo standard C23; il testo esatto di perror e strerror dipende dall'implementazione, e modificare la stringa restituita da strerror provoca comportamento indefinito."
+    },
+    {
+      "id": "21.R2",
+      "enunciato": "Nel modello goto cleanup tutti i percorsi d'errore di una funzione che acquisisce più risorse saltano in avanti a una sola etichetta cleanup: in fondo alla funzione. Ogni variabile di risorsa va inizializzata a nullptr prima del primo salto goto; il codice di ritorno viene impostato prima del salto; dentro cleanup: le risorse vengono liberate in ordine inverso all'acquisizione (free(nullptr) è sicuro, mentre fclose va chiamata solo se il puntatore non è nullptr e azzerato subito dopo una chiusura anticipata). Non si usa mai goto per saltare oltre l'inizializzazione di una variabile poi usata nel blocco cleanup:.",
+      "nota_standard": "indefinito: il salto in avanti con goto all'interno della stessa funzione è definito dallo standard C23; saltare oltre l'inizializzazione di una variabile locale e leggerne o liberarne il valore indeterminato provoca comportamento indefinito."
+    },
+    {
+      "id": "21.R3",
+      "enunciato": "La macro assert(espressione) (<assert.h>) valuta l'espressione e, se è zero, stampa un messaggio diagnostico su stderr e termina il programma con abort(). Quando NDEBUG è definita al momento dell'inclusione di <assert.h>, assert si espande in ((void)0) e non valuta l'espressione. Pertanto un'asserzione non deve mai contenere effetti collaterali e va usata esclusivamente per verificare invarianti interni e precondizioni di programmazione, mai per validare input esterni, aperture di file o allocazioni di memoria.",
+      "nota_standard": "definito: la semantica di assert, l'effetto di NDEBUG e la chiamata ad abort sono definiti dallo standard C23; il formato esatto del messaggio diagnostico emesso su stderr è dipendente dall'implementazione."
+    },
+    {
+      "id": "21.R4",
+      "enunciato": "Una funzione variadica dichiara i parametri variabili con ... e vi accede tramite un oggetto va_list (<stdarg.h>) inizializzato con va_start, letto con va_arg(ap, tipo) e chiuso obbligatoriamente con va_end(ap) prima del ritorno (ogni va_copy(dest, src) richiede il corrispondente va_end(dest)). Sugli argomenti variadici il C applica le promozioni predefinite (bool, char e short diventano int; float diventa double): estrarre un tipo non promosso o incompatibile provoca comportamento indefinito. Le funzioni vprintf, vfprintf e vsnprintf (<stdio.h>) ricevono un va_list per costruire wrapper di formattazione e logging sicuri.",
+      "nota_standard": "indefinito: va_list, va_start/va_arg/va_copy/va_end (inclusa la forma C23 di va_start a un argomento) e vprintf/vfprintf/vsnprintf sono definiti dallo standard C23; omettere va_end, leggere oltre gli argomenti forniti o usare un tipo incompatibile o non promosso in va_arg provoca comportamento indefinito."
+    },
+    {
+      "id": "21.R5",
+      "enunciato": "Una macro con argomenti (#define NOME(a, b) (...)) effettua una sostituzione testuale prima della compilazione: va parentesizzata attorno a ogni occorrenza dei parametri e attorno al corpo intero, non controlla i tipi e può valutare più volte un argomento con effetti collaterali; per questo va preferita una funzione static inline ogniqualvolta non serva espandere codice nel punto di chiamata. __FILE__ (stringa), __LINE__ (intero) e __func__ (array static const char con il nome della funzione) permettono di registrare la posizione del chiamante. Gli attributi standard C23 [[nodiscard]], [[maybe_unused]] e [[noreturn]] esprimono contratti verificabili dal compilatore.",
+      "nota_standard": "indefinito: l'espansione delle macro con argomenti, __FILE__, __LINE__, __func__ e gli attributi C23 [[nodiscard]], [[maybe_unused]], [[noreturn]] sono definiti dallo standard C23; ritornare normalmente al chiamante da una funzione annotata [[noreturn]] provoca comportamento indefinito."
+    },
+    {
+      "id": "21.R6",
+      "enunciato": "Il comportamento indefinito (dereferenziazione nulla, accesso fuori dai limiti, uso dopo la liberazione, overflow con segno, variabili non inizializzate, violazione di restrict) invalida l'intero programma e va prevenuto con avvisi severi, sanitizer e debugger. Il qualificatore volatile impedisce al compilatore di eliminare o mettere in cache accessi a un oggetto modificabile dall'esterno (hardware o gestori di segnale), senza fornire sincronizzazione tra thread. In <signal.h>, signal(sig, gestore) registra un gestore (o SIG_DFL / SIG_IGN) per i segnali standard (SIGINT, SIGTERM, SIGABRT, SIGFPE, SIGILL, SIGSEGV) restituendo il precedente o SIG_ERR, e raise(sig) invia un segnale al processo. Dentro un gestore di segnale è sicuro accedere solo a oggetti statici volatile sig_atomic_t (mai chiamare printf, malloc o free).",
+      "nota_standard": "indefinito: volatile, sig_atomic_t, signal, raise e abort sono definiti dallo standard C23; invocare funzioni non sicure (come printf o malloc) o accedere a oggetti statici non volatile sig_atomic_t dentro un gestore di segnale provoca comportamento indefinito, mentre l'eventuale ripristino automatico a SIG_DFL all'ingresso del gestore è dipendente dall'implementazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "vprintf",
+      "firma": "int vprintf(const char *restrict format, va_list arg);",
+      "header": "stdio.h",
+      "descrizione": "Equivalente di printf che legge gli argomenti da un oggetto va_list già inizializzato."
+    },
+    {
+      "nome": "vfprintf",
+      "firma": "int vfprintf(FILE *restrict stream, const char *restrict format, va_list arg);",
+      "header": "stdio.h",
+      "descrizione": "Equivalente di fprintf che legge gli argomenti da un oggetto va_list già inizializzato."
+    },
+    {
+      "nome": "vsnprintf",
+      "firma": "int vsnprintf(char *restrict s, size_t n, const char *restrict format, va_list arg);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s da un va_list aggiungendo '\\0' e restituisce i caratteri che sarebbero stati scritti (senza '\\0') o negativo."
+    },
+    {
+      "nome": "perror",
+      "firma": "void perror(const char *s);",
+      "header": "stdio.h",
+      "descrizione": "Stampa su stderr il prefisso s (se non nullo e non vuoto) seguito dal messaggio descrittivo corrispondente al valore corrente di errno."
+    },
+    {
+      "nome": "fopen",
+      "firma": "FILE *fopen(const char *restrict filename, const char *restrict mode);",
+      "header": "stdio.h",
+      "descrizione": "Apre un file nella modalità richiesta e restituisce un puntatore FILE * oppure nullptr in caso di errore."
+    },
+    {
+      "nome": "fclose",
+      "firma": "int fclose(FILE *stream);",
+      "header": "stdio.h",
+      "descrizione": "Svuota i buffer dello stream, chiude il file e restituisce 0 oppure EOF in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o EOF, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "fputs",
+      "firma": "int fputs(const char *restrict s, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Scrive la stringa s su stream senza aggiungere '\\n' e restituisce un valore non negativo oppure EOF."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "remove",
+      "firma": "int remove(const char *filename);",
+      "header": "stdio.h",
+      "descrizione": "Elimina il file filename dal filesystem e restituisce 0 in caso di successo."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte restituendo il nuovo indirizzo oppure nullptr lasciando valido ptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; su nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strtoll",
+      "firma": "long long int strtoll(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte nptr in long long int nella base indicata, imposta *endptr e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtod",
+      "firma": "double strtod(const char *restrict nptr, char **restrict endptr);",
+      "header": "stdlib.h",
+      "descrizione": "Converte nptr in double, imposta *endptr e segnala overflow/underflow con errno = ERANGE e ±HUGE_VAL."
+    },
+    {
+      "nome": "exit",
+      "firma": "[[noreturn]] void exit(int status);",
+      "header": "stdlib.h",
+      "descrizione": "Termina normalmente il programma svuotando gli stream aperti e restituendo status al sistema operativo."
+    },
+    {
+      "nome": "abort",
+      "firma": "[[noreturn]] void abort(void);",
+      "header": "stdlib.h",
+      "descrizione": "Termina in modo anomalo il programma generando il segnale SIGABRT senza ritornare al chiamante."
+    },
+    {
+      "nome": "strerror",
+      "firma": "char *strerror(int errnum);",
+      "header": "string.h",
+      "descrizione": "Restituisce un puntatore a una stringa non modificabile che descrive il codice di errore errnum."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza della stringa s escluso il terminatore nullo."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strrchr",
+      "firma": "char *strrchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Restituisce un puntatore all'ultima occorrenza di (char)c in s oppure nullptr."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    },
+    {
+      "nome": "sqrt",
+      "firma": "double sqrt(double x);",
+      "header": "math.h",
+      "descrizione": "Calcola la radice quadrata non negativa di x (errore di dominio se x < 0)."
+    },
+    {
+      "nome": "assert",
+      "firma": "void assert(scalar expression);",
+      "header": "assert.h",
+      "descrizione": "Macro diagnostica che interrompe il programma con abort() se expression è zero (disabilitata se NDEBUG è definita)."
+    },
+    {
+      "nome": "va_start",
+      "firma": "void va_start(va_list ap, ...);",
+      "header": "stdarg.h",
+      "descrizione": "Inizializza l'oggetto va_list ap per accedere agli argomenti variadici della funzione corrente."
+    },
+    {
+      "nome": "va_arg",
+      "firma": "type va_arg(va_list ap, type);",
+      "header": "stdarg.h",
+      "descrizione": "Estrae il prossimo argomento variadico di tipo promosso type da ap e avanza allo stato successivo."
+    },
+    {
+      "nome": "va_copy",
+      "firma": "void va_copy(va_list dest, va_list src);",
+      "header": "stdarg.h",
+      "descrizione": "Crea in dest una copia indipendente dello stato corrente di src (da chiudere poi con va_end(dest))."
+    },
+    {
+      "nome": "va_end",
+      "firma": "void va_end(va_list ap);",
+      "header": "stdarg.h",
+      "descrizione": "Termina l'uso dell'oggetto va_list ap prima del ritorno dalla funzione."
+    },
+    {
+      "nome": "ckd_add",
+      "firma": "bool ckd_add(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: somma controllata di a e b in *result; restituisce false se esatta, true se si verifica overflow."
+    },
+    {
+      "nome": "ckd_sub",
+      "firma": "bool ckd_sub(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: sottrazione controllata di a e b in *result; restituisce false se esatta, true se si verifica overflow."
+    },
+    {
+      "nome": "ckd_mul",
+      "firma": "bool ckd_mul(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: moltiplicazione controllata di a e b in *result; restituisce false se esatta, true se si verifica overflow."
+    },
+    {
+      "nome": "signal",
+      "firma": "void (*signal(int sig, void (*func)(int)))(int);",
+      "header": "signal.h",
+      "descrizione": "Associa al segnale sig il gestore func (oppure SIG_DFL o SIG_IGN) e restituisce il gestore precedente o SIG_ERR."
+    },
+    {
+      "nome": "raise",
+      "firma": "int raise(int sig);",
+      "header": "signal.h",
+      "descrizione": "Invia il segnale sig al programma corrente e restituisce 0 in caso di successo."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "21.1",
+      "titolo": "Gestione degli errori: codici di ritorno, errno e perror",
+      "contenuti": [
+        "Strategie di propagazione degli errori in C: enum di stato descrittivi, parametri di uscita separati dal codice di ritorno e controllo uniforme a ogni livello di chiamata",
+        "La macro errno (<errno.h>) e le tre costanti standard EDOM, ERANGE ed EILSEQ: azzeramento preventivo (errno = 0) e salvataggio immediato in una variabile locale in caso di errore",
+        "Diagnostica leggibile con perror (<stdio.h>) su stderr e strerror (<string.h>) con divieto di modificare la stringa restituita",
+        "Aritmetica intera controllata in C23 con <stdckdint.h> (ckd_add, ckd_sub, ckd_mul, con box C23): rilevare overflow su interi con e senza segno senza mai provocare comportamento indefinito"
+      ],
+      "esempio_guidato": "Un programma che verifica operazioni critiche su int64_t con ckd_add, ckd_sub e ckd_mul (mostrando sia il valore esatto sia la segnalazione di overflow senza UB), prova l'apertura di un file inesistente diagnosticando il fallimento con errno, perror e strerror, e controlla un dominio negativo su sqrt con EDOM.",
+      "approfondimento": "Perché salvare subito int err = errno; dopo il fallimento di una funzione: qualunque chiamata successiva alla libreria standard (anche fprintf o fclose) può alterare errno prima che il codice stampi il messaggio d'errore.",
+      "esercizio_id": "21.1"
+    },
+    {
+      "id": "21.2",
+      "titolo": "Liberare risorse in ordine con goto cleanup",
+      "contenuti": [
+        "Il problema del rilascio pulito quando una funzione acquisisce più risorse (file FILE *, buffer malloc, strutture opache): perché i return anticipati duplicano il codice e favoriscono perdite di memoria",
+        "Il modello goto cleanup: inizializzazione di tutte le risorse a nullptr, salti solo in avanti verso un'unica etichetta cleanup:, e rilascio in ordine inverso all'acquisizione",
+        "Gestione corretta di fclose nel modello goto cleanup: evitare doppie chiusure azzerando fp = nullptr dopo la chiusura sul percorso di successo e rimuovere eventuali file di uscita parziali sul percorso di errore",
+        "Disciplina d'uso di goto: quando è legittimo (rilascio centralizzato o uscita da cicli annidati) e cosa evitare assolutamente (salti all'indietro e salti oltre inizializzazioni)"
+      ],
+      "esempio_guidato": "Una funzione che apre un file sorgente e un file destinazione e alloca due buffer sullo heap per filtrare e trasformare righe di testo, mostrando prima il codice fragile con return duplicati (in un frammento) e poi la versione pulita con goto cleanup senza perdite di memoria.",
+      "approfondimento": "Perché il modello goto cleanup è adottato nei grandi progetti C (come il kernel Linux e Git): centralizzare il rilascio in un solo blocco garantisce che aggiungere una nuova risorsa richieda una sola modifica invece di aggiornare decine di rami d'errore.",
+      "esercizio_id": "21.2"
+    },
+    {
+      "id": "21.3",
+      "titolo": "Verificare invarianti a tempo di esecuzione con assert",
+      "contenuti": [
+        "Cos'è un'asserzione con assert (<assert.h>): esprimere precondizioni, postcondizioni e invarianti interni verificati a tempo di esecuzione durante sviluppo e test",
+        "Comportamento in caso di fallimento (stampa diagnostica su stderr e terminazione con abort()) e disabilitazione a tempo di compilazione con #define NDEBUG (o -DNDEBUG)",
+        "Divieto assoluto di effetti collaterali dentro assert(...) (come incrementi, assegnamenti o chiamate a fopen/malloc) perché scompaiono compilando con NDEBUG",
+        "Distinzione rigorosa tra errori di programmazione (assert) ed errori operativi a tempo di esecuzione (if e codici di ritorno), e confronto con static_assert (capitolo 15)"
+      ],
+      "esempio_guidato": "Una lista ordinata dinamica con una funzione booleana controlla_invariante (racchiusa in #ifndef NDEBUG) invocata dentro assert all'inizio e alla fine di inserimento e rimozione, affiancata da un breve frammento che mostra il difetto di scrivere assert(++n <= cap).",
+      "approfondimento": "Come strutturare una funzione di controllo dell'invariante: raggruppare tutti i vincoli di una struttura dati in una funzione static bool ..._invariante_ok(const T *x) e proteggerla con #ifndef NDEBUG mantiene il codice leggibile ed evita avvisi di funzione inutilizzata nelle build di rilascio.",
+      "esercizio_id": "21.3"
+    },
+    {
+      "id": "21.4",
+      "titolo": "Funzioni variadiche con <stdarg.h>",
+      "contenuti": [
+        "Dichiarazione e meccanismo di una funzione variadica (...): va_list, va_start, va_arg, va_end e va_copy in <stdarg.h> (con box C23 sulla forma a un argomento di va_start)",
+        "Convenzioni per conoscere numero e tipo degli argomenti: contatore iniziale, valore sentinella nullptr e stringa di formato",
+        "Promozioni predefinite degli argomenti variadici (char, short e bool promossi a int; float promosso a double) e perché chiedere un tipo non promosso o errato a va_arg causa comportamento indefinito",
+        "Inoltrare va_list alle funzioni vprintf, vfprintf e vsnprintf (<stdio.h>), e uso di va_copy per il pattern a due passaggi di allocazione esatta con vsnprintf(nullptr, 0, ...)"
+      ],
+      "esempio_guidato": "Un programma che dimostra una somma variadica a conteggio, una concatenazione di stringhe terminata da nullptr con va_copy e un logger che inoltra va_list a vfprintf e vprintf, evidenziando il rispetto delle promozioni predefinite.",
+      "approfondimento": "Perché una funzione variadica in C non può conoscere autonomamente quanti argomenti le siano stati passati né di che tipo siano: l'assenza di controlli di tipo sul lato ... richiede contratti rigorosi e rende preziosi gli avvisi del compilatore sulle stringhe di formato.",
+      "esercizio_id": "21.4"
+    },
+    {
+      "id": "21.5",
+      "titolo": "Preprocessore: macro con argomenti, __FILE__ e __LINE__",
+      "contenuti": [
+        "Macro con argomenti (#define NOME(x, y) ...): sostituzione testuale, obbligo di parentesi sui parametri e sull'intera espressione, trappola dello spazio tra nome e ( e valutazione multipla degli argomenti con effetti collaterali",
+        "Preferire funzioni static inline per calcoli riutilizzabili sicuri per i tipi, riservando le macro a ciò che una funzione non può fare (come ARRAY_LEN o la cattura del punto di chiamata; rinvio al capitolo 24 per do-while(0), #, ## e macro variadiche)",
+        "Macro predefinite __FILE__ e __LINE__ e identificatore __func__ per costruire messaggi diagnostici che riportano automaticamente file, riga e funzione del chiamante",
+        "Attributi standard C23 (con box C23): [[nodiscard]] per impedire di ignorare esiti critici, [[maybe_unused]] per parametri/simboli opzionali e [[noreturn]] per funzioni che terminano con exit o abort"
+      ],
+      "esempio_guidato": "Un programma che definisce ARRAY_LEN(a) e una macro diagnostica basata su __FILE__, __LINE__ e __func__, confronta un helper static inline con un frammento di macro soggetta a valutazione multipla, e applica [[nodiscard]], [[maybe_unused]] e [[noreturn]] in C23.",
+      "approfondimento": "Perché __FILE__ e __LINE__ devono essere espansi da una macro nel punto di chiamata: se li inserissi direttamente dentro una funzione di log, stamperebbero sempre la posizione della definizione del logger e mai la riga in cui è avvenuto l'errore.",
+      "esercizio_id": "21.5"
+    },
+    {
+      "id": "21.6",
+      "titolo": "Comportamento indefinito, diagnostica e cenni a volatile e signal",
+      "contenuti": [
+        "I casi critici di comportamento indefinito in C (dereferenziazione nulla, accesso fuori dai limiti, uso dopo la liberazione, overflow con segno, variabili non inizializzate, violazione di restrict) e la loro relazione con le ottimizzazioni del compilatore (rinvio al capitolo 25)",
+        "Flusso di lavoro diagnostico: compilazione con -Wall -Wextra -Wpedantic -g, analisi dinamica con sanitizer (-fsanitize=address,undefined) e uso del debugger (breakpoint, esecuzione passo passo, ispezione dello stack di chiamate)",
+        "Il qualificatore volatile: forzare ogni accesso reale alla memoria per registri hardware e gestori di segnale, chiarendo che non fornisce atomicità né sincronizzazione tra thread",
+        "Cenni a <signal.h>: signal, raise, abort, i segnali standard (SIGINT, SIGTERM, SIGABRT, SIGFPE, SIGILL, SIGSEGV), SIG_DFL, SIG_IGN, SIG_ERR, il tipo volatile sig_atomic_t e il divieto di chiamare funzioni non sicure (come printf o malloc) dentro un gestore di segnale"
+      ],
+      "esempio_guidato": "Un programma che registra un gestore minimale per SIGINT su una variabile static volatile sig_atomic_t (controllando SIG_ERR), ignora temporaneamente SIGTERM con SIG_IGN, invia segnali in modo sincrono con raise(SIGTERM) e raise(SIGINT), esegue un arresto ordinato al ritorno nel ciclo principale e ripristina SIG_DFL.",
+      "approfondimento": "Perché dentro un gestore di segnale non puoi chiamare printf né malloc: un segnale asincrono può interrompere il programma proprio mentre la libreria standard sta modificando i propri buffer o le liste interne dello heap, causando corruzione della memoria o blocco permanente.",
+      "esercizio_id": "21.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "21.1",
+      "tipo": "esercizio",
+      "titolo": "Calcolatrice controllata a 64 bit con <stdckdint.h>, errno e propagazione di codici di errore",
+      "descrizione": "Scrivi un programma C che implementi una calcolatrice sicura su interi a 64 bit (`int64_t`) e radici quadrate in virgola mobile, propagando ogni guasto mediante un'enumerazione `esito_calc_t` (`CALC_OK`, `CALC_ERR_SINTASSI`, `CALC_ERR_OVERFLOW`, `CALC_ERR_DIV_ZERO`, `CALC_ERR_DOMINIO`, `CALC_ERR_RANGE`). (1) Implementa `esito_calc_t parsa_i64(const char *s, int64_t *out)` usando `strtoll` dopo `errno = 0`, controllando `errno == ERANGE` (`CALC_ERR_RANGE`) e caratteri residui (`CALC_ERR_SINTASSI`). (2) Implementa `esito_calc_t esegui_op(const char *op, int64_t a, int64_t b, int64_t *out)` che gestisce: `ADD` con `ckd_add`, `SUB` con `ckd_sub`, `MUL` con `ckd_mul` (di `<stdckdint.h>`, restituendo `CALC_ERR_OVERFLOW` quando la macro restituisce `true`), `DIV` (controllando `b == 0` -> `CALC_ERR_DIV_ZERO` e `a == INT64_MIN && b == -1` -> `CALC_ERR_OVERFLOW`) e `AREA` (se `a < 0 || b < 0` imposta `errno = EDOM`, verifica che `strerror(EDOM)` non sia nullo né vuoto e restituisce `CALC_ERR_DOMINIO`, altrimenti usa `ckd_mul`). (3) Implementa `esito_calc_t calcola_radice(const char *s, double *out)` usando `strtod` con `errno = 0` (`ERANGE`/`HUGE_VAL` -> `CALC_ERR_RANGE`), rifiutando `x < 0.0` con `errno = EDOM` (`CALC_ERR_DOMINIO`), e calcolando `sqrt(x)`. (4) In `main` leggi righe da `stdin` (`ADD <a> <b>`, `SUB <a> <b>`, `MUL <a> <b>`, `DIV <a> <b>`, `AREA <a> <b>`, `SQRT <x>`) salvando `int err_salvato = errno;` subito dopo il fallimento e stampando `OK: <ris>` (con `%.2f` per `SQRT`) oppure `ERRORE: <TIPO> (errno=<EDOM|ERANGE|0>)` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "operazioni intere controllate ckd_add, ckd_sub e ckd_mul (<stdckdint.h>) per rilevare overflow senza comportamento indefinito",
+        "propagazione esplicita degli errori tramite enum e parametri di uscita",
+        "azzeramento preventivo di errno = 0, salvataggio immediato e distinzione tra EDOM ed ERANGE",
+        "caso particolare di overflow nella divisione con segno (INT64_MIN / -1) e controllo di strerror"
+      ],
+      "domande_guida": [
+        "Perché ckd_add(&ris, a, b) evita il comportamento indefinito anche quando a + b supera INT64_MAX?",
+        "Che cosa restituisce ckd_mul quando il prodotto è rappresentabile senza overflow: true oppure false?",
+        "Oltre alla divisione per zero, quale coppia di operandi provoca overflow nella divisione intera a / b su int64_t?",
+        "Perché conviene salvare subito errno in una variabile locale int err = errno; prima di stampare o invocare altre funzioni?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 9223372036854775800 7\nADD 9223372036854775800 10\nSUB -9223372036854775808 1\nMUL 3037000500 3037000500\nDIV -9223372036854775808 -1\nDIV 10 0\nAREA -5 4\nSQRT 2.25\nSQRT -9\nADD 99999999999999999999999 1\n",
+          "output": "OK: 9223372036854775807\nERRORE: OVERFLOW (errno=0)\nERRORE: OVERFLOW (errno=0)\nERRORE: OVERFLOW (errno=0)\nERRORE: OVERFLOW (errno=0)\nERRORE: DIV_ZERO (errno=0)\nERRORE: DOMINIO (errno=EDOM)\nOK: 1.50\nERRORE: DOMINIO (errno=EDOM)\nERRORE: RANGE (errno=ERANGE)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SUB 0 -9223372036854775808\nMUL -1 -9223372036854775808\nAREA 0 100\nSQRT 0\nADD abc 5\n",
+          "output": "ERRORE: OVERFLOW (errno=0)\nERRORE: OVERFLOW (errno=0)\nOK: 0\nOK: 0.00\nERRORE: SINTASSI (errno=0)\n"
+        },
+        {
+          "input": "DIV -20 3\nMUL -1000000 1000000\nSQRT 1e400\n",
+          "output": "OK: -6\nOK: -1000000000000\nERRORE: RANGE (errno=ERANGE)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <errno.h>\n#include <inttypes.h>\n#include <math.h>\n#include <stdckdint.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef enum esito_calc {\n    CALC_OK = 0,\n    CALC_ERR_SINTASSI,\n    CALC_ERR_OVERFLOW,\n    CALC_ERR_DIV_ZERO,\n    CALC_ERR_DOMINIO,\n    CALC_ERR_RANGE\n} esito_calc_t;\n\nstatic esito_calc_t parsa_i64(const char *s, int64_t *out) {\n    if (s == nullptr || *s == '\\0' || isspace((unsigned char)*s)) { return CALC_ERR_SINTASSI; }\n    char *end = nullptr;\n    errno = 0;\n    long long v = strtoll(s, &end, 10);\n    if (errno == ERANGE) { return CALC_ERR_RANGE; }\n    if (end == s || *end != '\\0') { return CALC_ERR_SINTASSI; }\n    *out = (int64_t)v;\n    return CALC_OK;\n}\n\nstatic esito_calc_t esegui_op(const char *op, int64_t a, int64_t b, int64_t *out) {\n    errno = 0;\n    if (strcmp(op, \"ADD\") == 0) {\n        return ckd_add(out, a, b) ? CALC_ERR_OVERFLOW : CALC_OK;\n    } else if (strcmp(op, \"SUB\") == 0) {\n        return ckd_sub(out, a, b) ? CALC_ERR_OVERFLOW : CALC_OK;\n    } else if (strcmp(op, \"MUL\") == 0) {\n        return ckd_mul(out, a, b) ? CALC_ERR_OVERFLOW : CALC_OK;\n    } else if (strcmp(op, \"DIV\") == 0) {\n        if (b == 0) { return CALC_ERR_DIV_ZERO; }\n        if (a == INT64_MIN && b == -1) { return CALC_ERR_OVERFLOW; }\n        *out = a / b;\n        return CALC_OK;\n    } else if (strcmp(op, \"AREA\") == 0) {\n        if (a < 0 || b < 0) {\n            errno = EDOM;\n            const char *msg = strerror(errno);\n            if (msg == nullptr || msg[0] == '\\0') { return CALC_ERR_SINTASSI; }\n            return CALC_ERR_DOMINIO;\n        }\n        return ckd_mul(out, a, b) ? CALC_ERR_OVERFLOW : CALC_OK;\n    }\n    return CALC_ERR_SINTASSI;\n}\n\nstatic esito_calc_t calcola_radice(const char *s, double *out) {\n    if (s == nullptr || *s == '\\0' || isspace((unsigned char)*s)) { return CALC_ERR_SINTASSI; }\n    char *end = nullptr;\n    errno = 0;\n    double x = strtod(s, &end);\n    if (errno == ERANGE || x == HUGE_VAL || x == -HUGE_VAL) {\n        errno = ERANGE;\n        return CALC_ERR_RANGE;\n    }\n    if (end == s || *end != '\\0') { return CALC_ERR_SINTASSI; }\n    if (x < 0.0) {\n        errno = EDOM;\n        return CALC_ERR_DOMINIO;\n    }\n    errno = 0;\n    *out = sqrt(x);\n    return CALC_OK;\n}\n\nstatic void stampa_errore(esito_calc_t es, int err_salvato) {\n    const char *nome = \"SINTASSI\";\n    if (es == CALC_ERR_OVERFLOW) { nome = \"OVERFLOW\"; }\n    else if (es == CALC_ERR_DIV_ZERO) { nome = \"DIV_ZERO\"; }\n    else if (es == CALC_ERR_DOMINIO) { nome = \"DOMINIO\"; }\n    else if (es == CALC_ERR_RANGE) { nome = \"RANGE\"; }\n    const char *enome = \"0\";\n    if (err_salvato == EDOM) { enome = \"EDOM\"; }\n    else if (err_salvato == ERANGE) { enome = \"ERANGE\"; }\n    printf(\"ERRORE: %s (errno=%s)\\n\", nome, enome);\n}\n\nint main(void) {\n    char riga[256], op[16], tok1[64], tok2[64], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", op) != 1) { continue; }\n        if (strcmp(op, \"SQRT\") == 0) {\n            if (sscanf(riga, \"SQRT %63s %c\", tok1, &extra) != 1) {\n                stampa_errore(CALC_ERR_SINTASSI, 0);\n                continue;\n            }\n            double r = 0.0;\n            esito_calc_t es = calcola_radice(tok1, &r);\n            int err_s = errno;\n            if (es == CALC_OK) { printf(\"OK: %.2f\\n\", r); }\n            else { stampa_errore(es, err_s); }\n        } else {\n            if (sscanf(riga, \"%*15s %63s %63s %c\", tok1, tok2, &extra) != 2) {\n                stampa_errore(CALC_ERR_SINTASSI, 0);\n                continue;\n            }\n            int64_t a = 0, b = 0, r = 0;\n            esito_calc_t es = parsa_i64(tok1, &a);\n            if (es == CALC_OK) { es = parsa_i64(tok2, &b); }\n            if (es == CALC_OK) { es = esegui_op(op, a, b, &r); }\n            int err_s = errno;\n            if (es == CALC_OK) { printf(\"OK: %\" PRId64 \"\\n\", r); }\n            else { stampa_errore(es, err_s); }\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "21.2",
+      "tipo": "esercizio",
+      "titolo": "Pipeline multi-risorsa con rilascio deterministico tramite goto cleanup e iniezione di guasti",
+      "descrizione": "Scrivi un programma C che implementi una pipeline di elaborazione su file e memoria dinamica strutturata rigorosamente con il modello **goto cleanup**. (1) Definisci `typedef enum esito_pipe { PIPE_OK = 0, PIPE_ERR_APERTURA_IN, PIPE_ERR_MEM_BUF, PIPE_ERR_MEM_ARRAY, PIPE_ERR_APERTURA_OUT, PIPE_ERR_SCRITTURA } esito_pipe_t;` e `typedef struct stats_risorse { size_t file_aperti; size_t file_chiusi; size_t blocchi_allocati; size_t blocchi_liberati; } stats_risorse_t;`. (2) Scrivi `esito_pipe_t elabora_pipeline(const char *file_in, const char *file_out, size_t n_righe, int guasto_passo, stats_risorse_t *st)` che inizializza tutte e quattro le risorse a `nullptr` (`FILE *fin`, `char *buf`, `int64_t *somme`, `FILE *fout`), le acquisisce in sequenza (`fin = fopen(file_in, \"r\")`, `buf = malloc(256)`, `somme = malloc(n_righe * sizeof(*somme))` controllando overflow con `ckd_mul`, `fout = fopen(file_out, \"w\")`), simula il fallimento al passo `guasto_passo` (`1` = apertura input, `2` = buffer, `3` = array somme, `4` = apertura output, `5` = errore di scrittura dopo aver aperto `fout`; `0` = nessun guasto), somma gli interi su ciascuna riga di `file_in` scrivendo `Riga <i>: <somma>` su `file_out`, chiude e verifica `fout` azzerandolo a `nullptr`, e salta sempre a una sola etichetta `cleanup:` in fondo alla funzione che rilascia in ordine inverso tutte le risorse non nulle, rimuove `file_out` se `esito != PIPE_OK` ed aggiorna `st`. (3) In `main` leggi dalla prima riga `n_righe` (`1 <= n_righe <= 16`), scrivi le successive `n_righe` righe di interi nel file temporaneo `\"pipe_in_21_2.txt\"`, poi leggi i comandi `RUN <guasto_passo>` (`0..5`) eseguendo `elabora_pipeline`, stampando `RUN <g>: <ESITO> (file=<aperti>/<chiusi> mem=<alloc>/<lib>)` e, se `PIPE_OK`, stampando le righe di `\"pipe_out_21_2.txt\"` indentate di due spazi prima di rimuoverlo. Al termine rimuovi `\"pipe_in_21_2.txt\"`.",
+      "concetti_da_tenere_a_mente": [
+        "inizializzazione di tutte le risorse a nullptr prima di qualsiasi salto goto",
+        "salti in avanti verso un'unica etichetta cleanup: con rilascio in ordine inverso all'acquisizione",
+        "azzeramento di fout = nullptr dopo la chiusura sul percorso di successo per evitare doppie fclose",
+        "rimozione del file di uscita parziale quando esito != PIPE_OK"
+      ],
+      "domande_guida": [
+        "Che cosa accadrebbe nel blocco cleanup: se un salto goto al passo 2 venisse eseguito prima di inizializzare somme e fout a nullptr?",
+        "Perché dopo aver chiamato fclose(fout) sul percorso di successo devi scrivere subito fout = nullptr; prima di proseguire verso cleanup:?",
+        "In quale ordine conviene rilasciare fin, buf, somme e fout dentro cleanup:?",
+        "Perché se si verifica un errore al passo 5 (scrittura) il blocco cleanup: deve prima chiudere fout e poi rimuovere file_out?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "2\n10 20 30\n-5 15\nRUN 1\nRUN 2\nRUN 3\nRUN 4\nRUN 5\nRUN 0\n",
+          "output": "RUN 1: ERR_APERTURA_IN (file=0/0 mem=0/0)\nRUN 2: ERR_MEM_BUF (file=1/1 mem=0/0)\nRUN 3: ERR_MEM_ARRAY (file=1/1 mem=1/1)\nRUN 4: ERR_APERTURA_OUT (file=1/1 mem=2/2)\nRUN 5: ERR_SCRITTURA (file=2/2 mem=2/2)\nRUN 0: OK (file=2/2 mem=2/2)\n  Riga 0: 60\n  Riga 1: 10\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\n42\nRUN 0\nRUN 5\n",
+          "output": "RUN 0: OK (file=2/2 mem=2/2)\n  Riga 0: 42\nRUN 5: ERR_SCRITTURA (file=2/2 mem=2/2)\n"
+        },
+        {
+          "input": "3\n0\n-10 -20\n7 8 9\nRUN 3\nRUN 0\n",
+          "output": "RUN 3: ERR_MEM_ARRAY (file=1/1 mem=1/1)\nRUN 0: OK (file=2/2 mem=2/2)\n  Riga 0: 0\n  Riga 1: -30\n  Riga 2: 24\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <errno.h>\n#include <inttypes.h>\n#include <stdckdint.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef enum esito_pipe {\n    PIPE_OK = 0,\n    PIPE_ERR_APERTURA_IN,\n    PIPE_ERR_MEM_BUF,\n    PIPE_ERR_MEM_ARRAY,\n    PIPE_ERR_APERTURA_OUT,\n    PIPE_ERR_SCRITTURA\n} esito_pipe_t;\n\ntypedef struct stats_risorse {\n    size_t file_aperti;\n    size_t file_chiusi;\n    size_t blocchi_allocati;\n    size_t blocchi_liberati;\n} stats_risorse_t;\n\nstatic bool somma_riga(const char *riga, int64_t *out) {\n    const char *p = riga;\n    int64_t acc = 0;\n    while (*p != '\\0') {\n        char *end = nullptr;\n        errno = 0;\n        long long v = strtoll(p, &end, 10);\n        if (end == p) { break; }\n        if (errno == ERANGE || ckd_add(&acc, acc, (int64_t)v)) { return false; }\n        p = end;\n    }\n    *out = acc;\n    return true;\n}\n\nstatic esito_pipe_t elabora_pipeline(const char *file_in, const char *file_out, size_t n_righe, int guasto, stats_risorse_t *st) {\n    esito_pipe_t esito = PIPE_ERR_SCRITTURA;\n    FILE *fin = nullptr;\n    char *buf = nullptr;\n    int64_t *somme = nullptr;\n    FILE *fout = nullptr;\n    bool fout_creato = false;\n    *st = (stats_risorse_t){};\n\n    if (guasto == 1 || (fin = fopen(file_in, \"r\")) == nullptr) {\n        esito = PIPE_ERR_APERTURA_IN;\n        goto cleanup;\n    }\n    ++st->file_aperti;\n\n    if (guasto == 2 || (buf = malloc(256)) == nullptr) {\n        esito = PIPE_ERR_MEM_BUF;\n        goto cleanup;\n    }\n    ++st->blocchi_allocati;\n\n    size_t byte_arr = 0;\n    if (guasto == 3 || ckd_mul(&byte_arr, n_righe, sizeof(*somme)) || (somme = malloc(byte_arr)) == nullptr) {\n        esito = PIPE_ERR_MEM_ARRAY;\n        goto cleanup;\n    }\n    ++st->blocchi_allocati;\n\n    if (guasto == 4 || (fout = fopen(file_out, \"w\")) == nullptr) {\n        esito = PIPE_ERR_APERTURA_OUT;\n        goto cleanup;\n    }\n    ++st->file_aperti;\n    fout_creato = true;\n\n    for (size_t i = 0; i < n_righe; ++i) {\n        if (fgets(buf, 256, fin) == nullptr || !somma_riga(buf, &somme[i])) {\n            esito = PIPE_ERR_SCRITTURA;\n            goto cleanup;\n        }\n    }\n    if (guasto == 5) {\n        esito = PIPE_ERR_SCRITTURA;\n        goto cleanup;\n    }\n    for (size_t i = 0; i < n_righe; ++i) {\n        if (fprintf(fout, \"Riga %zu: %\" PRId64 \"\\n\", i, somme[i]) < 0) {\n            esito = PIPE_ERR_SCRITTURA;\n            goto cleanup;\n        }\n    }\n    int rc_out = fclose(fout);\n    fout = nullptr;\n    ++st->file_chiusi;\n    if (rc_out != 0) {\n        esito = PIPE_ERR_SCRITTURA;\n        goto cleanup;\n    }\n    esito = PIPE_OK;\n\ncleanup:\n    if (fout != nullptr) {\n        fclose(fout);\n        ++st->file_chiusi;\n    }\n    if (esito != PIPE_OK && fout_creato) {\n        remove(file_out);\n    }\n    if (somme != nullptr) {\n        free(somme);\n        ++st->blocchi_liberati;\n    }\n    if (buf != nullptr) {\n        free(buf);\n        ++st->blocchi_liberati;\n    }\n    if (fin != nullptr) {\n        fclose(fin);\n        ++st->file_chiusi;\n    }\n    return esito;\n}\n\nstatic const char *nome_esito(esito_pipe_t e) {\n    switch (e) {\n        case PIPE_OK: return \"OK\";\n        case PIPE_ERR_APERTURA_IN: return \"ERR_APERTURA_IN\";\n        case PIPE_ERR_MEM_BUF: return \"ERR_MEM_BUF\";\n        case PIPE_ERR_MEM_ARRAY: return \"ERR_MEM_ARRAY\";\n        case PIPE_ERR_APERTURA_OUT: return \"ERR_APERTURA_OUT\";\n        default: return \"ERR_SCRITTURA\";\n    }\n}\n\nint main(void) {\n    const char *f_in = \"pipe_in_21_2.txt\", *f_out = \"pipe_out_21_2.txt\";\n    char riga[256], extra = '\\0';\n    int n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr || sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 1 || n_in > 16) {\n        return EXIT_FAILURE;\n    }\n    FILE *fp = fopen(f_in, \"w\");\n    if (fp == nullptr) { return EXIT_FAILURE; }\n    for (int i = 0; i < n_in; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr || fputs(riga, fp) == EOF) {\n            fclose(fp); remove(f_in); return EXIT_FAILURE;\n        }\n    }\n    if (fclose(fp) != 0) { remove(f_in); return EXIT_FAILURE; }\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        int g = 0;\n        if (sscanf(riga, \" %c\", &extra) != 1) { continue; }\n        if (sscanf(riga, \"RUN %d %c\", &g, &extra) != 1 || g < 0 || g > 5) { remove(f_in); return EXIT_FAILURE; }\n        stats_risorse_t st = {};\n        esito_pipe_t es = elabora_pipeline(f_in, f_out, (size_t)n_in, g, &st);\n        printf(\"RUN %d: %s (file=%zu/%zu mem=%zu/%zu)\\n\", g, nome_esito(es), st.file_aperti, st.file_chiusi, st.blocchi_allocati, st.blocchi_liberati);\n        if (es == PIPE_OK) {\n            FILE *fo = fopen(f_out, \"r\");\n            if (fo == nullptr) { remove(f_in); remove(f_out); return EXIT_FAILURE; }\n            while (fgets(riga, (int)sizeof(riga), fo) != nullptr) { printf(\"  %s\", riga); }\n            fclose(fo);\n            remove(f_out);\n        }\n    }\n    remove(f_in);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "21.3",
+      "tipo": "esercizio",
+      "titolo": "Coda circolare dinamica con verifica di invarianti tramite assert su più file",
+      "descrizione": "Realizza una coda circolare FIFO ridimensionabile di `int32_t` come **tipo opaco** su tre file (`coda_inv.h`, `coda_inv.c`, `main.c`) integrando verifiche sistematiche di invarianti con `assert` (`<assert.h>`). (1) In `coda_inv.h` (protetto da `CODA_INV_H`) dichiara `typedef struct coda_inv coda_inv_t;` e le funzioni: `coda_inv_t *coda_crea(void);` (capacità iniziale `2`), `void coda_distruggi(coda_inv_t *q);`, `bool coda_accoda(coda_inv_t *q, int32_t val);` (raddoppia la capacità quando `len == cap` linearizzando gli elementi nel nuovo buffer), `bool coda_estrai(coda_inv_t *q, int32_t *out);`, `bool coda_testa(const coda_inv_t *q, int32_t *out);`, `size_t coda_len(const coda_inv_t *q);`, `size_t coda_cap(const coda_inv_t *q);` e `bool coda_elemento_i(const coda_inv_t *q, size_t idx, int32_t *out);`. (2) In `coda_inv.c` definisci dentro `#ifndef NDEBUG` la funzione `static bool coda_invariante_ok(const coda_inv_t *q)` che verifica senza effetti collaterali: `q != nullptr && q->dati != nullptr`, `q->cap >= 2 && (q->cap & (q->cap - 1)) == 0`, `q->len <= q->cap`, `q->testa < q->cap && q->coda < q->cap`, e `(q->testa + q->len) % q->cap == q->coda`. Gestisci con `if` e valori di ritorno gli errori esterni (puntatori nulli del chiamante, coda vuota, fallimento di `malloc`), e verifica `assert(coda_invariante_ok(q))` all'ingresso e all'uscita di ogni operazione interna (incluso dopo il ridimensionamento). (3) In `main.c` leggi da `stdin` i comandi `ENQ <val>`, `DEQ`, `PEEK`, `STAT` e `DUMP`, producendo esattamente l'output dell'esempio e compilando senza avvisi sia normalmente sia con `-DNDEBUG`.",
+      "concetti_da_tenere_a_mente": [
+        "separazione netta tra validazione di errori esterni (if + bool) e invarianti interni (assert)",
+        "assenza di effetti collaterali dentro assert(...) e protezione di coda_invariante_ok con #ifndef NDEBUG",
+        "invariante circolare esatto (testa + len) % cap == coda con capacità sempre potenza di due",
+        "linearizzazione sicura del buffer circolare durante il raddoppio della capacità"
+      ],
+      "domande_guida": [
+        "Perché in coda_estrai gestisci q->len == 0 restituendo false anziché scrivere assert(q->len > 0)?",
+        "Perché conviene proteggere la definizione della funzione helper coda_invariante_ok con #ifndef NDEBUG?",
+        "Che cosa accadrebbe se scrivessi assert(coda_accoda(q, val)) in main.c e poi compilassi con -DNDEBUG?",
+        "Come verifichi che l'invariante (testa + len) % cap == coda valga sia quando la coda è vuota (len == 0) sia quando è piena (len == cap)?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ENQ 10\nENQ 20\nDEQ\nENQ 30\nENQ 40\nSTAT\nDUMP\nPEEK\nDEQ\nDEQ\nDEQ\nDEQ\n",
+          "output": "ENQ 10 (len=1, cap=2)\nENQ 20 (len=2, cap=2)\nDEQ: 10\nENQ 30 (len=2, cap=2)\nENQ 40 (len=3, cap=4)\nSTAT len=3 cap=4\nDUMP: 20 30 40\nPEEK: 20\nDEQ: 20\nDEQ: 30\nDEQ: 40\nDEQ: VUOTA\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "STAT\nPEEK\nDEQ\nDUMP\n",
+          "output": "STAT len=0 cap=2\nPEEK: VUOTA\nDEQ: VUOTA\nDUMP: (vuota)\n"
+        },
+        {
+          "input": "ENQ 1\nENQ 2\nENQ 3\nENQ 4\nENQ 5\nDEQ\nDEQ\nENQ 6\nSTAT\nDUMP\n",
+          "output": "ENQ 1 (len=1, cap=2)\nENQ 2 (len=2, cap=2)\nENQ 3 (len=3, cap=4)\nENQ 4 (len=4, cap=4)\nENQ 5 (len=5, cap=8)\nDEQ: 1\nDEQ: 2\nENQ 6 (len=4, cap=8)\nSTAT len=4 cap=8\nDUMP: 3 4 5 6\n"
+        }
+      ],
+      "soluzione_file": {
+        "coda_inv.h": "#ifndef CODA_INV_H\n#define CODA_INV_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct coda_inv coda_inv_t;\n\ncoda_inv_t *coda_crea(void);\nvoid coda_distruggi(coda_inv_t *q);\nbool coda_accoda(coda_inv_t *q, int32_t val);\nbool coda_estrai(coda_inv_t *q, int32_t *out);\nbool coda_testa(const coda_inv_t *q, int32_t *out);\nsize_t coda_len(const coda_inv_t *q);\nsize_t coda_cap(const coda_inv_t *q);\nbool coda_elemento_i(const coda_inv_t *q, size_t idx, int32_t *out);\n\n#endif\n",
+        "coda_inv.c": "#include \"coda_inv.h\"\n#include <assert.h>\n#include <stdckdint.h>\n#include <stdlib.h>\n\nstruct coda_inv {\n    int32_t *dati;\n    size_t cap;\n    size_t testa;\n    size_t coda;\n    size_t len;\n};\n\n#ifndef NDEBUG\nstatic bool coda_invariante_ok(const coda_inv_t *q) {\n    if (q == nullptr || q->dati == nullptr) { return false; }\n    if (q->cap < 2 || (q->cap & (q->cap - 1)) != 0) { return false; }\n    if (q->len > q->cap || q->testa >= q->cap || q->coda >= q->cap) { return false; }\n    return ((q->testa + q->len) % q->cap) == q->coda;\n}\n#endif\n\nstatic bool coda_espandi(coda_inv_t *q) {\n    assert(coda_invariante_ok(q));\n    size_t nuova_cap = 0, byte_tot = 0;\n    if (ckd_mul(&nuova_cap, q->cap, (size_t)2) || ckd_mul(&byte_tot, nuova_cap, sizeof(*q->dati))) {\n        return false;\n    }\n    int32_t *nuovi = malloc(byte_tot);\n    if (nuovi == nullptr) { return false; }\n    for (size_t i = 0; i < q->len; ++i) {\n        nuovi[i] = q->dati[(q->testa + i) % q->cap];\n    }\n    free(q->dati);\n    q->dati = nuovi;\n    q->cap = nuova_cap;\n    q->testa = 0;\n    q->coda = q->len;\n    assert(coda_invariante_ok(q));\n    return true;\n}\n\ncoda_inv_t *coda_crea(void) {\n    coda_inv_t *q = malloc(sizeof(*q));\n    if (q == nullptr) { return nullptr; }\n    q->dati = malloc(2 * sizeof(*q->dati));\n    if (q->dati == nullptr) { free(q); return nullptr; }\n    q->cap = 2; q->testa = 0; q->coda = 0; q->len = 0;\n    assert(coda_invariante_ok(q));\n    return q;\n}\n\nvoid coda_distruggi(coda_inv_t *q) {\n    if (q == nullptr) { return; }\n    assert(coda_invariante_ok(q));\n    free(q->dati);\n    free(q);\n}\n\nbool coda_accoda(coda_inv_t *q, int32_t val) {\n    if (q == nullptr) { return false; }\n    assert(coda_invariante_ok(q));\n    if (q->len == q->cap && !coda_espandi(q)) { return false; }\n    q->dati[q->coda] = val;\n    q->coda = (q->coda + 1) % q->cap;\n    ++q->len;\n    assert(coda_invariante_ok(q));\n    return true;\n}\n\nbool coda_estrai(coda_inv_t *q, int32_t *out) {\n    if (q == nullptr || q->len == 0) { return false; }\n    assert(coda_invariante_ok(q));\n    if (out != nullptr) { *out = q->dati[q->testa]; }\n    q->testa = (q->testa + 1) % q->cap;\n    --q->len;\n    assert(coda_invariante_ok(q));\n    return true;\n}\n\nbool coda_testa(const coda_inv_t *q, int32_t *out) {\n    if (q == nullptr || out == nullptr || q->len == 0) { return false; }\n    assert(coda_invariante_ok(q));\n    *out = q->dati[q->testa];\n    return true;\n}\n\nsize_t coda_len(const coda_inv_t *q) { return (q != nullptr) ? q->len : 0; }\nsize_t coda_cap(const coda_inv_t *q) { return (q != nullptr) ? q->cap : 0; }\n\nbool coda_elemento_i(const coda_inv_t *q, size_t idx, int32_t *out) {\n    if (q == nullptr || out == nullptr || idx >= q->len) { return false; }\n    assert(coda_invariante_ok(q));\n    *out = q->dati[(q->testa + idx) % q->cap];\n    return true;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"coda_inv.h\"\n\nint main(void) {\n    coda_inv_t *q = coda_crea();\n    if (q == nullptr) { return EXIT_FAILURE; }\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long v = 0;\n        if (strcmp(cmd, \"ENQ\") == 0 && sscanf(riga, \"ENQ %lld %c\", &v, &extra) == 1 && v >= INT32_MIN && v <= INT32_MAX) {\n            if (!coda_accoda(q, (int32_t)v)) { coda_distruggi(q); return EXIT_FAILURE; }\n            printf(\"ENQ %\" PRId32 \" (len=%zu, cap=%zu)\\n\", (int32_t)v, coda_len(q), coda_cap(q));\n        } else if (strcmp(cmd, \"DEQ\") == 0 && sscanf(riga, \"DEQ %c\", &extra) != 1) {\n            int32_t x = 0;\n            if (coda_estrai(q, &x)) { printf(\"DEQ: %\" PRId32 \"\\n\", x); }\n            else { printf(\"DEQ: VUOTA\\n\"); }\n        } else if (strcmp(cmd, \"PEEK\") == 0 && sscanf(riga, \"PEEK %c\", &extra) != 1) {\n            int32_t x = 0;\n            if (coda_testa(q, &x)) { printf(\"PEEK: %\" PRId32 \"\\n\", x); }\n            else { printf(\"PEEK: VUOTA\\n\"); }\n        } else if (strcmp(cmd, \"STAT\") == 0 && sscanf(riga, \"STAT %c\", &extra) != 1) {\n            printf(\"STAT len=%zu cap=%zu\\n\", coda_len(q), coda_cap(q));\n        } else if (strcmp(cmd, \"DUMP\") == 0 && sscanf(riga, \"DUMP %c\", &extra) != 1) {\n            printf(\"DUMP:\");\n            if (coda_len(q) == 0) { printf(\" (vuota)\\n\"); }\n            else {\n                for (size_t i = 0; i < coda_len(q); ++i) {\n                    int32_t x = 0; coda_elemento_i(q, i, &x); printf(\" %\" PRId32, x);\n                }\n                printf(\"\\n\");\n            }\n        } else { coda_distruggi(q); return EXIT_FAILURE; }\n    }\n    coda_distruggi(q);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "21.4",
+      "tipo": "esercizio",
+      "titolo": "Formattatore dinamico e aggregatore variadico con <stdarg.h>, va_copy e vsnprintf su più file",
+      "descrizione": "Realizza un modulo su tre file (`fmt_variadico.h`, `fmt_variadico.c`, `main.c`) che implementi tre **funzioni variadiche** con `<stdarg.h>` e `<stdio.h>`. (1) `char *formatta_alloc(const char *fmt, ...);`: usa `va_start` e `va_copy` per eseguire una prima chiamata `vsnprintf(nullptr, 0, fmt, copia)` che determina esattamente la lunghezza `len`, chiude `copia` con `va_end`, alloca `(size_t)len + 1` byte con `malloc`, esegue la seconda `vsnprintf` su `ap`, chiude `ap` con `va_end` e restituisce la stringa allocata sullo heap (oppure `nullptr` in caso di errore). (2) `void log_su_stream(FILE *out, const char *tag, const char *fmt, ...);`: scrive `[<tag>] ` sullo stream `out`, inoltra `fmt` e `va_list` a `vfprintf` e chiude la riga con `'\\n'`. (3) `bool riepilogo_tipato(const char *spec, double *somma_out, size_t *cont_out, ...);`: scorre ogni carattere di `spec` estraendo il corrispondente argomento con `va_arg`: `'i'` (`int`), `'l'` (`int64_t`), `'d'` (`double`) e `'b'` (`bool`, estratto rigorosamente come `va_arg(ap, int) != 0` nel rispetto delle promozioni predefinite, contribuendo `1.0` o `0.0` alla somma). Se incontra un carattere non riconosciuto chiude comunque `ap` con `va_end` e restituisce `false`. (4) In `main.c` leggi da `stdin` i comandi `FMT <prodotto> <qty> <prezzo>` (chiama `formatta_alloc(\"Prodotto=%s qty=%d tot=%.2f\", ...)`), `LOG <tag> <cod> <msg>` (chiama `log_su_stream(stdout, tag, \"cod=%d msg=%s\", cod, msg)`), `AGG idb <i> <d> <0|1>`, `AGG ll <a64> <b64>`, `AGG VUOTO` e `AGG ERR` (chiama `riepilogo_tipato(\"ix\", ...)`), producendo l'output esatto dell'esempio senza perdite di memoria.",
+      "concetti_da_tenere_a_mente": [
+        "ciclo di vita completo di va_list: va_start, va_copy, va_arg e va_end su ogni percorso di uscita",
+        "pattern a due passaggi con va_copy e vsnprintf(nullptr, 0, ...) per allocare stringhe su misura senza troncamenti",
+        "promozioni predefinite degli argomenti variadici (estrarre bool come int con va_arg(ap, int))",
+        "inoltro di va_list a vfprintf per costruire funzioni di logging"
+      ],
+      "domande_guida": [
+        "Perché in formatta_alloc devi chiamare va_copy prima della prima vsnprintf anziché passare due volte lo stesso va_list?",
+        "Perché nel caso 'b' di riepilogo_tipato devi scrivere va_arg(ap, int) invece di va_arg(ap, bool)?",
+        "Quale errore commetteresti se, incontrando un carattere invalido in spec, facessi return false; prima di chiamare va_end(ap)?",
+        "Perché log_su_stream usa vfprintf invece di chiamare direttamente fprintf?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "FMT Libro 3 12.50\nLOG INFO 200 Avvio\nAGG idb 10 2.5 1\nAGG ll 100000 250000\nAGG VUOTO\nAGG ERR\n",
+          "output": "FMT (len=30): Prodotto=Libro qty=3 tot=37.50\n[INFO] cod=200 msg=Avvio\nAGG idb: n=3 somma=13.50\nAGG ll: n=2 somma=350000.00\nAGG VUOTO: n=0 somma=0.00\nAGG: SPECIFICA NON VALIDA\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "FMT Penna 0 1.99\nAGG idb -5 5.0 0\nAGG VUOTO\n",
+          "output": "FMT (len=29): Prodotto=Penna qty=0 tot=0.00\nAGG idb: n=3 somma=0.00\nAGG VUOTO: n=0 somma=0.00\n"
+        },
+        {
+          "input": "LOG ERR 503 Timeout\nAGG ll -500 1200\nAGG ERR\n",
+          "output": "[ERR] cod=503 msg=Timeout\nAGG ll: n=2 somma=700.00\nAGG: SPECIFICA NON VALIDA\n"
+        }
+      ],
+      "soluzione_file": {
+        "fmt_variadico.h": "#ifndef FMT_VARIADICO_H\n#define FMT_VARIADICO_H\n\n#include <stddef.h>\n#include <stdio.h>\n\nchar *formatta_alloc(const char *fmt, ...);\nvoid log_su_stream(FILE *out, const char *tag, const char *fmt, ...);\nbool riepilogo_tipato(const char *spec, double *somma_out, size_t *cont_out, ...);\n\n#endif\n",
+        "fmt_variadico.c": "#include \"fmt_variadico.h\"\n#include <stdarg.h>\n#include <stdint.h>\n#include <stdlib.h>\n\nchar *formatta_alloc(const char *fmt, ...) {\n    if (fmt == nullptr) { return nullptr; }\n    va_list ap, copia;\n    va_start(ap, fmt);\n    va_copy(copia, ap);\n    int len = vsnprintf(nullptr, 0, fmt, copia);\n    va_end(copia);\n    if (len < 0) {\n        va_end(ap);\n        return nullptr;\n    }\n    char *buf = malloc((size_t)len + 1);\n    if (buf == nullptr) {\n        va_end(ap);\n        return nullptr;\n    }\n    int scritti = vsnprintf(buf, (size_t)len + 1, fmt, ap);\n    va_end(ap);\n    if (scritti < 0) {\n        free(buf);\n        return nullptr;\n    }\n    return buf;\n}\n\nvoid log_su_stream(FILE *out, const char *tag, const char *fmt, ...) {\n    if (out == nullptr || tag == nullptr || fmt == nullptr) { return; }\n    fprintf(out, \"[%s] \", tag);\n    va_list ap;\n    va_start(ap, fmt);\n    vfprintf(out, fmt, ap);\n    va_end(ap);\n    fputc('\\n', out);\n}\n\nbool riepilogo_tipato(const char *spec, double *somma_out, size_t *cont_out, ...) {\n    if (spec == nullptr || somma_out == nullptr || cont_out == nullptr) { return false; }\n    va_list ap;\n    va_start(ap, cont_out);\n    double somma = 0.0;\n    size_t cont = 0;\n    bool ok = true;\n    for (const char *p = spec; *p != '\\0'; ++p) {\n        if (*p == 'i') {\n            somma += (double)va_arg(ap, int);\n        } else if (*p == 'l') {\n            somma += (double)va_arg(ap, int64_t);\n        } else if (*p == 'd') {\n            somma += va_arg(ap, double);\n        } else if (*p == 'b') {\n            somma += (va_arg(ap, int) != 0) ? 1.0 : 0.0;\n        } else {\n            ok = false;\n            break;\n        }\n        ++cont;\n    }\n    va_end(ap);\n    if (ok) {\n        *somma_out = somma;\n        *cont_out = cont;\n    }\n    return ok;\n}\n",
+        "main.c": "#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"fmt_variadico.h\"\n\nint main(void) {\n    char riga[256], cmd[16], a[48], b[48], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int iv = 0, bv = 0;\n        double dv = 0.0;\n        long long l1 = 0, l2 = 0;\n        if (strcmp(cmd, \"FMT\") == 0 && sscanf(riga, \"FMT %47s %d %lf %c\", a, &iv, &dv, &extra) == 3) {\n            char *s = formatta_alloc(\"Prodotto=%s qty=%d tot=%.2f\", a, iv, (double)iv * dv);\n            if (s == nullptr) { return EXIT_FAILURE; }\n            printf(\"FMT (len=%zu): %s\\n\", strlen(s), s);\n            free(s);\n        } else if (strcmp(cmd, \"LOG\") == 0 && sscanf(riga, \"LOG %47s %d %47s %c\", a, &iv, b, &extra) == 3) {\n            log_su_stream(stdout, a, \"cod=%d msg=%s\", iv, b);\n        } else if (strcmp(cmd, \"AGG\") == 0 && sscanf(riga, \"AGG %47s\", a) == 1) {\n            double sum = 0.0;\n            size_t cnt = 0;\n            if (strcmp(a, \"idb\") == 0 && sscanf(riga, \"AGG idb %d %lf %d %c\", &iv, &dv, &bv, &extra) == 3) {\n                riepilogo_tipato(\"idb\", &sum, &cnt, iv, dv, (bool)(bv != 0));\n                printf(\"AGG idb: n=%zu somma=%.2f\\n\", cnt, sum);\n            } else if (strcmp(a, \"ll\") == 0 && sscanf(riga, \"AGG ll %lld %lld %c\", &l1, &l2, &extra) == 2) {\n                riepilogo_tipato(\"ll\", &sum, &cnt, (int64_t)l1, (int64_t)l2);\n                printf(\"AGG ll: n=%zu somma=%.2f\\n\", cnt, sum);\n            } else if (strcmp(a, \"VUOTO\") == 0 && sscanf(riga, \"AGG VUOTO %c\", &extra) != 1) {\n                riepilogo_tipato(\"\", &sum, &cnt);\n                printf(\"AGG VUOTO: n=%zu somma=%.2f\\n\", cnt, sum);\n            } else if (strcmp(a, \"ERR\") == 0 && sscanf(riga, \"AGG ERR %c\", &extra) != 1) {\n                if (!riepilogo_tipato(\"ix\", &sum, &cnt, 10, 20)) { printf(\"AGG: SPECIFICA NON VALIDA\\n\"); }\n            } else { return EXIT_FAILURE; }\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "21.5",
+      "tipo": "esercizio",
+      "titolo": "Sistema diagnostico con macro con argomenti (__FILE__, __LINE__, __func__), static inline e attributi C23",
+      "descrizione": "Realizza un modulo diagnostico su tre file (`diagnostica.h`, `diagnostica.c`, `main.c`) che combini macro con argomenti sicure, una funzione `static inline` al posto di una macro soggetta a valutazione multipla, `__FILE__`, `__LINE__`, `__func__` e gli attributi standard C23 `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]`. (1) In `diagnostica.h` (protetto da `DIAGNOSTICA_H`) definisci: le macro `#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))` e `#define VERIFICA_PASSO(reg, cond, codice) diag_registra((reg), (cond), (codice), __FILE__, __LINE__, __func__)`; la funzione `static inline int32_t satura_i32(int32_t x, int32_t lo, int32_t hi)` (limita `x` a `[lo, hi]` valutando ogni argomento una sola volta); `typedef struct registro_diag { size_t ok; size_t falliti; int primo_codice_err; int prima_riga_err; char primo_file[32]; char prima_func[32]; } registro_diag_t;`; e i prototipi con attributi C23: `[[nodiscard]] bool diag_registra(registro_diag_t *reg, bool cond, int codice, const char *file, int riga, const char *func);`, `[[nodiscard]] bool diag_stampa_riepilogo(const registro_diag_t *reg, [[maybe_unused]] const char *etichetta_debug);` e `[[noreturn]] void diag_errore_fatale(const char *motivo, const char *file, int riga);`. (2) In `diagnostica.c` implementa le tre funzioni: `diag_registra` aggiorna `ok`/`falliti` e al primo fallimento salva `codice`, `riga`, il solo nome base di `file` (dopo l'ultimo `'/'` o `'\\'`) e `func`; `diag_errore_fatale` scrive su `stderr` e chiama `exit(EXIT_FAILURE)`. (3) In `main.c` definisci una funzione helper `esegui_verifica(registro_diag_t *reg, int32_t val, int32_t lo, int32_t hi)` che invoca `VERIFICA_PASSO(reg, val >= lo && val <= hi, 101)` (usando il valore `[[nodiscard]]`) e leggi da `stdin` i comandi `ARRAY` (usa `ARRAY_LEN` su un array locale di 5 `int32_t`), `CHECK <val> <lo> <hi>`, `CLAMP <val> <lo> <hi>` (invoca `satura_i32(++c, lo, hi)` dimostrando che `c` viene incrementato una sola volta) e `REPORT` (chiama `diag_stampa_riepilogo` controllandone il ritorno `[[nodiscard]]`), chiamando `diag_errore_fatale` in caso di comando non riconosciuto.",
+      "concetti_da_tenere_a_mente": [
+        "parentesizzazione completa delle macro con argomenti e uso di ARRAY_LEN su veri array",
+        "cattura automatica di __FILE__, __LINE__ e __func__ nel punto di chiamata tramite macro",
+        "scelta di static inline al posto di una macro quando un argomento può avere effetti collaterali (++c)",
+        "uso degli attributi C23 [[nodiscard]], [[maybe_unused]] e [[noreturn]]"
+      ],
+      "domande_guida": [
+        "Perché VERIFICA_PASSO deve essere una macro con argomenti e non una funzione normale affinché __LINE__ e __func__ indichino il punto di chiamata?",
+        "Che cosa succederebbe a satura_i32(++c, 0, 50) se fosse scritta come macro #define SATURA(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))?",
+        "Perché ARRAY_LEN(arr) funziona su un array locale int32_t soglie[5] ma produce un risultato errato se applicata a un parametro puntatore int32_t *p?",
+        "Quale contratto comunica al compilatore l'attributo [[noreturn]] su diag_errore_fatale e quale comportamento si verifica se una funzione [[noreturn]] ritorna?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ARRAY\nCHECK 15 0 20\nCHECK 25 0 20\nCHECK -3 0 20\nCLAMP 99 0 50\nREPORT\n",
+          "output": "ARRAY_LEN: 5\nCHECK 15 [0..20]: OK\nCHECK 25 [0..20]: FALLITO\nCHECK -3 [0..20]: FALLITO\nCLAMP(++99, 0, 50) -> 50 (c=100)\nREPORT: ok=1 falliti=2 primo_err=101 file=main.c func=esegui_verifica riga_valida=SI\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "CHECK 0 0 10\nCHECK 10 0 10\nREPORT\n",
+          "output": "CHECK 0 [0..10]: OK\nCHECK 10 [0..10]: OK\nREPORT: ok=2 falliti=0 primo_err=0 file=nessuno func=nessuna riga_valida=NO\n"
+        },
+        {
+          "input": "CLAMP -5 0 10\nCLAMP 4 0 10\nARRAY\n",
+          "output": "CLAMP(++(-5), 0, 10) -> 0 (c=-4)\nCLAMP(++4, 0, 10) -> 5 (c=5)\nARRAY_LEN: 5\n"
+        }
+      ],
+      "soluzione_file": {
+        "diagnostica.h": "#ifndef DIAGNOSTICA_H\n#define DIAGNOSTICA_H\n\n#include <stddef.h>\n#include <stdint.h>\n\n#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))\n#define VERIFICA_PASSO(reg, cond, codice) \\\n    diag_registra((reg), (cond), (codice), __FILE__, __LINE__, __func__)\n\nstatic inline int32_t satura_i32(int32_t x, int32_t lo, int32_t hi) {\n    if (x < lo) { return lo; }\n    if (x > hi) { return hi; }\n    return x;\n}\n\ntypedef struct registro_diag {\n    size_t ok;\n    size_t falliti;\n    int primo_codice_err;\n    int prima_riga_err;\n    char primo_file[32];\n    char prima_func[32];\n} registro_diag_t;\n\n[[nodiscard]] bool diag_registra(registro_diag_t *reg, bool cond, int codice, const char *file, int riga, const char *func);\n[[nodiscard]] bool diag_stampa_riepilogo(const registro_diag_t *reg, [[maybe_unused]] const char *etichetta_debug);\n[[noreturn]] void diag_errore_fatale(const char *motivo, const char *file, int riga);\n\n#endif\n",
+        "diagnostica.c": "#include \"diagnostica.h\"\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic const char *nome_base(const char *path) {\n    if (path == nullptr) { return \"sconosciuto\"; }\n    const char *s1 = strrchr(path, '/');\n    const char *s2 = strrchr(path, '\\\\');\n    const char *sep = (s1 > s2) ? s1 : s2;\n    return (sep != nullptr) ? (sep + 1) : path;\n}\n\nstatic void copia_troncata(char *dst, size_t cap, const char *src) {\n    if (src == nullptr) { src = \"\"; }\n    size_t len = strlen(src);\n    if (len >= cap) { len = cap - 1; }\n    memcpy(dst, src, len);\n    dst[len] = '\\0';\n}\n\n[[nodiscard]] bool diag_registra(registro_diag_t *reg, bool cond, int codice, const char *file, int riga, const char *func) {\n    if (reg == nullptr) { return false; }\n    if (cond) {\n        ++reg->ok;\n        return true;\n    }\n    if (reg->falliti == 0) {\n        reg->primo_codice_err = codice;\n        reg->prima_riga_err = riga;\n        copia_troncata(reg->primo_file, sizeof(reg->primo_file), nome_base(file));\n        copia_troncata(reg->prima_func, sizeof(reg->prima_func), func);\n    }\n    ++reg->falliti;\n    return false;\n}\n\n[[nodiscard]] bool diag_stampa_riepilogo(const registro_diag_t *reg, [[maybe_unused]] const char *etichetta_debug) {\n    if (reg == nullptr) { return false; }\n    const char *f = (reg->falliti > 0) ? reg->primo_file : \"nessuno\";\n    const char *fn = (reg->falliti > 0) ? reg->prima_func : \"nessuna\";\n    const char *rv = (reg->prima_riga_err > 0) ? \"SI\" : \"NO\";\n    return printf(\"REPORT: ok=%zu falliti=%zu primo_err=%d file=%s func=%s riga_valida=%s\\n\",\n                  reg->ok, reg->falliti, reg->primo_codice_err, f, fn, rv) >= 0;\n}\n\n[[noreturn]] void diag_errore_fatale(const char *motivo, const char *file, int riga) {\n    fprintf(stderr, \"ERRORE FATALE (%s:%d): %s\\n\", nome_base(file), riga, (motivo != nullptr) ? motivo : \"\");\n    exit(EXIT_FAILURE);\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"diagnostica.h\"\n\nstatic bool esegui_verifica(registro_diag_t *reg, int32_t val, int32_t lo, int32_t hi) {\n    return VERIFICA_PASSO(reg, val >= lo && val <= hi, 101);\n}\n\nint main(void) {\n    const int32_t soglie[] = {10, 20, 30, 40, 50};\n    registro_diag_t reg = {};\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long v = 0, lo = 0, hi = 0;\n        if (strcmp(cmd, \"ARRAY\") == 0 && sscanf(riga, \"ARRAY %c\", &extra) != 1) {\n            printf(\"ARRAY_LEN: %zu\\n\", ARRAY_LEN(soglie));\n        } else if (strcmp(cmd, \"CHECK\") == 0 && sscanf(riga, \"CHECK %lld %lld %lld %c\", &v, &lo, &hi, &extra) == 3) {\n            bool ok = esegui_verifica(&reg, (int32_t)v, (int32_t)lo, (int32_t)hi);\n            printf(\"CHECK %\" PRId32 \" [%\" PRId32 \"..%\" PRId32 \"]: %s\\n\", (int32_t)v, (int32_t)lo, (int32_t)hi, ok ? \"OK\" : \"FALLITO\");\n        } else if (strcmp(cmd, \"CLAMP\") == 0 && sscanf(riga, \"CLAMP %lld %lld %lld %c\", &v, &lo, &hi, &extra) == 3 && lo <= hi) {\n            int32_t c = (int32_t)v;\n            int32_t r = satura_i32(++c, (int32_t)lo, (int32_t)hi);\n            if (v < 0) {\n                printf(\"CLAMP(++(%lld), %\" PRId32 \", %\" PRId32 \") -> %\" PRId32 \" (c=%\" PRId32 \")\\n\", v, (int32_t)lo, (int32_t)hi, r, c);\n            } else {\n                printf(\"CLAMP(++%lld, %\" PRId32 \", %\" PRId32 \") -> %\" PRId32 \" (c=%\" PRId32 \")\\n\", v, (int32_t)lo, (int32_t)hi, r, c);\n            }\n        } else if (strcmp(cmd, \"REPORT\") == 0 && sscanf(riga, \"REPORT %c\", &extra) != 1) {\n            if (!diag_stampa_riepilogo(&reg, \"debug_main\")) {\n                diag_errore_fatale(\"errore di stampa\", __FILE__, __LINE__);\n            }\n        } else {\n            diag_errore_fatale(\"comando non valido\", __FILE__, __LINE__);\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "21.6",
+      "tipo": "esercizio",
+      "titolo": "Elaboratore batch con arresto controllato via <signal.h> (volatile sig_atomic_t, signal, raise) e difesa da UB",
+      "descrizione": "Scrivi un programma C che simuli un elaboratore batch con gestione sicura dei segnali di `<signal.h>` e prevenzione dell'overflow con segno tramite `<stdckdint.h>`. (1) Dichiara un flag statico `static volatile sig_atomic_t stato_segnale = 0;` (`0` = attivo, `1` = ricevuto `SIGINT`, `2` = ricevuto `SIGTERM`) e un gestore minimale `static void gestore_arresto(int sig)` che esegua esclusivamente operazioni sicure per i gestori di segnale: imposta `stato_segnale = (sig == SIGINT) ? 1 : 2;` e reinstalla `signal(sig, gestore_arresto);` (senza chiamare `printf`, `malloc` o `free`). (2) In `main` registra `gestore_arresto` per `SIGINT` e `SIGTERM` verificando che `signal` non restituisca `SIG_ERR`, mantieni un array dinamico di `int32_t` sullo heap per i risultati dei lavori completati e leggi comandi da `stdin` finché `stato_segnale == 0`: `WORK <id> <a> <b>` (esegue `ckd_add` su `int32_t`; in caso di overflow stampa `WORK <id>: OVERFLOW EVITATO`, altrimenti salva il risultato nell'array dinamico e stampa `WORK <id>: <somma>`), `IGNORA_TERM` (imposta `signal(SIGTERM, SIG_IGN)` e stampa `SIGTERM: IGNORATO`), `RIATTIVA_TERM` (reinstalla `signal(SIGTERM, gestore_arresto)` e stampa `SIGTERM: GESTITO`), `RAISE_INT` (chiama `raise(SIGINT)`) e `RAISE_TERM` (chiama `raise(SIGTERM)`; se `stato_segnale == 0` stampa `Dopo RAISE_TERM: ancora attivo`). (3) Al termine del ciclo (sia per `EOF` sia per arresto da segnale), ripristina `SIG_DFL` per `SIGINT` e `SIGTERM`, calcola la somma in `int64_t` dei risultati nell'array dinamico, stampa `Arresto: <EOF|SIGINT|SIGTERM> (completati=<n>, somma=<tot>)`, libera la memoria dinamica e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "uso esclusivo di volatile sig_atomic_t dentro il gestore di segnale senza chiamare printf, malloc o free",
+        "registrazione di gestori, SIG_IGN e ripristino di SIG_DFL con controllo di SIG_ERR",
+        "invio sincrono di segnali con raise e arresto ordinato controllato dal ciclo principale",
+        "prevenzione del comportamento indefinito (overflow con segno tramite ckd_add e rilascio memoria all'arresto)"
+      ],
+      "domande_guida": [
+        "Perché stato_segnale deve essere qualificato sia volatile sia sig_atomic_t?",
+        "Perché gestore_arresto non deve stampare il messaggio \"Arresto: SIGINT\" direttamente con printf né chiamare free?",
+        "Che cosa accade quando viene eseguito RAISE_TERM dopo IGNORA_TERM rispetto a dopo RIATTIVA_TERM?",
+        "Perché gestore_arresto richiama signal(sig, gestore_arresto) al proprio interno?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "WORK 1 100 250\nWORK 2 2147483640 20\nIGNORA_TERM\nRAISE_TERM\nWORK 3 -40 15\nRIATTIVA_TERM\nRAISE_INT\nWORK 4 1 1\n",
+          "output": "WORK 1: 350\nWORK 2: OVERFLOW EVITATO\nSIGTERM: IGNORATO\nDopo RAISE_TERM: ancora attivo\nWORK 3: -25\nSIGTERM: GESTITO\nArresto: SIGINT (completati=2, somma=325)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Arresto: EOF (completati=0, somma=0)\n"
+        },
+        {
+          "input": "WORK 10 50 50\nRAISE_TERM\nWORK 11 1 2\n",
+          "output": "WORK 10: 100\nArresto: SIGTERM (completati=1, somma=100)\n"
+        },
+        {
+          "input": "WORK 1 -2147483648 -1\nWORK 2 2147483647 0\n",
+          "output": "WORK 1: OVERFLOW EVITATO\nWORK 2: 2147483647\nArresto: EOF (completati=1, somma=2147483647)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <signal.h>\n#include <stdckdint.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic volatile sig_atomic_t stato_segnale = 0;\n\nstatic void gestore_arresto(int sig) {\n    stato_segnale = (sig == SIGINT) ? 1 : 2;\n    (void)signal(sig, gestore_arresto);\n}\n\nstatic bool aggiungi_risultato(int32_t **arr, size_t *len, size_t *cap, int32_t val) {\n    if (*len == *cap) {\n        size_t nuova = (*cap == 0) ? 4 : (*cap * 2);\n        size_t byte_tot = 0;\n        if (ckd_mul(&byte_tot, nuova, sizeof(**arr))) { return false; }\n        int32_t *tmp = realloc(*arr, byte_tot);\n        if (tmp == nullptr) { return false; }\n        *arr = tmp;\n        *cap = nuova;\n    }\n    (*arr)[(*len)++] = val;\n    return true;\n}\n\nint main(void) {\n    if (signal(SIGINT, gestore_arresto) == SIG_ERR || signal(SIGTERM, gestore_arresto) == SIG_ERR) {\n        fprintf(stderr, \"Errore nella registrazione dei gestori di segnale.\\n\");\n        return EXIT_FAILURE;\n    }\n    int32_t *risultati = nullptr;\n    size_t len = 0, cap = 0;\n    char riga[128], cmd[24], extra = '\\0';\n\n    while (stato_segnale == 0 && fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        int id = 0;\n        long long a = 0, b = 0;\n        if (strcmp(cmd, \"WORK\") == 0 && sscanf(riga, \"WORK %d %lld %lld %c\", &id, &a, &b, &extra) == 3 &&\n            a >= INT32_MIN && a <= INT32_MAX && b >= INT32_MIN && b <= INT32_MAX) {\n            int32_t somma = 0;\n            if (ckd_add(&somma, (int32_t)a, (int32_t)b)) {\n                printf(\"WORK %d: OVERFLOW EVITATO\\n\", id);\n            } else {\n                if (!aggiungi_risultato(&risultati, &len, &cap, somma)) {\n                    free(risultati);\n                    return EXIT_FAILURE;\n                }\n                printf(\"WORK %d: %\" PRId32 \"\\n\", id, somma);\n            }\n        } else if (strcmp(cmd, \"IGNORA_TERM\") == 0 && sscanf(riga, \"IGNORA_TERM %c\", &extra) != 1) {\n            if (signal(SIGTERM, SIG_IGN) == SIG_ERR) { free(risultati); return EXIT_FAILURE; }\n            printf(\"SIGTERM: IGNORATO\\n\");\n        } else if (strcmp(cmd, \"RIATTIVA_TERM\") == 0 && sscanf(riga, \"RIATTIVA_TERM %c\", &extra) != 1) {\n            if (signal(SIGTERM, gestore_arresto) == SIG_ERR) { free(risultati); return EXIT_FAILURE; }\n            printf(\"SIGTERM: GESTITO\\n\");\n        } else if (strcmp(cmd, \"RAISE_INT\") == 0 && sscanf(riga, \"RAISE_INT %c\", &extra) != 1) {\n            if (raise(SIGINT) != 0) { free(risultati); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"RAISE_TERM\") == 0 && sscanf(riga, \"RAISE_TERM %c\", &extra) != 1) {\n            if (raise(SIGTERM) != 0) { free(risultati); return EXIT_FAILURE; }\n            if (stato_segnale == 0) { printf(\"Dopo RAISE_TERM: ancora attivo\\n\"); }\n        } else {\n            free(risultati);\n            return EXIT_FAILURE;\n        }\n    }\n    (void)signal(SIGINT, SIG_DFL);\n    (void)signal(SIGTERM, SIG_DFL);\n    int64_t somma_tot = 0;\n    for (size_t i = 0; i < len; ++i) {\n        somma_tot += risultati[i];\n    }\n    const char *causa = \"EOF\";\n    if (stato_segnale == 1) { causa = \"SIGINT\"; }\n    else if (stato_segnale == 2) { causa = \"SIGTERM\"; }\n    printf(\"Arresto: %s (completati=%zu, somma=%\" PRId64 \")\\n\", causa, len, somma_tot);\n    free(risultati);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare di azzerare errno = 0 prima di chiamare strtoll/strtod o altre funzioni di libreria, oppure ispezionare errno dopo aver già chiamato fprintf o fclose che possono averlo sovrascritto.",
+    "Inserire espressioni con effetti collaterali dentro assert(...) (come assert(fopen(...) != nullptr) o assert(++i < n)) oppure usare assert per validare input dell'utente: compilando con -DNDEBUG quei controlli scompaiono completamente.",
+    "Saltare con goto cleanup oltre l'inizializzazione di un puntatore o di un FILE *, oppure dimenticare di azzerare fp = nullptr dopo una chiusura anticipata, provocando free/fclose su valori indeterminati o doppie chiusure.",
+    "Passare tipi non promossi (char, short, bool, float) a va_arg, riutilizzare lo stesso va_list due volte senza va_copy, o dimenticare va_end sui percorsi d'errore.",
+    "Scrivere macro con argomenti senza parentesi o passare espressioni con effetti collaterali (come x++) a una macro che espande più volte il parametro, oppure chiamare printf o malloc dentro un gestore di segnale."
+  ],
+  "differenze_python": [
+    "In Python gli errori interrompono automaticamente il flusso con eccezioni (try/except/finally) e le risorse vengono rilasciate dai context manager (with); in C gli errori si propagano esplicitamente tramite codici di ritorno ed errno, e il rilascio deterministico di più risorse si struttura con il modello goto cleanup.",
+    "In Python gli argomenti variabili (*args, **kwargs) conservano lunghezza e tipi a tempo di esecuzione; in C una funzione variadica (...) non conosce né il numero né il tipo degli argomenti ricevuti e si affida completamente al contratto tra chiamante e va_arg."
+  ]
+}
