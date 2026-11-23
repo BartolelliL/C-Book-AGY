@@ -1,0 +1,368 @@
+{
+  "capitolo": 16,
+  "titolo": "Puntatori a funzione",
+  "obiettivi": [
+    "Dichiarare, assegnare e invocare puntatori a funzione anche tramite typedef leggibili",
+    "Passare funzioni di richiamo (callback) per parametrizzare algoritmi generici",
+    "Ordinare e cercare array di qualsiasi tipo con qsort e bsearch scrivendo comparatori corretti",
+    "Organizzare scelte operative con tabelle di puntatori a funzione"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "puntatore a funzione",
+      "definizione": "Puntatore che contiene l'indirizzo di una funzione con una firma specifica e permette di chiamarla indirettamente."
+    },
+    {
+      "termine": "callback",
+      "definizione": "Funzione passata come argomento tramite puntatore a funzione affinché un'altra funzione la invochi al momento opportuno."
+    }
+  ],
+  "concetti_richiesti": [
+    "funzione",
+    "prototipo",
+    "parametro",
+    "argomento",
+    "comportamento indefinito",
+    "comportamento non specificato",
+    "array",
+    "stringa",
+    "puntatore",
+    "puntatore nullo",
+    "decadimento di array",
+    "allocazione dinamica",
+    "struttura",
+    "campo",
+    "enumerazione",
+    "puntatore a puntatore",
+    "puntatore generico",
+    "contenitore generico",
+    "asserzione statica"
+  ],
+  "regole": [
+    {
+      "id": "16.R1",
+      "enunciato": "Un puntatore a funzione si dichiara come tipo_ritorno (*nome)(tipi_parametri); le parentesi attorno a (*nome) sono obbligatorie, altrimenti tipo_ritorno *nome(...) dichiara una funzione che restituisce un puntatore. Un alias typedef tipo_ritorno (*nome_fn)(tipi_parametri); rende leggibili parametri, variabili, valori di ritorno e array di puntatori a funzione. Il nome di una funzione decade automaticamente a puntatore a funzione (p = f equivale a p = &f) e l'invocazione p(x) equivale a (*p)(x). Un puntatore a funzione non è convertibile in modo portabile a void * né da void *; è consentito convertirlo temporaneamente in un altro tipo di puntatore a funzione purché venga riconvertito al tipo originale prima della chiamata.",
+      "nota_standard": "indefinito: il decadimento automatico dei nomi di funzione, l'equivalenza tra p(x) e (*p)(x) e la separazione rispetto a void * sono definiti dallo standard C23; invocare un puntatore a funzione nullo, non inizializzato o convertito a un tipo di funzione incompatibile provoca comportamento indefinito."
+    },
+    {
+      "id": "16.R2",
+      "enunciato": "Una callback è una funzione passata tramite puntatore a funzione a un algoritmo generico affinché l'algoritmo la invochi su ciascun elemento o al verificarsi di un evento. Poiché il C non possiede chiusure che catturino automaticamente variabili locali, lo stato aggiuntivo (soglie, parametri, accumulatori) va passato esplicitamente attraverso un parametro di contesto void *ctx o const void *ctx inoltrato invariato alla callback, evitando variabili globali. Prima di invocare una callback occorre verificare che il puntatore a funzione non sia nullptr.",
+      "nota_standard": "indefinito: il passaggio di puntatori a funzione e di puntatori di contesto void * / const void * è definito dallo standard C23; invocare una callback nulla o riconvertire ctx a un tipo incompatibile con l'oggetto originale provoca comportamento indefinito."
+    },
+    {
+      "id": "16.R3",
+      "enunciato": "Le funzioni qsort(base, nmemb, size, cmp) e bsearch(chiave, base, nmemb, size, cmp) di <stdlib.h> ordinano e cercano in array di qualsiasi tipo delegando il confronto a un comparatore di firma int cmp(const void *a, const void *b). Il comparatore deve imporre un ordinamento totale coerente restituendo un intero < 0, 0 oppure > 0; non deve mai usare la sottrazione *pa - *pb (rischio di overflow con segno, wraparound senza segno o troncamento in virgola mobile), ma confronti espliciti come (*pa > *pb) - (*pa < *pb). L'ordine relativo degli elementi equivalenti dopo qsort e la scelta di quale elemento equivalente restituisca bsearch sono non specificati: per garantire risultati deterministici conviene aggiungere una chiave secondaria univoca di spareggio. In C23 bsearch preserva la qualificazione const del puntatore base nel puntatore restituito. Prima di chiamare qsort o bsearch occorre evitare di passare un puntatore base nullo (proteggendo il caso nmemb == 0), e bsearch richiede che l'array sia già ordinato secondo lo stesso comparatore.",
+      "nota_standard": "indefinito: le firme, il contratto del comparatore e la preservazione di const di bsearch sono definiti dallo standard C23, mentre la stabilità di qsort e quale elemento equivalente restituisca bsearch sono comportamento non specificato; un comparatore incoerente, un overflow con segno nel comparatore, un puntatore base nullo o la chiamata di bsearch su un array non ordinato provocano comportamento indefinito."
+    },
+    {
+      "id": "16.R4",
+      "enunciato": "Una tabella di puntatori a funzione è un array di puntatori a funzione (indicizzato da un codice o da un enum) oppure un array di struct che associano una chiave (come il nome di un comando) a un puntatore a funzione di firma uniforme. Permette di sostituire lunghe catene di if-else o switch con accesso diretto in tempo costante o ricerca con bsearch. Prima di invocare la funzione selezionata occorre sempre verificare che l'indice sia entro i limiti della tabella (idx < num_voci) e che il puntatore a funzione nella voce non sia nullptr; per tabelle indicizzate da enum è buona pratica verificare la corrispondenza delle dimensioni con static_assert.",
+      "nota_standard": "indefinito: gli array di puntatori a funzione e di struct contenenti puntatori a funzione sono definiti dallo standard C23; accedere alla tabella con un indice fuori dai limiti o invocare una voce nullptr provoca comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s terminando con '\\0' e restituisce i caratteri che sarebbero stati scritti."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "qsort",
+      "firma": "void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));",
+      "header": "stdlib.h",
+      "descrizione": "Ordina sul posto un array di nmemb elementi ciascuno di size byte a partire da base usando la funzione di confronto compar."
+    },
+    {
+      "nome": "bsearch",
+      "firma": "void *bsearch(const void *key, const void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));",
+      "header": "stdlib.h",
+      "descrizione": "Cerca key nell'array ordinato base di nmemb elementi di size byte tramite compar e restituisce l'indirizzo trovato (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 tra aree di memoria non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "16.1",
+      "titolo": "Dichiarare e usare puntatori a funzione",
+      "contenuti": [
+        "Cos'è un puntatore a funzione: anche le funzioni hanno un indirizzo nel programma; sintassi tipo_ritorno (*nome)(tipi_parametri) e ruolo indispensabile delle parentesi attorno a (*nome) rispetto a tipo_ritorno *nome(...)",
+        "Decadimento automatico del nome di funzione (p = f equivale a p = &f), chiamata indiretta (p(x) equivale a (*p)(x)) e controllo obbligatorio contro nullptr prima dell'invocazione",
+        "Definizione di alias leggibili con typedef (typedef double (*conv_fn)(double);) per variabili, parametri, campi di struct e funzioni che restituiscono un puntatore a funzione",
+        "Separazione tra puntatori a funzione e puntatori a oggetto void *: perché void * non può contenere in modo portabile un puntatore a funzione e perché chiamare attraverso una firma incompatibile è comportamento indefinito"
+      ],
+      "esempio_guidato": "Un programma di conversione di temperature (Celsius-Fahrenheit, Fahrenheit-Celsius, Celsius-Kelvin) che dichiara prima un puntatore a funzione con la sintassi completa double (*conv)(double) e poi con typedef double (*conv_fn)(double);, dimostra sia conv = f sia conv = &f, seleziona la funzione tramite una funzione che restituisce conv_fn (gestendo nullptr per codici sconosciuti), affiancato da un breve blocco di tipo errore che tenta di assegnare una funzione con firma incompatibile.",
+      "approfondimento": "Come decifrare dichiarazioni complesse di puntatori a funzione con la regola a spirale (dall'identificatore verso l'esterno dando precedenza a () rispetto a *) e perché nei programmi reali conviene quasi sempre spezzarle con un typedef chiaro.",
+      "esercizio_id": "16.1"
+    },
+    {
+      "id": "16.2",
+      "titolo": "Callback e algoritmi parametrizzati",
+      "contenuti": [
+        "Cos'è una callback e perché permette di separare l'algoritmo di attraversamento di un array o contenitore generico dall'operazione specifica eseguita su ciascun elemento",
+        "Schemi ricorrenti di funzioni di ordine superiore in C: visita (for_each), trasformazione sul posto, filtraggio tramite predicato (bool (*)(const void *, const void *)) e riduzione/aggregazione",
+        "Il parametro di contesto void *ctx (o const void *ctx): come passare soglie, intervalli o accumulatori a una callback senza ricorrere a variabili globali, compensando l'assenza di chiusure in C",
+        "Combinazione di void *, dim_elem (dal capitolo 15) e callback per scrivere algoritmi completamente riutilizzabili su tipi scalari e struct, rispettando const e controllando i puntatori nulli"
+      ],
+      "esempio_guidato": "Un programma che implementa gli algoritmi generici visita_generica, conta_se e trova_primo su array void * con callback e parametro const void *ctx, applicandoli prima a un array di int (contare i valori sopra una soglia passata in ctx) e poi a un array di struct prodotto (trovare il primo prodotto entro un budget passato in ctx) senza usare alcuna variabile globale.",
+      "approfondimento": "Perché il parametro void *ctx rende il codice più robusto delle variabili globali static: permette chiamate annidate, consente a più istanze dello stesso algoritmo di coesistere con configurazioni diverse ed esplicita tutte le dipendenze nella firma.",
+      "esercizio_id": "16.2"
+    },
+    {
+      "id": "16.3",
+      "titolo": "Ordinare e cercare qualsiasi tipo con qsort e bsearch",
+      "contenuti": [
+        "Uso di qsort(base, nmemb, size, cmp) di <stdlib.h> per ordinare sul posto array di tipi scalari, struct e array di puntatori",
+        "Scrivere comparatori int cmp(const void *a, const void *b) sicuri: perché evitare la sottrazione *pa - *pb (overflow con segno, wraparound senza segno, troncamento di double) e usare invece (*pa > *pb) - (*pa < *pb)",
+        "Criteri multipli di ordinamento con chiave secondaria di spareggio (tie-breaker) per ottenere un risultato deterministico nonostante qsort non sia garantito stabile",
+        "Insidia tipica con array di stringhe const char *nomi[]: il comparatore riceve indirizzi agli elementi dell'array, quindi const char *const * da dereferenziare una volta prima di passare a strcmp",
+        "Ricerca binaria generica con bsearch(chiave, base, nmemb, size, cmp): precondizione di ordinamento con lo stesso comparatore, gestione del ritorno nullptr e di nmemb == 0, e preservazione di const in C23 (con box C23)"
+      ],
+      "esempio_guidato": "Un programma che ordina con qsort un array di int contenente anche INT_MIN e INT_MAX (dimostrando il comparatore sicuro senza sottrazione) e un array di const char * (mostrando la conversione corretta a const char *const *), poi cerca parole nell'array ordinato tramite bsearch sfruttando la preservazione di const in C23.",
+      "approfondimento": "Stabilità di qsort e comportamento non specificato: lo standard C lascia libera l'implementazione di scegliere l'algoritmo interno (quicksort, mergesort, introsort), quindi l'ordine di elementi equivalenti può variare da piattaforma a piattaforma a meno di inserire uno spareggio univoco nel comparatore.",
+      "esercizio_id": "16.3"
+    },
+    {
+      "id": "16.4",
+      "titolo": "Tabelle di puntatori a funzione",
+      "contenuti": [
+        "Cos'è una tabella di puntatori a funzione (dispatch table): array di puntatori a funzione indicizzati da un enum oppure array di struct che mappano un nome simbolico a un gestore di firma uniforme",
+        "Progettazione della firma uniforme: passare una struct di stato condiviso e parametri comuni a tutte le funzioni della tabella",
+        "Controlli essenziali di sicurezza: verificare sempre idx < num_voci e tabella[idx] != nullptr prima di chiamare, e usare static_assert per garantire l'allineamento tra tabella ed enum",
+        "Smistamento di comandi testuali tramite ricerca lineare o bsearch su una tabella di voci ordinate alfabeticamente",
+        "Confronto tra switch e tabella di puntatori a funzione e preparazione alle macchine a stati finiti (capitolo 24) e ai comandi dell'interprete finale (capitolo 26)"
+      ],
+      "esempio_guidato": "Una calcolatrice a quattro operazioni basata su una tabella static const di struct { const char *nome; op_fn fn; } senza alcuno switch sulle operazioni, affiancata da una piccola tabella di formattazione indicizzata da enum con static_assert sulla dimensione.",
+      "approfondimento": "Quando una tabella di puntatori a funzione conviene rispetto a uno switch: quando le voci sono numerose, condividono la stessa firma, vanno cercate per nome o vanno estese aggiungendo dati anziché rami di controllo; per tre o quattro casi eterogenei uno switch resta più semplice e diretto.",
+      "esercizio_id": "16.4"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "16.1",
+      "tipo": "esercizio",
+      "titolo": "Pipeline configurabile di filtri numerici con puntatori a funzione",
+      "descrizione": "Scrivi un programma C che definisca `typedef double (*trasforma_fn)(double);` e `typedef struct stadio { char nome[24]; trasforma_fn fn; } stadio_t;`. Implementa quattro funzioni di trasformazione pura con firma `double f(double)`: `raddoppia` (`2.0 * x`), `dimezza` (`0.5 * x`), `opposto` (`(x == 0.0) ? 0.0 : -x` per evitare `-0.00`) e `satura` (limita `x` nell'intervallo `[-1.0, 1.0]`). Implementa inoltre: (1) `trasforma_fn risolvi_filtro(const char *nome)` che restituisce il puntatore alla funzione corrispondente ai nomi `\"raddoppia\"`, `\"dimezza\"`, `\"opposto\"`, `\"satura\"` oppure `nullptr` se il nome è sconosciuto; (2) `bool applica_pipeline(const stadio_t *stadi, size_t num_stadi, double *valori, size_t n)` che verifica la validità dei puntatori e che ogni `stadi[i].fn != nullptr` (restituendo `false` altrimenti) e applica in sequenza tutti gli stadi a ciascun elemento di `valori`. In `main` leggi dalla prima riga `k` (`0 <= k <= 16`) e dalle successive `k` righe i nomi dei filtri richiesti: per ogni nome chiama `risolvi_filtro`; se restituisce `nullptr` stampa `Filtro sconosciuto: <nome>` e non aggiungere lo stadio, altrimenti inseriscilo nell'array `stadi`. Leggi poi `n` (`0 <= n <= 32`) e, se `n > 0`, una riga contenente `n` numeri `double` separati da spazi. Salva i valori originali, chiama `applica_pipeline` sulla copia e stampa la composizione della pipeline (o `(vuota)` se ha `0` stadi) e le coppie `val[i]: <orig:.2f> -> <fin:.2f>` (o `Nessun dato.` se `n == 0`) esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "alias typedef per un tipo puntatore a funzione (trasforma_fn)",
+        "funzione che restituisce un puntatore a funzione o nullptr per input sconosciuti",
+        "memorizzazione di puntatori a funzione nei campi di una struct",
+        "controllo difensivo di ogni puntatore a funzione contro nullptr prima dell'invocazione"
+      ],
+      "domande_guida": [
+        "Perché nella dichiarazione typedef double (*trasforma_fn)(double); le parentesi attorno a (*trasforma_fn) sono indispensabili?",
+        "Come gestisci il caso in cui risolvi_filtro riceve un nome non riconosciuto senza interrompere l'intero programma né invocare un puntatore nullo?",
+        "Perché applica_pipeline controlla tutti i puntatori stadi[i].fn prima di iniziare a modificare l'array valori?",
+        "Perché nella funzione opposto conviene trattare esplicitamente x == 0.0 restituendo 0.0 invece di -x?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\nraddoppia\nignoto\nsatura\nopposto\n3\n0.25 1.5 -0.8\n",
+          "output": "Filtro sconosciuto: ignoto\nPipeline (3 stadi): raddoppia -> satura -> opposto\nval[0]: 0.25 -> -0.50\nval[1]: 1.50 -> -1.00\nval[2]: -0.80 -> 1.00\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0\n0\n",
+          "output": "Pipeline (0 stadi): (vuota)\nNessun dato.\n"
+        },
+        {
+          "input": "2\ndimezza\nopposto\n2\n0.0 -4.0\n",
+          "output": "Pipeline (2 stadi): dimezza -> opposto\nval[0]: 0.00 -> 0.00\nval[1]: -4.00 -> 2.00\n"
+        },
+        {
+          "input": "1\nfalso\n1\n3.5\n",
+          "output": "Filtro sconosciuto: falso\nPipeline (0 stadi): (vuota)\nval[0]: 3.50 -> 3.50\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_STADI = 16;\nconstexpr size_t MAX_DATI = 32;\n\ntypedef double (*trasforma_fn)(double);\n\ntypedef struct stadio {\n    char nome[24];\n    trasforma_fn fn;\n} stadio_t;\n\ndouble raddoppia(double x) { return 2.0 * x; }\ndouble dimezza(double x) { return 0.5 * x; }\ndouble opposto(double x) { return (x == 0.0) ? 0.0 : -x; }\ndouble satura(double x) {\n    if (x < -1.0) { return -1.0; }\n    if (x > 1.0) { return 1.0; }\n    return x;\n}\n\ntrasforma_fn risolvi_filtro(const char *nome) {\n    if (nome == nullptr) { return nullptr; }\n    if (strcmp(nome, \"raddoppia\") == 0) { return raddoppia; }\n    if (strcmp(nome, \"dimezza\") == 0) { return dimezza; }\n    if (strcmp(nome, \"opposto\") == 0) { return opposto; }\n    if (strcmp(nome, \"satura\") == 0) { return satura; }\n    return nullptr;\n}\n\nbool applica_pipeline(const stadio_t *stadi, size_t num_stadi, double *valori, size_t n) {\n    if ((num_stadi > 0 && stadi == nullptr) || (n > 0 && valori == nullptr)) { return false; }\n    for (size_t i = 0; i < num_stadi; ++i) {\n        if (stadi[i].fn == nullptr) { return false; }\n    }\n    for (size_t j = 0; j < n; ++j) {\n        for (size_t i = 0; i < num_stadi; ++i) {\n            valori[j] = stadi[i].fn(valori[j]);\n        }\n    }\n    return true;\n}\n\nint main(void) {\n    char riga[512], extra = '\\0';\n    int k_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &k_in, &extra) != 1 || k_in < 0 || (size_t)k_in > MAX_STADI) {\n        fprintf(stderr, \"Errore: numero di stadi non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    stadio_t stadi[MAX_STADI] = {};\n    size_t num_stadi = 0;\n    for (int i = 0; i < k_in; ++i) {\n        char nome[24];\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%23s %c\", nome, &extra) != 1) {\n            fprintf(stderr, \"Errore: nome filtro mancante.\\n\");\n            return EXIT_FAILURE;\n        }\n        trasforma_fn fn = risolvi_filtro(nome);\n        if (fn == nullptr) {\n            printf(\"Filtro sconosciuto: %s\\n\", nome);\n        } else {\n            snprintf(stadi[num_stadi].nome, sizeof(stadi[num_stadi].nome), \"%s\", nome);\n            stadi[num_stadi].fn = fn;\n            ++num_stadi;\n        }\n    }\n    int n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 0 || (size_t)n_in > MAX_DATI) {\n        fprintf(stderr, \"Errore: numero di dati non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    double orig[MAX_DATI] = {}, ris[MAX_DATI] = {};\n    if (n > 0) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n            fprintf(stderr, \"Errore: riga dei dati mancante.\\n\");\n            return EXIT_FAILURE;\n        }\n        const char *p = riga;\n        for (size_t j = 0; j < n; ++j) {\n            int letti = 0;\n            if (sscanf(p, \"%lf%n\", &orig[j], &letti) != 1) {\n                fprintf(stderr, \"Errore: valore numerico non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            ris[j] = orig[j];\n            p += letti;\n        }\n        if (sscanf(p, \" %c\", &extra) == 1) {\n            fprintf(stderr, \"Errore: dati in eccesso.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    if (!applica_pipeline(stadi, num_stadi, ris, n)) {\n        fprintf(stderr, \"Errore: pipeline non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    printf(\"Pipeline (%zu stadi): \", num_stadi);\n    if (num_stadi == 0) {\n        printf(\"(vuota)\\n\");\n    } else {\n        for (size_t i = 0; i < num_stadi; ++i) {\n            printf(\"%s%s\", (i > 0) ? \" -> \" : \"\", stadi[i].nome);\n        }\n        printf(\"\\n\");\n    }\n    if (n == 0) {\n        printf(\"Nessun dato.\\n\");\n    } else {\n        for (size_t j = 0; j < n; ++j) {\n            printf(\"val[%zu]: %.2f -> %.2f\\n\", j, orig[j], ris[j]);\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "16.2",
+      "tipo": "esercizio",
+      "titolo": "Motore generico di filtraggio e riduzione con callback e contesto ctx",
+      "descrizione": "Scrivi un programma C che definisca `typedef bool (*predicato_fn)(const void *elem, const void *ctx);` e `typedef void (*accumula_fn)(void *acc, const void *elem, const void *ctx);` e implementi due algoritmi generici indipendenti dal tipo, senza usare alcuna variabile globale: (1) `size_t filtra_generico(const void *src, size_t n, size_t dim_elem, void *dst, predicato_fn pred, const void *ctx)` che scorre gli `n` elementi di dimensione `dim_elem` in `src` (indirizzandoli tramite `const unsigned char *`), copia con `memcpy` in `dst` quelli per cui `pred(elem, ctx)` restituisce `true` e restituisce il numero di elementi copiati (`0` se i parametri sono invalidi o `n == 0`); (2) `bool riduci_generico(const void *src, size_t n, size_t dim_elem, void *acc, accumula_fn fn, const void *ctx)` che invoca `fn(acc, elem, ctx)` su ciascun elemento in ordine (restituendo `false` se `acc == nullptr`, `fn == nullptr`, `dim_elem == 0` o `n > 0 && src == nullptr`). Applica entrambi gli algoritmi a due tipi distinti: prima a `int32_t` filtrando i valori compresi nell'intervallo chiuso `[min_val, max_val]` (passato via `const void *ctx` con `typedef struct intervallo { int32_t min; int32_t max; } intervallo_t;`) e riducendo i valori filtrati in `typedef struct stat_int { int64_t somma; int32_t max; bool presente; } stat_int_t;`; poi a `typedef struct esame { char codice[16]; int voto; int crediti; } esame_t;` filtrando gli esami con `voto >= voto_min` (passato tramite `&voto_min` come `ctx`) e riducendoli in `typedef struct stat_esami { int64_t somma_pesata; int64_t tot_crediti; } stat_esami_t;` per calcolare la media ponderata (`0.00` se `tot_crediti == 0`). In `main` leggi dalla prima riga `n_int min_val max_val` (`0 <= n_int <= 32`, `min_val <= max_val`), dalla riga successiva (se `n_int > 0`) gli `n_int` interi separati da spazi, poi `n_es voto_min` (`0 <= n_es <= 32`) e le `n_es` righe `<codice> <voto> <crediti>` (`crediti >= 0`), e stampa esattamente il formato mostrato nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "callback generiche per predicato (predicato_fn) e riduzione (accumula_fn) su void * / const void *",
+        "passaggio dello stato di configurazione tramite const void *ctx senza variabili globali",
+        "calcolo degli spiazzamenti in byte con unsigned char * e copia degli elementi con memcpy",
+        "riutilizzo dello stesso codice di filtraggio e riduzione su int32_t e su struct esame_t"
+      ],
+      "domande_guida": [
+        "Perché filtra_generico ha bisogno del parametro const void *ctx se vuoi filtrare sia per un intervallo [min, max] sia per una soglia voto_min senza variabili globali?",
+        "Come calcoli in filtra_generico l'indirizzo del k-esimo elemento sorgente e della posizione di scrittura in dst?",
+        "Perché in stat_int_t conviene avere un campo bool presente anziché inizializzare max a 0?",
+        "Che cosa controlla riduci_generico quando n == 0 rispetto a quando n > 0?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "5 10 30\n5 10 25 40 30\n3 24\nMAT1 28 9\nFIS1 21 6\nINF1 30 12\n",
+          "output": "Interi filtrati (3): 10 25 30\nStat interi: somma=65 max=30\nEsami filtrati (2): MAT1(28) INF1(30)\nStat esami: crediti=21 media=29.14\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 0 10\n0 18\n",
+          "output": "Interi filtrati (0): (nessuno)\nStat interi: nessun dato\nEsami filtrati (0): (nessuno)\nStat esami: crediti=0 media=0.00\n"
+        },
+        {
+          "input": "3 100 200\n-5 0 50\n2 30\nALG 25 6\nSO 29 9\n",
+          "output": "Interi filtrati (0): (nessuno)\nStat interi: nessun dato\nEsami filtrati (0): (nessuno)\nStat esami: crediti=0 media=0.00\n"
+        },
+        {
+          "input": "3 -20 -5\n-10 -30 -5\n1 18\nPROG 18 6\n",
+          "output": "Interi filtrati (2): -10 -5\nStat interi: somma=-15 max=-5\nEsami filtrati (1): PROG(18)\nStat esami: crediti=6 media=18.00\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_ELEM = 32;\n\ntypedef bool (*predicato_fn)(const void *elem, const void *ctx);\ntypedef void (*accumula_fn)(void *acc, const void *elem, const void *ctx);\n\ntypedef struct intervallo { int32_t min; int32_t max; } intervallo_t;\ntypedef struct stat_int { int64_t somma; int32_t max; bool presente; } stat_int_t;\ntypedef struct esame { char codice[16]; int voto; int crediti; } esame_t;\ntypedef struct stat_esami { int64_t somma_pesata; int64_t tot_crediti; } stat_esami_t;\n\nsize_t filtra_generico(const void *src, size_t n, size_t dim_elem, void *dst,\n                       predicato_fn pred, const void *ctx) {\n    if (pred == nullptr || dim_elem == 0 || n == 0 || src == nullptr || dst == nullptr) {\n        return 0;\n    }\n    const unsigned char *s = src;\n    unsigned char *d = dst;\n    size_t scritti = 0;\n    for (size_t i = 0; i < n; ++i) {\n        const void *e = s + i * dim_elem;\n        if (pred(e, ctx)) {\n            memcpy(d + scritti * dim_elem, e, dim_elem);\n            ++scritti;\n        }\n    }\n    return scritti;\n}\n\nbool riduci_generico(const void *src, size_t n, size_t dim_elem, void *acc,\n                     accumula_fn fn, const void *ctx) {\n    if (acc == nullptr || fn == nullptr || dim_elem == 0 || (n > 0 && src == nullptr)) {\n        return false;\n    }\n    const unsigned char *s = src;\n    for (size_t i = 0; i < n; ++i) {\n        fn(acc, s + i * dim_elem, ctx);\n    }\n    return true;\n}\n\nbool pred_in_intervallo(const void *elem, const void *ctx) {\n    const int32_t *val = elem;\n    const intervallo_t *iv = ctx;\n    return *val >= iv->min && *val <= iv->max;\n}\n\nvoid acc_stat_int(void *acc, const void *elem, const void *ctx) {\n    (void)ctx;\n    stat_int_t *st = acc;\n    const int32_t *val = elem;\n    st->somma += *val;\n    if (!st->presente || *val > st->max) {\n        st->max = *val;\n        st->presente = true;\n    }\n}\n\nbool pred_voto_almeno(const void *elem, const void *ctx) {\n    const esame_t *es = elem;\n    const int *soglia = ctx;\n    return es->voto >= *soglia;\n}\n\nvoid acc_stat_esami(void *acc, const void *elem, const void *ctx) {\n    (void)ctx;\n    stat_esami_t *st = acc;\n    const esame_t *es = elem;\n    st->somma_pesata += (int64_t)es->voto * (int64_t)es->crediti;\n    st->tot_crediti += (int64_t)es->crediti;\n}\n\nint main(void) {\n    char riga[512], extra = '\\0';\n    int n_int_in = 0;\n    long long min_in = 0, max_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %lld %lld %c\", &n_int_in, &min_in, &max_in, &extra) != 3 ||\n        n_int_in < 0 || (size_t)n_int_in > MAX_ELEM ||\n        min_in < INT32_MIN || max_in > INT32_MAX || min_in > max_in) {\n        fprintf(stderr, \"Errore: intestazione interi non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n_int = (size_t)n_int_in;\n    int32_t numeri[MAX_ELEM] = {}, num_filt[MAX_ELEM] = {};\n    if (n_int > 0) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) { return EXIT_FAILURE; }\n        const char *p = riga;\n        for (size_t i = 0; i < n_int; ++i) {\n            long long v = 0;\n            int letti = 0;\n            if (sscanf(p, \"%lld%n\", &v, &letti) != 1 || v < INT32_MIN || v > INT32_MAX) {\n                return EXIT_FAILURE;\n            }\n            numeri[i] = (int32_t)v;\n            p += letti;\n        }\n        if (sscanf(p, \" %c\", &extra) == 1) { return EXIT_FAILURE; }\n    }\n    int n_es_in = 0, voto_min = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &n_es_in, &voto_min, &extra) != 2 ||\n        n_es_in < 0 || (size_t)n_es_in > MAX_ELEM) {\n        fprintf(stderr, \"Errore: intestazione esami non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n_es = (size_t)n_es_in;\n    esame_t esami[MAX_ELEM] = {}, es_filt[MAX_ELEM] = {};\n    for (size_t i = 0; i < n_es; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%15s %d %d %c\", esami[i].codice, &esami[i].voto, &esami[i].crediti, &extra) != 3 ||\n            esami[i].crediti < 0) {\n            return EXIT_FAILURE;\n        }\n    }\n    intervallo_t iv = {.min = (int32_t)min_in, .max = (int32_t)max_in};\n    size_t k_int = filtra_generico(numeri, n_int, sizeof(int32_t), num_filt, pred_in_intervallo, &iv);\n    stat_int_t st_int = {};\n    riduci_generico(num_filt, k_int, sizeof(int32_t), &st_int, acc_stat_int, nullptr);\n    size_t k_es = filtra_generico(esami, n_es, sizeof(esame_t), es_filt, pred_voto_almeno, &voto_min);\n    stat_esami_t st_es = {};\n    riduci_generico(es_filt, k_es, sizeof(esame_t), &st_es, acc_stat_esami, nullptr);\n\n    printf(\"Interi filtrati (%zu):\", k_int);\n    if (k_int == 0) { printf(\" (nessuno)\\n\"); }\n    else {\n        for (size_t i = 0; i < k_int; ++i) { printf(\" %\" PRId32, num_filt[i]); }\n        printf(\"\\n\");\n    }\n    if (st_int.presente) {\n        printf(\"Stat interi: somma=%\" PRId64 \" max=%\" PRId32 \"\\n\", st_int.somma, st_int.max);\n    } else {\n        printf(\"Stat interi: nessun dato\\n\");\n    }\n    printf(\"Esami filtrati (%zu):\", k_es);\n    if (k_es == 0) { printf(\" (nessuno)\\n\"); }\n    else {\n        for (size_t i = 0; i < k_es; ++i) { printf(\" %s(%d)\", es_filt[i].codice, es_filt[i].voto); }\n        printf(\"\\n\");\n    }\n    double media = (st_es.tot_crediti > 0) ? ((double)st_es.somma_pesata / (double)st_es.tot_crediti) : 0.0;\n    printf(\"Stat esami: crediti=%\" PRId64 \" media=%.2f\\n\", st_es.tot_crediti, media);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "16.3",
+      "tipo": "esercizio",
+      "titolo": "Catalogo di libri con ordinamento multi-criterio (qsort) e ricerca binaria (bsearch)",
+      "descrizione": "Scrivi un programma C che definisca `typedef struct libro { int32_t codice; char titolo[32]; int32_t anno; int32_t pagine; } libro_t;` e implementi tre comparatori conformi a `qsort` e `bsearch` (`<stdlib.h>`), senza mai usare sottrazioni tra interi che possano causare overflow (usando sempre confronti sicuri come `(x > y) - (x < y)`): (1) `int cmp_per_anno_pagine(const void *a, const void *b)` che ordina per `anno` crescente, a parità per `pagine` decrescente e a parità per `codice` crescente; (2) `int cmp_per_titolo(const void *a, const void *b)` che ordina lessicograficamente per `titolo` (`strcmp`) e a parità per `codice` crescente; (3) `int cmp_per_codice(const void *a, const void *b)` che ordina per `codice` crescente. In `main` leggi dalla prima riga `n` (`0 <= n <= 64`) e dalle successive `n` righe `<codice> <titolo_senza_spazi> <anno> <pagine>` (con codici distinti che possono raggiungere anche `INT32_MIN` e `INT32_MAX`), allocando l'array con `calloc` quando `n > 0`. Leggi poi `q` (`0 <= q <= 16`) e `q` codici `int32_t` da cercare. Ordina l'array con `qsort` usando `cmp_per_anno_pagine` e stampalo; ordinalo poi con `cmp_per_titolo` e stampalo; infine ordinalo con `cmp_per_codice` e risolvi ogni query chiamando `bsearch` su un puntatore `const libro_t *vista = catalogo;` (sfruttando la preservazione di `const` in C23 per assegnare il risultato a `const libro_t *`, e proteggendo il caso `n == 0` senza chiamare `qsort` o `bsearch` su `nullptr`). Libera tutta la memoria allocata prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "comparatori sicuri per qsort e bsearch senza sottrazioni a rischio overflow",
+        "ordinamento multi-criterio con chiave univoca di spareggio (tie-breaker)",
+        "precondizione di ordinamento di bsearch coerente con lo stesso comparatore usato in qsort",
+        "preservazione della qualificazione const nel valore restituito da bsearch in C23",
+        "protezione del caso n == 0 per non passare nullptr a qsort o bsearch"
+      ],
+      "domande_guida": [
+        "Perché scrivere return la->codice - lb->codice; in cmp_per_codice fallirebbe con comportamento indefinito quando un libro ha codice INT32_MIN e un altro INT32_MAX?",
+        "Perché è utile aggiungere il confronto sul campo univoco codice come ultimo spareggio in cmp_per_anno_pagine e cmp_per_titolo?",
+        "Che cosa succederebbe se chiamassi bsearch con cmp_per_codice subito dopo aver ordinato il catalogo con cmp_per_titolo?",
+        "In che modo il caso n == 0 va gestito prima di invocare qsort e bsearch?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\n103 Algoritmi 2020 450\n101 Reti 2018 320\n104 Sistemi 2020 600\n102 Compilatori 2020 450\n3\n104\n999\n101\n",
+          "output": "Ordinati per anno/pagine:\n  [#101] Reti (2018, 320 pag)\n  [#104] Sistemi (2020, 600 pag)\n  [#102] Compilatori (2020, 450 pag)\n  [#103] Algoritmi (2020, 450 pag)\nOrdinati per titolo:\n  [#103] Algoritmi (2020, 450 pag)\n  [#102] Compilatori (2020, 450 pag)\n  [#101] Reti (2018, 320 pag)\n  [#104] Sistemi (2020, 600 pag)\nCerca 104: TROVATO Sistemi (2020, 600 pag)\nCerca 999: NON TROVATO\nCerca 101: TROVATO Reti (2018, 320 pag)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0\n2\n10\n-5\n",
+          "output": "Ordinati per anno/pagine:\n  (vuoto)\nOrdinati per titolo:\n  (vuoto)\nCerca 10: NON TROVATO\nCerca -5: NON TROVATO\n"
+        },
+        {
+          "input": "2\n2147483647 Beta 2024 100\n-2147483648 Alfa 2024 100\n3\n-2147483648\n2147483647\n0\n",
+          "output": "Ordinati per anno/pagine:\n  [#-2147483648] Alfa (2024, 100 pag)\n  [#2147483647] Beta (2024, 100 pag)\nOrdinati per titolo:\n  [#-2147483648] Alfa (2024, 100 pag)\n  [#2147483647] Beta (2024, 100 pag)\nCerca -2147483648: TROVATO Alfa (2024, 100 pag)\nCerca 2147483647: TROVATO Beta (2024, 100 pag)\nCerca 0: NON TROVATO\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_LIBRI = 64;\nconstexpr size_t MAX_QUERY = 16;\n\ntypedef struct libro {\n    int32_t codice;\n    char titolo[32];\n    int32_t anno;\n    int32_t pagine;\n} libro_t;\n\nint cmp_i32(int32_t x, int32_t y) { return (x > y) - (x < y); }\n\nint cmp_per_anno_pagine(const void *a, const void *b) {\n    const libro_t *la = a;\n    const libro_t *lb = b;\n    int r = cmp_i32(la->anno, lb->anno);\n    if (r != 0) { return r; }\n    r = cmp_i32(lb->pagine, la->pagine);\n    if (r != 0) { return r; }\n    return cmp_i32(la->codice, lb->codice);\n}\n\nint cmp_per_titolo(const void *a, const void *b) {\n    const libro_t *la = a;\n    const libro_t *lb = b;\n    int r = strcmp(la->titolo, lb->titolo);\n    if (r != 0) { return r; }\n    return cmp_i32(la->codice, lb->codice);\n}\n\nint cmp_per_codice(const void *a, const void *b) {\n    const libro_t *la = a;\n    const libro_t *lb = b;\n    return cmp_i32(la->codice, lb->codice);\n}\n\nvoid stampa_catalogo(const char *intestazione, const libro_t *cat, size_t n) {\n    printf(\"%s\\n\", intestazione);\n    if (n == 0) {\n        printf(\"  (vuoto)\\n\");\n        return;\n    }\n    for (size_t i = 0; i < n; ++i) {\n        printf(\"  [#%\" PRId32 \"] %s (%\" PRId32 \", %\" PRId32 \" pag)\\n\",\n               cat[i].codice, cat[i].titolo, cat[i].anno, cat[i].pagine);\n    }\n}\n\nint main(void) {\n    char riga[256], extra = '\\0';\n    int n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 0 || (size_t)n_in > MAX_LIBRI) {\n        fprintf(stderr, \"Errore: numero di libri non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    libro_t *catalogo = (n > 0) ? calloc(n, sizeof(*catalogo)) : nullptr;\n    if (n > 0 && catalogo == nullptr) {\n        fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n        return EXIT_FAILURE;\n    }\n    for (size_t i = 0; i < n; ++i) {\n        long long cod = 0, anno = 0, pag = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%lld %31s %lld %lld %c\", &cod, catalogo[i].titolo, &anno, &pag, &extra) != 4 ||\n            cod < INT32_MIN || cod > INT32_MAX || anno < INT32_MIN || anno > INT32_MAX ||\n            pag < 0 || pag > INT32_MAX) {\n            free(catalogo);\n            fprintf(stderr, \"Errore: dati libro non validi.\\n\");\n            return EXIT_FAILURE;\n        }\n        catalogo[i].codice = (int32_t)cod;\n        catalogo[i].anno = (int32_t)anno;\n        catalogo[i].pagine = (int32_t)pag;\n    }\n    int q_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &q_in, &extra) != 1 || q_in < 0 || (size_t)q_in > MAX_QUERY) {\n        free(catalogo);\n        fprintf(stderr, \"Errore: numero di query non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    int32_t query[MAX_QUERY] = {};\n    size_t q = (size_t)q_in;\n    for (size_t i = 0; i < q; ++i) {\n        long long cod = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%lld %c\", &cod, &extra) != 1 || cod < INT32_MIN || cod > INT32_MAX) {\n            free(catalogo);\n            fprintf(stderr, \"Errore: codice query non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        query[i] = (int32_t)cod;\n    }\n    if (n > 0) { qsort(catalogo, n, sizeof(*catalogo), cmp_per_anno_pagine); }\n    stampa_catalogo(\"Ordinati per anno/pagine:\", catalogo, n);\n    if (n > 0) { qsort(catalogo, n, sizeof(*catalogo), cmp_per_titolo); }\n    stampa_catalogo(\"Ordinati per titolo:\", catalogo, n);\n    if (n > 0) { qsort(catalogo, n, sizeof(*catalogo), cmp_per_codice); }\n    const libro_t *vista = catalogo;\n    for (size_t i = 0; i < q; ++i) {\n        const libro_t *trovato = nullptr;\n        if (n > 0) {\n            libro_t chiave = {.codice = query[i]};\n            trovato = bsearch(&chiave, vista, n, sizeof(*vista), cmp_per_codice);\n        }\n        if (trovato != nullptr) {\n            printf(\"Cerca %\" PRId32 \": TROVATO %s (%\" PRId32 \", %\" PRId32 \" pag)\\n\",\n                   query[i], trovato->titolo, trovato->anno, trovato->pagine);\n        } else {\n            printf(\"Cerca %\" PRId32 \": NON TROVATO\\n\", query[i]);\n        }\n    }\n    free(catalogo);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "16.4",
+      "tipo": "esercizio",
+      "titolo": "Interprete di istruzioni su registri con tabella di comandi (bsearch) e tabella di stampa indicizzata da enum",
+      "descrizione": "Scrivi un programma C che simuli una piccola macchina a `4` registri a `64` bit (`typedef struct macchina { int64_t reg[4]; size_t ops_eseguite; } macchina_t;`) usando due tabelle di puntatori a funzione senza alcun costrutto `switch` sulle operazioni o sui formati di stampa. (1) Definisci `typedef bool (*comando_fn)(macchina_t *m, const char *args);` e `typedef struct voce_cmd { const char *nome; comando_fn esegui; } voce_cmd_t;`, poi costruisci una tabella `static const voce_cmd_t TABELLA_CMD[]` ordinata alfabeticamente per `nome` con `7` comandi: `ADD <dst> <src>` (`reg[dst] += reg[src]`), `CLR` (azzera tutti i registri con `memset`), `MOV <dst> <src>` (`reg[dst] = reg[src]`), `MUL <dst> <k>` (`reg[dst] *= k`), `SET <dst> <val>` (`reg[dst] = val`), `SUB <dst> <src>` (`reg[dst] -= reg[src]`) e `SWAP <a> <b>` (scambia `reg[a]` e `reg[b]`), controllando sempre che gli indici di registro siano in `0..3` e che non vi siano argomenti in eccesso. (2) Definisci `typedef enum formato_out { FMT_DEC = 0, FMT_HEX = 1, FMT_SOMMA = 2, FMT_CONTEGGIO = 3 } formato_out_t;` e `typedef void (*stampa_fn)(const macchina_t *m);` con una tabella `static const stampa_fn STAMPATORI[]` di `3` funzioni (`DEC` stampa i registri in decimale, `HEX` li stampa come `0x%016\" PRIx64` castati a `uint64_t`, `SOMMA` stampa la somma dei `4` registri) e verifica a tempo di compilazione con `static_assert` che la lunghezza di `STAMPATORI` coincida con `FMT_CONTEGGIO`. In `main` leggi dalla prima riga il codice intero del formato (`0`, `1` o `2`; se invalido scrivi su `stderr` e restituisci `EXIT_FAILURE`), poi leggi comandi fino a fine input: cerca ciascun nome di comando in `TABELLA_CMD` tramite `bsearch`, stampa `Comando sconosciuto: <nome>` se assente, invoca `voce->esegui(&m, args)` verificando `!= nullptr`, incrementa `m.ops_eseguite` in caso di successo oppure stampa `Argomenti non validi per <nome>`. Al termine invoca `STAMPATORI[fmt](&m)` (dopo aver controllato l'indice e `!= nullptr`) e stampa `Operazioni eseguite: <ops>` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "tabella di puntatori a funzione associati per nome e cercati in O(log n) con bsearch",
+        "firma uniforme per tutti i gestori di comando (macchina_t *m, const char *args)",
+        "tabella di puntatori a funzione indicizzata da enum con verifica static_assert sulla dimensione",
+        "validazione rigorosa degli indici e controllo contro nullptr prima di ogni chiamata indiretta"
+      ],
+      "domande_guida": [
+        "Perché le voci di TABELLA_CMD devono essere disposte in ordine alfabetico crescente rispetto al campo nome?",
+        "Quale errore di manutenzione previene la static_assert che confronta sizeof(STAMPATORI) / sizeof(STAMPATORI[0]) con FMT_CONTEGGIO?",
+        "Perché ogni gestore di comando accetta const char *args invece di un numero fisso di parametri interi?",
+        "Quali controlli servono prima di eseguire STAMPATORI[fmt](&m) per garantire assenza di comportamento indefinito?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "0\nSET 0 10\nSET 1 25\nADD 0 1\nMUL 0 2\nSWAP 0 3\nSUB 3 1\nMOV 2 3\nFOO 1 2\nSET 9 100\n",
+          "output": "Comando sconosciuto: FOO\nArgomenti non validi per SET\nRegistri (DEC): R0=0 R1=25 R2=45 R3=45\nOperazioni eseguite: 7\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "2\nSET 0 100\nSET 1 -40\nCLR\nSET 2 15\nSET 3 27\n",
+          "output": "Somma registri: 42\nOperazioni eseguite: 5\n"
+        },
+        {
+          "input": "1\n",
+          "output": "Registri (HEX): R0=0x0000000000000000 R1=0x0000000000000000 R2=0x0000000000000000 R3=0x0000000000000000\nOperazioni eseguite: 0\n"
+        },
+        {
+          "input": "1\nSET 0 255\nSET 1 16\n",
+          "output": "Registri (HEX): R0=0x00000000000000ff R1=0x0000000000000010 R2=0x0000000000000000 R3=0x0000000000000000\nOperazioni eseguite: 2\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr int NUM_REG = 4;\n\ntypedef struct macchina {\n    int64_t reg[NUM_REG];\n    size_t ops_eseguite;\n} macchina_t;\n\ntypedef bool (*comando_fn)(macchina_t *m, const char *args);\ntypedef struct voce_cmd {\n    const char *nome;\n    comando_fn esegui;\n} voce_cmd_t;\n\ntypedef enum formato_out {\n    FMT_DEC = 0,\n    FMT_HEX = 1,\n    FMT_SOMMA = 2,\n    FMT_CONTEGGIO = 3\n} formato_out_t;\n\ntypedef void (*stampa_fn)(const macchina_t *m);\n\nbool reg_valido(int r) { return r >= 0 && r < NUM_REG; }\n\nbool cmd_add(macchina_t *m, const char *args) {\n    int d = 0, s = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %d %c\", &d, &s, &extra) != 2 || !reg_valido(d) || !reg_valido(s)) { return false; }\n    m->reg[d] += m->reg[s];\n    return true;\n}\nbool cmd_clr(macchina_t *m, const char *args) {\n    char extra = '\\0';\n    if (sscanf(args, \" %c\", &extra) == 1) { return false; }\n    memset(m->reg, 0, sizeof(m->reg));\n    return true;\n}\nbool cmd_mov(macchina_t *m, const char *args) {\n    int d = 0, s = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %d %c\", &d, &s, &extra) != 2 || !reg_valido(d) || !reg_valido(s)) { return false; }\n    m->reg[d] = m->reg[s];\n    return true;\n}\nbool cmd_mul(macchina_t *m, const char *args) {\n    int d = 0; long long k = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %lld %c\", &d, &k, &extra) != 2 || !reg_valido(d)) { return false; }\n    m->reg[d] *= (int64_t)k;\n    return true;\n}\nbool cmd_set(macchina_t *m, const char *args) {\n    int d = 0; long long v = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %lld %c\", &d, &v, &extra) != 2 || !reg_valido(d)) { return false; }\n    m->reg[d] = (int64_t)v;\n    return true;\n}\nbool cmd_sub(macchina_t *m, const char *args) {\n    int d = 0, s = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %d %c\", &d, &s, &extra) != 2 || !reg_valido(d) || !reg_valido(s)) { return false; }\n    m->reg[d] -= m->reg[s];\n    return true;\n}\nbool cmd_swap(macchina_t *m, const char *args) {\n    int a = 0, b = 0; char extra = '\\0';\n    if (sscanf(args, \"%d %d %c\", &a, &b, &extra) != 2 || !reg_valido(a) || !reg_valido(b)) { return false; }\n    int64_t tmp = m->reg[a];\n    m->reg[a] = m->reg[b];\n    m->reg[b] = tmp;\n    return true;\n}\n\nstatic const voce_cmd_t TABELLA_CMD[] = {\n    {\"ADD\", cmd_add}, {\"CLR\", cmd_clr}, {\"MOV\", cmd_mov},\n    {\"MUL\", cmd_mul}, {\"SET\", cmd_set}, {\"SUB\", cmd_sub}, {\"SWAP\", cmd_swap}\n};\n\nvoid stampa_dec(const macchina_t *m) {\n    printf(\"Registri (DEC): R0=%\" PRId64 \" R1=%\" PRId64 \" R2=%\" PRId64 \" R3=%\" PRId64 \"\\n\",\n           m->reg[0], m->reg[1], m->reg[2], m->reg[3]);\n}\nvoid stampa_hex(const macchina_t *m) {\n    printf(\"Registri (HEX): R0=0x%016\" PRIx64 \" R1=0x%016\" PRIx64 \" R2=0x%016\" PRIx64 \" R3=0x%016\" PRIx64 \"\\n\",\n           (uint64_t)m->reg[0], (uint64_t)m->reg[1], (uint64_t)m->reg[2], (uint64_t)m->reg[3]);\n}\nvoid stampa_somma(const macchina_t *m) {\n    int64_t s = m->reg[0] + m->reg[1] + m->reg[2] + m->reg[3];\n    printf(\"Somma registri: %\" PRId64 \"\\n\", s);\n}\n\nstatic const stampa_fn STAMPATORI[] = {stampa_dec, stampa_hex, stampa_somma};\nstatic_assert(sizeof(STAMPATORI) / sizeof(STAMPATORI[0]) == FMT_CONTEGGIO,\n              \"STAMPATORI deve avere una voce per ogni formato_out_t\");\n\nint cmp_voce_cmd(const void *a, const void *b) {\n    const voce_cmd_t *va = a;\n    const voce_cmd_t *vb = b;\n    return strcmp(va->nome, vb->nome);\n}\n\nint main(void) {\n    char riga[256], extra = '\\0';\n    int fmt_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &fmt_in, &extra) != 1 || fmt_in < 0 || fmt_in >= FMT_CONTEGGIO) {\n        fprintf(stderr, \"Errore: formato di uscita non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t fmt = (size_t)fmt_in;\n    constexpr size_t num_cmd = sizeof(TABELLA_CMD) / sizeof(TABELLA_CMD[0]);\n    macchina_t m = {};\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        char nome[16];\n        int letti = 0;\n        if (sscanf(riga, \"%15s%n\", nome, &letti) != 1) { continue; }\n        voce_cmd_t chiave = {.nome = nome, .esegui = nullptr};\n        const voce_cmd_t *voce = bsearch(&chiave, TABELLA_CMD, num_cmd, sizeof(TABELLA_CMD[0]), cmp_voce_cmd);\n        if (voce == nullptr || voce->esegui == nullptr) {\n            printf(\"Comando sconosciuto: %s\\n\", nome);\n        } else if (voce->esegui(&m, riga + letti)) {\n            ++m.ops_eseguite;\n        } else {\n            printf(\"Argomenti non validi per %s\\n\", nome);\n        }\n    }\n    if (fmt < FMT_CONTEGGIO && STAMPATORI[fmt] != nullptr) {\n        STAMPATORI[fmt](&m);\n    }\n    printf(\"Operazioni eseguite: %zu\\n\", m.ops_eseguite);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare le parentesi nella dichiarazione di un puntatore a funzione (scrivere int *f(int) invece di int (*f)(int)), dichiarando così una funzione che restituisce int *.",
+    "Scrivere comparatori per qsort e bsearch usando la sottrazione return *pa - *pb;, che provoca comportamento indefinito per overflow con interi con segno, wraparound con interi senza segno o troncamento a zero con double.",
+    "Dimenticare un livello di indirezione nei comparatori per array di stringhe char *nomi[] (convertendo a const char * invece di const char *const * prima di passare a strcmp).",
+    "Invocare un puntatore a funzione senza controllare che sia diverso da nullptr, oppure passare a bsearch un array non ordinato o ordinato con un comparatore diverso.",
+    "Tentare di convertire un puntatore a funzione in void * o viceversa, operazione non portabile in C standard."
+  ],
+  "differenze_python": [
+    "In Python le funzioni sono oggetti di prima classe e le chiusure (closure) catturano automaticamente le variabili dello spazio circostante; in C un puntatore a funzione memorizza solo l'indirizzo del codice e qualsiasi stato aggiuntivo va passato esplicitamente tramite un parametro void *ctx.",
+    "In Python list.sort(key=...) è garantito stabile e accetta una funzione chiave; in C qsort ordina sul posto con un comparatore su const void * e la stabilità non è garantita dallo standard, per cui conviene inserire uno spareggio univoco.",
+    "In Python per scegliere un'operazione da nome si usa spesso un dizionario di funzioni; in C si costruisce una tabella statica di struct { nome, puntatore_a_funzione } interrogata con scansione o bsearch, oppure una tabella indicizzata da enum."
+  ]
+}

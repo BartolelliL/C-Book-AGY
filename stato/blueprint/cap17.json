@@ -1,0 +1,416 @@
+{
+  "capitolo": 17,
+  "titolo": "Strutture dati dinamiche",
+  "obiettivi": [
+    "Implementare liste semplicemente e doppiamente concatenate con inserimento, ricerca e rimozione",
+    "Costruire pile e code dinamiche rispettando le relative discipline di accesso",
+    "Implementare un albero binario di ricerca con inserimento, ricerca, visita e distruzione",
+    "Definire e rispettare regole esplicite di possesso della memoria nella distruzione delle strutture"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "lista concatenata",
+      "definizione": "Struttura dati dinamica formata da nodi allocati singolarmente e collegati tra loro mediante puntatori."
+    },
+    {
+      "termine": "pila",
+      "definizione": "Struttura dati lineare con politica ultimo entrato primo uscito (LIFO) in cui inserimento e rimozione avvengono in cima."
+    },
+    {
+      "termine": "coda",
+      "definizione": "Struttura dati lineare con politica primo entrato primo uscito (FIFO) con inserimento in fondo e rimozione in testa."
+    },
+    {
+      "termine": "albero binario di ricerca",
+      "definizione": "Struttura dati gerarchica in cui ogni nodo ha al più due figli e mantiene chiavi minori a sinistra e maggiori a destra."
+    },
+    {
+      "termine": "possesso della memoria",
+      "definizione": "Contratto chiaro che stabilisce quale modulo o struttura dati è responsabile di liberare un blocco allocato dinamicamente."
+    }
+  ],
+  "concetti_richiesti": [
+    "funzione",
+    "ricorsione",
+    "caso base",
+    "comportamento indefinito",
+    "array",
+    "puntatore",
+    "dereferenziazione",
+    "puntatore nullo",
+    "stack",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "uso dopo la liberazione",
+    "doppia liberazione",
+    "sanitizer",
+    "struttura",
+    "campo",
+    "puntatore a puntatore",
+    "puntatore pendente",
+    "puntatore generico",
+    "contenitore generico",
+    "puntatore a funzione",
+    "callback"
+  ],
+  "regole": [
+    {
+      "id": "17.R1",
+      "enunciato": "Una struct non può contenere un campo diretto del proprio stesso tipo (dimensione ricorsiva infinita), ma può contenere un puntatore a se stessa (struct nodo *prox;) facendo riferimento al proprio tag di struttura. In una lista semplicemente concatenata occorre aggiornare sempre i collegamenti prima di liberare un nodo e, durante la distruzione iterativa, salvare nodo_t *prossimo = curr->prox; prima di chiamare free(curr). L'uso di un puntatore a puntatore (nodo_t **cur = &lista->testa;) permette di eseguire inserimenti in ordine e rimozioni trattando la testa e i nodi interni con la stessa logica.",
+      "nota_standard": "indefinito: le strutture auto-referenziate tramite puntatore sono definite dallo standard C23; includere un campo diretto dello stesso tipo è un errore di compilazione, mentre leggere curr->prox dopo free(curr) o dereferenziare testa quando è nullptr provoca comportamento indefinito."
+    },
+    {
+      "id": "17.R2",
+      "enunciato": "In una lista doppiamente concatenata ogni nodo possiede i puntatori prec e prox e il descrittore mantiene testa, coda e len. L'invariante strutturale richiede che: per lista vuota testa == nullptr, coda == nullptr e len == 0; per lista non vuota testa->prec == nullptr, coda->prox == nullptr e per ogni coppia di nodi adiacenti (a, b) valga a->prox == b e b->prec == a. Ogni operazione di collegamento o scollegamento deve preservare tale invariante nei quattro casi limite: lista vuota, unico nodo, testa e coda.",
+      "nota_standard": "indefinito: la manipolazione dei collegamenti prec e prox su nodi allocati sullo heap è definita dallo standard C23; dereferenziare prec o prox quando è nullptr o lasciare un puntatore pendente verso un nodo liberato provoca comportamento indefinito."
+    },
+    {
+      "id": "17.R3",
+      "enunciato": "Una pila applica la disciplina LIFO (inserimento e rimozione solo in cima) e una coda applica la disciplina FIFO (inserimento in fondo e rimozione in testa). In una coda basata su lista concatenata con puntatori testa e coda, l'estrazione dell'ultimo elemento deve azzerare anche coda = nullptr. In una coda basata su buffer circolare dinamico l'indice del k-esimo elemento è (inizio + k) % cap e al ridimensionamento gli elementi vanno riallineati in ordine FIFO nel nuovo blocco prima di aggiornare inizio = 0. Ogni operazione di estrazione o lettura su pila o coda vuota deve segnalare il fallimento senza dereferenziare puntatori nulli.",
+      "nota_standard": "indefinito: le implementazioni di pile e code tramite liste o buffer circolari dinamici sono definite dallo standard C23; estrarre da una struttura vuota senza controllo o accedere fuori dai limiti del buffer circolare provoca comportamento indefinito."
+    },
+    {
+      "id": "17.R4",
+      "enunciato": "In un albero binario di ricerca (BST) ogni nodo rispetta l'invariante per cui tutte le chiavi del sottoalbero sinistro sono strettamente minori della chiave del nodo e tutte quelle del sottoalbero destro sono strettamente maggiori (con politica documentata per chiavi duplicate). La visita in-ordine (sx, nodo, dx) produce le chiavi ordinate; la distruzione ricorsiva deve avvenire rigorosamente in post-ordine (sx, dx, poi free(nodo)). La rimozione gestisce tre casi: foglia (0 figli), un solo figlio (sostituzione col figlio) e due figli (sostituzione col successore in-ordine, cioè il minimo del sottoalbero destro, e rimozione del successore dal sottoalbero destro).",
+      "nota_standard": "indefinito: la gestione dinamica dei nodi di un BST è definita dallo standard C23; liberare un nodo prima di visitarne i figli provoca uso dopo la liberazione (comportamento indefinito) e una ricorsione troppo profonda su un albero degenere può esaurire lo stack (comportamento indefinito)."
+    },
+    {
+      "id": "17.R5",
+      "enunciato": "Il contratto di possesso della memoria stabilisce univocamente quale componente è responsabile di liberare ogni blocco allocato sullo heap: trasferimento di possesso (il contenitore libera i puntatori ricevuti), copia (il contenitore duplica i dati e possiede la copia) oppure prestito (il contenitore memorizza riferimenti senza mai liberarli). Un contenitore generico su void * realizza il contratto attraverso una callback distruttore typedef void (*distruggi_fn)(void *dato); chiamata prima di free(nodo) sia alla rimozione sia alla distruzione; se distruggi == nullptr il contenitore opera in modalità prestito e libera solo i propri nodi. In caso di fallimento di allocazione del nodo durante un inserimento, il contratto deve chiarire che il chiamante conserva la responsabilità sul dato.",
+      "nota_standard": "indefinito: l'uso di callback distruggi_fn per regolare il possesso della memoria è definito dallo standard C23; liberare lo stesso oggetto sia nel chiamante sia nel contenitore provoca doppia liberazione (comportamento indefinito), usarlo dopo la distruzione del proprietario provoca uso dopo la liberazione, e non liberarlo da nessuna parte genera una perdita di memoria."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s terminando con '\\0' e restituisce i caratteri che sarebbero stati scritti."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "17.1",
+      "titolo": "Liste semplicemente concatenate",
+      "contenuti": [
+        "Perché servono le liste concatenate rispetto agli array dinamici contigui: inserimenti e rimozioni senza spostare gli altri elementi, a costo di allocazioni per nodo e assenza di accesso diretto per indice",
+        "Strutture auto-referenziate (typedef struct nodo { int valore; struct nodo *prox; } nodo_t;) e struct descrittore (testa, len) con schema di memoria in blocco text",
+        "Inserimento in testa, inserimento ordinato, ricerca e rimozione di un nodo tramite la tecnica del puntatore a puntatore (nodo_t **cur) per unificare la gestione della testa e dei nodi interni",
+        "Distruzione iterativa sicura salvando curr->prox prima di chiamare free(curr) ed errore tipico dell'uso dopo la liberazione"
+      ],
+      "esempio_guidato": "Un programma che gestisce una lista semplicemente concatenata ordinata di valori int: inserisce numeri in ordine crescente usando nodo_t **cur, cerca un valore, rimuove la testa, un elemento intermedio e la coda, stampa lo stato dopo ogni operazione e distrugge la lista iterativamente senza perdite di memoria.",
+      "approfondimento": "Perché la tecnica del puntatore a puntatore (nodo_t **cur = &lista->testa;) elimina i rami speciali sulla testa: tanto lista->testa quanto prec->prox sono puntatori a nodo, per cui l'assegnamento *cur = (*cur)->prox; funziona in modo identico in ogni posizione della lista.",
+      "esercizio_id": "17.1"
+    },
+    {
+      "id": "17.2",
+      "titolo": "Liste doppiamente concatenate",
+      "contenuti": [
+        "Struttura di una lista doppiamente concatenata (campi prec e prox in ogni nodo, descrittore con testa, coda e len) con schema di memoria in blocco text",
+        "Invarianti di collegamento (testa->prec == nullptr, coda->prox == nullptr, simmetria a->prox == b <=> b->prec == a) e loro verifica attraversando la lista in entrambi i sensi",
+        "Operazioni in tempo costante dato il puntatore al nodo: collegamento in testa/coda, scollegamento e rimozione gestendo i quattro casi limite (lista vuota, unico nodo, testa, coda)",
+        "Spostamento in testa di un nodo già allocato senza chiamare malloc né free (schema alla base delle cache LRU)"
+      ],
+      "esempio_guidato": "Una cronologia di navigazione di pagine gestita con una lista doppiamente concatenata e un puntatore alla pagina corrente: permette di aggiungere pagine, spostarsi indietro (prec) e avanti (prox), eliminare la pagina corrente gestendo i casi di bordo e distruggere l'intera lista.",
+      "approfondimento": "Scollegare e ricollegare un nodo senza riallocarlo: separare le primitive scollega_nodo e collega_in_testa permette di riordinare i nodi in tempo costante con zero allocazioni, tecnica centrale nelle cache LRU e negli schedulatori.",
+      "esercizio_id": "17.2"
+    },
+    {
+      "id": "17.3",
+      "titolo": "Pile e code dinamiche",
+      "contenuti": [
+        "Disciplina LIFO della pila (push, pop, peek) e confronto tra implementazione su lista concatenata e su array dinamico ridimensionabile",
+        "Disciplina FIFO della coda (enqueue, dequeue, peek) implementata su lista concatenata con puntatori testa e coda (incluso l'azzeramento di coda = nullptr allo svuotamento)",
+        "Coda su buffer circolare dinamico (dati, inizio, len, cap): calcolo dell'indice (inizio + k) % cap e riallineamento obbligatorio degli elementi in ordine FIFO al raddoppio della capacità",
+        "Interfacce sicure con valore di ritorno bool e parametro di uscita per prevenire l'estrazione da pile o code vuote"
+      ],
+      "esempio_guidato": "Un programma che abbina una pila su lista concatenata (per verificare il bilanciamento di parentesi (), [] e {} in un'espressione) e una coda su lista concatenata con testa e coda (per accodare e servire richieste in ordine FIFO, svuotando e riempiendo nuovamente la coda).",
+      "approfondimento": "Lista concatenata contro buffer circolare dinamico per pile e code: la lista evita riallocazioni in blocco ma paga un'allocazione per elemento e poca località in memoria; il buffer circolare dinamico concentra i dati in un unico blocco contiguo favorendo la cache del processore (capitolo 25).",
+      "esercizio_id": "17.3"
+    },
+    {
+      "id": "17.4",
+      "titolo": "Alberi binari di ricerca",
+      "contenuti": [
+        "Struttura di un nodo di albero binario di ricerca (chiave, valore, sx, dx) e invariante d'ordine (sottoalbero sinistro minore, sottoalbero destro maggiore) con schema di memoria in blocco text",
+        "Ricerca e inserimento (con gestione esplicita delle chiavi duplicate: rifiuto o aggiornamento del valore)",
+        "Visite ricorsive in-ordine (chiavi ordinate), pre-ordine e post-ordine, e potatura dei sottoalberi nelle ricerche per intervallo [lo, hi]",
+        "Rimozione di un nodo nei tre casi: foglia (0 figli), un solo figlio e due figli (sostituzione tramite successore in-ordine = minimo del sottoalbero destro)",
+        "Distruzione obbligatoria in post-ordine, calcolo dell'altezza e problema della degenerazione in lista lineare su input già ordinati (rinvio agli alberi AVL nel capitolo 23)"
+      ],
+      "esempio_guidato": "Un programma che costruisce un albero binario di ricerca di chiavi intere, stampa le visite in-ordine, pre-ordine e post-ordine, trova minimo, massimo e altezza dell'albero e libera tutti i nodi con una distruzione ricorsiva in post-ordine.",
+      "approfondimento": "Perché l'ordine di inserimento influisce sull'altezza di un BST: inserire chiavi già ordinate costruisce una catena di altezza n, trasformando le ricerche in scansioni lineari e rischiando di esaurire lo stack nelle funzioni ricorsive (risolveremo questo limite con gli alberi AVL nel capitolo 23).",
+      "esercizio_id": "17.4"
+    },
+    {
+      "id": "17.5",
+      "titolo": "Regole di possesso della memoria e distruzione",
+      "contenuti": [
+        "Cos'è il possesso della memoria (ownership) e perché ogni blocco allocato sullo heap deve avere un unico proprietario responsabile della sua liberazione",
+        "I tre contratti di possesso per un contenitore generico basato su void *: trasferimento di possesso, copia/clonazione e prestito (riferimenti non posseduti)",
+        "Callback distruttore typedef void (*distruggi_fn)(void *dato); per strutture con risorse annidate sullo heap e convenzione distruggi == nullptr per i contenitori in prestito",
+        "Ordine corretto di distruzione tra contenitore proprietario e viste in prestito, gestione del fallimento di allocazione durante l'inserimento e verifica sistematica con i sanitizer (preparando la tabella hash generica del capitolo 18)"
+      ],
+      "esempio_guidato": "Un programma con una lista generica lista_gen_t (nodi void * e callback distruggi_fn) usata prima come proprietaria di stringhe duplicate con strdup (passando free come distruttore) e poi come vista in prestito su struct allocate sullo stack (passando nullptr come distruttore), dimostrando l'assenza di perdite di memoria e di doppie liberazioni.",
+      "approfondimento": "Scrivere il contratto di possesso nei commenti dell'interfaccia: specificare sempre chi alloca il dato, chi ne resta proprietario in caso di errore di inserimento e chi deve liberarlo evita perdite di memoria, puntatori pendenti e doppie liberazioni nei progetti modulari su più file (capitolo 19).",
+      "esercizio_id": "17.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "17.1",
+      "tipo": "esercizio",
+      "titolo": "Registro ordinato di attività con lista semplicemente concatenata e rimozione tramite puntatore a puntatore",
+      "descrizione": "Scrivi un programma C che gestisca un registro dinamico di attività mediante una lista semplicemente concatenata ordinata. Definisci `typedef struct attivita { int id; int priorita; char nome[24]; struct attivita *prox; } attivita_t;` e `typedef struct lista_att { attivita_t *testa; size_t len; } lista_att_t;`. Implementa cinque funzioni: (1) `void lista_init(lista_att_t *l)`; (2) `const attivita_t *lista_cerca(const lista_att_t *l, int id)`; (3) `int lista_inserisci(lista_att_t *l, int id, int priorita, const char *nome)` che controlla prima se `id` è già presente (restituendo `0`), alloca il nodo con `malloc` (restituendo `-1` se fallisce) e lo inserisce tramite un puntatore a puntatore `attivita_t **cur = &l->testa;` mantenendo la lista ordinata per `priorita` decrescente e, a parità di priorità, per `id` crescente (restituendo `1`); (4) `bool lista_rimuovi(lista_att_t *l, int id)` che rimuove il nodo con `id` tramite `attivita_t **cur = &l->testa;` senza rami speciali per la testa; (5) `void lista_distruggi(lista_att_t *l)` che libera iterativamente tutti i nodi salvando `prox` prima di `free` e azzera `l->testa = nullptr` e `l->len = 0`. In `main` leggi da `stdin` fino a fine input i comandi `ADD <id> <priorita> <nome>`, `DEL <id>`, `FIND <id>` e `LIST` stampando gli esiti esatti dell'esempio (`ADD` stampa `DUPLICATO <id>` solo in caso di duplicato; nessun output per `ADD` riuscito). Al termine chiama `lista_distruggi(&lista)` e stampa `Pulizia completata (len=<len>, testa_nulla=<0|1>)`.",
+      "concetti_da_tenere_a_mente": [
+        "struttura auto-referenziata con struct attivita *prox e descrittore con testa e len",
+        "inserimento ordinato e rimozione tramite puntatore a puntatore attivita_t **cur",
+        "gestione corretta dei duplicati e dei casi limite (lista vuota, unico nodo, testa, coda)",
+        "distruzione iterativa sicura salvando curr->prox prima di free(curr)"
+      ],
+      "domande_guida": [
+        "Perché nella definizione della struct devi scrivere struct attivita *prox; anziché attivita_t *prox; prima che il typedef sia completato?",
+        "In che modo il ciclo su attivita_t **cur = &l->testa; riesce a inserire o rimuovere sia in testa sia in mezzo alla lista senza un if separato per la testa?",
+        "Quale errore di memoria si verifica se in lista_distruggi scrivi free(curr); curr = curr->prox;?",
+        "Quale condizione di confronto tra il nodo corrente e il nuovo elemento garantisce priorità decrescente e, a parità, id crescente?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 10 2 Backup\nADD 5 5 Deploy\nADD 8 5 Audit\nADD 10 9 Duplicato\nLIST\nFIND 8\nDEL 5\nDEL 99\nLIST\n",
+          "output": "DUPLICATO 10\nLista (3): [5] Deploy (p=5) -> [8] Audit (p=5) -> [10] Backup (p=2)\nTROVATO 8: Audit (prio=5)\nRIMOSSO 5\nNON TROVATO 99\nLista (2): [8] Audit (p=5) -> [10] Backup (p=2)\nPulizia completata (len=0, testa_nulla=1)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "LIST\nFIND 1\nDEL 1\n",
+          "output": "Lista (0): (vuota)\nNON TROVATO 1\nNON TROVATO 1\nPulizia completata (len=0, testa_nulla=1)\n"
+        },
+        {
+          "input": "ADD 1 3 Solo\nDEL 1\nLIST\nADD 2 1 Primo\nADD 3 4 Alto\nDEL 2\nLIST\n",
+          "output": "RIMOSSO 1\nLista (0): (vuota)\nRIMOSSO 2\nLista (1): [3] Alto (p=4)\nPulizia completata (len=0, testa_nulla=1)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct attivita {\n    int id;\n    int priorita;\n    char nome[24];\n    struct attivita *prox;\n} attivita_t;\n\ntypedef struct lista_att {\n    attivita_t *testa;\n    size_t len;\n} lista_att_t;\n\nvoid lista_init(lista_att_t *l) {\n    l->testa = nullptr;\n    l->len = 0;\n}\n\nconst attivita_t *lista_cerca(const lista_att_t *l, int id) {\n    for (const attivita_t *curr = l->testa; curr != nullptr; curr = curr->prox) {\n        if (curr->id == id) { return curr; }\n    }\n    return nullptr;\n}\n\nint lista_inserisci(lista_att_t *l, int id, int priorita, const char *nome) {\n    if (lista_cerca(l, id) != nullptr) { return 0; }\n    attivita_t *nuovo = malloc(sizeof(*nuovo));\n    if (nuovo == nullptr) { return -1; }\n    nuovo->id = id;\n    nuovo->priorita = priorita;\n    snprintf(nuovo->nome, sizeof(nuovo->nome), \"%s\", nome);\n    nuovo->prox = nullptr;\n    attivita_t **cur = &l->testa;\n    while (*cur != nullptr && ((*cur)->priorita > priorita ||\n           ((*cur)->priorita == priorita && (*cur)->id < id))) {\n        cur = &(*cur)->prox;\n    }\n    nuovo->prox = *cur;\n    *cur = nuovo;\n    ++l->len;\n    return 1;\n}\n\nbool lista_rimuovi(lista_att_t *l, int id) {\n    attivita_t **cur = &l->testa;\n    while (*cur != nullptr && (*cur)->id != id) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    attivita_t *da_lib = *cur;\n    *cur = da_lib->prox;\n    free(da_lib);\n    --l->len;\n    return true;\n}\n\nvoid lista_distruggi(lista_att_t *l) {\n    attivita_t *curr = l->testa;\n    while (curr != nullptr) {\n        attivita_t *prossimo = curr->prox;\n        free(curr);\n        curr = prossimo;\n    }\n    l->testa = nullptr;\n    l->len = 0;\n}\n\nint main(void) {\n    lista_att_t lista;\n    lista_init(&lista);\n    char riga[256], cmd[16], nome[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int id = 0, prio = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %d %d %23s %c\", &id, &prio, nome, &extra) == 3) {\n            int esito = lista_inserisci(&lista, id, prio, nome);\n            if (esito == -1) {\n                lista_distruggi(&lista);\n                fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n                return EXIT_FAILURE;\n            }\n            if (esito == 0) { printf(\"DUPLICATO %d\\n\", id); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %d %c\", &id, &extra) == 1) {\n            if (lista_rimuovi(&lista, id)) { printf(\"RIMOSSO %d\\n\", id); }\n            else { printf(\"NON TROVATO %d\\n\", id); }\n        } else if (strcmp(cmd, \"FIND\") == 0 && sscanf(riga, \"FIND %d %c\", &id, &extra) == 1) {\n            const attivita_t *a = lista_cerca(&lista, id);\n            if (a != nullptr) { printf(\"TROVATO %d: %s (prio=%d)\\n\", a->id, a->nome, a->priorita); }\n            else { printf(\"NON TROVATO %d\\n\", id); }\n        } else if (strcmp(cmd, \"LIST\") == 0 && sscanf(riga, \"LIST %c\", &extra) != 1) {\n            printf(\"Lista (%zu):\", lista.len);\n            if (lista.len == 0) {\n                printf(\" (vuota)\\n\");\n            } else {\n                for (const attivita_t *c = lista.testa; c != nullptr; c = c->prox) {\n                    printf(\"%s[%d] %s (p=%d)\", (c == lista.testa) ? \" \" : \" -> \", c->id, c->nome, c->priorita);\n                }\n                printf(\"\\n\");\n            }\n        } else {\n            lista_distruggi(&lista);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    lista_distruggi(&lista);\n    printf(\"Pulizia completata (len=%zu, testa_nulla=%d)\\n\", lista.len, lista.testa == nullptr);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "17.2",
+      "tipo": "esercizio",
+      "titolo": "Cache LRU a capacità fissa con lista doppiamente concatenata",
+      "descrizione": "Scrivi un programma C che implementi una cache LRU (Least Recently Used) di capacità fissata `cap` (`1 <= cap <= 32`) mediante una lista doppiamente concatenata in cui `testa` è l'elemento usato più di recente e `coda` è il meno recente. Definisci `typedef struct nodo_lru { int chiave; int valore; struct nodo_lru *prec; struct nodo_lru *prox; } nodo_lru_t;` e `typedef struct cache_lru { nodo_lru_t *testa; nodo_lru_t *coda; size_t len; size_t cap; } cache_lru_t;`. Implementa le primitive di collegamento e scollegamento: `void scollega_nodo(cache_lru_t *c, nodo_lru_t *n)`, `void collega_in_testa(cache_lru_t *c, nodo_lru_t *n)`, `void sposta_in_testa(cache_lru_t *c, nodo_lru_t *n)` (senza chiamare `malloc` né `free`!), `nodo_lru_t *cerca_nodo(cache_lru_t *c, int chiave)` e `void cache_distruggi(cache_lru_t *c)`. In `main` leggi dalla prima riga `cap` (`1 <= cap <= 32`), poi leggi comandi fino a fine input: (1) `PUT <chiave> <valore>`: se la chiave esiste aggiorna il valore, sposta il nodo esistente in testa e stampa `UPDATE <k>=<v>`; se non esiste e `len == cap`, scollega e libera `c->coda` stampando `EVICT <chiave_rimossa>`, poi alloca e collega in testa il nuovo nodo stampando `INSERT <k>=<v>`; (2) `GET <chiave>`: se presente sposta il nodo in testa e stampa `HIT <k>=<v>`, altrimenti `MISS <k>`; (3) `DEL <chiave>`: se presente scollega e libera il nodo stampando `DEL <k>`, altrimenti `NON TROVATO <k>`; (4) `DUMP`: stampa prima la lista da `testa` a `coda` (`AVANTI (<len>): ...`) e poi da `coda` a `testa` tramite `prec` (`INDIETRO (<len>): ...`) per verificare la perfetta simmetria dei collegamenti doppi. Libera tutta la memoria al termine.",
+      "concetti_da_tenere_a_mente": [
+        "invarianti di una lista doppiamente concatenata (testa->prec == nullptr, coda->prox == nullptr, simmetria prec/prox)",
+        "scollegamento di un nodo nei quattro casi limite (unico nodo, testa, coda, nodo interno)",
+        "spostamento in testa in tempo costante senza allocare né liberare nodi",
+        "verifica simmetrica tramite attraversamento in avanti (prox) e all'indietro (prec)"
+      ],
+      "domande_guida": [
+        "Quali puntatori deve aggiornare scollega_nodo quando il nodo rimosso è contemporaneamente testa e coda (unico elemento della lista)?",
+        "Perché sposta_in_testa non deve chiamare malloc né free, e quale controllo iniziale evita lavoro inutile se il nodo è già in testa?",
+        "In che modo il comando DUMP (stampando sia AVANTI sia INDIETRO) rivela subito un eventuale errore nell'aggiornamento dei puntatori prec?",
+        "Che cosa succede durante PUT quando cap == 1 e la cache è già piena?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3\nPUT 1 100\nPUT 2 200\nPUT 3 300\nGET 1\nPUT 4 400\nPUT 3 350\nDUMP\nDEL 1\nDUMP\n",
+          "output": "INSERT 1=100\nINSERT 2=200\nINSERT 3=300\nHIT 1=100\nEVICT 2\nINSERT 4=400\nUPDATE 3=350\nAVANTI (3): 3=350 4=400 1=100\nINDIETRO (3): 1=100 4=400 3=350\nDEL 1\nAVANTI (2): 3=350 4=400\nINDIETRO (2): 4=400 3=350\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\nDUMP\nGET 5\nPUT 10 1\nGET 10\nPUT 20 2\nDUMP\nDEL 20\nDUMP\n",
+          "output": "AVANTI (0): (vuota)\nINDIETRO (0): (vuota)\nMISS 5\nINSERT 10=1\nHIT 10=1\nEVICT 10\nINSERT 20=2\nAVANTI (1): 20=2\nINDIETRO (1): 20=2\nDEL 20\nAVANTI (0): (vuota)\nINDIETRO (0): (vuota)\n"
+        },
+        {
+          "input": "3\nPUT 1 10\nPUT 2 20\nPUT 3 30\nDEL 2\nDEL 3\nDEL 9\nDUMP\n",
+          "output": "INSERT 1=10\nINSERT 2=20\nINSERT 3=30\nDEL 2\nDEL 3\nNON TROVATO 9\nAVANTI (1): 1=10\nINDIETRO (1): 1=10\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct nodo_lru {\n    int chiave;\n    int valore;\n    struct nodo_lru *prec;\n    struct nodo_lru *prox;\n} nodo_lru_t;\n\ntypedef struct cache_lru {\n    nodo_lru_t *testa;\n    nodo_lru_t *coda;\n    size_t len;\n    size_t cap;\n} cache_lru_t;\n\nvoid scollega_nodo(cache_lru_t *c, nodo_lru_t *n) {\n    if (n->prec != nullptr) { n->prec->prox = n->prox; }\n    else { c->testa = n->prox; }\n    if (n->prox != nullptr) { n->prox->prec = n->prec; }\n    else { c->coda = n->prec; }\n    n->prec = nullptr;\n    n->prox = nullptr;\n    --c->len;\n}\n\nvoid collega_in_testa(cache_lru_t *c, nodo_lru_t *n) {\n    n->prec = nullptr;\n    n->prox = c->testa;\n    if (c->testa != nullptr) { c->testa->prec = n; }\n    else { c->coda = n; }\n    c->testa = n;\n    ++c->len;\n}\n\nvoid sposta_in_testa(cache_lru_t *c, nodo_lru_t *n) {\n    if (c->testa == n) { return; }\n    scollega_nodo(c, n);\n    collega_in_testa(c, n);\n}\n\nnodo_lru_t *cerca_nodo(cache_lru_t *c, int chiave) {\n    for (nodo_lru_t *curr = c->testa; curr != nullptr; curr = curr->prox) {\n        if (curr->chiave == chiave) { return curr; }\n    }\n    return nullptr;\n}\n\nvoid cache_distruggi(cache_lru_t *c) {\n    nodo_lru_t *curr = c->testa;\n    while (curr != nullptr) {\n        nodo_lru_t *prossimo = curr->prox;\n        free(curr);\n        curr = prossimo;\n    }\n    c->testa = nullptr;\n    c->coda = nullptr;\n    c->len = 0;\n}\n\nvoid cache_stampa(const cache_lru_t *c) {\n    printf(\"AVANTI (%zu):\", c->len);\n    if (c->len == 0) { printf(\" (vuota)\\n\"); }\n    else {\n        for (const nodo_lru_t *n = c->testa; n != nullptr; n = n->prox) {\n            printf(\" %d=%d\", n->chiave, n->valore);\n        }\n        printf(\"\\n\");\n    }\n    printf(\"INDIETRO (%zu):\", c->len);\n    if (c->len == 0) { printf(\" (vuota)\\n\"); }\n    else {\n        for (const nodo_lru_t *n = c->coda; n != nullptr; n = n->prec) {\n            printf(\" %d=%d\", n->chiave, n->valore);\n        }\n        printf(\"\\n\");\n    }\n}\n\nint main(void) {\n    char riga[256], cmd[16], extra = '\\0';\n    int cap_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &cap_in, &extra) != 1 || cap_in < 1 || cap_in > 32) {\n        fprintf(stderr, \"Errore: capacità cache non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    cache_lru_t cache = {.testa = nullptr, .coda = nullptr, .len = 0, .cap = (size_t)cap_in};\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int k = 0, v = 0;\n        if (strcmp(cmd, \"PUT\") == 0 && sscanf(riga, \"PUT %d %d %c\", &k, &v, &extra) == 2) {\n            nodo_lru_t *esistente = cerca_nodo(&cache, k);\n            if (esistente != nullptr) {\n                esistente->valore = v;\n                sposta_in_testa(&cache, esistente);\n                printf(\"UPDATE %d=%d\\n\", k, v);\n            } else {\n                if (cache.len == cache.cap) {\n                    nodo_lru_t *vecchio = cache.coda;\n                    int k_ev = vecchio->chiave;\n                    scollega_nodo(&cache, vecchio);\n                    free(vecchio);\n                    printf(\"EVICT %d\\n\", k_ev);\n                }\n                nodo_lru_t *nuovo = malloc(sizeof(*nuovo));\n                if (nuovo == nullptr) {\n                    cache_distruggi(&cache);\n                    fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n                    return EXIT_FAILURE;\n                }\n                *nuovo = (nodo_lru_t){.chiave = k, .valore = v, .prec = nullptr, .prox = nullptr};\n                collega_in_testa(&cache, nuovo);\n                printf(\"INSERT %d=%d\\n\", k, v);\n            }\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %d %c\", &k, &extra) == 1) {\n            nodo_lru_t *n = cerca_nodo(&cache, k);\n            if (n == nullptr) { printf(\"MISS %d\\n\", k); }\n            else {\n                sposta_in_testa(&cache, n);\n                printf(\"HIT %d=%d\\n\", n->chiave, n->valore);\n            }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %d %c\", &k, &extra) == 1) {\n            nodo_lru_t *n = cerca_nodo(&cache, k);\n            if (n == nullptr) { printf(\"NON TROVATO %d\\n\", k); }\n            else {\n                scollega_nodo(&cache, n);\n                free(n);\n                printf(\"DEL %d\\n\", k);\n            }\n        } else if (strcmp(cmd, \"DUMP\") == 0 && sscanf(riga, \"DUMP %c\", &extra) != 1) {\n            cache_stampa(&cache);\n        } else {\n            cache_distruggi(&cache);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    cache_distruggi(&cache);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "17.3",
+      "tipo": "esercizio",
+      "titolo": "Gestore di ticket con coda su buffer circolare dinamico e pila di annullamento su lista concatenata",
+      "descrizione": "Scrivi un programma C che combini le due discipline di accesso in un gestore di sportello: (1) una **coda** FIFO implementata tramite buffer circolare dinamico `typedef struct coda { int *dati; size_t inizio; size_t len; size_t cap; } coda_t;` (capacità iniziale `0`, crescita `0 -> 2 -> 4 -> 8 -> ...` allocando un nuovo blocco con `malloc` dopo il controllo `nuova_cap <= SIZE_MAX / sizeof(int)`, copiando gli elementi in ordine FIFO tramite `(c->inizio + i) % c->cap` e reimpostando `c->inizio = 0`), con funzioni `coda_init`, `coda_distruggi`, `coda_enqueue`, `coda_dequeue` e `coda_peek`; (2) una **pila** LIFO implementata tramite lista concatenata `typedef struct nodo_pila { int id; struct nodo_pila *prox; } nodo_pila_t;` e `typedef struct pila { nodo_pila_t *cima; size_t len; } pila_t;` per conservare la cronologia dei ticket serviti, con funzioni `pila_init`, `pila_distruggi`, `pila_push`, `pila_pop` e `pila_peek`. In `main` leggi comandi da `stdin` fino a fine input: `ENQ <id>` accoda `<id>` e stampa `ENQ <id> (coda len=<len> cap=<cap>)`; `SERVE` estrae il prossimo ticket dalla coda (FIFO), lo inserisce sulla pila (LIFO) e stampa `SERVE <id>` (oppure `CODA VUOTA` se vuota); `UNDO` estrae l'ultimo ticket servito dalla pila (LIFO), lo riaccoda in fondo alla coda e stampa `UNDO <id>` (oppure `PILA VUOTA` se vuota); `PEEK` legge senza rimuovere la testa della coda e la cima della pila stampando `PEEK coda=<id|vuota> pila=<id|vuota>`; `STAT` stampa tutti gli elementi della coda in ordine FIFO e della pila dalla cima alla base esattamente come nell'esempio. Libera tutta la memoria prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "disciplina FIFO della coda con buffer circolare dinamico e indicizzazione modulare (inizio + i) % cap",
+        "riallineamento obbligatorio degli elementi del buffer circolare al raddoppio della capacità",
+        "disciplina LIFO della pila su lista concatenata con push, pop, peek e distruzione iterativa",
+        "gestione sicura delle operazioni su coda vuota e pila vuota mediante ritorno bool"
+      ],
+      "domande_guida": [
+        "Perché quando il buffer circolare è pieno con inizio > 0 non basta chiamare realloc sul blocco esistente senza spostare gli elementi?",
+        "Quale formula calcola l'indice di scrittura del nuovo elemento in coda_enqueue e come va aggiornato inizio in coda_dequeue?",
+        "In che ordine rientrano in coda gli elementi se esegui due SERVE consecutivi seguiti da due UNDO consecutivi?",
+        "Come ti assicuri in SERVE e UNDO di non perdere un ticket se l'allocazione sulla struttura di destinazione dovesse fallire?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ENQ 101\nENQ 102\nSERVE\nENQ 103\nENQ 104\nPEEK\nSTAT\nUNDO\nSERVE\nSTAT\n",
+          "output": "ENQ 101 (coda len=1 cap=2)\nENQ 102 (coda len=2 cap=2)\nSERVE 101\nENQ 103 (coda len=2 cap=2)\nENQ 104 (coda len=3 cap=4)\nPEEK coda=102 pila=101\nCoda (len=3, cap=4): 102 103 104\nPila (len=1): 101\nUNDO 101\nSERVE 102\nCoda (len=3, cap=4): 103 104 101\nPila (len=1): 102\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SERVE\nUNDO\nPEEK\nSTAT\n",
+          "output": "CODA VUOTA\nPILA VUOTA\nPEEK coda=vuota pila=vuota\nCoda (len=0, cap=0): (vuota)\nPila (len=0): (vuota)\n"
+        },
+        {
+          "input": "ENQ 1\nENQ 2\nENQ 3\nSERVE\nSERVE\nSERVE\nSERVE\nUNDO\nUNDO\nSTAT\n",
+          "output": "ENQ 1 (coda len=1 cap=2)\nENQ 2 (coda len=2 cap=2)\nENQ 3 (coda len=3 cap=4)\nSERVE 1\nSERVE 2\nSERVE 3\nCODA VUOTA\nUNDO 3\nUNDO 2\nCoda (len=2, cap=4): 3 2\nPila (len=1): 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct coda {\n    int *dati;\n    size_t inizio;\n    size_t len;\n    size_t cap;\n} coda_t;\n\ntypedef struct nodo_pila {\n    int id;\n    struct nodo_pila *prox;\n} nodo_pila_t;\n\ntypedef struct pila {\n    nodo_pila_t *cima;\n    size_t len;\n} pila_t;\n\nvoid coda_init(coda_t *c) { *c = (coda_t){}; }\nvoid coda_distruggi(coda_t *c) { free(c->dati); *c = (coda_t){}; }\n\nbool coda_espandi(coda_t *c) {\n    size_t nuova_cap = (c->cap == 0) ? 2 : (c->cap * 2);\n    if (nuova_cap < c->cap || nuova_cap > SIZE_MAX / sizeof(int)) { return false; }\n    int *nuovo = malloc(nuova_cap * sizeof(int));\n    if (nuovo == nullptr) { return false; }\n    for (size_t i = 0; i < c->len; ++i) {\n        nuovo[i] = c->dati[(c->inizio + i) % c->cap];\n    }\n    free(c->dati);\n    c->dati = nuovo;\n    c->inizio = 0;\n    c->cap = nuova_cap;\n    return true;\n}\n\nbool coda_enqueue(coda_t *c, int id) {\n    if (c->len == c->cap && !coda_espandi(c)) { return false; }\n    c->dati[(c->inizio + c->len) % c->cap] = id;\n    ++c->len;\n    return true;\n}\n\nbool coda_dequeue(coda_t *c, int *out) {\n    if (c->len == 0) { return false; }\n    *out = c->dati[c->inizio];\n    c->inizio = (c->inizio + 1) % c->cap;\n    --c->len;\n    return true;\n}\n\nbool coda_peek(const coda_t *c, int *out) {\n    if (c->len == 0) { return false; }\n    *out = c->dati[c->inizio];\n    return true;\n}\n\nvoid pila_init(pila_t *p) { *p = (pila_t){}; }\n\nvoid pila_distruggi(pila_t *p) {\n    nodo_pila_t *curr = p->cima;\n    while (curr != nullptr) {\n        nodo_pila_t *prossimo = curr->prox;\n        free(curr);\n        curr = prossimo;\n    }\n    *p = (pila_t){}; }\n\nbool pila_push(pila_t *p, int id) {\n    nodo_pila_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return false; }\n    n->id = id;\n    n->prox = p->cima;\n    p->cima = n;\n    ++p->len;\n    return true;\n}\n\nbool pila_pop(pila_t *p, int *out) {\n    if (p->cima == nullptr) { return false; }\n    nodo_pila_t *n = p->cima;\n    *out = n->id;\n    p->cima = n->prox;\n    free(n);\n    --p->len;\n    return true;\n}\n\nbool pila_peek(const pila_t *p, int *out) {\n    if (p->cima == nullptr) { return false; }\n    *out = p->cima->id;\n    return true;\n}\n\nint main(void) {\n    coda_t coda;\n    pila_t pila;\n    coda_init(&coda);\n    pila_init(&pila);\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int id = 0;\n        if (strcmp(cmd, \"ENQ\") == 0 && sscanf(riga, \"ENQ %d %c\", &id, &extra) == 1) {\n            if (!coda_enqueue(&coda, id)) {\n                coda_distruggi(&coda); pila_distruggi(&pila);\n                return EXIT_FAILURE;\n            }\n            printf(\"ENQ %d (coda len=%zu cap=%zu)\\n\", id, coda.len, coda.cap);\n        } else if (strcmp(cmd, \"SERVE\") == 0 && sscanf(riga, \"SERVE %c\", &extra) != 1) {\n            if (!coda_peek(&coda, &id)) {\n                printf(\"CODA VUOTA\\n\");\n            } else {\n                if (!pila_push(&pila, id)) {\n                    coda_distruggi(&coda); pila_distruggi(&pila);\n                    return EXIT_FAILURE;\n                }\n                coda_dequeue(&coda, &id);\n                printf(\"SERVE %d\\n\", id);\n            }\n        } else if (strcmp(cmd, \"UNDO\") == 0 && sscanf(riga, \"UNDO %c\", &extra) != 1) {\n            if (!pila_peek(&pila, &id)) {\n                printf(\"PILA VUOTA\\n\");\n            } else {\n                if (!coda_enqueue(&coda, id)) {\n                    coda_distruggi(&coda); pila_distruggi(&pila);\n                    return EXIT_FAILURE;\n                }\n                pila_pop(&pila, &id);\n                printf(\"UNDO %d\\n\", id);\n            }\n        } else if (strcmp(cmd, \"PEEK\") == 0 && sscanf(riga, \"PEEK %c\", &extra) != 1) {\n            int vc = 0, vp = 0;\n            printf(\"PEEK coda=\");\n            if (coda_peek(&coda, &vc)) { printf(\"%d\", vc); } else { printf(\"vuota\"); }\n            printf(\" pila=\");\n            if (pila_peek(&pila, &vp)) { printf(\"%d\\n\", vp); } else { printf(\"vuota\\n\"); }\n        } else if (strcmp(cmd, \"STAT\") == 0 && sscanf(riga, \"STAT %c\", &extra) != 1) {\n            printf(\"Coda (len=%zu, cap=%zu):\", coda.len, coda.cap);\n            if (coda.len == 0) { printf(\" (vuota)\\n\"); }\n            else {\n                for (size_t i = 0; i < coda.len; ++i) { printf(\" %d\", coda.dati[(coda.inizio + i) % coda.cap]); }\n                printf(\"\\n\");\n            }\n            printf(\"Pila (len=%zu):\", pila.len);\n            if (pila.len == 0) { printf(\" (vuota)\\n\"); }\n            else {\n                for (const nodo_pila_t *n = pila.cima; n != nullptr; n = n->prox) { printf(\" %d\", n->id); }\n                printf(\"\\n\");\n            }\n        } else {\n            coda_distruggi(&coda); pila_distruggi(&pila);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    coda_distruggi(&coda);\n    pila_distruggi(&pila);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "17.4",
+      "tipo": "esercizio",
+      "titolo": "Indice chiave-valore su albero binario di ricerca con rimozione completa e query per intervallo",
+      "descrizione": "Scrivi un programma C che implementi un indice dizionario basato su un **albero binario di ricerca** (`typedef struct nodo_bst { int32_t chiave; char etichetta[24]; struct nodo_bst *sx; struct nodo_bst *dx; } nodo_bst_t;`). Implementa sette funzioni: (1) `bool bst_inserisci(nodo_bst_t **rad, int32_t chiave, const char *etichetta, bool *inserito)` che inserisce la coppia mantenendo l'invariante BST (se la chiave esiste già aggiorna `etichetta` e imposta `*inserito = false`; se nuova alloca il nodo e imposta `*inserito = true`; restituisce `false` solo se `malloc` fallisce); (2) `const nodo_bst_t *bst_cerca(const nodo_bst_t *rad, int32_t chiave)`; (3) `nodo_bst_t *bst_rimuovi(nodo_bst_t *rad, int32_t chiave, bool *rimosso)` che gestisce tutti e tre i casi di rimozione (foglia, un solo figlio e due figli tramite sostituzione con il successore in-ordine nel sottoalbero destro); (4) `void bst_range(const nodo_bst_t *rad, int32_t lo, int32_t hi, size_t *trovati)` che visita in-ordine potando i rami esclusi (scende a sinistra solo se `rad->chiave > lo`, a destra solo se `rad->chiave < hi`) e stampa `<chiave>=<etichetta>` per le chiavi in `[lo, hi]`; (5) `size_t bst_conta(const nodo_bst_t *rad)` e `size_t bst_altezza(const nodo_bst_t *rad)` (altezza `0` per albero vuoto, `1` per un singolo nodo); (6) `void bst_stampa_inorder(const nodo_bst_t *rad, bool *primo)`; (7) `void bst_distruggi(nodo_bst_t *rad)` in post-ordine rigoroso. In `main` leggi da `stdin` fino a fine input i comandi `PUT <chiave> <etichetta>`, `GET <chiave>`, `DEL <chiave>`, `RANGE <lo> <hi>` (`lo <= hi`) e `INFO`, producendo esattamente l'output mostrato nell'esempio e liberando l'albero prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "invariante dell'albero binario di ricerca (chiavi minori a sinistra, maggiori a destra)",
+        "rimozione completa nei tre casi: 0 figli, 1 figlio e 2 figli con successore in-ordine",
+        "visita in-ordine per chiavi ordinate e potatura dei sottoalberi nelle query per intervallo",
+        "distruzione ricorsiva obbligatoria in post-ordine per evitare uso dopo la liberazione"
+      ],
+      "domande_guida": [
+        "Nel caso di rimozione di un nodo con due figli, perché il minimo del sottoalbero destro (successore in-ordine) ha sempre al massimo un figlio?",
+        "Come fa bst_range a evitare di visitare interi sottoalberi che non possono contenere chiavi nell'intervallo [lo, hi]?",
+        "Perché bst_distruggi deve ricorrere su rad->sx e rad->dx prima di chiamare free(rad)?",
+        "Che altezza assume l'albero se inserisci n chiavi già ordinate in modo strettamente decrescente?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "PUT 50 Radice\nPUT 30 Sinistra\nPUT 70 Destra\nPUT 20 FogliaSx\nPUT 40 Interno\nPUT 60 Succ\nPUT 80 FogliaDx\nPUT 30 SinistraAgg\nGET 30\nRANGE 25 65\nDEL 20\nDEL 30\nDEL 50\nINFO\n",
+          "output": "INSERT 50\nINSERT 30\nINSERT 70\nINSERT 20\nINSERT 40\nINSERT 60\nINSERT 80\nUPDATE 30\nGET 30: SinistraAgg\nRANGE [25,65]: 30=SinistraAgg 40=Interno 50=Radice 60=Succ\nDEL 20: OK\nDEL 30: OK\nDEL 50: OK\nINFO: nodi=4 altezza=3 inorder=40 60 70 80\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INFO\nGET 1\nDEL 1\nRANGE 0 10\n",
+          "output": "INFO: nodi=0 altezza=0 inorder=(vuoto)\nGET 1: NON TROVATO\nDEL 1: NON TROVATO\nRANGE [0,10]: (nessuno)\n"
+        },
+        {
+          "input": "PUT 10 A\nDEL 10\nINFO\nPUT 30 C\nPUT 20 B\nPUT 10 A\nDEL 20\nRANGE 10 30\nINFO\n",
+          "output": "INSERT 10\nDEL 10: OK\nINFO: nodi=0 altezza=0 inorder=(vuoto)\nINSERT 30\nINSERT 20\nINSERT 10\nDEL 20: OK\nRANGE [10,30]: 10=A 30=C\nINFO: nodi=2 altezza=2 inorder=10 30\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct nodo_bst {\n    int32_t chiave;\n    char etichetta[24];\n    struct nodo_bst *sx;\n    struct nodo_bst *dx;\n} nodo_bst_t;\n\nbool bst_inserisci(nodo_bst_t **rad, int32_t chiave, const char *et, bool *inserito) {\n    nodo_bst_t **cur = rad;\n    while (*cur != nullptr) {\n        if (chiave < (*cur)->chiave) { cur = &(*cur)->sx; }\n        else if (chiave > (*cur)->chiave) { cur = &(*cur)->dx; }\n        else {\n            snprintf((*cur)->etichetta, sizeof((*cur)->etichetta), \"%s\", et);\n            *inserito = false;\n            return true;\n        }\n    }\n    nodo_bst_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return false; }\n    n->chiave = chiave;\n    snprintf(n->etichetta, sizeof(n->etichetta), \"%s\", et);\n    n->sx = nullptr;\n    n->dx = nullptr;\n    *cur = n;\n    *inserito = true;\n    return true;\n}\n\nconst nodo_bst_t *bst_cerca(const nodo_bst_t *rad, int32_t chiave) {\n    const nodo_bst_t *cur = rad;\n    while (cur != nullptr) {\n        if (chiave < cur->chiave) { cur = cur->sx; }\n        else if (chiave > cur->chiave) { cur = cur->dx; }\n        else { return cur; }\n    }\n    return nullptr;\n}\n\nnodo_bst_t *bst_rimuovi(nodo_bst_t *rad, int32_t chiave, bool *rimosso) {\n    if (rad == nullptr) { return nullptr; }\n    if (chiave < rad->chiave) {\n        rad->sx = bst_rimuovi(rad->sx, chiave, rimosso);\n        return rad;\n    }\n    if (chiave > rad->chiave) {\n        rad->dx = bst_rimuovi(rad->dx, chiave, rimosso);\n        return rad;\n    }\n    *rimosso = true;\n    if (rad->sx == nullptr) {\n        nodo_bst_t *dx = rad->dx;\n        free(rad);\n        return dx;\n    }\n    if (rad->dx == nullptr) {\n        nodo_bst_t *sx = rad->sx;\n        free(rad);\n        return sx;\n    }\n    nodo_bst_t *succ = rad->dx;\n    while (succ->sx != nullptr) { succ = succ->sx; }\n    rad->chiave = succ->chiave;\n    snprintf(rad->etichetta, sizeof(rad->etichetta), \"%s\", succ->etichetta);\n    bool dummy = false;\n    rad->dx = bst_rimuovi(rad->dx, succ->chiave, &dummy);\n    return rad;\n}\n\nvoid bst_range(const nodo_bst_t *rad, int32_t lo, int32_t hi, size_t *trovati) {\n    if (rad == nullptr) { return; }\n    if (rad->chiave > lo) { bst_range(rad->sx, lo, hi, trovati); }\n    if (rad->chiave >= lo && rad->chiave <= hi) {\n        printf(\" %\" PRId32 \"=%s\", rad->chiave, rad->etichetta);\n        ++(*trovati);\n    }\n    if (rad->chiave < hi) { bst_range(rad->dx, lo, hi, trovati); }\n}\n\nsize_t bst_conta(const nodo_bst_t *rad) {\n    return (rad == nullptr) ? 0 : (1 + bst_conta(rad->sx) + bst_conta(rad->dx));\n}\n\nsize_t bst_altezza(const nodo_bst_t *rad) {\n    if (rad == nullptr) { return 0; }\n    size_t hs = bst_altezza(rad->sx), hd = bst_altezza(rad->dx);\n    return 1 + ((hs > hd) ? hs : hd);\n}\n\nvoid bst_stampa_inorder(const nodo_bst_t *rad, bool *primo) {\n    if (rad == nullptr) { return; }\n    bst_stampa_inorder(rad->sx, primo);\n    printf(\"%s%\" PRId32, (*primo) ? \"\" : \" \", rad->chiave);\n    *primo = false;\n    bst_stampa_inorder(rad->dx, primo);\n}\n\nvoid bst_distruggi(nodo_bst_t *rad) {\n    if (rad == nullptr) { return; }\n    bst_distruggi(rad->sx);\n    bst_distruggi(rad->dx);\n    free(rad);\n}\n\nint main(void) {\n    nodo_bst_t *radice = nullptr;\n    char riga[256], cmd[16], et[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long k = 0, lo = 0, hi = 0;\n        if (strcmp(cmd, \"PUT\") == 0 && sscanf(riga, \"PUT %lld %23s %c\", &k, et, &extra) == 2 &&\n            k >= INT32_MIN && k <= INT32_MAX) {\n            bool inserito = false;\n            if (!bst_inserisci(&radice, (int32_t)k, et, &inserito)) {\n                bst_distruggi(radice);\n                return EXIT_FAILURE;\n            }\n            printf(\"%s %\" PRId32 \"\\n\", inserito ? \"INSERT\" : \"UPDATE\", (int32_t)k);\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %lld %c\", &k, &extra) == 1 &&\n                   k >= INT32_MIN && k <= INT32_MAX) {\n            const nodo_bst_t *n = bst_cerca(radice, (int32_t)k);\n            if (n != nullptr) { printf(\"GET %\" PRId32 \": %s\\n\", (int32_t)k, n->etichetta); }\n            else { printf(\"GET %\" PRId32 \": NON TROVATO\\n\", (int32_t)k); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %lld %c\", &k, &extra) == 1 &&\n                   k >= INT32_MIN && k <= INT32_MAX) {\n            bool rimosso = false;\n            radice = bst_rimuovi(radice, (int32_t)k, &rimosso);\n            printf(\"DEL %\" PRId32 \": %s\\n\", (int32_t)k, rimosso ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"RANGE\") == 0 && sscanf(riga, \"RANGE %lld %lld %c\", &lo, &hi, &extra) == 2 &&\n                   lo >= INT32_MIN && hi <= INT32_MAX && lo <= hi) {\n            size_t trovati = 0;\n            printf(\"RANGE [%\" PRId32 \",%\" PRId32 \"]:\", (int32_t)lo, (int32_t)hi);\n            bst_range(radice, (int32_t)lo, (int32_t)hi, &trovati);\n            if (trovati == 0) { printf(\" (nessuno)\"); }\n            printf(\"\\n\");\n        } else if (strcmp(cmd, \"INFO\") == 0 && sscanf(riga, \"INFO %c\", &extra) != 1) {\n            printf(\"INFO: nodi=%zu altezza=%zu inorder=\", bst_conta(radice), bst_altezza(radice));\n            if (radice == nullptr) { printf(\"(vuoto)\\n\"); }\n            else {\n                bool primo = true;\n                bst_stampa_inorder(radice, &primo);\n                printf(\"\\n\");\n            }\n        } else {\n            bst_distruggi(radice);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    bst_distruggi(radice);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "17.5",
+      "tipo": "esercizio",
+      "titolo": "Lista generica con contratti di possesso espliciti: proprietà profonda tramite distruttore e vista in prestito",
+      "descrizione": "Scrivi un programma C che implementi una lista generica `typedef struct lista_gen { nodo_gen_t *testa; nodo_gen_t *coda; size_t len; distruggi_fn distruggi; } lista_gen_t;` con nodi `typedef struct nodo_gen { void *dato; struct nodo_gen *prox; } nodo_gen_t;` e callback `typedef void (*distruggi_fn)(void *dato);` e `typedef bool (*pred_dato_fn)(const void *dato, const void *ctx);`. Implementa: `void lg_init(lista_gen_t *l, distruggi_fn distruggi)`, `bool lg_inserisci_coda(lista_gen_t *l, void *dato)` (in caso di errore di allocazione del nodo NON libera `dato`), `size_t lg_rimuovi_se(lista_gen_t *l, pred_dato_fn pred, const void *ctx)` (rimuove tutti i nodi per cui `pred` è vero, chiamando `l->distruggi(nodo->dato)` se non nullo prima di `free(nodo)` e mantenendo coerente `l->coda`) e `void lg_distruggi(lista_gen_t *l)` (libera ogni nodo invocando `l->distruggi` se non nullo e azzera la lista). Definisci una risorsa con campi dinamici annidati `typedef struct documento { char *titolo; int *voti; size_t num_voti; size_t *cont_distrutti; } documento_t;`, una funzione `documento_t *crea_documento(const char *titolo, const int *voti, size_t k, size_t *cont_distrutti)` che duplica `titolo` con `strdup` e copia `voti` in un array `calloc`, `double media_documento(const documento_t *d)` e il distruttore profondo `void distruggi_documento(void *p)` che incrementa `*(d->cont_distrutti)` e libera `d->titolo`, `d->voti` e `d`. In `main` leggi dalla prima riga `n soglia_vista soglia_elim` (`0 <= n <= 16`) e dalle successive `n` righe `<titolo> <k> <v1> ... <vk>` (`1 <= k <= 8`). Inserisci tutti gli `n` documenti creati in `lista_prop` (inizializzata con `distruggi_documento`: proprietaria), poi costruisci `lista_vista` (inizializzata con `nullptr`: prestito!) inserendovi i puntatori ai documenti con `media >= soglia_vista`. Stampa `lista_vista`, distruggila PRIMA di `lista_prop` e verifica che `distrutti == 0`; quindi chiama `lg_rimuovi_se` su `lista_prop` per rimuovere i documenti con `media < soglia_elim`, stampa la lista proprietaria residua, distruggi `lista_prop` e stampa il bilancio `creati`/`distrutti` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "contratto di possesso della memoria tramite callback distruggi_fn (proprietà) e nullptr (prestito)",
+        "distruzione profonda di una struct contenente puntatori annidati (titolo, voti e struct stessa)",
+        "ordine di distruzione obbligatorio: distruggere la vista in prestito prima del contenitore proprietario",
+        "mantenimento dell'invariante di testa e coda durante la rimozione selettiva in una lista generica"
+      ],
+      "domande_guida": [
+        "Perché lista_vista deve essere distrutta prima che lista_prop rimuova elementi o venga distrutta?",
+        "Che cosa accadrebbe se passassi distruggi_documento sia a lista_prop sia a lista_vista?",
+        "Perché lg_inserisci_coda non libera dato se malloc per il nodo fallisce, e come si comporta main in quel caso?",
+        "In che ordine deve liberare la memoria distruggi_documento per evitare sia perdite di memoria sia uso dopo la liberazione?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3 25.0 20.0\nRelazioneA 3 28 30 26\nBozzaB 2 18 16\nTesinaC 2 22 24\n",
+          "output": "Vista prestito (>= 25.00, len=1): RelazioneA(28.00)\nDopo distruzione vista: distrutti=0\nRimossi (< 20.00): 1 (distrutti=1)\nProprietaria residua (len=2): RelazioneA(28.00) TesinaC(23.00)\nFine programma: creati=3 distrutti=3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 20.0 18.0\n",
+          "output": "Vista prestito (>= 20.00, len=0): (vuota)\nDopo distruzione vista: distrutti=0\nRimossi (< 18.00): 0 (distrutti=0)\nProprietaria residua (len=0): (vuota)\nFine programma: creati=0 distrutti=0\n"
+        },
+        {
+          "input": "2 30.0 25.0\nDoc1 1 18\nDoc2 2 20 22\n",
+          "output": "Vista prestito (>= 30.00, len=0): (vuota)\nDopo distruzione vista: distrutti=0\nRimossi (< 25.00): 2 (distrutti=2)\nProprietaria residua (len=0): (vuota)\nFine programma: creati=2 distrutti=2\n"
+        },
+        {
+          "input": "2 24.0 18.0\nAlfa 2 25 27\nBeta 1 30\n",
+          "output": "Vista prestito (>= 24.00, len=2): Alfa(26.00) Beta(30.00)\nDopo distruzione vista: distrutti=0\nRimossi (< 18.00): 0 (distrutti=0)\nProprietaria residua (len=2): Alfa(26.00) Beta(30.00)\nFine programma: creati=2 distrutti=2\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef void (*distruggi_fn)(void *dato);\ntypedef bool (*pred_dato_fn)(const void *dato, const void *ctx);\n\ntypedef struct nodo_gen {\n    void *dato;\n    struct nodo_gen *prox;\n} nodo_gen_t;\n\ntypedef struct lista_gen {\n    nodo_gen_t *testa;\n    nodo_gen_t *coda;\n    size_t len;\n    distruggi_fn distruggi;\n} lista_gen_t;\n\ntypedef struct documento {\n    char *titolo;\n    int *voti;\n    size_t num_voti;\n    size_t *cont_distrutti;\n} documento_t;\n\nvoid lg_init(lista_gen_t *l, distruggi_fn distruggi) {\n    *l = (lista_gen_t){.testa = nullptr, .coda = nullptr, .len = 0, .distruggi = distruggi};\n}\n\nbool lg_inserisci_coda(lista_gen_t *l, void *dato) {\n    nodo_gen_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return false; }\n    n->dato = dato;\n    n->prox = nullptr;\n    if (l->coda != nullptr) { l->coda->prox = n; }\n    else { l->testa = n; }\n    l->coda = n;\n    ++l->len;\n    return true;\n}\n\nsize_t lg_rimuovi_se(lista_gen_t *l, pred_dato_fn pred, const void *ctx) {\n    size_t rimossi = 0;\n    nodo_gen_t *prev = nullptr;\n    nodo_gen_t *curr = l->testa;\n    while (curr != nullptr) {\n        nodo_gen_t *prossimo = curr->prox;\n        if (pred(curr->dato, ctx)) {\n            if (prev != nullptr) { prev->prox = prossimo; }\n            else { l->testa = prossimo; }\n            if (curr == l->coda) { l->coda = prev; }\n            if (l->distruggi != nullptr) { l->distruggi(curr->dato); }\n            free(curr);\n            --l->len;\n            ++rimossi;\n        } else {\n            prev = curr;\n        }\n        curr = prossimo;\n    }\n    return rimossi;\n}\n\nvoid lg_distruggi(lista_gen_t *l) {\n    nodo_gen_t *curr = l->testa;\n    while (curr != nullptr) {\n        nodo_gen_t *prossimo = curr->prox;\n        if (l->distruggi != nullptr) { l->distruggi(curr->dato); }\n        free(curr);\n        curr = prossimo;\n    }\n    l->testa = nullptr;\n    l->coda = nullptr;\n    l->len = 0;\n}\n\ndouble media_documento(const documento_t *d) {\n    if (d->num_voti == 0) { return 0.0; }\n    long long s = 0;\n    for (size_t i = 0; i < d->num_voti; ++i) { s += d->voti[i]; }\n    return (double)s / (double)d->num_voti;\n}\n\nvoid distruggi_documento(void *p) {\n    documento_t *d = p;\n    if (d == nullptr) { return; }\n    if (d->cont_distrutti != nullptr) { ++(*d->cont_distrutti); }\n    free(d->titolo);\n    free(d->voti);\n    free(d);\n}\n\ndocumento_t *crea_documento(const char *titolo, const int *voti, size_t k, size_t *cont_distrutti) {\n    documento_t *d = malloc(sizeof(*d));\n    if (d == nullptr) { return nullptr; }\n    d->titolo = strdup(titolo);\n    d->voti = calloc(k, sizeof(int));\n    if (d->titolo == nullptr || d->voti == nullptr) {\n        free(d->titolo); free(d->voti); free(d);\n        return nullptr;\n    }\n    for (size_t i = 0; i < k; ++i) { d->voti[i] = voti[i]; }\n    d->num_voti = k;\n    d->cont_distrutti = cont_distrutti;\n    return d;\n}\n\nbool pred_media_sotto(const void *dato, const void *ctx) {\n    const documento_t *d = dato;\n    const double *soglia = ctx;\n    return media_documento(d) < *soglia;\n}\n\nvoid stampa_lista_doc(const lista_gen_t *l) {\n    if (l->len == 0) { printf(\" (vuota)\\n\"); return; }\n    for (const nodo_gen_t *n = l->testa; n != nullptr; n = n->prox) {\n        const documento_t *d = n->dato;\n        printf(\" %s(%.2f)\", d->titolo, media_documento(d));\n    }\n    printf(\"\\n\");\n}\n\nint main(void) {\n    char riga[256], titolo[32], extra = '\\0';\n    int n_in = 0;\n    double soglia_vista = 0.0, soglia_elim = 0.0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %lf %lf %c\", &n_in, &soglia_vista, &soglia_elim, &extra) != 3 ||\n        n_in < 0 || n_in > 16) {\n        fprintf(stderr, \"Errore: intestazione non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in, distrutti = 0;\n    lista_gen_t lista_prop, lista_vista;\n    lg_init(&lista_prop, distruggi_documento);\n    lg_init(&lista_vista, nullptr);\n    for (size_t i = 0; i < n; ++i) {\n        int k_in = 0, letti = 0, voti[8] = {};\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%31s %d%n\", titolo, &k_in, &letti) != 2 || k_in < 1 || k_in > 8) {\n            lg_distruggi(&lista_vista); lg_distruggi(&lista_prop); return EXIT_FAILURE;\n        }\n        const char *p = riga + letti;\n        for (int j = 0; j < k_in; ++j) {\n            int step = 0;\n            if (sscanf(p, \"%d%n\", &voti[j], &step) != 1) {\n                lg_distruggi(&lista_vista); lg_distruggi(&lista_prop); return EXIT_FAILURE;\n            }\n            p += step;\n        }\n        documento_t *doc = crea_documento(titolo, voti, (size_t)k_in, &distrutti);\n        if (doc == nullptr || !lg_inserisci_coda(&lista_prop, doc)) {\n            distruggi_documento(doc);\n            lg_distruggi(&lista_vista); lg_distruggi(&lista_prop); return EXIT_FAILURE;\n        }\n    }\n    for (const nodo_gen_t *c = lista_prop.testa; c != nullptr; c = c->prox) {\n        documento_t *d = c->dato;\n        if (media_documento(d) >= soglia_vista && !lg_inserisci_coda(&lista_vista, d)) {\n            lg_distruggi(&lista_vista); lg_distruggi(&lista_prop); return EXIT_FAILURE;\n        }\n    }\n    printf(\"Vista prestito (>= %.2f, len=%zu):\", soglia_vista, lista_vista.len);\n    stampa_lista_doc(&lista_vista);\n    lg_distruggi(&lista_vista);\n    printf(\"Dopo distruzione vista: distrutti=%zu\\n\", distrutti);\n    size_t rim = lg_rimuovi_se(&lista_prop, pred_media_sotto, &soglia_elim);\n    printf(\"Rimossi (< %.2f): %zu (distrutti=%zu)\\n\", soglia_elim, rim, distrutti);\n    printf(\"Proprietaria residua (len=%zu):\", lista_prop.len);\n    stampa_lista_doc(&lista_prop);\n    lg_distruggi(&lista_prop);\n    printf(\"Fine programma: creati=%zu distrutti=%zu\\n\", n, distrutti);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Leggere curr->prox dopo aver chiamato free(curr) durante la distruzione di una lista (uso dopo la liberazione) invece di salvare prima il puntatore al nodo successivo.",
+    "Dimenticare di aggiornare coda = nullptr quando si rimuove l'ultimo elemento di una coda o di una lista doppiamente concatenata, lasciando un puntatore pendente.",
+    "Ridimensionare una coda su buffer circolare chiamando semplicemente realloc senza riallineare gli elementi quando inizio > 0, corrompendo l'ordine FIFO.",
+    "Liberare un nodo di un albero binario di ricerca in pre-ordine prima di ricorrere sui figli sx e dx (uso dopo la liberazione) oppure dimenticare di rimuovere il successore in-ordine dopo averne copiato la chiave.",
+    "Non definire un contratto di possesso chiaro: liberare un dato sia nel contenitore sia nel chiamante (doppia liberazione), usare una vista in prestito dopo la distruzione del proprietario (puntatore pendente) oppure dimenticare di liberare i campi annidati dentro una struct (perdita di memoria)."
+  ],
+  "differenze_python": [
+    "In Python le liste, le collezioni (deque) e i dizionari sono integrati e la memoria è gestita automaticamente dal conteggio dei riferimenti e dal garbage collector; in C ogni nodo è allocato esplicitamente con malloc e liberato con free secondo un contratto di possesso progettato dal programmatore.",
+    "In Python è normale che più strutture condividano riferimenti allo stesso oggetto senza preoccuparsi dell'ordine di distruzione; in C condividere puntatori tra una struttura proprietaria e una vista in prestito richiede di distruggere sempre la vista prima del proprietario per evitare puntatori pendenti e doppie liberazioni."
+  ]
+}
