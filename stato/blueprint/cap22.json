@@ -1,0 +1,450 @@
+{
+  "capitolo": 22,
+  "titolo": "Gestione avanzata della memoria",
+  "obiettivi": [
+    "Allineare buffer statici e blocchi allocati con alignas, alignof e max_align_t",
+    "Implementare da zero un allocatore ad arena, un allocatore a pool e un allocatore con lista libera (anche con campo array flessibile) garantendo allineamento corretto",
+    "Ridurre frammentazione e numero di chiamate a malloc scegliendo l'allocatore adatto al ciclo di vita dei dati",
+    "Spiegare le regole di strict aliasing e di restrict e diagnosticare corruzioni della memoria"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "allocatore ad arena",
+      "definizione": "Allocatore che assegna memoria avanzando un cursore su un buffer contiguo e libera tutti gli oggetti in un colpo solo."
+    },
+    {
+      "termine": "allocatore a pool",
+      "definizione": "Allocatore specializzato che gestisce blocchi di dimensione fissa garantendo allocazione e rilascio in tempo costante."
+    },
+    {
+      "termine": "lista libera",
+      "definizione": "Elenco collegato di blocchi di memoria disponibili mantenuto da un allocatore per soddisfare nuove richieste e riciclare blocchi liberati."
+    },
+    {
+      "termine": "campo array flessibile",
+      "definizione": "Ultimo campo di una struct dichiarato come array senza dimensione (tipo nome[]) per allocare intestazione e dati in un unico blocco."
+    },
+    {
+      "termine": "strict aliasing",
+      "definizione": "Regola dello standard C secondo cui un oggetto in memoria non può essere letto o scritto tramite un puntatore di tipo incompatibile."
+    }
+  ],
+  "concetti_richiesti": [
+    "tipo di dato",
+    "costante",
+    "overflow",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "puntatore",
+    "indirizzo di memoria",
+    "dereferenziazione",
+    "puntatore nullo",
+    "aritmetica dei puntatori",
+    "stack",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "uso dopo la liberazione",
+    "doppia liberazione",
+    "sanitizer",
+    "struttura",
+    "campo",
+    "allineamento",
+    "padding",
+    "puntatore pendente",
+    "puntatore generico",
+    "asserzione statica",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco",
+    "asserzione"
+  ],
+  "regole": [
+    {
+      "id": "22.R1",
+      "enunciato": "Lo specificatore alignas (parola chiave C23) accetta un tipo (alignas(T)) o una costante intera potenza di due (alignas(N)) e rafforza il requisito di allineamento di un oggetto o di un campo di struct (non può mai ridurlo sotto l'allineamento naturale del tipo e non si applica a typedef, parametri di funzione o campi di bit). Il tipo max_align_t di <stddef.h> ha allineamento alignof(max_align_t), il più grande allineamento fondamentale supportato dalla piattaforma; malloc, calloc e realloc restituiscono puntatori opportunamente allineati per ogni oggetto con allineamento fondamentale. Per arrotondare una dimensione n al multiplo superiore di una potenza di due A si verifica che A != 0 && (A & (A - 1)) == 0, si controlla l'overflow con ckd_add(&s, n, A - 1) e si calcola s & ~(A - 1).",
+      "nota_standard": "dipendente dall'implementazione: alignas, alignof e max_align_t sono definiti dallo standard C23; il valore numerico di alignof(max_align_t) e gli allineamenti estesi superiori ad esso dipendono dall'implementazione, mentre dereferenziare un puntatore non allineato al requisito del tipo puntato provoca comportamento indefinito."
+    },
+    {
+      "id": "22.R2",
+      "enunciato": "Un allocatore ad arena gestisce un buffer contiguo (statico, allineato con alignas(max_align_t), oppure allocato una sola volta) mantenendo un cursore di avanzamento. Ogni allocazione arrotonda la posizione corrente all'allineamento richiesto (almeno alignof(max_align_t) nell'allocazione generica), verifica l'assenza di overflow e di sforamento della capacità e avanza il cursore in tempo O(1). Le singole allocazioni non si liberano individualmente: la memoria viene recuperata interamente con un reset O(1) oppure per fasi annidate tramite salvataggio e ripristino di una marca (checkpoint).",
+      "nota_standard": "indefinito: il calcolo di spiazzamenti allineati su un buffer di byte e il ripristino del cursore sono definiti dallo standard C23; usare un puntatore ottenuto dall'arena dopo arena_reset o dopo un arena_ripristina che lo precede produce un puntatore pendente e l'accesso provoca comportamento indefinito."
+    },
+    {
+      "id": "22.R3",
+      "enunciato": "Un allocatore a pool riserva N blocchi contigui di dimensione uniforme (arrotondata al massimo tra la dimensione richiesta, sizeof(void *) e alignof(max_align_t)) e collega i blocchi liberi in una lista libera che consente allocazione e rilascio in tempo O(1) con zero frammentazione esterna. Quando i blocchi vengono riciclati per oggetti di tipo diverso o per il collegamento interno della lista libera, occorre rispettare la regola del tipo effettivo: sulla memoria restituita da malloc (priva di tipo dichiarato) ogni scrittura imposta il nuovo tipo effettivo; per leggere e scrivere il puntatore della lista libera dentro un blocco libero in modo immune a strict aliasing si usa memcpy. Un puntatore estraneo non va confrontato con < o > rispetto al buffer del pool, ma verificato convertendo gli indirizzi a uintptr_t o per uguaglianza.",
+      "nota_standard": "indefinito: le regole sul tipo effettivo degli oggetti allocati dinamicamente e sulla copia con memcpy sono definite dallo standard C23; leggere un blocco riciclato prima di scrivervi il nuovo tipo, liberare due volte lo stesso blocco o confrontare con < puntatori ad oggetti non correlati provoca comportamento indefinito."
+    },
+    {
+      "id": "22.R4",
+      "enunciato": "Un campo array flessibile (tipo nome[]) può comparire solo come ultimo campo di una struct che abbia almeno un altro campo con nome; non può appartenere a una union, né la struct che lo contiene può essere elemento di un array o campo di un'altra struct. sizeof(struct s) non include gli elementi dell'array flessibile (ma può includere padding finale): per allocare N elementi si alloca offsetof(struct s, nome) + N * sizeof(tipo) (o sizeof(struct s) + N * sizeof(tipo)), controllando l'overflow. Un allocatore con lista libera per blocchi di dimensione variabile antepone a ogni blocco un'intestazione allineata ad alignof(max_align_t), cerca blocchi liberi (ad esempio con strategia first-fit), suddivide i blocchi in eccesso (splitting) e fonde i blocchi liberi adiacenti al rilascio (coalescing) per contrastare la frammentazione esterna.",
+      "nota_standard": "indefinito: la sintassi e l'allocazione dinamica di struct con campo array flessibile sono definite dallo standard C23; copiare per assegnazione una struct con campo array flessibile copia solo i campi fissi, e accedere oltre gli N elementi allocati provoca comportamento indefinito."
+    },
+    {
+      "id": "22.R5",
+      "enunciato": "Per la regola di strict aliasing dello standard C23, un oggetto può essere letto o scritto solo attraverso un lvalue del proprio tipo effettivo (o sua versione qualificata, o versione con/senza segno corrispondente, o aggregato/union che lo contenga) oppure tramite un tipo carattere (char, signed char, unsigned char). Reinterpretare un oggetto facendo cast del suo puntatore a un tipo incompatibile (come *(uint32_t *)&f) provoca comportamento indefinito; la reinterpretazione portabile dei bit si esegue con memcpy (abbinata a static_assert sulle dimensioni). Il qualificatore restrict estende la garanzia di non sovrapposizione anche tra puntatori dello stesso tipo: violarlo provoca comportamento indefinito. Canarini di confine (redzone) e avvelenamento dei byte (poisoning con memset) permettono di diagnosticare underflow, overflow e uso dopo la liberazione in affiancamento ai sanitizer.",
+      "nota_standard": "indefinito: le regole sul tipo effettivo, strict aliasing, memcpy e restrict sono definite dallo standard C23; violare strict aliasing o restrict provoca comportamento indefinito che può manifestarsi in modo silenzioso quando il compilatore attiva le ottimizzazioni."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s terminando con '\\0' e restituisce i caratteri che sarebbero stati scritti."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati, allineato per ogni tipo fondamentale, e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    },
+    {
+      "nome": "ckd_add",
+      "firma": "bool ckd_add(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: somma controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "ckd_mul",
+      "firma": "bool ckd_mul(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: moltiplicazione controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "22.1",
+      "titolo": "Allineamento in pratica con alignas e max_align_t",
+      "contenuti": [
+        "Ripasso operativo di alignof (capitolo 13) e introduzione dello specificatore C23 alignas (con box C23 rispetto a _Alignas/<stdalign.h>): allineare buffer statici, variabili e campi di struct a un tipo o a una potenza di due",
+        "Il tipo max_align_t (<stddef.h>) e il significato di alignof(max_align_t) come allineamento fondamentale massimo garantito da malloc e richiesto per buffer generici",
+        "Formula sicura di arrotondamento a una potenza di due: verifica della potenza di due (a != 0 && (a & (a - 1)) == 0), controllo dell'overflow con ckd_add e mascheramento (s & ~(a - 1))",
+        "Verifica dell'allineamento di un puntatore tramite uintptr_t e conseguenze dell'allineamento sugli array di struct (sizeof multiplo di alignof) e sulle linee di cache"
+      ],
+      "esempio_guidato": "Un programma che dichiara un buffer statico con alignas(max_align_t) e una struct allineata a 64 byte con alignas(64), verifica con uintptr_t l'allineamento di ogni elemento di un array di tali struct, e dimostra una funzione di arrotondamento sicuro con controllo di potenza di due e di overflow vicino a SIZE_MAX.",
+      "approfondimento": "Perché un buffer statico di byte per un allocatore personalizzato non può essere dichiarato come semplice unsigned char buf[N]: alignof(unsigned char) è 1, quindi il compilatore può collocare buf a un indirizzo dispari; aggiungere alignas(max_align_t) garantisce che l'inizio del buffer sia adatto a qualsiasi tipo fondamentale.",
+      "esercizio_id": "22.1"
+    },
+    {
+      "id": "22.2",
+      "titolo": "L'allocatore ad arena su buffer statico",
+      "contenuti": [
+        "Quando malloc/free per ogni piccolo oggetto è costosa o fonte di perdite di memoria: raggruppare oggetti con lo stesso ciclo di vita in un allocatore ad arena (bump allocator)",
+        "Struttura di un'arena su buffer statico allineato con alignas(max_align_t): puntatore base, capacità, cursore usati e picco di utilizzo (schema di memoria in blocco text)",
+        "Allocazione O(1) con calcolo del padding rispetto all'indirizzo corrente, arrotondamento a alignof(max_align_t) (o allineamento esplicito) e controllo di overflow/capacità",
+        "Rilascio in blocco O(1) con arena_reset e gestione di allocazioni temporanee annidate mediante marche di salvataggio e ripristino (checkpoint), preparando l'arena per i nodi dell'albero sintattico del capitolo 26"
+      ],
+      "esempio_guidato": "Un programma su più file (arena.h, arena.c, main.c) che utilizza un'arena su buffer statico alignas(max_align_t) per allocare in sequenza i nodi di una lista temporanea di token di una frase, esegue arena_reset in tempo costante per elaborare una seconda frase senza chiamare mai malloc né free, e mostra il rientro pulito di nullptr a buffer esaurito.",
+      "approfondimento": "Frammentazione e durata di vita: un'arena azzera il costo amministrativo per singolo oggetto e rende impossibili le perdite di memoria individuali, ma non può riciclare un singolo oggetto finché non si ripristina una marca o non si resetta l'intera arena.",
+      "esercizio_id": "22.2"
+    },
+    {
+      "id": "22.3",
+      "titolo": "L'allocatore a pool per blocchi di dimensione fissa",
+      "contenuti": [
+        "Quando gli oggetti vengono creati e distrutti in ordine arbitrario ma hanno tutti la stessa dimensione: l'allocatore a pool (slab/fixed-size pool) con allocazione e rilascio O(1) e zero frammentazione esterna",
+        "Calcolo del passo (dimensione dello slot): massimo tra dim_blocco e sizeof(void *), arrotondato a alignof(max_align_t) affinché ogni blocco sia correttamente allineato",
+        "Lista libera intrusiva memorizzata nei blocchi liberi stessi e rispetto del tipo effettivo in C23: uso di memoria ottenuta da malloc (senza tipo dichiarato) e lettura/scrittura del puntatore prox tramite memcpy per evitare violazioni di strict aliasing",
+        "Validazione sicura in pool_libera: controllo di appartenenza al pool e di confine di slot tramite uintptr_t (senza confronti < su puntatori estranei) e rilevamento della doppia liberazione tramite tabella di stato"
+      ],
+      "esempio_guidato": "Un modulo (pool_entita.h, pool_entita.c, main.c) che gestisce un pool di blocchi fissi per una simulazione di particelle, allocando, liberando in ordine sparso e riciclando gli stessi slot in tempo costante O(1) con stampa del numero di blocchi liberi e occupati.",
+      "approfondimento": "Perché in C23 la memoria di un pool generico dovrebbe provenire da malloc e leggere/scrivere il puntatore della lista libera con memcpy: un blocco allocato con malloc non ha un tipo dichiarato, quindi ogni scrittura di un nuovo tipo utente ne aggiorna legalmente il tipo effettivo, mentre memcpy evita qualsiasi conflitto di strict aliasing quando il blocco torna nella lista libera.",
+      "esercizio_id": "22.3"
+    },
+    {
+      "id": "22.4",
+      "titolo": "L'allocatore con lista libera",
+      "contenuti": [
+        "Il campo array flessibile (tipo nome[] come ultimo campo di una struct): regole dello standard C23, differenza tra sizeof e offsetof, allocazione in un unico blocco contiguo e divieto di copia per assegnazione o annidamento in array/struct",
+        "Progettazione di un allocatore generico a dimensione variabile con lista libera: intestazione di blocco allineata ad alignof(max_align_t) (dimensione payload, flag libero, puntatore al blocco successivo) seguita dai byte utente (schema in blocco text)",
+        "Strategia first-fit e suddivisione (splitting) di un blocco libero più grande della richiesta quando lo spazio residuo basta per una nuova intestazione e un payload minimo allineato",
+        "Frammentazione interna (arrotondamento) contro frammentazione esterna (spazio libero spezzettato) e fusione dei blocchi liberi adiacenti (coalescing) durante il rilascio"
+      ],
+      "esempio_guidato": "Un programma che mostra prima una struct con campo array flessibile per un messaggio di lunghezza variabile allocato in un solo blocco con offsetof, e poi un piccolo allocatore didattico con lista libera che esegue allocazioni di dimensioni diverse, mostra lo splitting, osserva la frammentazione esterna e ricompatta la memoria con il coalescing.",
+      "approfondimento": "Confronto tra i tre allocatori: arena per dati con vita comune e rilascio in blocco (O(1), zero metadati per oggetto); pool per molti oggetti della stessa dimensione con rilascio individuale (O(1), zero frammentazione esterna); lista libera per dimensioni variabili e rilasci arbitrari (massima flessibilità, costo O(k) di ricerca e metadati per blocco).",
+      "esercizio_id": "22.4"
+    },
+    {
+      "id": "22.5",
+      "titolo": "Strict aliasing, restrict e diagnosi delle corruzioni",
+      "contenuti": [
+        "Tipo effettivo e regola di strict aliasing in C23: quali tipi possono accedere legalmente allo stesso oggetto (tipo compatibile, signed/unsigned corrispondente, aggregato/union contenitore, tipi carattere char/signed char/unsigned char)",
+        "Perché il type punning tramite cast di puntatore (*(uint32_t *)&f) è comportamento indefinito e come sostituirlo sempre con memcpy (affiancato da static_assert sulle dimensioni), con nota sui limiti del type punning via union",
+        "Relazione tra strict aliasing (tra tipi incompatibili) e restrict (promessa di disgiunzione tra puntatori dello stesso tipo) nelle ottimizzazioni del compilatore",
+        "Tecniche difensive per diagnosticare corruzioni di memoria: canarini di confine (redzone prima e dopo il payload) per rilevare underflow/overflow, avvelenamento (poisoning con memset su allocazione e rilascio) per far emergere valori non inizializzati e uso dopo la liberazione, tracciamento delle perdite di memoria e sinergia con AddressSanitizer"
+      ],
+      "esempio_guidato": "Un programma che affianca un breve frammento scorretto di cast di puntatore (marcato esplicitamente come UB) alla reinterpretazione sicura dei bit di un double con memcpy e static_assert, confronta un ciclo vettoriale con restrict su array disgiunti e dimostra un blocco protetto da byte canarino capace di rilevare uno sforamento di un singolo byte nella redzone.",
+      "approfondimento": "Perché un programma che viola strict aliasing può sembrare funzionare a -O0 e rompersi improvvisamente a -O2: con le ottimizzazioni attive il compilatore assume per contratto che un float * e un uint32_t * non puntino allo stesso indirizzo e può mantenere il valore di uno dei due in un registro senza ricaricarlo dopo la scrittura sull'altro.",
+      "esercizio_id": "22.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "22.1",
+      "tipo": "esercizio",
+      "titolo": "Pianificatore di allineamento e layout di struct con alignas, max_align_t e ckd_add",
+      "descrizione": "Scrivi un programma C che implementi utilità rigorose di allineamento e un simulatore di layout di `struct` in memoria. (1) Implementa `bool e_potenza_di_due(size_t a)`, `bool arrotonda_allineamento(size_t n, size_t allin, size_t *out)` (verifica `e_potenza_di_due(allin)`, usa `ckd_add` di `<stdckdint.h>` per evitare overflow nella somma `n + (allin - 1)` e applica `& ~(allin - 1)`) e `bool puntatore_allineato(const void *p, size_t allin)` (usa `uintptr_t`). (2) Definisci `typedef struct blocco_32 { alignas(32) uint8_t dati[20]; } blocco_32_t;`, un buffer statico `static alignas(max_align_t) unsigned char buf_max[128];` e un array `static blocco_32_t arr_32[3];`. (3) Leggi da `stdin` comandi fino a fine input: `ALIGN <dim> <allin>` stampa `ALIGN(<dim>, <allin>) = <ris>` oppure `ERRORE`; `ALIGN_MAX <allin>` verifica `arrotonda_allineamento(SIZE_MAX, allin, &ris)` stampando `ALIGN(SIZE_MAX, <allin>) = OK` o `ERRORE`; `LAYOUT <k>` (`0 <= k <= 16`) seguito da `k` righe `<dim> <allin>` (`dim > 0`, `allin` potenza di due) calcola l'offset allineato e il padding di ciascun campo, l'allineamento massimo della `struct`, la dimensione totale arrotondata e il padding di coda, stampando esattamente come nell'esempio; `CHECK_STATIC` verifica l'allineamento di `buf_max` rispetto a `alignof(max_align_t)`, che `alignof(blocco_32_t) == 32`, `sizeof(blocco_32_t) == 32` e che tutti gli elementi di `arr_32` siano allineati a 32 byte, stampando `CHECK_STATIC: max_align_ok=1 align32=32 sizeof32=32 array_ok=1`.",
+      "concetti_da_tenere_a_mente": [
+        "verifica che un allineamento sia una potenza di due non nulla: a != 0 && (a & (a - 1)) == 0",
+        "arrotondamento sicuro al multiplo superiore con ckd_add e maschera ~(allin - 1)",
+        "uso di alignas(max_align_t) e alignas(32) su buffer statici e struct e verifica tramite uintptr_t",
+        "calcolo di offset, padding interno, allineamento complessivo e padding finale di una struct"
+      ],
+      "domande_guida": [
+        "Perché l'espressione (a & (a - 1)) == 0 da sola non basta a verificare che a sia una potenza di due valida?",
+        "Che cosa succederebbe nella formula (n + (allin - 1)) & ~(allin - 1) se n valesse SIZE_MAX e allin valesse 16 senza un controllo preventivo di overflow?",
+        "Perché sizeof(blocco_32_t) vale 32 anche se il campo dati occupa solo 20 byte?",
+        "Quale differenza c'è tra il padding interno inserito prima di un campo e il padding di coda aggiunto in fondo a una struct?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ALIGN 0 16\nALIGN 13 8\nALIGN 16 16\nALIGN 10 6\nALIGN 10 0\nALIGN_MAX 16\nALIGN_MAX 1\nLAYOUT 3\n1 1\n8 8\n1 1\nLAYOUT 3\n8 8\n1 1\n1 1\nCHECK_STATIC\n",
+          "output": "ALIGN(0, 16) = 0\nALIGN(13, 8) = 16\nALIGN(16, 16) = 16\nALIGN(10, 6) = ERRORE\nALIGN(10, 0) = ERRORE\nALIGN(SIZE_MAX, 16) = ERRORE\nALIGN(SIZE_MAX, 1) = OK\n  campo 0: offset=0 dim=1 allin=1 pad=0\n  campo 1: offset=8 dim=8 allin=8 pad=7\n  campo 2: offset=16 dim=1 allin=1 pad=0\nLAYOUT(3): dim=24 allin=8 pad_interno=7 pad_coda=7\n  campo 0: offset=0 dim=8 allin=8 pad=0\n  campo 1: offset=8 dim=1 allin=1 pad=0\n  campo 2: offset=9 dim=1 allin=1 pad=0\nLAYOUT(3): dim=16 allin=8 pad_interno=0 pad_coda=6\nCHECK_STATIC: max_align_ok=1 align32=32 sizeof32=32 array_ok=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "LAYOUT 0\nCHECK_STATIC\n",
+          "output": "LAYOUT(0): dim=0 allin=1 pad_interno=0 pad_coda=0\nCHECK_STATIC: max_align_ok=1 align32=32 sizeof32=32 array_ok=1\n"
+        },
+        {
+          "input": "LAYOUT 1\n5 16\nALIGN 1 64\nALIGN 65 64\n",
+          "output": "  campo 0: offset=0 dim=5 allin=16 pad=0\nLAYOUT(1): dim=16 allin=16 pad_interno=0 pad_coda=11\nALIGN(1, 64) = 64\nALIGN(65, 64) = 128\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdckdint.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct blocco_32 {\n    alignas(32) uint8_t dati[20];\n} blocco_32_t;\n\nstatic alignas(max_align_t) unsigned char buf_max[128];\nstatic blocco_32_t arr_32[3];\n\nstatic bool e_potenza_di_due(size_t a) {\n    return a != 0 && (a & (a - 1)) == 0;\n}\n\nstatic bool arrotonda_allineamento(size_t n, size_t allin, size_t *out) {\n    if (!e_potenza_di_due(allin) || out == nullptr) {\n        return false;\n    }\n    size_t somma = 0;\n    if (ckd_add(&somma, n, allin - 1)) {\n        return false;\n    }\n    *out = somma & ~(allin - 1);\n    return true;\n}\n\nstatic bool puntatore_allineato(const void *p, size_t allin) {\n    if (p == nullptr || !e_potenza_di_due(allin)) {\n        return false;\n    }\n    return ((uintptr_t)p & (uintptr_t)(allin - 1)) == 0;\n}\n\nstatic bool gestisci_layout(size_t k) {\n    size_t offset = 0, pad_interno = 0, max_allin = 1;\n    char riga[128], extra = '\\0';\n    for (size_t i = 0; i < k; ++i) {\n        size_t dim = 0, allin = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%zu %zu %c\", &dim, &allin, &extra) != 2 ||\n            dim == 0 || !e_potenza_di_due(allin)) {\n            return false;\n        }\n        size_t off_allin = 0, nuovo_off = 0;\n        if (!arrotonda_allineamento(offset, allin, &off_allin) ||\n            ckd_add(&nuovo_off, off_allin, dim)) {\n            return false;\n        }\n        size_t pad = off_allin - offset;\n        pad_interno += pad;\n        printf(\"  campo %zu: offset=%zu dim=%zu allin=%zu pad=%zu\\n\",\n               i, off_allin, dim, allin, pad);\n        offset = nuovo_off;\n        if (allin > max_allin) {\n            max_allin = allin;\n        }\n    }\n    size_t dim_tot = 0;\n    if (!arrotonda_allineamento(offset, max_allin, &dim_tot)) {\n        return false;\n    }\n    printf(\"LAYOUT(%zu): dim=%zu allin=%zu pad_interno=%zu pad_coda=%zu\\n\",\n           k, dim_tot, max_allin, pad_interno, dim_tot - offset);\n    return true;\n}\n\nint main(void) {\n    char riga[128], cmd[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        size_t dim = 0, allin = 0, ris = 0;\n        if (strcmp(cmd, \"ALIGN\") == 0 && sscanf(riga, \"ALIGN %zu %zu %c\", &dim, &allin, &extra) == 2) {\n            if (arrotonda_allineamento(dim, allin, &ris)) {\n                printf(\"ALIGN(%zu, %zu) = %zu\\n\", dim, allin, ris);\n            } else {\n                printf(\"ALIGN(%zu, %zu) = ERRORE\\n\", dim, allin);\n            }\n        } else if (strcmp(cmd, \"ALIGN_MAX\") == 0 && sscanf(riga, \"ALIGN_MAX %zu %c\", &allin, &extra) == 1) {\n            bool ok = arrotonda_allineamento(SIZE_MAX, allin, &ris);\n            printf(\"ALIGN(SIZE_MAX, %zu) = %s\\n\", allin, ok ? \"OK\" : \"ERRORE\");\n        } else if (strcmp(cmd, \"LAYOUT\") == 0 && sscanf(riga, \"LAYOUT %zu %c\", &dim, &extra) == 1 && dim <= 16) {\n            if (!gestisci_layout(dim)) { return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"CHECK_STATIC\") == 0 && sscanf(riga, \"CHECK_STATIC %c\", &extra) != 1) {\n            bool max_ok = puntatore_allineato(buf_max, alignof(max_align_t));\n            bool arr_ok = true;\n            for (size_t i = 0; i < 3; ++i) {\n                if (!puntatore_allineato(&arr_32[i], 32)) { arr_ok = false; }\n            }\n            printf(\"CHECK_STATIC: max_align_ok=%d align32=%zu sizeof32=%zu array_ok=%d\\n\",\n                   max_ok ? 1 : 0, alignof(blocco_32_t), sizeof(blocco_32_t), arr_ok ? 1 : 0);\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "22.2",
+      "tipo": "esercizio",
+      "titolo": "Allocatore ad arena su buffer statico con allineamento esplicito e marche di ripristino",
+      "descrizione": "Realizza su tre file (`arena_st.h`, `arena_st.c`, `main.c`) un **allocatore ad arena** privo di chiamate a `malloc`, appoggiato su un buffer statico. (1) In `arena_st.h` (protetto da `ARENA_ST_H`) definisci `typedef struct arena { unsigned char *base; size_t cap; size_t usati; size_t picco; } arena_t;` e dichiara: `bool arena_init(arena_t *a, void *buffer, size_t cap);` (verifica `a != nullptr`, `buffer != nullptr`, `cap > 0` e che `buffer` sia allineato almeno a `alignof(max_align_t)`), `void *arena_alloca_allineato(arena_t *a, size_t dim, size_t allin);` (richiede `dim > 0` e `allin` potenza di due; calcola il padding necessario rispetto all'indirizzo corrente `a->base + a->usati` tramite `uintptr_t`, controlla overflow con `ckd_add` e capacità `fine <= a->cap`, aggiorna `usati` e `picco`), `void *arena_alloca(arena_t *a, size_t dim);` (delega a `arena_alloca_allineato(a, dim, alignof(max_align_t))`), `size_t arena_marca(const arena_t *a);`, `bool arena_ripristina(arena_t *a, size_t marca);` (accetta `marca <= a->usati` preservando `a->picco`) e `void arena_reset(arena_t *a);` (azzera `usati` preservando `picco`). (2) In `main.c` dichiara un buffer statico `static alignas(64) unsigned char mem_arena[256];` (con `static_assert(64 >= alignof(max_align_t))`), inizializza l'arena e gestisci da `stdin` una pila di al più `8` marche e i comandi: `ALLOC <dim> <allin>`, `ALLOC_DEF <dim>`, `MARK`, `RESTORE`, `RESET` e `STATS`. Per ogni allocazione riuscita verifica con `uintptr_t` l'allineamento del puntatore restituito e inizializza i byte con `memset`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "buffer statico allineato con alignas(64) / alignas(max_align_t) senza alcuna chiamata a malloc",
+        "calcolo del padding rispetto all'indirizzo corrente e controllo di overflow con ckd_add",
+        "salvataggio e ripristino del cursore (marche/checkpoint) per rilasci parziali annidati",
+        "reset globale O(1) mantenendo il picco storico di utilizzo"
+      ],
+      "domande_guida": [
+        "Perché arena_alloca_allineato calcola il resto di allineamento sull'indirizzo effettivo a->base + a->usati anziché solo su a->usati?",
+        "Che cosa succede ai puntatori allocati dopo una marca una volta che il chiamante invoca arena_ripristina?",
+        "Perché arena_reset e arena_ripristina non riducono il campo a->picco?",
+        "In quale caso arena_alloca_allineato deve restituire nullptr anche se a->usati < a->cap?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ALLOC 5 16\nALLOC 10 16\nMARK\nALLOC 20 32\nALLOC 64 16\nSTATS\nRESTORE\nSTATS\nALLOC_DEF 16\nALLOC 200 16\nRESET\nSTATS\n",
+          "output": "ALLOC(5, 16): OK usati=5 allin_ok=1\nALLOC(10, 16): OK usati=26 allin_ok=1\nMARK #1: pos=26\nALLOC(20, 32): OK usati=52 allin_ok=1\nALLOC(64, 16): OK usati=128 allin_ok=1\nSTATS: usati=128 picco=128 cap=256\nRESTORE: OK usati=26\nSTATS: usati=26 picco=128 cap=256\nALLOC_DEF(16): OK allin_ok=1\nALLOC(200, 16): OK usati=248 allin_ok=1\nRESET: usati=0\nSTATS: usati=0 picco=248 cap=256\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "RESTORE\nALLOC 0 16\nALLOC 16 3\nALLOC 257 16\nSTATS\n",
+          "output": "RESTORE: VUOTA\nALLOC(0, 16): OOM\nALLOC(16, 3): OOM\nALLOC(257, 16): OOM\nSTATS: usati=0 picco=0 cap=256\n"
+        },
+        {
+          "input": "ALLOC 128 64\nMARK\nALLOC 128 64\nALLOC 1 1\nRESTORE\nALLOC 64 64\nSTATS\n",
+          "output": "ALLOC(128, 64): OK usati=128 allin_ok=1\nMARK #1: pos=128\nALLOC(128, 64): OK usati=256 allin_ok=1\nALLOC(1, 1): OOM\nRESTORE: OK usati=128\nALLOC(64, 64): OK usati=192 allin_ok=1\nSTATS: usati=192 picco=256 cap=256\n"
+        }
+      ],
+      "soluzione_file": {
+        "arena_st.h": "#ifndef ARENA_ST_H\n#define ARENA_ST_H\n\n#include <stddef.h>\n\ntypedef struct arena {\n    unsigned char *base;\n    size_t cap;\n    size_t usati;\n    size_t picco;\n} arena_t;\n\nbool arena_init(arena_t *a, void *buffer, size_t cap);\nvoid *arena_alloca_allineato(arena_t *a, size_t dim, size_t allin);\nvoid *arena_alloca(arena_t *a, size_t dim);\nsize_t arena_marca(const arena_t *a);\nbool arena_ripristina(arena_t *a, size_t marca);\nvoid arena_reset(arena_t *a);\n\n#endif\n",
+        "arena_st.c": "#include \"arena_st.h\"\n#include <stdckdint.h>\n#include <stdint.h>\n\nstatic bool potenza_di_due(size_t a) {\n    return a != 0 && (a & (a - 1)) == 0;\n}\n\nbool arena_init(arena_t *a, void *buffer, size_t cap) {\n    if (a == nullptr || buffer == nullptr || cap == 0) {\n        return false;\n    }\n    if (((uintptr_t)buffer & (uintptr_t)(alignof(max_align_t) - 1)) != 0) {\n        return false;\n    }\n    a->base = buffer;\n    a->cap = cap;\n    a->usati = 0;\n    a->picco = 0;\n    return true;\n}\n\nvoid *arena_alloca_allineato(arena_t *a, size_t dim, size_t allin) {\n    if (a == nullptr || a->base == nullptr || dim == 0 || !potenza_di_due(allin)) {\n        return nullptr;\n    }\n    uintptr_t curr = (uintptr_t)(a->base + a->usati);\n    size_t resto = (size_t)(curr & (uintptr_t)(allin - 1));\n    size_t pad = (resto == 0) ? 0 : (allin - resto);\n    size_t inizio = 0, fine = 0;\n    if (ckd_add(&inizio, a->usati, pad) || ckd_add(&fine, inizio, dim) || fine > a->cap) {\n        return nullptr;\n    }\n    a->usati = fine;\n    if (a->usati > a->picco) {\n        a->picco = a->usati;\n    }\n    return a->base + inizio;\n}\n\nvoid *arena_alloca(arena_t *a, size_t dim) {\n    return arena_alloca_allineato(a, dim, alignof(max_align_t));\n}\n\nsize_t arena_marca(const arena_t *a) {\n    return (a != nullptr) ? a->usati : 0;\n}\n\nbool arena_ripristina(arena_t *a, size_t marca) {\n    if (a == nullptr || marca > a->usati) {\n        return false;\n    }\n    a->usati = marca;\n    return true;\n}\n\nvoid arena_reset(arena_t *a) {\n    if (a != nullptr) {\n        a->usati = 0;\n    }\n}\n",
+        "main.c": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"arena_st.h\"\n\nstatic_assert(64 >= alignof(max_align_t));\nstatic alignas(64) unsigned char mem_arena[256];\n\nint main(void) {\n    arena_t arena = {};\n    if (!arena_init(&arena, mem_arena, sizeof(mem_arena))) {\n        return EXIT_FAILURE;\n    }\n    size_t marche[8] = {};\n    size_t n_marche = 0;\n    char riga[128], cmd[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        size_t dim = 0, allin = 0;\n        if (strcmp(cmd, \"ALLOC\") == 0 && sscanf(riga, \"ALLOC %zu %zu %c\", &dim, &allin, &extra) == 2) {\n            void *p = arena_alloca_allineato(&arena, dim, allin);\n            if (p != nullptr) {\n                bool ok = ((uintptr_t)p & (uintptr_t)(allin - 1)) == 0;\n                memset(p, 0x5A, dim);\n                printf(\"ALLOC(%zu, %zu): OK usati=%zu allin_ok=%d\\n\", dim, allin, arena.usati, ok ? 1 : 0);\n            } else {\n                printf(\"ALLOC(%zu, %zu): OOM\\n\", dim, allin);\n            }\n        } else if (strcmp(cmd, \"ALLOC_DEF\") == 0 && sscanf(riga, \"ALLOC_DEF %zu %c\", &dim, &extra) == 1) {\n            void *p = arena_alloca(&arena, dim);\n            if (p != nullptr) {\n                bool ok = ((uintptr_t)p & (uintptr_t)(alignof(max_align_t) - 1)) == 0;\n                memset(p, 0x3C, dim);\n                printf(\"ALLOC_DEF(%zu): OK allin_ok=%d\\n\", dim, ok ? 1 : 0);\n            } else {\n                printf(\"ALLOC_DEF(%zu): OOM\\n\", dim);\n            }\n        } else if (strcmp(cmd, \"MARK\") == 0 && sscanf(riga, \"MARK %c\", &extra) != 1) {\n            if (n_marche >= 8) { return EXIT_FAILURE; }\n            marche[n_marche++] = arena_marca(&arena);\n            printf(\"MARK #%zu: pos=%zu\\n\", n_marche, marche[n_marche - 1]);\n        } else if (strcmp(cmd, \"RESTORE\") == 0 && sscanf(riga, \"RESTORE %c\", &extra) != 1) {\n            if (n_marche == 0) {\n                printf(\"RESTORE: VUOTA\\n\");\n            } else {\n                arena_ripristina(&arena, marche[--n_marche]);\n                printf(\"RESTORE: OK usati=%zu\\n\", arena.usati);\n            }\n        } else if (strcmp(cmd, \"RESET\") == 0 && sscanf(riga, \"RESET %c\", &extra) != 1) {\n            arena_reset(&arena);\n            n_marche = 0;\n            printf(\"RESET: usati=%zu\\n\", arena.usati);\n        } else if (strcmp(cmd, \"STATS\") == 0 && sscanf(riga, \"STATS %c\", &extra) != 1) {\n            printf(\"STATS: usati=%zu picco=%zu cap=%zu\\n\", arena.usati, arena.picco, arena.cap);\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "22.3",
+      "tipo": "esercizio",
+      "titolo": "Allocatore a pool generico opaco con rilevamento di doppia liberazione e puntatori estranei",
+      "descrizione": "Realizza su tre file (`pool_blocchi.h`, `pool_blocchi.c`, `main.c`) un **allocatore a pool** generico come **tipo opaco** `pool_t` per blocchi di dimensione fissa. (1) In `pool_blocchi.h` (protetto da `POOL_BLOCCHI_H`) definisci `typedef struct pool pool_t;` e `typedef enum pool_esito { POOL_OK = 0, POOL_ERR_NULLO, POOL_ERR_FUORI_POOL, POOL_ERR_DOPPIA_FREE } pool_esito_t;`, e dichiara `pool_t *pool_crea(size_t dim_blocco, size_t n_blocchi);`, `void pool_distruggi(pool_t *p);`, `void *pool_alloca(pool_t *p);`, `pool_esito_t pool_libera(pool_t *p, void *ptr);`, `size_t pool_liberi(const pool_t *p);`, `size_t pool_occupati(const pool_t *p);`, `size_t pool_picco(const pool_t *p);` e `size_t pool_capacita(const pool_t *p);`. (2) In `pool_blocchi.c` arrotonda il passo di ciascuno slot al multiplo superiore di `alignof(max_align_t)` di `max(dim_blocco, sizeof(void *))` controllando l'overflow con `ckd_add`/`ckd_mul`, alloca l'area contigua con `malloc` (priva di tipo dichiarato, così da rispettare il tipo effettivo C23 al riciclo dei blocchi) e una tabella di stato `uint8_t *occupato` con `calloc`. Mantieni la lista libera intrusiva leggendo e scrivendo il puntatore `prox` dentro ogni blocco libero esclusivamente con `memcpy`. In `pool_libera` valida `ptr` tramite `uintptr_t` (rifiutando puntatori estranei o disallineati con `POOL_ERR_FUORI_POOL` e blocchi già liberi con `POOL_ERR_DOPPIA_FREE`). (3) In `main.c` gestisci un array di `16` handle `sessione_t *slots[16]` (`typedef struct sessione { uint32_t id; int64_t punti; char tag[12]; } sessione_t;`) con i comandi da `stdin`: `INIT <n>` (`1 <= n <= 16`), `NEW <slot> <id> <punti> <tag>`, `SHOW <slot>`, `FREE <slot>` (senza azzerare `slots[slot]` così da poter testare una doppia liberazione; prima di uscire libera solo gli slot ancora attivi tramite `pool_distruggi`), `FREE_BAD` (tenta `pool_libera` su `nullptr`, su una variabile sullo stack e su un puntatore interno disallineato a `+1` byte dallo slot 0 se allocato) e `STATS`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "allocazione e rilascio O(1) tramite lista libera intrusiva su blocchi a passo costante allineato",
+        "rispetto del tipo effettivo C23 sui blocchi riciclati mediante memoria malloc e memcpy per il link della lista libera",
+        "verifica di appartenenza al pool e confine di slot tramite uintptr_t evitando confronti < tra puntatori estranei",
+        "rilevamento deterministico della doppia liberazione tramite tabella di stato"
+      ],
+      "domande_guida": [
+        "Perché il passo di ogni blocco del pool deve essere almeno sizeof(void *) oltre che multiplo di alignof(max_align_t)?",
+        "In che modo usare memcpy per salvare e leggere il puntatore al blocco libero successivo previene violazioni di strict aliasing?",
+        "Perché in pool_libera conviene convertire ptr e p->memoria a uintptr_t prima di verificare se ptr rientra nell'intervallo del pool?",
+        "Che cosa succederebbe alla lista libera se un blocco già libero venisse reinserito una seconda volta senza il controllo di doppia liberazione?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INIT 3\nNEW 0 101 500 ALFA\nNEW 1 102 750 BETA\nNEW 2 103 200 GAMMA\nNEW 3 104 100 DELTA\nSTATS\nSHOW 1\nFREE 1\nFREE 1\nFREE_BAD\nNEW 3 104 900 DELTA\nSHOW 3\nSTATS\n",
+          "output": "INIT: cap=3\nNEW[0]: OK allin_ok=1\nNEW[1]: OK allin_ok=1\nNEW[2]: OK allin_ok=1\nNEW[3]: PIENO\nSTATS: liberi=0 occupati=3 tot=3 picco=3\nSHOW[1]: id=102 punti=750 tag=BETA\nFREE[1]: OK\nFREE[1]: DOPPIA_FREE\nFREE_BAD: null=NULLO stack=FUORI_POOL disallin=FUORI_POOL\nNEW[3]: OK allin_ok=1\nSHOW[3]: id=104 punti=900 tag=DELTA\nSTATS: liberi=0 occupati=3 tot=3 picco=3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INIT 1\nNEW 0 1 10 UNICO\nFREE 0\nNEW 1 2 20 RICICLATO\nSHOW 1\nSTATS\n",
+          "output": "INIT: cap=1\nNEW[0]: OK allin_ok=1\nFREE[0]: OK\nNEW[1]: OK allin_ok=1\nSHOW[1]: id=2 punti=20 tag=RICICLATO\nSTATS: liberi=0 occupati=1 tot=1 picco=1\n"
+        },
+        {
+          "input": "INIT 2\nSTATS\nFREE_BAD\n",
+          "output": "INIT: cap=2\nSTATS: liberi=2 occupati=0 tot=2 picco=0\nFREE_BAD: null=NULLO stack=FUORI_POOL disallin=SALTATO\n"
+        }
+      ],
+      "soluzione_file": {
+        "pool_blocchi.h": "#ifndef POOL_BLOCCHI_H\n#define POOL_BLOCCHI_H\n\n#include <stddef.h>\n\ntypedef struct pool pool_t;\n\ntypedef enum pool_esito {\n    POOL_OK = 0,\n    POOL_ERR_NULLO,\n    POOL_ERR_FUORI_POOL,\n    POOL_ERR_DOPPIA_FREE\n} pool_esito_t;\n\npool_t *pool_crea(size_t dim_blocco, size_t n_blocchi);\nvoid pool_distruggi(pool_t *p);\nvoid *pool_alloca(pool_t *p);\npool_esito_t pool_libera(pool_t *p, void *ptr);\nsize_t pool_liberi(const pool_t *p);\nsize_t pool_occupati(const pool_t *p);\nsize_t pool_picco(const pool_t *p);\nsize_t pool_capacita(const pool_t *p);\n\n#endif\n",
+        "pool_blocchi.c": "#include \"pool_blocchi.h\"\n#include <stdckdint.h>\n#include <stdint.h>\n#include <stdlib.h>\n#include <string.h>\n\nstruct pool {\n    unsigned char *memoria;\n    uint8_t *occupato;\n    void *testa_libera;\n    size_t passo;\n    size_t n_blocchi;\n    size_t n_occupati;\n    size_t picco;\n};\n\npool_t *pool_crea(size_t dim_blocco, size_t n_blocchi) {\n    if (dim_blocco == 0 || n_blocchi == 0) { return nullptr; }\n    size_t min_dim = (dim_blocco < sizeof(void *)) ? sizeof(void *) : dim_blocco;\n    size_t allin = alignof(max_align_t);\n    size_t somma = 0, tot_byte = 0;\n    if (ckd_add(&somma, min_dim, allin - 1)) { return nullptr; }\n    size_t passo = somma & ~(allin - 1);\n    if (ckd_mul(&tot_byte, n_blocchi, passo)) { return nullptr; }\n    pool_t *p = calloc(1, sizeof(*p));\n    if (p == nullptr) { return nullptr; }\n    p->memoria = malloc(tot_byte);\n    p->occupato = calloc(n_blocchi, sizeof(*p->occupato));\n    if (p->memoria == nullptr || p->occupato == nullptr) {\n        free(p->memoria); free(p->occupato); free(p);\n        return nullptr;\n    }\n    p->passo = passo;\n    p->n_blocchi = n_blocchi;\n    for (size_t i = 0; i < n_blocchi; ++i) {\n        void *prox = (i + 1 < n_blocchi) ? (void *)(p->memoria + (i + 1) * passo) : nullptr;\n        memcpy(p->memoria + i * passo, &prox, sizeof(prox));\n    }\n    p->testa_libera = p->memoria;\n    return p;\n}\n\nvoid pool_distruggi(pool_t *p) {\n    if (p == nullptr) { return; }\n    free(p->memoria);\n    free(p->occupato);\n    free(p);\n}\n\nvoid *pool_alloca(pool_t *p) {\n    if (p == nullptr || p->testa_libera == nullptr) { return nullptr; }\n    void *blocco = p->testa_libera;\n    void *prox = nullptr;\n    memcpy(&prox, blocco, sizeof(prox));\n    p->testa_libera = prox;\n    size_t idx = (size_t)((unsigned char *)blocco - p->memoria) / p->passo;\n    p->occupato[idx] = 1;\n    ++p->n_occupati;\n    if (p->n_occupati > p->picco) { p->picco = p->n_occupati; }\n    return blocco;\n}\n\npool_esito_t pool_libera(pool_t *p, void *ptr) {\n    if (p == nullptr || ptr == nullptr) { return POOL_ERR_NULLO; }\n    uintptr_t addr = (uintptr_t)ptr;\n    uintptr_t base = (uintptr_t)p->memoria;\n    uintptr_t fine = base + p->n_blocchi * p->passo;\n    if (addr < base || addr >= fine || ((addr - base) % p->passo) != 0) {\n        return POOL_ERR_FUORI_POOL;\n    }\n    size_t idx = (size_t)(addr - base) / p->passo;\n    if (p->occupato[idx] == 0) { return POOL_ERR_DOPPIA_FREE; }\n    p->occupato[idx] = 0;\n    memcpy(ptr, &p->testa_libera, sizeof(p->testa_libera));\n    p->testa_libera = ptr;\n    --p->n_occupati;\n    return POOL_OK;\n}\n\nsize_t pool_liberi(const pool_t *p) { return (p != nullptr) ? (p->n_blocchi - p->n_occupati) : 0; }\nsize_t pool_occupati(const pool_t *p) { return (p != nullptr) ? p->n_occupati : 0; }\nsize_t pool_picco(const pool_t *p) { return (p != nullptr) ? p->picco : 0; }\nsize_t pool_capacita(const pool_t *p) { return (p != nullptr) ? p->n_blocchi : 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"pool_blocchi.h\"\n\ntypedef struct sessione {\n    uint32_t id;\n    int64_t punti;\n    char tag[12];\n} sessione_t;\n\nstatic const char *nome_esito(pool_esito_t e) {\n    switch (e) {\n        case POOL_OK: return \"OK\";\n        case POOL_ERR_NULLO: return \"NULLO\";\n        case POOL_ERR_FUORI_POOL: return \"FUORI_POOL\";\n        case POOL_ERR_DOPPIA_FREE: return \"DOPPIA_FREE\";\n        default: return \"ERRORE\";\n    }\n}\n\nint main(void) {\n    pool_t *pool = nullptr;\n    sessione_t *slots[16] = {};\n    char riga[128], cmd[24], tag[12], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        size_t n = 0, idx = 0;\n        unsigned long id = 0;\n        long long punti = 0;\n        if (strcmp(cmd, \"INIT\") == 0 && sscanf(riga, \"INIT %zu %c\", &n, &extra) == 1 && n >= 1 && n <= 16) {\n            pool_distruggi(pool);\n            memset(slots, 0, sizeof(slots));\n            pool = pool_crea(sizeof(sessione_t), n);\n            if (pool == nullptr) { return EXIT_FAILURE; }\n            printf(\"INIT: cap=%zu\\n\", pool_capacita(pool));\n        } else if (strcmp(cmd, \"NEW\") == 0 && pool != nullptr &&\n                   sscanf(riga, \"NEW %zu %lu %lld %11s %c\", &idx, &id, &punti, tag, &extra) == 4 && idx < 16) {\n            sessione_t *s = pool_alloca(pool);\n            if (s == nullptr) {\n                printf(\"NEW[%zu]: PIENO\\n\", idx);\n            } else {\n                s->id = (uint32_t)id;\n                s->punti = (int64_t)punti;\n                snprintf(s->tag, sizeof(s->tag), \"%s\", tag);\n                slots[idx] = s;\n                bool ok = ((uintptr_t)s & (uintptr_t)(alignof(sessione_t) - 1)) == 0;\n                printf(\"NEW[%zu]: OK allin_ok=%d\\n\", idx, ok ? 1 : 0);\n            }\n        } else if (strcmp(cmd, \"SHOW\") == 0 && sscanf(riga, \"SHOW %zu %c\", &idx, &extra) == 1 && idx < 16 && slots[idx] != nullptr) {\n            printf(\"SHOW[%zu]: id=%\" PRIu32 \" punti=%\" PRId64 \" tag=%s\\n\", idx, slots[idx]->id, slots[idx]->punti, slots[idx]->tag);\n        } else if (strcmp(cmd, \"FREE\") == 0 && pool != nullptr && sscanf(riga, \"FREE %zu %c\", &idx, &extra) == 1 && idx < 16) {\n            printf(\"FREE[%zu]: %s\\n\", idx, nome_esito(pool_libera(pool, slots[idx])));\n        } else if (strcmp(cmd, \"FREE_BAD\") == 0 && pool != nullptr && sscanf(riga, \"FREE_BAD %c\", &extra) != 1) {\n            int locale = 42;\n            pool_esito_t e1 = pool_libera(pool, nullptr);\n            pool_esito_t e2 = pool_libera(pool, &locale);\n            const char *s3 = \"SALTATO\";\n            if (slots[0] != nullptr) {\n                s3 = nome_esito(pool_libera(pool, (unsigned char *)slots[0] + 1));\n            }\n            printf(\"FREE_BAD: null=%s stack=%s disallin=%s\\n\", nome_esito(e1), nome_esito(e2), s3);\n        } else if (strcmp(cmd, \"STATS\") == 0 && pool != nullptr && sscanf(riga, \"STATS %c\", &extra) != 1) {\n            printf(\"STATS: liberi=%zu occupati=%zu tot=%zu picco=%zu\\n\",\n                   pool_liberi(pool), pool_occupati(pool), pool_capacita(pool), pool_picco(pool));\n        } else {\n            pool_distruggi(pool);\n            return EXIT_FAILURE;\n        }\n    }\n    pool_distruggi(pool);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "22.4",
+      "tipo": "esercizio",
+      "titolo": "Allocatore con lista libera (first-fit, splitting, coalescing) per serie con campo array flessibile",
+      "descrizione": "Realizza su tre file (`alloc_libera.h`, `alloc_libera.c`, `main.c`) un allocatore a dimensione variabile con **lista libera** (`alloc_fl_t`, tipo opaco) usato per allocare record a lunghezza variabile dotati di **campo array flessibile**. (1) In `alloc_libera.h` (protetto da `ALLOC_LIBERA_H`) definisci `typedef struct alloc_fl alloc_fl_t;`, `typedef struct fl_stats { size_t blocchi_tot; size_t blocchi_occ; size_t blocchi_lib; size_t byte_occ; size_t byte_lib; size_t max_blocco_lib; } fl_stats_t;` e la struttura con campo array flessibile `typedef struct serie_dati { uint32_t id; size_t len; int32_t valori[]; } serie_dati_t;`, e dichiara `alloc_fl_t *fl_crea(size_t cap_byte);`, `void fl_distruggi(alloc_fl_t *a);`, `void *fl_alloca(alloc_fl_t *a, size_t dim);`, `bool fl_libera(alloc_fl_t *a, void *ptr);` e `void fl_statistiche(const alloc_fl_t *a, fl_stats_t *st);`. (2) In `alloc_libera.c` fissa `ALLIN_FL = (alignof(max_align_t) > 16) ? alignof(max_align_t) : 16` e definisci un'intestazione `blocco_fl_t` (allineata ad `ALLIN_FL` con `dim`, `prox`, `magico`, `libero`, verificando `static_assert(sizeof(blocco_fl_t) % ALLIN_FL == 0)`). `fl_crea` arrotonda per difetto `cap_byte` a multiplo di `ALLIN_FL`, alloca il buffer grezzo con `malloc` e inizializza un unico blocco libero. `fl_alloca` arrotonda `dim` a multiplo di `ALLIN_FL` (controllando overflow con `ckd_add`), applica **first-fit** ed esegue lo **splitting** quando lo spazio residuo è almeno `sizeof(blocco_fl_t) + ALLIN_FL`. `fl_libera` riconosce solo blocchi occupati validi della lista (rifiutando `nullptr`, puntatori estranei e doppie liberazioni) ed esegue il **coalescing** di tutti i blocchi liberi adiacenti. (3) In `main.c` gestisci `16` slot `serie_dati_t *handle[16]` con i comandi: `INIT <cap>`, `NEW <slot> <id> <k> <v1>...<vk>` (calcola i byte con `offsetof(serie_dati_t, valori) + k * sizeof(int32_t)` controllando overflow con `ckd_mul`/`ckd_add`, verifica allineamento a `alignof(serie_dati_t)`), `SUM <slot>`, `FREE <slot>` e `MAP`, riproducendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "struct con campo array flessibile (int32_t valori[]) e calcolo della dimensione con offsetof + k * sizeof(int32_t)",
+        "intestazione di blocco allineata ad alignof(max_align_t) affinché il payload successivo resti sempre allineato",
+        "ricerca first-fit e suddivisione (splitting) di un blocco libero grande",
+        "fusione dei blocchi liberi adiacenti (coalescing) per recuperare la frammentazione esterna"
+      ],
+      "domande_guida": [
+        "Perché sizeof(serie_dati_t) non include gli elementi di valori[] e come calcoli la dimensione esatta in byte per k interi senza overflow?",
+        "Quale condizione deve soddisfare un blocco libero di dimensione cur->dim affinché fl_alloca possa dividerlo in due blocchi separati?",
+        "Che cosa succede alla frammentazione esterna quando liberi due blocchi adiacenti senza eseguire il coalescing?",
+        "Perché l'intestazione blocco_fl_t deve avere dimensione multipla di ALLIN_FL?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INIT 256\nMAP\nNEW 0 101 4 10 20 30 40\nNEW 1 102 8 1 2 3 4 5 6 7 8\nNEW 2 103 4 5 5 5 5\nSUM 0\nSUM 1\nMAP\nFREE 0\nMAP\nNEW 3 104 8 1 1 1 1 1 1 1 1\nFREE 1\nMAP\nNEW 3 104 8 1 1 1 1 1 1 1 1\nSUM 3\nFREE 2\nFREE 3\nMAP\n",
+          "output": "INIT: cap=256\nMAP: blocchi=1 occ=0 lib=1 byte_occ=0 byte_lib=224 max_lib=224\nNEW[0]: OK id=101 len=4 allin_ok=1\nNEW[1]: OK id=102 len=8 allin_ok=1\nNEW[2]: OK id=103 len=4 allin_ok=1\nSUM[0]: id=101 somma=100\nSUM[1]: id=102 somma=36\nMAP: blocchi=4 occ=3 lib=1 byte_occ=112 byte_lib=16 max_lib=16\nFREE[0]: OK\nMAP: blocchi=4 occ=2 lib=2 byte_occ=80 byte_lib=48 max_lib=32\nNEW[3]: OOM\nFREE[1]: OK\nMAP: blocchi=3 occ=1 lib=2 byte_occ=32 byte_lib=128 max_lib=112\nNEW[3]: OK id=104 len=8 allin_ok=1\nSUM[3]: id=104 somma=8\nFREE[2]: OK\nFREE[3]: OK\nMAP: blocchi=1 occ=0 lib=1 byte_occ=0 byte_lib=224 max_lib=224\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INIT 128\nNEW 0 1 0\nSUM 0\nFREE 0\nFREE 0\nMAP\n",
+          "output": "INIT: cap=128\nNEW[0]: OK id=1 len=0 allin_ok=1\nSUM[0]: id=1 somma=0\nFREE[0]: OK\nFREE[0]: ERRORE\nMAP: blocchi=1 occ=0 lib=1 byte_occ=0 byte_lib=96 max_lib=96\n"
+        },
+        {
+          "input": "INIT 96\nNEW 0 7 4 1 2 3 4\nNEW 1 8 4 5 6 7 8\nMAP\nFREE 0\nMAP\n",
+          "output": "INIT: cap=96\nNEW[0]: OK id=7 len=4 allin_ok=1\nNEW[1]: OOM\nMAP: blocchi=1 occ=1 lib=0 byte_occ=64 byte_lib=0 max_lib=0\nFREE[0]: OK\nMAP: blocchi=1 occ=0 lib=1 byte_occ=0 byte_lib=64 max_lib=64\n"
+        }
+      ],
+      "soluzione_file": {
+        "alloc_libera.h": "#ifndef ALLOC_LIBERA_H\n#define ALLOC_LIBERA_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct alloc_fl alloc_fl_t;\n\ntypedef struct fl_stats {\n    size_t blocchi_tot;\n    size_t blocchi_occ;\n    size_t blocchi_lib;\n    size_t byte_occ;\n    size_t byte_lib;\n    size_t max_blocco_lib;\n} fl_stats_t;\n\ntypedef struct serie_dati {\n    uint32_t id;\n    size_t len;\n    int32_t valori[];\n} serie_dati_t;\n\nalloc_fl_t *fl_crea(size_t cap_byte);\nvoid fl_distruggi(alloc_fl_t *a);\nvoid *fl_alloca(alloc_fl_t *a, size_t dim);\nbool fl_libera(alloc_fl_t *a, void *ptr);\nvoid fl_statistiche(const alloc_fl_t *a, fl_stats_t *st);\n\n#endif\n",
+        "alloc_libera.c": "#include \"alloc_libera.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n\nstatic constexpr size_t ALLIN_FL = (alignof(max_align_t) > 16) ? alignof(max_align_t) : 16;\nstatic constexpr uint32_t MAGICO_FL = 0x464C4F4BU;\n\ntypedef struct blocco_fl {\n    alignas(ALLIN_FL) size_t dim;\n    struct blocco_fl *prox;\n    uint32_t magico;\n    bool libero;\n} blocco_fl_t;\n\nstatic_assert(sizeof(blocco_fl_t) % ALLIN_FL == 0);\n\nstruct alloc_fl {\n    unsigned char *memoria;\n    size_t cap;\n    blocco_fl_t *testa;\n};\n\nalloc_fl_t *fl_crea(size_t cap_byte) {\n    size_t cap = cap_byte & ~(ALLIN_FL - 1);\n    if (cap < sizeof(blocco_fl_t) + ALLIN_FL) { return nullptr; }\n    alloc_fl_t *a = calloc(1, sizeof(*a));\n    if (a == nullptr) { return nullptr; }\n    a->memoria = malloc(cap);\n    if (a->memoria == nullptr) { free(a); return nullptr; }\n    a->cap = cap;\n    a->testa = (blocco_fl_t *)(void *)a->memoria;\n    a->testa->dim = cap - sizeof(blocco_fl_t);\n    a->testa->prox = nullptr;\n    a->testa->magico = MAGICO_FL;\n    a->testa->libero = true;\n    return a;\n}\n\nvoid fl_distruggi(alloc_fl_t *a) {\n    if (a == nullptr) { return; }\n    free(a->memoria);\n    free(a);\n}\n\nvoid *fl_alloca(alloc_fl_t *a, size_t dim) {\n    if (a == nullptr || dim == 0) { return nullptr; }\n    size_t somma = 0;\n    if (ckd_add(&somma, dim, ALLIN_FL - 1)) { return nullptr; }\n    size_t req = somma & ~(ALLIN_FL - 1);\n    for (blocco_fl_t *cur = a->testa; cur != nullptr; cur = cur->prox) {\n        if (!cur->libero || cur->dim < req) { continue; }\n        unsigned char *payload = (unsigned char *)cur + sizeof(blocco_fl_t);\n        if (cur->dim >= req + sizeof(blocco_fl_t) + ALLIN_FL) {\n            blocco_fl_t *resto = (blocco_fl_t *)(void *)(payload + req);\n            resto->dim = cur->dim - req - sizeof(blocco_fl_t);\n            resto->prox = cur->prox;\n            resto->magico = MAGICO_FL;\n            resto->libero = true;\n            cur->dim = req;\n            cur->prox = resto;\n        }\n        cur->libero = false;\n        return payload;\n    }\n    return nullptr;\n}\n\nbool fl_libera(alloc_fl_t *a, void *ptr) {\n    if (a == nullptr || ptr == nullptr) { return false; }\n    blocco_fl_t *trovato = nullptr;\n    for (blocco_fl_t *cur = a->testa; cur != nullptr; cur = cur->prox) {\n        if ((void *)((unsigned char *)cur + sizeof(blocco_fl_t)) == ptr) {\n            trovato = cur;\n            break;\n        }\n    }\n    if (trovato == nullptr || trovato->magico != MAGICO_FL || trovato->libero) { return false; }\n    trovato->libero = true;\n    blocco_fl_t *b = a->testa;\n    while (b != nullptr && b->prox != nullptr) {\n        if (b->libero && b->prox->libero) {\n            b->dim += sizeof(blocco_fl_t) + b->prox->dim;\n            b->prox = b->prox->prox;\n        } else {\n            b = b->prox;\n        }\n    }\n    return true;\n}\n\nvoid fl_statistiche(const alloc_fl_t *a, fl_stats_t *st) {\n    if (st == nullptr) { return; }\n    *st = (fl_stats_t){};\n    if (a == nullptr) { return; }\n    for (const blocco_fl_t *c = a->testa; c != nullptr; c = c->prox) {\n        ++st->blocchi_tot;\n        if (c->libero) {\n            ++st->blocchi_lib;\n            st->byte_lib += c->dim;\n            if (c->dim > st->max_blocco_lib) { st->max_blocco_lib = c->dim; }\n        } else {\n            ++st->blocchi_occ;\n            st->byte_occ += c->dim;\n        }\n    }\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdckdint.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"alloc_libera.h\"\n\nstatic bool gestisci_new(alloc_fl_t *al, serie_dati_t **handle, const char *riga) {\n    size_t slot = 0, k = 0;\n    unsigned long id = 0;\n    int pos = 0;\n    if (sscanf(riga, \"NEW %zu %lu %zu%n\", &slot, &id, &k, &pos) != 3 || slot >= 16 || k > 32) {\n        return false;\n    }\n    size_t byte_arr = 0, byte_tot = 0;\n    if (ckd_mul(&byte_arr, k, sizeof(int32_t)) || ckd_add(&byte_tot, offsetof(serie_dati_t, valori), byte_arr)) {\n        return false;\n    }\n    int32_t tmp[32] = {};\n    const char *p = riga + pos;\n    for (size_t i = 0; i < k; ++i) {\n        long v = 0;\n        int avanz = 0;\n        if (sscanf(p, \"%ld%n\", &v, &avanz) != 1 || v < INT32_MIN || v > INT32_MAX) { return false; }\n        tmp[i] = (int32_t)v;\n        p += avanz;\n    }\n    serie_dati_t *s = fl_alloca(al, byte_tot);\n    if (s == nullptr) {\n        printf(\"NEW[%zu]: OOM\\n\", slot);\n        return true;\n    }\n    s->id = (uint32_t)id;\n    s->len = k;\n    if (k > 0) { memcpy(s->valori, tmp, k * sizeof(int32_t)); }\n    handle[slot] = s;\n    bool ok = ((uintptr_t)s & (uintptr_t)(alignof(serie_dati_t) - 1)) == 0;\n    printf(\"NEW[%zu]: OK id=%\" PRIu32 \" len=%zu allin_ok=%d\\n\", slot, s->id, s->len, ok ? 1 : 0);\n    return true;\n}\n\nint main(void) {\n    alloc_fl_t *al = nullptr;\n    serie_dati_t *handle[16] = {};\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t n = 0;\n        if (strcmp(cmd, \"INIT\") == 0 && sscanf(riga, \"INIT %zu %c\", &n, &extra) == 1) {\n            fl_distruggi(al);\n            memset(handle, 0, sizeof(handle));\n            al = fl_crea(n);\n            if (al == nullptr) { return EXIT_FAILURE; }\n            printf(\"INIT: cap=%zu\\n\", n);\n        } else if (strcmp(cmd, \"NEW\") == 0 && al != nullptr) {\n            if (!gestisci_new(al, handle, riga)) { fl_distruggi(al); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"SUM\") == 0 && sscanf(riga, \"SUM %zu %c\", &n, &extra) == 1 && n < 16 && handle[n] != nullptr) {\n            int64_t somma = 0;\n            for (size_t i = 0; i < handle[n]->len; ++i) { somma += handle[n]->valori[i]; }\n            printf(\"SUM[%zu]: id=%\" PRIu32 \" somma=%\" PRId64 \"\\n\", n, handle[n]->id, somma);\n        } else if (strcmp(cmd, \"FREE\") == 0 && al != nullptr && sscanf(riga, \"FREE %zu %c\", &n, &extra) == 1 && n < 16) {\n            printf(\"FREE[%zu]: %s\\n\", n, fl_libera(al, handle[n]) ? \"OK\" : \"ERRORE\");\n        } else if (strcmp(cmd, \"MAP\") == 0 && al != nullptr && sscanf(riga, \"MAP %c\", &extra) != 1) {\n            fl_stats_t st = {};\n            fl_statistiche(al, &st);\n            printf(\"MAP: blocchi=%zu occ=%zu lib=%zu byte_occ=%zu byte_lib=%zu max_lib=%zu\\n\",\n                   st.blocchi_tot, st.blocchi_occ, st.blocchi_lib, st.byte_occ, st.byte_lib, st.max_blocco_lib);\n        } else {\n            fl_distruggi(al); return EXIT_FAILURE;\n        }\n    }\n    fl_distruggi(al);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "22.5",
+      "tipo": "esercizio",
+      "titolo": "Allocatore diagnostico con canarini di confine, poisoning, ispezione bit via memcpy e kernel restrict",
+      "descrizione": "Realizza su tre file (`mem_diag.h`, `mem_diag.c`, `main.c`) un modulo di diagnostica e manipolazione sicura della memoria che integri canarini di confine (redzone), avvelenamento dei byte (poisoning), reinterpretazione di bit conforme a **strict aliasing** e operazioni con `restrict`. (1) In `mem_diag.h` (protetto da `MEM_DIAG_H`) definisci il tipo opaco `diag_ctx_t`, l'enumerazione `diag_esito_t` (`DIAG_OK`, `DIAG_ERR_SCONOSCIUTO`, `DIAG_ERR_GIA_LIBERATO`, `DIAG_ERR_UNDERFLOW`, `DIAG_ERR_OVERFLOW`, `DIAG_ERR_ENTRAMBI`) e dichiara: `diag_ctx_t *diag_crea(void);`, `void diag_distruggi(diag_ctx_t *ctx);`, `void *diag_alloca(diag_ctx_t *ctx, size_t dim);`, `diag_esito_t diag_verifica(const diag_ctx_t *ctx, const void *ptr);`, `diag_esito_t diag_libera(diag_ctx_t *ctx, void *ptr);`, `void diag_report_leak(const diag_ctx_t *ctx, size_t *blocchi_attivi, size_t *byte_attivi);`, `const char *diag_esito_nome(diag_esito_t e);`, `uint32_t float_a_bit(float x);`, `float bit_a_float(uint32_t b);` e `void combina_disgiunti(size_t n, float *restrict dst, const float *restrict a, const float *restrict b, float k);`. (2) In `mem_diag.c` ogni blocco allocato da `diag_alloca` riserva una guardia sinistra di `ALLIN_GUARD` byte (`>= alignof(max_align_t)`) riempita con `0xA5`, il payload di `dim` byte riempito con `0xAA` e una guardia destra di `ALLIN_GUARD` byte riempita con `0x5A`; al rilascio `diag_libera` controlla le guardie, avvelena il payload con `0xDD` prima di `free` e conserva la chiave `uintptr_t` per segnalare eventuali doppie liberazioni. Implementa `float_a_bit` e `bit_a_float` esclusivamente con `memcpy` e `static_assert(sizeof(float) == sizeof(uint32_t))`, e `combina_disgiunti` come `dst[i] = a[i] + k * b[i]`. (3) In `main.c` gestisci fino a `16` blocchi tramite i comandi da `stdin`: `ALLOC <id> <dim>`, `CORROMPI_SX <id>` (altera il byte `-1` dentro la guardia sinistra), `CORROMPI_DX <id>` (altera il byte `dim` dentro la guardia destra), `CHECK <id>`, `FREE <id>`, `FBITS <val>` (estrae segno, esponente e mantissa con `float_a_bit` e verifica il round-trip con `bit_a_float`), `AXPY <k> <n> <a0..> <b0..>` (alloca `a`, `b`, `dst` disgiunti con `diag_alloca`, invoca `combina_disgiunti`, stampa i risultati e verifica che le tre `diag_libera` restituiscano `DIAG_OK`) e `LEAKS`.",
+      "concetti_da_tenere_a_mente": [
+        "guardie di confine (redzone/canarini) allineate per rilevare underflow e overflow senza comportamento indefinito",
+        "avvelenamento (poisoning) con memset su allocazione e rilascio e tracciamento delle perdite di memoria",
+        "reinterpretazione portabile dei bit di un float tramite memcpy e static_assert nel rispetto di strict aliasing",
+        "contratto di non sovrapposizione del qualificatore restrict su buffer distinti"
+      ],
+      "domande_guida": [
+        "Perché la guardia sinistra posta prima del payload deve avere dimensione multipla di alignof(max_align_t)?",
+        "In che modo scrivere un byte nella guardia sinistra a payload[-1] durante il test evita il comportamento indefinito pur simulando un underflow?",
+        "Perché float_a_bit usa memcpy anziché *(uint32_t *)&x, e perché questa scelta non penalizza le prestazioni con il compilatore ottimizzante?",
+        "Quale contratto violeresti se invocassi combina_disgiunti passando lo stesso buffer sia come dst sia come a?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ALLOC 0 16\nALLOC 1 12\nCHECK 0\nCORROMPI_DX 0\nCHECK 0\nFREE 0\nFREE 0\nCORROMPI_SX 1\nCORROMPI_DX 1\nCHECK 1\nLEAKS\nFREE 1\nLEAKS\nFBITS 1.0\nFBITS -6.5\nAXPY 2.0 3 1.0 2.0 3.0 0.5 1.5 -1.0\nLEAKS\n",
+          "output": "ALLOC[0]: OK dim=16\nALLOC[1]: OK dim=12\nCHECK[0]: OK\nCORROMPI_DX[0]: OK\nCHECK[0]: OVERFLOW\nFREE[0]: OVERFLOW\nFREE[0]: GIA_LIBERATO\nCORROMPI_SX[1]: OK\nCORROMPI_DX[1]: OK\nCHECK[1]: ENTRAMBI\nLEAKS: blocchi=1 byte=12\nFREE[1]: ENTRAMBI\nLEAKS: blocchi=0 byte=0\nFBITS 1.00: hex=0x3f800000 segno=0 esp=127 mant=0x000000 roundtrip=OK\nFBITS -6.50: hex=0xc0d00000 segno=1 esp=129 mant=0x500000 roundtrip=OK\nAXPY: 2.00 5.00 1.00 (guardie=OK)\nLEAKS: blocchi=0 byte=0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "ALLOC 0 8\nCORROMPI_SX 0\nCHECK 0\nFREE 0\nCHECK 0\nLEAKS\n",
+          "output": "ALLOC[0]: OK dim=8\nCORROMPI_SX[0]: OK\nCHECK[0]: UNDERFLOW\nFREE[0]: UNDERFLOW\nCHECK[0]: GIA_LIBERATO\nLEAKS: blocchi=0 byte=0\n"
+        },
+        {
+          "input": "FBITS 0.0\nALLOC 2 20\nLEAKS\n",
+          "output": "FBITS 0.00: hex=0x00000000 segno=0 esp=0 mant=0x000000 roundtrip=OK\nALLOC[2]: OK dim=20\nLEAKS: blocchi=1 byte=20\n"
+        }
+      ],
+      "soluzione_file": {
+        "mem_diag.h": "#ifndef MEM_DIAG_H\n#define MEM_DIAG_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct diag_ctx diag_ctx_t;\n\ntypedef enum diag_esito {\n    DIAG_OK = 0,\n    DIAG_ERR_SCONOSCIUTO,\n    DIAG_ERR_GIA_LIBERATO,\n    DIAG_ERR_UNDERFLOW,\n    DIAG_ERR_OVERFLOW,\n    DIAG_ERR_ENTRAMBI\n} diag_esito_t;\n\ndiag_ctx_t *diag_crea(void);\nvoid diag_distruggi(diag_ctx_t *ctx);\nvoid *diag_alloca(diag_ctx_t *ctx, size_t dim);\ndiag_esito_t diag_verifica(const diag_ctx_t *ctx, const void *ptr);\ndiag_esito_t diag_libera(diag_ctx_t *ctx, void *ptr);\nvoid diag_report_leak(const diag_ctx_t *ctx, size_t *blocchi_attivi, size_t *byte_attivi);\nconst char *diag_esito_nome(diag_esito_t e);\nuint32_t float_a_bit(float x);\nfloat bit_a_float(uint32_t b);\nvoid combina_disgiunti(size_t n, float *restrict dst, const float *restrict a, const float *restrict b, float k);\n\n#endif\n",
+        "mem_diag.c": "#include \"mem_diag.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic constexpr size_t ALLIN_GUARD = (alignof(max_align_t) > 16) ? alignof(max_align_t) : 16;\nstatic constexpr size_t MAX_RECORD = 64;\nstatic constexpr unsigned char CAN_SX = 0xA5U, CAN_DX = 0x5AU, VEL_A = 0xAAU, VEL_F = 0xDDU;\n\nstatic_assert(sizeof(float) == sizeof(uint32_t));\n\ntypedef struct rec_blocco {\n    uintptr_t chiave;\n    unsigned char *grezzo;\n    size_t dim;\n    bool attivo;\n} rec_blocco_t;\n\nstruct diag_ctx {\n    rec_blocco_t rec[MAX_RECORD];\n    size_t n_rec;\n};\n\ndiag_ctx_t *diag_crea(void) { return calloc(1, sizeof(diag_ctx_t)); }\n\nvoid diag_distruggi(diag_ctx_t *ctx) {\n    if (ctx == nullptr) { return; }\n    for (size_t i = 0; i < ctx->n_rec; ++i) {\n        if (ctx->rec[i].attivo) { free(ctx->rec[i].grezzo); }\n    }\n    free(ctx);\n}\n\nvoid *diag_alloca(diag_ctx_t *ctx, size_t dim) {\n    if (ctx == nullptr || dim == 0 || ctx->n_rec >= MAX_RECORD) { return nullptr; }\n    size_t tmp = 0, tot = 0;\n    if (ckd_add(&tmp, dim, ALLIN_GUARD) || ckd_add(&tot, tmp, ALLIN_GUARD)) { return nullptr; }\n    unsigned char *grezzo = malloc(tot);\n    if (grezzo == nullptr) { return nullptr; }\n    memset(grezzo, CAN_SX, ALLIN_GUARD);\n    memset(grezzo + ALLIN_GUARD, VEL_A, dim);\n    memset(grezzo + ALLIN_GUARD + dim, CAN_DX, ALLIN_GUARD);\n    unsigned char *payload = grezzo + ALLIN_GUARD;\n    ctx->rec[ctx->n_rec++] = (rec_blocco_t){.chiave = (uintptr_t)payload, .grezzo = grezzo, .dim = dim, .attivo = true};\n    return payload;\n}\n\nstatic diag_esito_t controlla_rec(const rec_blocco_t *r) {\n    if (!r->attivo) { return DIAG_ERR_GIA_LIBERATO; }\n    bool sx_err = false, dx_err = false;\n    for (size_t i = 0; i < ALLIN_GUARD; ++i) {\n        if (r->grezzo[i] != CAN_SX) { sx_err = true; }\n        if (r->grezzo[ALLIN_GUARD + r->dim + i] != CAN_DX) { dx_err = true; }\n    }\n    if (sx_err && dx_err) { return DIAG_ERR_ENTRAMBI; }\n    if (sx_err) { return DIAG_ERR_UNDERFLOW; }\n    if (dx_err) { return DIAG_ERR_OVERFLOW; }\n    return DIAG_OK;\n}\n\ndiag_esito_t diag_verifica(const diag_ctx_t *ctx, const void *ptr) {\n    if (ctx == nullptr || ptr == nullptr) { return DIAG_ERR_SCONOSCIUTO; }\n    uintptr_t k = (uintptr_t)ptr;\n    for (size_t i = ctx->n_rec; i > 0; --i) {\n        if (ctx->rec[i - 1].chiave == k) { return controlla_rec(&ctx->rec[i - 1]); }\n    }\n    return DIAG_ERR_SCONOSCIUTO;\n}\n\ndiag_esito_t diag_libera(diag_ctx_t *ctx, void *ptr) {\n    if (ctx == nullptr || ptr == nullptr) { return DIAG_ERR_SCONOSCIUTO; }\n    uintptr_t k = (uintptr_t)ptr;\n    for (size_t i = ctx->n_rec; i > 0; --i) {\n        rec_blocco_t *r = &ctx->rec[i - 1];\n        if (r->chiave == k) {\n            diag_esito_t es = controlla_rec(r);\n            if (r->attivo) {\n                memset(r->grezzo + ALLIN_GUARD, VEL_F, r->dim);\n                free(r->grezzo);\n                r->grezzo = nullptr;\n                r->attivo = false;\n            }\n            return es;\n        }\n    }\n    return DIAG_ERR_SCONOSCIUTO;\n}\n\nvoid diag_report_leak(const diag_ctx_t *ctx, size_t *blocchi_attivi, size_t *byte_attivi) {\n    size_t bl = 0, by = 0;\n    if (ctx != nullptr) {\n        for (size_t i = 0; i < ctx->n_rec; ++i) {\n            if (ctx->rec[i].attivo) { ++bl; by += ctx->rec[i].dim; }\n        }\n    }\n    if (blocchi_attivi != nullptr) { *blocchi_attivi = bl; }\n    if (byte_attivi != nullptr) { *byte_attivi = by; }\n}\n\nconst char *diag_esito_nome(diag_esito_t e) {\n    switch (e) {\n        case DIAG_OK: return \"OK\";\n        case DIAG_ERR_SCONOSCIUTO: return \"SCONOSCIUTO\";\n        case DIAG_ERR_GIA_LIBERATO: return \"GIA_LIBERATO\";\n        case DIAG_ERR_UNDERFLOW: return \"UNDERFLOW\";\n        case DIAG_ERR_OVERFLOW: return \"OVERFLOW\";\n        case DIAG_ERR_ENTRAMBI: return \"ENTRAMBI\";\n        default: return \"ERRORE\";\n    }\n}\n\nuint32_t float_a_bit(float x) {\n    uint32_t b = 0;\n    memcpy(&b, &x, sizeof(b));\n    return b;\n}\n\nfloat bit_a_float(uint32_t b) {\n    float x = 0.0f;\n    memcpy(&x, &b, sizeof(x));\n    return x;\n}\n\nvoid combina_disgiunti(size_t n, float *restrict dst, const float *restrict a, const float *restrict b, float k) {\n    for (size_t i = 0; i < n; ++i) {\n        dst[i] = a[i] + k * b[i];\n    }\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"mem_diag.h\"\n\nstatic bool gestisci_axpy(diag_ctx_t *ctx, const char *riga) {\n    float k = 0.0f;\n    size_t n = 0;\n    int pos = 0;\n    if (sscanf(riga, \"AXPY %f %zu%n\", &k, &n, &pos) != 2 || n == 0 || n > 16) { return false; }\n    float *a = diag_alloca(ctx, n * sizeof(float));\n    float *b = diag_alloca(ctx, n * sizeof(float));\n    float *d = diag_alloca(ctx, n * sizeof(float));\n    if (a == nullptr || b == nullptr || d == nullptr) { return false; }\n    const char *p = riga + pos;\n    for (size_t i = 0; i < n; ++i) { int av = 0; if (sscanf(p, \"%f%n\", &a[i], &av) != 1) { return false; } p += av; }\n    for (size_t i = 0; i < n; ++i) { int av = 0; if (sscanf(p, \"%f%n\", &b[i], &av) != 1) { return false; } p += av; }\n    combina_disgiunti(n, d, a, b, k);\n    printf(\"AXPY:\");\n    for (size_t i = 0; i < n; ++i) { printf(\" %.2f\", (double)d[i]); }\n    bool ok = (diag_libera(ctx, d) == DIAG_OK && diag_libera(ctx, b) == DIAG_OK && diag_libera(ctx, a) == DIAG_OK);\n    printf(\" (guardie=%s)\\n\", ok ? \"OK\" : \"ERRORE\");\n    return true;\n}\n\nint main(void) {\n    diag_ctx_t *ctx = diag_crea();\n    if (ctx == nullptr) { return EXIT_FAILURE; }\n    unsigned char *ptr[16] = {};\n    size_t dim[16] = {};\n    char riga[256], cmd[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        size_t id = 0, sz = 0;\n        float fv = 0.0f;\n        if (strcmp(cmd, \"ALLOC\") == 0 && sscanf(riga, \"ALLOC %zu %zu %c\", &id, &sz, &extra) == 2 && id < 16) {\n            ptr[id] = diag_alloca(ctx, sz);\n            dim[id] = sz;\n            printf(\"ALLOC[%zu]: %s dim=%zu\\n\", id, (ptr[id] != nullptr) ? \"OK\" : \"OOM\", sz);\n        } else if (strcmp(cmd, \"CORROMPI_SX\") == 0 && sscanf(riga, \"CORROMPI_SX %zu %c\", &id, &extra) == 1 && id < 16 && ptr[id] != nullptr) {\n            ptr[id][-1] = 0xFFU;\n            printf(\"CORROMPI_SX[%zu]: OK\\n\", id);\n        } else if (strcmp(cmd, \"CORROMPI_DX\") == 0 && sscanf(riga, \"CORROMPI_DX %zu %c\", &id, &extra) == 1 && id < 16 && ptr[id] != nullptr) {\n            ptr[id][dim[id]] = 0xFFU;\n            printf(\"CORROMPI_DX[%zu]: OK\\n\", id);\n        } else if (strcmp(cmd, \"CHECK\") == 0 && sscanf(riga, \"CHECK %zu %c\", &id, &extra) == 1 && id < 16) {\n            printf(\"CHECK[%zu]: %s\\n\", id, diag_esito_nome(diag_verifica(ctx, ptr[id])));\n        } else if (strcmp(cmd, \"FREE\") == 0 && sscanf(riga, \"FREE %zu %c\", &id, &extra) == 1 && id < 16) {\n            printf(\"FREE[%zu]: %s\\n\", id, diag_esito_nome(diag_libera(ctx, ptr[id])));\n        } else if (strcmp(cmd, \"FBITS\") == 0 && sscanf(riga, \"FBITS %f %c\", &fv, &extra) == 1) {\n            uint32_t bits = float_a_bit(fv);\n            uint32_t segno = (bits >> 31) & 1U, esp = (bits >> 23) & 0xFFU, mant = bits & 0x7FFFFFU;\n            bool rt = (float_a_bit(bit_a_float(bits)) == bits);\n            printf(\"FBITS %.2f: hex=0x%08\" PRIx32 \" segno=%\" PRIu32 \" esp=%\" PRIu32 \" mant=0x%06\" PRIx32 \" roundtrip=%s\\n\",\n                   (double)fv, bits, segno, esp, mant, rt ? \"OK\" : \"NO\");\n        } else if (strcmp(cmd, \"AXPY\") == 0) {\n            if (!gestisci_axpy(ctx, riga)) { diag_distruggi(ctx); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"LEAKS\") == 0 && sscanf(riga, \"LEAKS %c\", &extra) != 1) {\n            size_t bl = 0, by = 0;\n            diag_report_leak(ctx, &bl, &by);\n            printf(\"LEAKS: blocchi=%zu byte=%zu\\n\", bl, by);\n        } else {\n            diag_distruggi(ctx); return EXIT_FAILURE;\n        }\n    }\n    diag_distruggi(ctx);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Dichiarare il buffer di un allocatore ad arena come semplice unsigned char buf[N] senza alignas(max_align_t), rischiando di partire da un indirizzo non allineato per int64_t o double.",
+    "Arrotondare una dimensione con (n + allin - 1) & ~(allin - 1) senza controllare che allin sia una potenza di due non nulla né che n + (allin - 1) non vada in overflow.",
+    "Usare il cast di puntatore *(uint32_t *)&f al posto di memcpy per leggere i bit di un float, violando la regola di strict aliasing e introducendo comportamento indefinito che emerge con -O2.",
+    "Inserire una struct con campo array flessibile come elemento di un array o copiarla con *dst = *src aspettandosi che vengano copiati anche gli elementi dell'array finale.",
+    "Dimenticare il coalescing nella lista libera o non controllare la doppia liberazione in un pool, causando frammentazione esterna irreversibile o cicli infiniti nella lista libera."
+  ],
+  "differenze_python": [
+    "In Python l'allocazione e la liberazione degli oggetti sono gestite automaticamente dal garbage collector e dal conteggio dei riferimenti, con un costo fisso per ogni singolo oggetto; in C puoi scegliere allocatori su misura (arena, pool, lista libera) per azzerare il costo di allocazione e controllare esattamente l'allineamento e la durata di vita della memoria.",
+    "In Python il modulo struct converte numeri in sequenze di byte senza esporre l'aliasing dei puntatori; in C la reinterpretazione portabile dei bit di un oggetto richiede memcpy per rispettare la regola di strict aliasing."
+  ]
+}

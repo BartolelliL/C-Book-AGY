@@ -1,0 +1,530 @@
+{
+  "capitolo": 23,
+  "titolo": "Strutture dati e algoritmi avanzati",
+  "obiettivi": [
+    "Analizzare la complessità asintotica con la notazione O verificandola tramite conteggio delle operazioni",
+    "Implementare un heap binario generico e usarlo come coda di priorità",
+    "Costruire un albero AVL con rotazioni semplici e doppie e un trie per ricerche su prefissi",
+    "Rappresentare grafi con liste di adiacenza ed eseguire visite in ampiezza, in profondità e l'algoritmo di Dijkstra"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "complessità asintotica",
+      "definizione": "Misura di come cresce il numero di operazioni di un algoritmo al crescere della dimensione dell'input, espressa con la notazione O."
+    },
+    {
+      "termine": "notazione O",
+      "definizione": "Notazione che descrive come cresce il costo di un algoritmo al crescere della dimensione dei dati."
+    },
+    {
+      "termine": "heap binario",
+      "definizione": "Albero binario completo memorizzato in un array in cui ogni nodo rispetta la proprietà d'ordine rispetto ai propri figli."
+    },
+    {
+      "termine": "coda di priorità",
+      "definizione": "Struttura dati da cui si estrae sempre l'elemento con priorità massima o minima."
+    },
+    {
+      "termine": "albero AVL",
+      "definizione": "Albero binario di ricerca autobilanciato in cui le altezze dei due sottoalberi di ogni nodo differiscono al massimo di uno."
+    },
+    {
+      "termine": "trie",
+      "definizione": "Albero di ricerca in cui ogni arco rappresenta un carattere e le chiavi condividono i prefissi comuni."
+    },
+    {
+      "termine": "grafo",
+      "definizione": "Struttura dati composta da un insieme di vertici collegati da archi, eventualmente orientati o pesati."
+    },
+    {
+      "termine": "algoritmo di Dijkstra",
+      "definizione": "Algoritmo goloso che calcola i cammini minimi da una sorgente verso tutti i vertici raggiungibili di un grafo con pesi non negativi."
+    }
+  ],
+  "concetti_richiesti": [
+    "ricorsione",
+    "caso base",
+    "array",
+    "stringa",
+    "puntatore",
+    "puntatore nullo",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "struttura",
+    "campo",
+    "puntatore generico",
+    "contenitore generico",
+    "puntatore a funzione",
+    "callback",
+    "lista concatenata",
+    "pila",
+    "coda",
+    "albero binario di ricerca",
+    "possesso della memoria",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco"
+  ],
+  "regole": [
+    {
+      "id": "23.R1",
+      "enunciato": "La complessità asintotica espressa con la notazione O fornisce un limite superiore alla crescita del numero di operazioni elementari (tempo) o della memoria ausiliaria (spazio) in funzione della dimensione n dell'input, trascurando le costanti moltiplicative e i termini di ordine inferiore: O(1) < O(log n) < O(n) < O(n log n) < O(n^2) < O(2^n). Si distinguono caso migliore, caso medio, caso peggiore e costo ammortizzato (come il raddoppio di capacità di un array dinamico, O(1) ammortizzato per inserimento). Il conteggio esatto delle operazioni elementari permette di verificare in modo deterministico e indipendente dall'hardware la classe asintotica di un algoritmo.",
+      "nota_standard": "definito: il conteggio delle operazioni tramite contatori uint64_t è completamente definito e deterministico in C23; per prevenire overflow dei contatori o degli indici nelle dimensioni dinamiche si usano tipi a larghezza fissa (<stdint.h>) e <stdckdint.h>."
+    },
+    {
+      "id": "23.R2",
+      "enunciato": "Un heap binario memorizza un albero binario completo in un array contiguo a indice base 0: per il nodo a indice i, il genitore si trova a (i - 1) / 2 (per i > 0), il figlio sinistro a 2 * i + 1 e il figlio destro a 2 * i + 2. In un min-heap ogni nodo precede o eguaglia i propri figli secondo la relazione d'ordine (espressa da una callback di confronto per un heap binario generico con void *). Inserimento (sift-up) ed estrazione della radice (sift-down) richiedono tempo O(log n), la lettura della cima O(1), e la costruzione bottom-up da un array (heapify di Floyd) richiede tempo lineare O(n).",
+      "nota_standard": "indefinito: le operazioni su array dinamici generici tramite memcpy e callback di confronto sono definite dallo standard C23; calcolare (i - 1) / 2 su size_t quando i == 0 provoca avvolgimento a SIZE_MAX e successivo accesso fuori dai limiti (comportamento indefinito)."
+    },
+    {
+      "id": "23.R3",
+      "enunciato": "In un albero AVL ogni nodo memorizza l'altezza del proprio sottoalbero (altezza 0 per nullptr, 1 + max(h(sx), h(dx)) per un nodo) e soddisfa l'invariante di bilanciamento |h(sx) - h(dx)| <= 1, che garantisce altezza O(log n) e dunque ricerca, inserimento e rimozione in tempo O(log n) anche nel caso peggiore. Quando un inserimento o una rimozione porta il fattore di bilanciamento a +2 o -2, l'invariante viene ripristinato in O(1) con una delle quattro rotazioni: singola destra (caso LL), singola sinistra (caso RR), doppia sinistra-destra (caso LR) o doppia destra-sinistra (caso RL), aggiornando sempre le altezze dal basso verso l'alto.",
+      "nota_standard": "indefinito: la manipolazione dei puntatori sx/dx e delle altezze dei nodi AVL è definita dallo standard C23; dereferenziare un sottoalbero nullo durante una rotazione o non liberare i nodi in post-ordine provoca comportamento indefinito o perdite di memoria."
+    },
+    {
+      "id": "23.R4",
+      "enunciato": "Un trie rappresenta un insieme di stringhe come un albero in cui ogni arco è etichettato con un carattere dell'alfabeto di dimensione A (ad esempio 26 lettere 'a'..'z'). Ricerca, inserimento, conteggio su prefisso e rimozione dipendono unicamente dalla lunghezza L della chiave (tempo O(L)) e non dal numero totale di chiavi memorizzate. Prima di indicizzare l'array dei figli con (size_t)(c - 'a') occorre validare esplicitamente che ogni carattere rientri nell'alfabeto ammesso. Nella rimozione, i nodi che non marcano più una fine parola e non hanno figli vanno potati e liberati con free per evitare sprechi di memoria.",
+      "nota_standard": "indefinito: l'indicizzazione dell'array dei figli è definita solo per indici validi 0 <= idx < A; convertire un carattere fuori dall'alfabeto 'a'..'z' (o un char negativo non verificato) provoca accesso fuori dai limiti e comportamento indefinito."
+    },
+    {
+      "id": "23.R5",
+      "enunciato": "Un grafo con V vertici ed E archi si rappresenta efficacemente su grafi sparsi con un array di V liste di adiacenza (spazio O(V + E)). La visita in ampiezza (BFS), guidata da una coda FIFO, esplora i vertici per distanza crescente in numero di archi in tempo O(V + E) e trova i cammini minimi su grafi non pesati. La visita in profondità (DFS), ricorsiva o con pila esplicita, impiega tempo O(V + E); su un grafo orientato la colorazione a tre stati (non visitato, in visita, completato) rileva cicli in O(V + E) e, in assenza di cicli, produce un ordinamento topologico invertendo il post-ordine.",
+      "nota_standard": "indefinito: la rappresentazione tramite liste di adiacenza e le visite BFS/DFS sono definite dallo standard C23; accedere a un vertice >= V o dimenticare di marcare i vertici visitati (causando cicli infiniti o esaurimento dello stack) provoca comportamento indefinito."
+    },
+    {
+      "id": "23.R6",
+      "enunciato": "L'algoritmo di Dijkstra calcola le distanze minime da un vertice sorgente s in un grafo pesato con pesi strettamente non negativi (w >= 0). Inizializza dist[s] = 0 e dist[v] = +infinito (es. UINT64_MAX) per v != s, mantiene una coda di priorità (min-heap) di coppie (distanza, vertice) e, a ogni estrazione del minimo u, scarta le voci obsolete (d > dist[u], lazy deletion) e rilassa ogni arco (u, v, w) aggiornando dist[v] e prec[v] quando dist[u] + w < dist[v] (verificando l'overflow con ckd_add). Con liste di adiacenza e min-heap binario la complessità è O((V + E) log V). In presenza di archi con peso negativo l'algoritmo non è valido e gli archi negativi vanno rifiutati.",
+      "nota_standard": "definito: il controllo preventivo di pesi negativi, l'uso di UINT64_MAX come sentinella di infinito e il controllo di overflow con ckd_add nel rilassamento garantiscono comportamento completamente definito dallo standard C23."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s terminando con '\\0' e restituisce i caratteri che sarebbero stati scritti."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte restituendo il nuovo indirizzo oppure nullptr lasciando valido ptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza della stringa s in byte escluso il terminatore nullo."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memcmp",
+      "firma": "int memcmp(const void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta i primi n byte di s1 e s2 come unsigned char restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "ckd_add",
+      "firma": "bool ckd_add(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: somma controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "ckd_mul",
+      "firma": "bool ckd_mul(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: moltiplicazione controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "23.1",
+      "titolo": "Complessità asintotica e notazione O",
+      "contenuti": [
+        "Perché non basta misurare i secondi per confrontare due algoritmi: introdurre la complessità asintotica e la notazione O per tempo e spazio",
+        "Le classi principali di crescita — O(1), O(log n), O(n), O(n log n), O(n^2) — con esempi concreti già incontrati nel libro (accesso ad array, ricerca binaria, scansione lineare, merge sort, cicli annidati)",
+        "Caso migliore, caso medio, caso peggiore e analisi ammortizzata (perché il raddoppio di capacità con realloc porta il costo medio di inserimento a O(1) ammortizzato)",
+        "Verifica sperimentale e deterministica della complessità contando le operazioni elementari (confronti) al crescere di n, senza dipendere dall'orologio di sistema (che vedremo nel capitolo 25)"
+      ],
+      "esempio_guidato": "Un programma che genera array ordinati di dimensioni crescenti (16, 64, 256, 1024) e conta esattamente i confronti eseguiti da ricerca binaria O(log n), ricerca lineare O(n) e rilevamento duplicati con doppio ciclo O(n^2), stampando una tabella comparativa che evidenzia l'andamento delle curve di crescita.",
+      "approfondimento": "Costanti nascoste e dimensione pratica di n: la notazione O descrive la tendenza per n grande, ma per input molto piccoli un algoritmo O(n^2) semplice può eseguire meno operazioni di un O(n log n) complesso; nel capitolo 25 vedremo come la località della cache influenza ulteriormente le prestazioni reali.",
+      "esercizio_id": "23.1"
+    },
+    {
+      "id": "23.2",
+      "titolo": "Heap binario e coda di priorità",
+      "contenuti": [
+        "Cos'è una coda di priorità e perché liste ordinate o array non ordinati non offrono sia inserimento sia estrazione rapidi, mentre un heap binario realizza entrambi in O(log n)",
+        "Rappresentazione implicita di un albero binario completo in un array contiguo (senza puntatori per nodo): formule di genitore (i - 1) / 2, figlio sinistro 2 * i + 1 e figlio destro 2 * i + 2 (schema in blocco text)",
+        "Operazioni fondamentali: risalita (sift-up) per inserimento O(log n), discesa (sift-down) per estrazione della radice O(log n) e costruzione bottom-up (heapify di Floyd) in tempo lineare O(n)",
+        "Generalizzazione a coda di priorità generica su void * (con dim_elem, memcpy e callback di confronto) pronta per essere riutilizzata anche nell'algoritmo di Dijkstra"
+      ],
+      "esempio_guidato": "Un programma che costruisce un min-heap binario di int su array dinamico illustrando risali (sift-up), scendi (sift-down) e heapify bottom-up O(n), e stampa gli elementi estratti uno alla volta in ordine crescente verificando la proprietà d'ordine a ogni passo.",
+      "approfondimento": "Perché l'algoritmo di Floyd (heapify dal basso verso l'alto a partire da n / 2 - 1) costa O(n) anziché O(n log n): metà dei nodi sono foglie che non richiedono alcuno spostamento, un quarto può scendere al più di 1 livello, un ottavo di 2 livelli, e la serie geometrica converge a un limite lineare.",
+      "esercizio_id": "23.2"
+    },
+    {
+      "id": "23.3",
+      "titolo": "Alberi AVL e rotazioni di bilanciamento",
+      "contenuti": [
+        "Il limite dei BST del capitolo 17 (degenerazione a lista lineare di altezza O(n) su input ordinati) e la soluzione dell'albero AVL: altezza memorizzata in ogni nodo e invariante |h(sx) - h(dx)| <= 1",
+        "Fattore di bilanciamento fb(u) = h(u->sx) - h(u->dx) e spiegazione visiva (in blocchi text) delle quattro configurazioni di sbilanciamento: LL, RR, LR e RL",
+        "Rotazione singola destra (caso LL) e rotazione singola sinistra (caso RR) con aggiornamento delle altezze dal basso verso l'alto e conservazione dell'invariante BST",
+        "Rotazioni doppie sinistra-destra (caso LR) e destra-sinistra (caso RL) come composizione di due rotazioni singole, e ribilanciamento durante inserimento e rimozione (esempio guidato focalizzato sulla rotazione singola, rotazioni doppie e rimozione nell'esercizio)"
+      ],
+      "esempio_guidato": "Un programma compatto che implementa un albero AVL con inserimento e rotazioni singole (rotazione sinistra per il caso RR e rotazione destra per il caso LL), inserisce una sequenza crescente 10..60 e una decrescente mostrando in tempo reale come l'altezza resti logaritmica mentre la visita in-ordine preserva l'ordine crescente.",
+      "approfondimento": "Perché l'altezza di un albero AVL con n nodi è sempre O(log n): il numero minimo di nodi di un AVL di altezza h cresce come i numeri di Fibonacci (N(h) = N(h - 1) + N(h - 2) + 1), quindi l'altezza non supera mai circa 1.44 * log2(n + 2).",
+      "esercizio_id": "23.3"
+    },
+    {
+      "id": "23.4",
+      "titolo": "Trie per la ricerca su prefissi",
+      "contenuti": [
+        "Cos'è un trie (albero dei prefissi) e quando conviene rispetto a una tabella hash o a un albero AVL: ricerche per prefisso, autocompletamento e ordinamento lessicografico in tempo dipendente solo dalla lunghezza L della parola",
+        "Struttura di un nodo trie per alfabeto ASCII minuscolo (figli[26], flag fine_parola, conteggio parole_sottoalbero e dato associato) con schema ad albero in blocco text",
+        "Inserimento, ricerca esatta e conteggio su prefisso in O(L) con validazione rigorosa dei caratteri 'a'..'z' prima di calcolare l'indice c - 'a'",
+        "Rimozione di una chiave con potatura ricorsiva dei nodi orfani non terminali e distruzione completa in post-ordine senza perdite di memoria"
+      ],
+      "esempio_guidato": "Un programma che costruisce un trie per un piccolo vocabolario di parole minuscole, esegue ricerche esatte e conteggi di parole per prefisso in O(L) senza dipendere dal numero di parole memorizzate e libera l'intera struttura in post-ordine.",
+      "approfondimento": "Compromesso spazio-tempo del trie: un array fisso di 26 puntatori per nodo rende ogni transizione O(1), ma può occupare molta memoria su alfabeti grandi o chiavi lunghe e rade; nei sistemi reali si ricorre spesso a trie compressi (radix tree) o liste di figli nei nodi sparsi.",
+      "esercizio_id": "23.4"
+    },
+    {
+      "id": "23.5",
+      "titolo": "Grafi con liste di adiacenza: visite in ampiezza e in profondità",
+      "contenuti": [
+        "Terminologia dei grafi: vertici, archi orientati e non orientati, grado, cammini, cicli e grafi aciclici orientati (DAG)",
+        "Confronto tra matrice di adiacenza (O(V^2) memoria) e liste di adiacenza (O(V + E) memoria) e implementazione dinamica delle liste di adiacenza in C",
+        "Visita in ampiezza (BFS) con coda FIFO e array di distanze: esplorazione per livelli in O(V + E) e calcolo del numero minimo di archi su grafi non pesati",
+        "Visita in profondità (DFS) in O(V + E), marcatura a tre colori (bianco, grigio, nero) per il rilevamento di cicli nei grafi orientati e ordinamento topologico"
+      ],
+      "esempio_guidato": "Un programma che costruisce un grafo non orientato di 6 vertici con liste di adiacenza, esegue una BFS da una sorgente stampando ordine di scoperta e distanza in archi di ciascun vertice e una DFS ricorsiva stampando l'ordine di visita, liberando tutte le liste al termine.",
+      "approfondimento": "Quando la BFS garantisce il cammino minimo e quando no: la BFS trova sempre il cammino con il minor numero di archi, ma se gli archi hanno pesi diversi (costi o tempi di percorrenza) il cammino con meno archi può costare di più; serve allora l'algoritmo di Dijkstra della sotto-sezione 23.6.",
+      "esercizio_id": "23.5"
+    },
+    {
+      "id": "23.6",
+      "titolo": "Cammini minimi con l'algoritmo di Dijkstra",
+      "contenuti": [
+        "Problema dei cammini minimi a sorgente singola su grafi pesati con pesi non negativi e proprietà di rilassamento di un arco (u, v, w)",
+        "Funzionamento dell'algoritmo di Dijkstra: array dist[] inizializzato a infinito (UINT64_MAX), array prec[] per la ricostruzione dei cammini e controllo di overflow con ckd_add",
+        "Integrazione con la coda di priorità generica su heap binario: perché l'inserimento di nuove coppie (dist, v) con scarto delle voci obsolete (lazy deletion) raggiunge O((V + E) log V) senza complicare lo heap con decrease-key",
+        "Perché i pesi negativi violano l'invariante goloso di Dijkstra (un vertice già estratto potrebbe ricevere in seguito un percorso più breve) e come rifiutarli nell'API"
+      ],
+      "esempio_guidato": "Un programma compatto che rappresenta una rete stradale di 5 nodi con liste di adiacenza pesate non negative ed esegue l'algoritmo di Dijkstra calcolando e stampando la distanza minima e il predecessore di ciascun nodo dalla sorgente 0.",
+      "approfondimento": "Lazy deletion contro decrease-key nella coda di priorità di Dijkstra: inserire una nuova coppia (nuova_dist, v) nello heap ogni volta che dist[v] migliora e ignorare le voci estratte con d > dist[v] mantiene il numero totale di inserimenti entro E e il tempo totale in O((V + E) log V) usando una coda di priorità generica standard senza indici inversi.",
+      "esercizio_id": "23.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "23.1",
+      "tipo": "esercizio",
+      "titolo": "Banco di analisi asintotica tramite conteggio esatto dei confronti (Selection Sort, Merge Sort e Two-Sum)",
+      "descrizione": "Scrivi un programma C che confronti sperimentalmente la **complessità asintotica** di algoritmi appartenenti a classi diverse della **notazione O** contando esattamente il numero di confronti elementari in contatori `uint64_t`. Implementa quattro funzioni: (1) `void ordina_selezione(int32_t *a, size_t n, uint64_t *confronti)` (`O(n^2)`, incrementa `*confronti` a ogni confronto `a[j] < a[min_idx]`); (2) `bool ordina_merge(int32_t *a, size_t n, uint64_t *confronti)` (`O(n log n)`, alloca un solo buffer temporaneo con `malloc`, divide a metà con `mid = sx + (dx - sx) / 2`, fonde incrementando `*confronti` a ogni confronto `a[i] <= a[j]` e libera il buffer); (3) `bool coppia_forza_bruta(const int32_t *a, size_t n, int64_t bersaglio, uint64_t *confronti)` (`O(n^2)`, verifica tutte le coppie `i < j`); (4) `bool coppia_due_indici(const int32_t *a, size_t n, int64_t bersaglio, uint64_t *confronti)` (`O(n)` su array ordinato crescente, muovendo `sx` e `dx` fino a `sx < dx`). In `main` leggi da `stdin` comandi fino a fine input: `SORT <n> <v0> ... <v{n-1}>` (`0 <= n <= 128`, ordina due copie con entrambi gli algoritmi, verifica con `memcmp` che i risultati coincidano e stampa la sequenza ordinata e i due conteggi); `TWOSUM <bersaglio> <n> <v0> ... <v{n-1}>` (array già ordinato crescente, `0 <= n <= 128`, esegue entrambe le ricerche verificando che gli esiti coincidano); `SCALA <k>` (`1 <= k <= 128`, genera la sequenza decrescente `k, k-1, ..., 1` e confronta i confronti di `ordina_selezione` e `ordina_merge`). Riproduci esattamente il formato di output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "classi asintotiche O(n), O(n log n) e O(n^2) verificate tramite conteggio deterministico dei confronti",
+        "implementazione ricorsiva di merge sort con un solo buffer ausiliario allocato sullo heap",
+        "tecnica a due indici O(n) su sequenza ordinata confrontata con la forza bruta O(n^2)",
+        "verifica di equivalenza dei risultati tramite memcmp e gestione corretta dei casi limite n = 0 e n = 1"
+      ],
+      "domande_guida": [
+        "Quanti confronti esegue sempre ordina_selezione su un array di n elementi, e perché il risultato non cambia se l'array è già ordinato?",
+        "Come cambia il rapporto tra i confronti di ordina_selezione e quelli di ordina_merge quando n passa da 8 a 32 e poi a 128?",
+        "Perché coppia_due_indici garantisce complessità O(n) e richiede come precondizione che l'array sia ordinato?",
+        "Perché conviene allocare un unico buffer temporaneo prima della ricorsione in ordina_merge anziché chiamare malloc a ogni chiamata ricorsiva?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "SORT 6 5 2 8 1 9 3\nTWOSUM 17 6 1 3 5 8 9 14\nTWOSUM 100 6 1 3 5 8 9 14\nSCALA 8\nSCALA 32\nSCALA 128\n",
+          "output": "SORT(6): 1 2 3 5 8 9 | sel_cmp=15 merge_cmp=10 ok=1\nTWOSUM(17): TROVATA | bruta_cmp=9 lineare_cmp=2\nTWOSUM(100): ASSENTE | bruta_cmp=15 lineare_cmp=5\nSCALA(8): sel_cmp=28 merge_cmp=12 ok=1\nSCALA(32): sel_cmp=496 merge_cmp=80 ok=1\nSCALA(128): sel_cmp=8128 merge_cmp=448 ok=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SORT 0\nSORT 1 42\nTWOSUM 42 1 42\n",
+          "output": "SORT(0): (vuoto) | sel_cmp=0 merge_cmp=0 ok=1\nSORT(1): 42 | sel_cmp=0 merge_cmp=0 ok=1\nTWOSUM(42): ASSENTE | bruta_cmp=0 lineare_cmp=0\n"
+        },
+        {
+          "input": "TWOSUM -5 4 -10 -3 -2 5\nSCALA 16\n",
+          "output": "TWOSUM(-5): TROVATA | bruta_cmp=3 lineare_cmp=1\nSCALA(16): sel_cmp=120 merge_cmp=32 ok=1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic void ordina_selezione(int32_t *a, size_t n, uint64_t *cmp) {\n    *cmp = 0;\n    for (size_t i = 0; i + 1 < n; ++i) {\n        size_t min_idx = i;\n        for (size_t j = i + 1; j < n; ++j) {\n            ++(*cmp);\n            if (a[j] < a[min_idx]) { min_idx = j; }\n        }\n        if (min_idx != i) {\n            int32_t t = a[i]; a[i] = a[min_idx]; a[min_idx] = t;\n        }\n    }\n}\n\nstatic void merge_ric(int32_t *a, int32_t *tmp, size_t sx, size_t dx, uint64_t *cmp) {\n    if (dx - sx <= 1) { return; }\n    size_t mid = sx + (dx - sx) / 2;\n    merge_ric(a, tmp, sx, mid, cmp);\n    merge_ric(a, tmp, mid, dx, cmp);\n    size_t i = sx, j = mid, k = sx;\n    while (i < mid && j < dx) {\n        ++(*cmp);\n        if (a[i] <= a[j]) { tmp[k++] = a[i++]; } else { tmp[k++] = a[j++]; }\n    }\n    while (i < mid) { tmp[k++] = a[i++]; }\n    while (j < dx) { tmp[k++] = a[j++]; }\n    memcpy(a + sx, tmp + sx, (dx - sx) * sizeof(*a));\n}\n\nstatic bool ordina_merge(int32_t *a, size_t n, uint64_t *cmp) {\n    *cmp = 0;\n    if (n <= 1) { return true; }\n    int32_t *tmp = malloc(n * sizeof(*tmp));\n    if (tmp == nullptr) { return false; }\n    merge_ric(a, tmp, 0, n, cmp);\n    free(tmp);\n    return true;\n}\n\nstatic bool coppia_forza_bruta(const int32_t *a, size_t n, int64_t target, uint64_t *cmp) {\n    *cmp = 0;\n    for (size_t i = 0; i < n; ++i) {\n        for (size_t j = i + 1; j < n; ++j) {\n            ++(*cmp);\n            if ((int64_t)a[i] + a[j] == target) { return true; }\n        }\n    }\n    return false;\n}\n\nstatic bool coppia_due_indici(const int32_t *a, size_t n, int64_t target, uint64_t *cmp) {\n    *cmp = 0;\n    if (n < 2) { return false; }\n    size_t sx = 0, dx = n - 1;\n    while (sx < dx) {\n        ++(*cmp);\n        int64_t s = (int64_t)a[sx] + a[dx];\n        if (s == target) { return true; }\n        if (s < target) { ++sx; } else { --dx; }\n    }\n    return false;\n}\n\nstatic bool leggi_array(const char *p, size_t n, int32_t *out) {\n    for (size_t i = 0; i < n; ++i) {\n        long v = 0;\n        int av = 0;\n        if (sscanf(p, \"%ld%n\", &v, &av) != 1 || v < INT32_MIN || v > INT32_MAX) { return false; }\n        out[i] = (int32_t)v;\n        p += av;\n    }\n    return true;\n}\n\nint main(void) {\n    char riga[1024], cmd[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        size_t n = 0;\n        int pos = 0;\n        long long target = 0;\n        int32_t a[128] = {}, b[128] = {};\n        uint64_t c1 = 0, c2 = 0;\n        if (strcmp(cmd, \"SORT\") == 0 && sscanf(riga, \"SORT %zu%n\", &n, &pos) == 1 && n <= 128) {\n            if (!leggi_array(riga + pos, n, a)) { return EXIT_FAILURE; }\n            if (n > 0) { memcpy(b, a, n * sizeof(int32_t)); }\n            ordina_selezione(a, n, &c1);\n            if (!ordina_merge(b, n, &c2)) { return EXIT_FAILURE; }\n            bool ok = (n == 0 || memcmp(a, b, n * sizeof(int32_t)) == 0);\n            printf(\"SORT(%zu):\", n);\n            if (n == 0) { printf(\" (vuoto)\"); }\n            for (size_t i = 0; i < n; ++i) { printf(\" %\" PRId32, b[i]); }\n            printf(\" | sel_cmp=%\" PRIu64 \" merge_cmp=%\" PRIu64 \" ok=%d\\n\", c1, c2, ok ? 1 : 0);\n        } else if (strcmp(cmd, \"TWOSUM\") == 0 && sscanf(riga, \"TWOSUM %lld %zu%n\", &target, &n, &pos) == 2 && n <= 128) {\n            if (!leggi_array(riga + pos, n, a)) { return EXIT_FAILURE; }\n            bool r1 = coppia_forza_bruta(a, n, (int64_t)target, &c1);\n            bool r2 = coppia_due_indici(a, n, (int64_t)target, &c2);\n            if (r1 != r2) { return EXIT_FAILURE; }\n            printf(\"TWOSUM(%lld): %s | bruta_cmp=%\" PRIu64 \" lineare_cmp=%\" PRIu64 \"\\n\",\n                   target, r1 ? \"TROVATA\" : \"ASSENTE\", c1, c2);\n        } else if (strcmp(cmd, \"SCALA\") == 0 && sscanf(riga, \"SCALA %zu %c\", &n, &extra) == 1 && n >= 1 && n <= 128) {\n            for (size_t i = 0; i < n; ++i) { a[i] = (int32_t)(n - i); b[i] = a[i]; }\n            ordina_selezione(a, n, &c1);\n            if (!ordina_merge(b, n, &c2)) { return EXIT_FAILURE; }\n            bool ok = (memcmp(a, b, n * sizeof(int32_t)) == 0);\n            printf(\"SCALA(%zu): sel_cmp=%\" PRIu64 \" merge_cmp=%\" PRIu64 \" ok=%d\\n\", n, c1, c2, ok ? 1 : 0);\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "23.2",
+      "tipo": "esercizio",
+      "titolo": "Coda di priorità generica opaca su heap binario (con heapify O(n)) per uno schedulatore di task",
+      "descrizione": "Realizza su tre file (`heap_gen.h`, `heap_gen.c`, `main.c`) una **coda di priorità** generica basata su un **heap binario** come **tipo opaco** `heap_gen_t`, applicata a uno schedulatore di attività. (1) In `heap_gen.h` (protetto da `HEAP_GEN_H`) definisci `typedef struct heap_gen heap_gen_t;`, `typedef int (*heap_cmp_fn)(const void *a, const void *b);` (valore `< 0` significa che `a` ha priorità più alta di `b` e sale verso la radice) e dichiara: `heap_gen_t *heap_crea(size_t dim_elem, size_t cap_iniziale, heap_cmp_fn cmp);`, `void heap_distruggi(heap_gen_t *h);`, `bool heap_inserisci(heap_gen_t *h, const void *elem);` (`O(log n)` con raddoppio dinamico controllato da `ckd_mul`), `bool heap_estrai(heap_gen_t *h, void *out);` (`O(log n)`), `bool heap_cima(const heap_gen_t *h, void *out);` (`O(1)`), `bool heap_costruisci(heap_gen_t *h, const void *dati, size_t n);` (sostituisce il contenuto dello heap copiando gli `n` elementi ed eseguendo *heapify* bottom-up di Floyd in tempo `O(n)`) e `size_t heap_len(const heap_gen_t *h);`. (2) In `heap_gen.c` implementa le operazioni generiche usando `unsigned char *dati`, `memcpy` e un piccolo buffer di scambio `unsigned char *tmp_scambio` di `dim_elem` byte allocato una volta sola in `heap_crea`. (3) In `main.c` definisci `typedef struct task { int32_t priorita; uint32_t ordine; char nome[20]; } task_t;` con comparatore che ordina per `priorita` crescente (valore più basso = più urgente) e, a parità di priorità, per `ordine` crescente (FIFO). Gestisci da `stdin` i comandi `PUSH <prio> <nome>`, `PEEK`, `POP`, `BUILD <k>` (seguito da `k` righe `<prio> <nome>`, azzerando il contatore `ordine` a `0` per i nuovi `k` task) e `DRAIN`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "rappresentazione di un heap binario in array contiguo con formule (i - 1) / 2, 2 * i + 1 e 2 * i + 2",
+        "operazioni di risalita (sift-up), discesa (sift-down) e costruzione lineare bottom-up (heapify di Floyd)",
+        "programmazione generica con void *, dim_elem, memcpy e callback di confronto",
+        "stabilizzazione dell'ordine tra elementi a pari priorità mediante un contatore monotono di inserimento"
+      ],
+      "domande_guida": [
+        "Perché un heap binario non è naturalmente stabile su elementi con la stessa priorità e come risolve il problema il campo ordine?",
+        "Da quale indice parte il ciclo di heap_costruisci (heapify bottom-up di Floyd) e perché non è necessario chiamare scendi sulle foglie?",
+        "Come calcoli in heap_gen.c l'indirizzo dell'elemento a indice i quando il tipo concreto degli elementi è sconosciuto a tempo di compilazione?",
+        "Quale controllo devi fare prima di calcolare (i - 1) / 2 dentro la funzione di risalita?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "PUSH 5 Backup\nPUSH 2 Rete\nPUSH 2 Disco\nPUSH 1 Allarme\nPEEK\nPOP\nPOP\nPOP\nPOP\nPOP\nBUILD 4\n10 Report\n3 Log\n3 Audit\n1 Critico\nDRAIN\n",
+          "output": "PEEK: Allarme (prio=1, ord=3)\nPOP: Allarme (prio=1, ord=3)\nPOP: Rete (prio=2, ord=1)\nPOP: Disco (prio=2, ord=2)\nPOP: Backup (prio=5, ord=0)\nPOP: VUOTA\nBUILD: n=4\nDRAIN: Critico(1,3) Log(3,1) Audit(3,2) Report(10,0)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "PEEK\nPOP\nDRAIN\nBUILD 0\nPEEK\n",
+          "output": "PEEK: VUOTA\nPOP: VUOTA\nDRAIN: (vuota)\nBUILD: n=0\nPEEK: VUOTA\n"
+        },
+        {
+          "input": "PUSH -10 Urgente\nPUSH 0 Normale\nPUSH -10 Primo\nDRAIN\n",
+          "output": "DRAIN: Urgente(-10,0) Primo(-10,2) Normale(0,1)\n"
+        }
+      ],
+      "soluzione_file": {
+        "heap_gen.h": "#ifndef HEAP_GEN_H\n#define HEAP_GEN_H\n\n#include <stddef.h>\n\ntypedef struct heap_gen heap_gen_t;\ntypedef int (*heap_cmp_fn)(const void *a, const void *b);\n\nheap_gen_t *heap_crea(size_t dim_elem, size_t cap_iniziale, heap_cmp_fn cmp);\nvoid heap_distruggi(heap_gen_t *h);\nbool heap_inserisci(heap_gen_t *h, const void *elem);\nbool heap_estrai(heap_gen_t *h, void *out);\nbool heap_cima(const heap_gen_t *h, void *out);\nbool heap_costruisci(heap_gen_t *h, const void *dati, size_t n);\nsize_t heap_len(const heap_gen_t *h);\n\n#endif\n",
+        "heap_gen.c": "#include \"heap_gen.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n#include <string.h>\n\nstruct heap_gen {\n    unsigned char *dati;\n    unsigned char *tmp;\n    size_t dim_elem;\n    size_t len;\n    size_t cap;\n    heap_cmp_fn cmp;\n};\n\nstatic unsigned char *slot(const heap_gen_t *h, size_t idx) { return h->dati + idx * h->dim_elem; }\n\nstatic void scambia(heap_gen_t *h, size_t i, size_t j) {\n    if (i == j) { return; }\n    memcpy(h->tmp, slot(h, i), h->dim_elem);\n    memcpy(slot(h, i), slot(h, j), h->dim_elem);\n    memcpy(slot(h, j), h->tmp, h->dim_elem);\n}\n\nstatic void risali(heap_gen_t *h, size_t i) {\n    while (i > 0) {\n        size_t p = (i - 1) / 2;\n        if (h->cmp(slot(h, i), slot(h, p)) >= 0) { break; }\n        scambia(h, i, p);\n        i = p;\n    }\n}\n\nstatic void scendi(heap_gen_t *h, size_t i) {\n    while (true) {\n        size_t sx = 2 * i + 1, dx = sx + 1, migliore = i;\n        if (sx < h->len && h->cmp(slot(h, sx), slot(h, migliore)) < 0) { migliore = sx; }\n        if (dx < h->len && h->cmp(slot(h, dx), slot(h, migliore)) < 0) { migliore = dx; }\n        if (migliore == i) { break; }\n        scambia(h, i, migliore);\n        i = migliore;\n    }\n}\n\nstatic bool assicura_cap(heap_gen_t *h, size_t min_cap) {\n    if (min_cap <= h->cap) { return true; }\n    size_t nuova = (h->cap == 0) ? 4 : h->cap;\n    while (nuova < min_cap) {\n        if (ckd_mul(&nuova, nuova, 2)) { return false; }\n    }\n    size_t byte_tot = 0;\n    if (ckd_mul(&byte_tot, nuova, h->dim_elem)) { return false; }\n    unsigned char *nb = realloc(h->dati, byte_tot);\n    if (nb == nullptr) { return false; }\n    h->dati = nb;\n    h->cap = nuova;\n    return true;\n}\n\nheap_gen_t *heap_crea(size_t dim_elem, size_t cap_iniziale, heap_cmp_fn cmp) {\n    if (dim_elem == 0 || cmp == nullptr) { return nullptr; }\n    heap_gen_t *h = calloc(1, sizeof(*h));\n    if (h == nullptr) { return nullptr; }\n    h->tmp = malloc(dim_elem);\n    if (h->tmp == nullptr) { free(h); return nullptr; }\n    h->dim_elem = dim_elem;\n    h->cmp = cmp;\n    if (cap_iniziale > 0 && !assicura_cap(h, cap_iniziale)) {\n        heap_distruggi(h); return nullptr;\n    }\n    return h;\n}\n\nvoid heap_distruggi(heap_gen_t *h) {\n    if (h == nullptr) { return; }\n    free(h->dati); free(h->tmp); free(h);\n}\n\nbool heap_inserisci(heap_gen_t *h, const void *elem) {\n    if (h == nullptr || elem == nullptr || !assicura_cap(h, h->len + 1)) { return false; }\n    memcpy(slot(h, h->len), elem, h->dim_elem);\n    ++h->len;\n    risali(h, h->len - 1);\n    return true;\n}\n\nbool heap_estrai(heap_gen_t *h, void *out) {\n    if (h == nullptr || h->len == 0) { return false; }\n    if (out != nullptr) { memcpy(out, slot(h, 0), h->dim_elem); }\n    --h->len;\n    if (h->len > 0) {\n        memcpy(slot(h, 0), slot(h, h->len), h->dim_elem);\n        scendi(h, 0);\n    }\n    return true;\n}\n\nbool heap_cima(const heap_gen_t *h, void *out) {\n    if (h == nullptr || h->len == 0 || out == nullptr) { return false; }\n    memcpy(out, slot(h, 0), h->dim_elem);\n    return true;\n}\n\nbool heap_costruisci(heap_gen_t *h, const void *dati, size_t n) {\n    if (h == nullptr || (n > 0 && dati == nullptr)) { return false; }\n    if (n > 0 && !assicura_cap(h, n)) { return false; }\n    h->len = n;\n    if (n > 0) { memcpy(h->dati, dati, n * h->dim_elem); }\n    for (size_t i = n / 2; i > 0; --i) { scendi(h, i - 1); }\n    return true;\n}\n\nsize_t heap_len(const heap_gen_t *h) { return (h != nullptr) ? h->len : 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"heap_gen.h\"\n\ntypedef struct task {\n    int32_t priorita;\n    uint32_t ordine;\n    char nome[20];\n} task_t;\n\nstatic int cmp_task(const void *a, const void *b) {\n    const task_t *ta = a, *tb = b;\n    if (ta->priorita != tb->priorita) { return (ta->priorita > tb->priorita) - (ta->priorita < tb->priorita); }\n    return (ta->ordine > tb->ordine) - (ta->ordine < tb->ordine);\n}\n\nint main(void) {\n    heap_gen_t *h = heap_crea(sizeof(task_t), 4, cmp_task);\n    if (h == nullptr) { return EXIT_FAILURE; }\n    uint32_t seq = 0;\n    char riga[128], cmd[16], nome[20], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long prio = 0;\n        size_t k = 0;\n        if (strcmp(cmd, \"PUSH\") == 0 && sscanf(riga, \"PUSH %ld %19s %c\", &prio, nome, &extra) == 2 &&\n            prio >= INT32_MIN && prio <= INT32_MAX) {\n            task_t t = {.priorita = (int32_t)prio, .ordine = seq++};\n            snprintf(t.nome, sizeof(t.nome), \"%s\", nome);\n            if (!heap_inserisci(h, &t)) { heap_distruggi(h); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"PEEK\") == 0 && sscanf(riga, \"PEEK %c\", &extra) != 1) {\n            task_t t = {};\n            if (heap_cima(h, &t)) { printf(\"PEEK: %s (prio=%\" PRId32 \", ord=%\" PRIu32 \")\\n\", t.nome, t.priorita, t.ordine); }\n            else { printf(\"PEEK: VUOTA\\n\"); }\n        } else if (strcmp(cmd, \"POP\") == 0 && sscanf(riga, \"POP %c\", &extra) != 1) {\n            task_t t = {};\n            if (heap_estrai(h, &t)) { printf(\"POP: %s (prio=%\" PRId32 \", ord=%\" PRIu32 \")\\n\", t.nome, t.priorita, t.ordine); }\n            else { printf(\"POP: VUOTA\\n\"); }\n        } else if (strcmp(cmd, \"BUILD\") == 0 && sscanf(riga, \"BUILD %zu %c\", &k, &extra) == 1 && k <= 64) {\n            task_t buf[64] = {};\n            seq = 0;\n            for (size_t i = 0; i < k; ++i) {\n                if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n                    sscanf(riga, \"%ld %19s %c\", &prio, nome, &extra) != 2 ||\n                    prio < INT32_MIN || prio > INT32_MAX) { heap_distruggi(h); return EXIT_FAILURE; }\n                buf[i] = (task_t){.priorita = (int32_t)prio, .ordine = seq++};\n                snprintf(buf[i].nome, sizeof(buf[i].nome), \"%s\", nome);\n            }\n            if (!heap_costruisci(h, buf, k)) { heap_distruggi(h); return EXIT_FAILURE; }\n            printf(\"BUILD: n=%zu\\n\", heap_len(h));\n        } else if (strcmp(cmd, \"DRAIN\") == 0 && sscanf(riga, \"DRAIN %c\", &extra) != 1) {\n            printf(\"DRAIN:\");\n            if (heap_len(h) == 0) { printf(\" (vuota)\\n\"); }\n            else {\n                task_t t = {};\n                while (heap_estrai(h, &t)) {\n                    printf(\" %s(%\" PRId32 \",%\" PRIu32 \")\", t.nome, t.priorita, t.ordine);\n                }\n                printf(\"\\n\");\n            }\n        } else { heap_distruggi(h); return EXIT_FAILURE; }\n    }\n    heap_distruggi(h);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "23.3",
+      "tipo": "esercizio",
+      "titolo": "Albero AVL completo con rotazioni singole (LL/RR) e doppie (LR/RL), rimozione e verifica dell'invariante",
+      "descrizione": "Realizza su tre file (`avl.h`, `avl.c`, `main.c`) un **albero AVL** completo come **tipo opaco** `avl_t` che associa chiavi intere `int32_t` a valori `int32_t`, gestendo tutte e quattro le rotazioni di bilanciamento (singole **LL**, **RR** e doppie **LR**, **RL**) sia in inserimento sia in rimozione. (1) In `avl.h` (protetto da `AVL_H`) definisci `typedef struct avl avl_t;`, `typedef struct avl_stats { size_t n; int altezza; size_t rot_ll; size_t rot_rr; size_t rot_lr; size_t rot_rl; } avl_stats_t;`, `typedef void (*avl_visita_fn)(int32_t chiave, int32_t valore, void *ctx);` e dichiara: `avl_t *avl_crea(void);`, `void avl_distruggi(avl_t *t);`, `bool avl_inserisci(avl_t *t, int32_t chiave, int32_t valore);` (se la chiave esiste aggiorna il valore senza duplicare il nodo), `bool avl_rimuovi(avl_t *t, int32_t chiave);` (gestisce 0, 1 o 2 figli usando il successore in-ordine e ribilancia risalendo), `bool avl_cerca(const avl_t *t, int32_t chiave, int32_t *valore_out);`, `void avl_inordine(const avl_t *t, avl_visita_fn fn, void *ctx);`, `bool avl_verifica_invariante(const avl_t *t);` (controlla ricorsivamente l'ordine stretto BST con estremi `int64_t`, la correttezza del campo `altezza` e `|fb| <= 1`) e `void avl_statistiche(const avl_t *t, avl_stats_t *st);`. (2) In `avl.c` implementa una funzione comune `bilancia(avl_t *t, nodo_avl_t *n)` usata sia dopo l'inserimento sia dopo la rimozione, distinguendo i casi `LL` (`fb > 1 && fb(sx) >= 0`), `LR` (`fb > 1 && fb(sx) < 0`), `RR` (`fb < -1 && fb(dx) <= 0`) e `RL` (`fb < -1 && fb(dx) > 0`), incrementando i rispettivi contatori e distruggendo i nodi in post-ordine. (3) In `main.c` gestisci da `stdin` i comandi `INS <k> <v>`, `DEL <k>`, `GET <k>`, `INORDER` e `STATS`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "fattore di bilanciamento h(sx) - h(dx) e aggiornamento dell'altezza dal basso verso l'alto dopo ogni rotazione",
+        "distinzione tra rotazioni singole (LL, RR) e rotazioni doppie (LR, RL) in base al segno del fattore di bilanciamento del figlio",
+        "riutilizzo della stessa routine di ribilanciamento sia nell'inserimento sia nella rimozione",
+        "verifica automatica dell'invariante AVL (ordine BST, altezze esatte, |fb| <= 1) e distruzione in post-ordine"
+      ],
+      "domande_guida": [
+        "Perché nella rotazione doppia LR occorre ruotare prima a sinistra sul figlio sinistro e poi a destra sul nodo sbilanciato?",
+        "In quale ordine vanno aggiornate le altezze dei due nodi coinvolti in una rotazione destra (prima il vecchio nodo radice o prima la nuova radice)?",
+        "Perché dopo una rimozione in un albero AVL può essere necessario ribilanciare più nodi risalendo fino alla radice, a differenza dell'inserimento in cui basta al più una rotazione (singola o doppia)?",
+        "Come verifichi ricorsivamente in avl_verifica_invariante che anche le chiavi profonde nei sottoalberi rispettino l'ordine rispetto a tutti i loro antenati?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INS 10 1\nINS 20 2\nINS 30 3\nINS 5 4\nINS 2 5\nINS 7 6\nINS 25 7\nSTATS\nINORDER\nGET 7\nGET 99\nDEL 10\nDEL 99\nSTATS\nINORDER\n",
+          "output": "STATS: n=7 h=3 inv=1 rot(LL=1 RR=1 LR=1 RL=1)\nINORDER: 2=5 5=4 7=6 10=1 20=2 25=7 30=3\nGET 7: 6\nGET 99: NON TROVATO\nDEL 10: OK\nDEL 99: NON TROVATO\nSTATS: n=6 h=3 inv=1 rot(LL=1 RR=1 LR=1 RL=1)\nINORDER: 2=5 5=4 7=6 20=2 25=7 30=3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "STATS\nINORDER\nDEL 1\nINS 42 100\nINS 42 200\nGET 42\nDEL 42\nSTATS\n",
+          "output": "STATS: n=0 h=0 inv=1 rot(LL=0 RR=0 LR=0 RL=0)\nINORDER: (vuoto)\nDEL 1: NON TROVATO\nGET 42: 200\nDEL 42: OK\nSTATS: n=0 h=0 inv=1 rot(LL=0 RR=0 LR=0 RL=0)\n"
+        },
+        {
+          "input": "INS 1 1\nINS 2 2\nINS 3 3\nINS 4 4\nINS 5 5\nINS 6 6\nINS 7 7\nDEL 1\nDEL 2\nDEL 3\nSTATS\nINORDER\n",
+          "output": "DEL 1: OK\nDEL 2: OK\nDEL 3: OK\nSTATS: n=4 h=3 inv=1 rot(LL=0 RR=5 LR=0 RL=0)\nINORDER: 4=4 5=5 6=6 7=7\n"
+        }
+      ],
+      "soluzione_file": {
+        "avl.h": "#ifndef AVL_H\n#define AVL_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct avl avl_t;\n\ntypedef struct avl_stats {\n    size_t n;\n    int altezza;\n    size_t rot_ll;\n    size_t rot_rr;\n    size_t rot_lr;\n    size_t rot_rl;\n} avl_stats_t;\n\ntypedef void (*avl_visita_fn)(int32_t chiave, int32_t valore, void *ctx);\n\navl_t *avl_crea(void);\nvoid avl_distruggi(avl_t *t);\nbool avl_inserisci(avl_t *t, int32_t chiave, int32_t valore);\nbool avl_rimuovi(avl_t *t, int32_t chiave);\nbool avl_cerca(const avl_t *t, int32_t chiave, int32_t *valore_out);\nvoid avl_inordine(const avl_t *t, avl_visita_fn fn, void *ctx);\nbool avl_verifica_invariante(const avl_t *t);\nvoid avl_statistiche(const avl_t *t, avl_stats_t *st);\n\n#endif\n",
+        "avl.c": "#include \"avl.h\"\n#include <stdlib.h>\n\ntypedef struct nodo_avl {\n    int32_t chiave;\n    int32_t valore;\n    int altezza;\n    struct nodo_avl *sx;\n    struct nodo_avl *dx;\n} nodo_avl_t;\n\nstruct avl {\n    nodo_avl_t *radice;\n    avl_stats_t st;\n};\n\nstatic int h_nodo(const nodo_avl_t *n) { return (n != nullptr) ? n->altezza : 0; }\nstatic int max_int(int a, int b) { return (a > b) ? a : b; }\nstatic void aggiorna_h(nodo_avl_t *n) { n->altezza = 1 + max_int(h_nodo(n->sx), h_nodo(n->dx)); }\nstatic int fattore_bil(const nodo_avl_t *n) { return (n != nullptr) ? (h_nodo(n->sx) - h_nodo(n->dx)) : 0; }\n\nstatic nodo_avl_t *ruota_dx(nodo_avl_t *y) {\n    nodo_avl_t *x = y->sx;\n    y->sx = x->dx;\n    x->dx = y;\n    aggiorna_h(y);\n    aggiorna_h(x);\n    return x;\n}\n\nstatic nodo_avl_t *ruota_sx(nodo_avl_t *x) {\n    nodo_avl_t *y = x->dx;\n    x->dx = y->sx;\n    y->sx = x;\n    aggiorna_h(x);\n    aggiorna_h(y);\n    return y;\n}\n\nstatic nodo_avl_t *bilancia(avl_t *t, nodo_avl_t *n) {\n    aggiorna_h(n);\n    int fb = fattore_bil(n);\n    if (fb > 1) {\n        if (fattore_bil(n->sx) < 0) {\n            ++t->st.rot_lr;\n            n->sx = ruota_sx(n->sx);\n            return ruota_dx(n);\n        }\n        ++t->st.rot_ll;\n        return ruota_dx(n);\n    }\n    if (fb < -1) {\n        if (fattore_bil(n->dx) > 0) {\n            ++t->st.rot_rl;\n            n->dx = ruota_dx(n->dx);\n            return ruota_sx(n);\n        }\n        ++t->st.rot_rr;\n        return ruota_sx(n);\n    }\n    return n;\n}\n\nstatic nodo_avl_t *ins_ric(avl_t *t, nodo_avl_t *n, int32_t k, int32_t v, bool *ok) {\n    if (n == nullptr) {\n        nodo_avl_t *nuovo = malloc(sizeof(*nuovo));\n        if (nuovo == nullptr) { *ok = false; return nullptr; }\n        *nuovo = (nodo_avl_t){.chiave = k, .valore = v, .altezza = 1};\n        ++t->st.n;\n        return nuovo;\n    }\n    if (k < n->chiave) { n->sx = ins_ric(t, n->sx, k, v, ok); }\n    else if (k > n->chiave) { n->dx = ins_ric(t, n->dx, k, v, ok); }\n    else { n->valore = v; return n; }\n    return bilancia(t, n);\n}\n\nstatic nodo_avl_t *minimo(nodo_avl_t *n) {\n    while (n->sx != nullptr) { n = n->sx; }\n    return n;\n}\n\nstatic nodo_avl_t *del_ric(avl_t *t, nodo_avl_t *n, int32_t k, bool *rimosso) {\n    if (n == nullptr) { return nullptr; }\n    if (k < n->chiave) { n->sx = del_ric(t, n->sx, k, rimosso); }\n    else if (k > n->chiave) { n->dx = del_ric(t, n->dx, k, rimosso); }\n    else {\n        *rimosso = true;\n        if (n->sx == nullptr || n->dx == nullptr) {\n            nodo_avl_t *figlio = (n->sx != nullptr) ? n->sx : n->dx;\n            free(n);\n            --t->st.n;\n            return figlio;\n        }\n        nodo_avl_t *succ = minimo(n->dx);\n        n->chiave = succ->chiave;\n        n->valore = succ->valore;\n        bool dummy = false;\n        n->dx = del_ric(t, n->dx, succ->chiave, &dummy);\n    }\n    return bilancia(t, n);\n}\n\nstatic void distruggi_ric(nodo_avl_t *n) {\n    if (n == nullptr) { return; }\n    distruggi_ric(n->sx); distruggi_ric(n->dx); free(n);\n}\n\nstatic void inordine_ric(const nodo_avl_t *n, avl_visita_fn fn, void *ctx) {\n    if (n == nullptr) { return; }\n    inordine_ric(n->sx, fn, ctx); fn(n->chiave, n->valore, ctx); inordine_ric(n->dx, fn, ctx);\n}\n\nstatic bool inv_ric(const nodo_avl_t *n, int64_t lo, int64_t hi, int *h_out) {\n    if (n == nullptr) { *h_out = 0; return true; }\n    if ((int64_t)n->chiave <= lo || (int64_t)n->chiave >= hi) { return false; }\n    int hs = 0, hd = 0;\n    if (!inv_ric(n->sx, lo, n->chiave, &hs) || !inv_ric(n->dx, n->chiave, hi, &hd)) { return false; }\n    if (n->altezza != 1 + max_int(hs, hd)) { return false; }\n    int fb = hs - hd;\n    if (fb < -1 || fb > 1) { return false; }\n    *h_out = n->altezza;\n    return true;\n}\n\navl_t *avl_crea(void) { return calloc(1, sizeof(avl_t)); }\nvoid avl_distruggi(avl_t *t) { if (t != nullptr) { distruggi_ric(t->radice); free(t); } }\n\nbool avl_inserisci(avl_t *t, int32_t chiave, int32_t valore) {\n    if (t == nullptr) { return false; }\n    bool ok = true;\n    t->radice = ins_ric(t, t->radice, chiave, valore, &ok);\n    return ok;\n}\n\nbool avl_rimuovi(avl_t *t, int32_t chiave) {\n    if (t == nullptr) { return false; }\n    bool rimosso = false;\n    t->radice = del_ric(t, t->radice, chiave, &rimosso);\n    return rimosso;\n}\n\nbool avl_cerca(const avl_t *t, int32_t chiave, int32_t *valore_out) {\n    const nodo_avl_t *c = (t != nullptr) ? t->radice : nullptr;\n    while (c != nullptr) {\n        if (chiave < c->chiave) { c = c->sx; }\n        else if (chiave > c->chiave) { c = c->dx; }\n        else { if (valore_out != nullptr) { *valore_out = c->valore; } return true; }\n    }\n    return false;\n}\n\nvoid avl_inordine(const avl_t *t, avl_visita_fn fn, void *ctx) {\n    if (t != nullptr && fn != nullptr) { inordine_ric(t->radice, fn, ctx); }\n}\n\nbool avl_verifica_invariante(const avl_t *t) {\n    if (t == nullptr) { return false; }\n    int h = 0;\n    return inv_ric(t->radice, (int64_t)INT32_MIN - 1, (int64_t)INT32_MAX + 1, &h);\n}\n\nvoid avl_statistiche(const avl_t *t, avl_stats_t *st) {\n    if (st == nullptr) { return; }\n    if (t == nullptr) { *st = (avl_stats_t){}; return; }\n    *st = t->st;\n    st->altezza = h_nodo(t->radice);\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"avl.h\"\n\nstatic void stampa_coppia(int32_t k, int32_t v, void *ctx) {\n    size_t *cnt = ctx;\n    printf(\" %\" PRId32 \"=%\" PRId32, k, v);\n    ++(*cnt);\n}\n\nint main(void) {\n    avl_t *t = avl_crea();\n    if (t == nullptr) { return EXIT_FAILURE; }\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long k = 0, v = 0;\n        if (strcmp(cmd, \"INS\") == 0 && sscanf(riga, \"INS %ld %ld %c\", &k, &v, &extra) == 2 &&\n            k >= INT32_MIN && k <= INT32_MAX && v >= INT32_MIN && v <= INT32_MAX) {\n            if (!avl_inserisci(t, (int32_t)k, (int32_t)v)) { avl_distruggi(t); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %ld %c\", &k, &extra) == 1 &&\n                   k >= INT32_MIN && k <= INT32_MAX) {\n            printf(\"DEL %ld: %s\\n\", k, avl_rimuovi(t, (int32_t)k) ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %ld %c\", &k, &extra) == 1 &&\n                   k >= INT32_MIN && k <= INT32_MAX) {\n            int32_t val = 0;\n            if (avl_cerca(t, (int32_t)k, &val)) { printf(\"GET %ld: %\" PRId32 \"\\n\", k, val); }\n            else { printf(\"GET %ld: NON TROVATO\\n\", k); }\n        } else if (strcmp(cmd, \"INORDER\") == 0 && sscanf(riga, \"INORDER %c\", &extra) != 1) {\n            size_t cnt = 0;\n            printf(\"INORDER:\");\n            avl_inordine(t, stampa_coppia, &cnt);\n            if (cnt == 0) { printf(\" (vuoto)\"); }\n            printf(\"\\n\");\n        } else if (strcmp(cmd, \"STATS\") == 0 && sscanf(riga, \"STATS %c\", &extra) != 1) {\n            avl_stats_t st = {};\n            avl_statistiche(t, &st);\n            printf(\"STATS: n=%zu h=%d inv=%d rot(LL=%zu RR=%zu LR=%zu RL=%zu)\\n\",\n                   st.n, st.altezza, avl_verifica_invariante(t) ? 1 : 0,\n                   st.rot_ll, st.rot_rr, st.rot_lr, st.rot_rl);\n        } else { avl_distruggi(t); return EXIT_FAILURE; }\n    }\n    avl_distruggi(t);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "23.4",
+      "tipo": "esercizio",
+      "titolo": "Motore di autocompletamento su trie con conteggio prefissi O(L) e rimozione potata",
+      "descrizione": "Realizza su tre file (`trie.h`, `trie.c`, `main.c`) un **trie** come **tipo opaco** `trie_t` sull'alfabeto minuscolo `'a'..'z'` che associa a ciascuna parola un peso `uint32_t` e supporta conteggio su prefisso in tempo `O(L)`, autocompletamento lessicografico e rimozione con potatura dei nodi inutili. (1) In `trie.h` (protetto da `TRIE_H`) definisci `typedef struct trie trie_t;` e `typedef void (*trie_sugg_fn)(const char *parola, uint32_t peso, void *ctx);`, e dichiara: `trie_t *trie_crea(void);`, `void trie_distruggi(trie_t *t);`, `bool trie_inserisci(trie_t *t, const char *parola, uint32_t peso);` (rifiuta parole vuote, lunghe oltre `31` caratteri o con caratteri fuori da `'a'..'z'`; se la parola esiste già aggiorna il peso senza incrementare i contatori di sottoalbero), `bool trie_cerca(const trie_t *t, const char *parola, uint32_t *peso_out);`, `size_t trie_conta_prefisso(const trie_t *t, const char *prefisso);` (accetta anche `\"\"` e risponde in `O(L)` leggendo il contatore `parole_sottoalbero` del nodo prefisso), `size_t trie_suggerisci(const trie_t *t, const char *prefisso, size_t max_ris, trie_sugg_fn fn, void *ctx);` (visita i figli in ordine `'a'..'z'` invocando `fn` su al più `max_ris` parole), `bool trie_rimuovi(trie_t *t, const char *parola);` (rimuove la parola, decrementa `parole_sottoalbero` lungo il cammino e libera con `free` ogni nodo non radice divenuto privo di figli e non terminale), `size_t trie_num_parole(const trie_t *t);` e `size_t trie_num_nodi(const trie_t *t);` (include la radice). (2) In `main.c` leggi da `stdin` i comandi `ADD <parola> <peso>`, `FIND <parola>`, `COUNT <pref>` (`*` rappresenta il prefisso vuoto `\"\"`), `SUGG <pref> <k>` (`*` per `\"\"`, `1 <= k <= 32`), `DEL <parola>` e `NODES`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "validazione rigorosa dei caratteri nell'intervallo 'a'..'z' prima di indicizzare figli[26]",
+        "mantenimento del contatore parole_sottoalbero in ogni nodo per rispondere a trie_conta_prefisso in O(L)",
+        "visita DFS in ordine 'a'..'z' a partire dal nodo del prefisso per generare suggerimenti ordinati lessicograficamente",
+        "potatura ricorsiva dei nodi orfani non terminali durante trie_rimuovi e verifica tramite trie_num_nodi"
+      ],
+      "domande_guida": [
+        "Perché trie_inserisci deve verificare se la parola è già presente prima di incrementare parole_sottoalbero lungo il cammino?",
+        "Quali condizioni deve soddisfare un nodo (diverso dalla radice) affinché trie_rimuovi possa liberarlo con free in sicurezza?",
+        "Come mai la visita DFS dei figli da 0 a 25 produce automaticamente le parole in ordine lessicografico senza doverle ordinare?",
+        "Quale rischio di comportamento indefinito correresti se calcolassi (size_t)(c - 'a') su un carattere maiuscolo o non alfabetico senza prima validarlo?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD casa 10\nADD caso 20\nADD cane 15\nADD gatto 5\nADD Casa 1\nNODES\nFIND caso\nFIND cas\nCOUNT ca\nCOUNT cas\nCOUNT *\nSUGG ca 2\nSUGG ca 5\nDEL gatto\nDEL casa\nDEL cas\nNODES\nSUGG *\n",
+          "output": "ADD casa: OK\nADD caso: OK\nADD cane: OK\nADD gatto: OK\nADD Casa: INVALIDA\nNODES: parole=4 nodi=13\nFIND caso: peso=20\nFIND cas: ASSENTE\nCOUNT ca: 3\nCOUNT cas: 2\nCOUNT *: 4\nSUGG ca: cane(15) casa(10)\nSUGG ca: cane(15) casa(10) caso(20)\nDEL gatto: OK\nDEL casa: OK\nDEL cas: ASSENTE\nNODES: parole=2 nodi=7\nSUGG *: cane(15) caso(20)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "NODES\nCOUNT *\nSUGG a 3\nDEL vuoto\nADD a 7\nADD a 9\nFIND a\nNODES\nDEL a\nNODES\n",
+          "output": "NODES: parole=0 nodi=1\nCOUNT *: 0\nSUGG a: (nessuno)\nDEL vuoto: ASSENTE\nADD a: OK\nADD a: OK\nFIND a: peso=9\nNODES: parole=1 nodi=2\nDEL a: OK\nNODES: parole=0 nodi=1\n"
+        },
+        {
+          "input": "ADD albero 1\nADD alba 2\nADD albo 3\nDEL alba\nCOUNT alb\nSUGG alb 5\nNODES\n",
+          "output": "ADD albero: OK\nADD alba: OK\nADD albo: OK\nDEL alba: OK\nCOUNT alb: 2\nSUGG alb: albero(1) albo(3)\nNODES: parole=2 nodi=8\n"
+        }
+      ],
+      "soluzione_file": {
+        "trie.h": "#ifndef TRIE_H\n#define TRIE_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct trie trie_t;\ntypedef void (*trie_sugg_fn)(const char *parola, uint32_t peso, void *ctx);\n\ntrie_t *trie_crea(void);\nvoid trie_distruggi(trie_t *t);\nbool trie_inserisci(trie_t *t, const char *parola, uint32_t peso);\nbool trie_cerca(const trie_t *t, const char *parola, uint32_t *peso_out);\nsize_t trie_conta_prefisso(const trie_t *t, const char *prefisso);\nsize_t trie_suggerisci(const trie_t *t, const char *prefisso, size_t max_ris, trie_sugg_fn fn, void *ctx);\nbool trie_rimuovi(trie_t *t, const char *parola);\nsize_t trie_num_parole(const trie_t *t);\nsize_t trie_num_nodi(const trie_t *t);\n\n#endif\n",
+        "trie.c": "#include \"trie.h\"\n#include <stdlib.h>\n#include <string.h>\n\nstatic constexpr size_t ALFABETO = 26;\nstatic constexpr size_t MAX_LEN = 31;\n\ntypedef struct nodo_trie {\n    struct nodo_trie *figli[ALFABETO];\n    size_t parole_sottoalbero;\n    uint32_t peso;\n    bool fine_parola;\n} nodo_trie_t;\n\nstruct trie {\n    nodo_trie_t *radice;\n    size_t n_nodi;\n};\n\nstatic bool parola_valida(const char *s, bool consenti_vuota) {\n    if (s == nullptr) { return false; }\n    size_t len = strlen(s);\n    if ((!consenti_vuota && len == 0) || len > MAX_LEN) { return false; }\n    for (size_t i = 0; i < len; ++i) {\n        if (s[i] < 'a' || s[i] > 'z') { return false; }\n    }\n    return true;\n}\n\nstatic bool ha_figli(const nodo_trie_t *n) {\n    for (size_t i = 0; i < ALFABETO; ++i) {\n        if (n->figli[i] != nullptr) { return true; }\n    }\n    return false;\n}\n\nstatic void distruggi_ric(nodo_trie_t *n) {\n    if (n == nullptr) { return; }\n    for (size_t i = 0; i < ALFABETO; ++i) { distruggi_ric(n->figli[i]); }\n    free(n);\n}\n\ntrie_t *trie_crea(void) {\n    trie_t *t = calloc(1, sizeof(*t));\n    if (t == nullptr) { return nullptr; }\n    t->radice = calloc(1, sizeof(*t->radice));\n    if (t->radice == nullptr) { free(t); return nullptr; }\n    t->n_nodi = 1;\n    return t;\n}\n\nvoid trie_distruggi(trie_t *t) {\n    if (t == nullptr) { return; }\n    distruggi_ric(t->radice); free(t);\n}\n\nstatic const nodo_trie_t *trova_nodo(const trie_t *t, const char *s) {\n    const nodo_trie_t *c = t->radice;\n    for (size_t i = 0; s[i] != '\\0'; ++i) {\n        c = c->figli[(size_t)(s[i] - 'a')];\n        if (c == nullptr) { return nullptr; }\n    }\n    return c;\n}\n\nbool trie_cerca(const trie_t *t, const char *parola, uint32_t *peso_out) {\n    if (t == nullptr || !parola_valida(parola, false)) { return false; }\n    const nodo_trie_t *n = trova_nodo(t, parola);\n    if (n == nullptr || !n->fine_parola) { return false; }\n    if (peso_out != nullptr) { *peso_out = n->peso; }\n    return true;\n}\n\nbool trie_inserisci(trie_t *t, const char *parola, uint32_t peso) {\n    if (t == nullptr || !parola_valida(parola, false)) { return false; }\n    bool esiste = trie_cerca(t, parola, nullptr);\n    nodo_trie_t *c = t->radice;\n    if (!esiste) { ++c->parole_sottoalbero; }\n    for (size_t i = 0; parola[i] != '\\0'; ++i) {\n        size_t idx = (size_t)(parola[i] - 'a');\n        if (c->figli[idx] == nullptr) {\n            c->figli[idx] = calloc(1, sizeof(*c->figli[idx]));\n            if (c->figli[idx] == nullptr) { return false; }\n            ++t->n_nodi;\n        }\n        c = c->figli[idx];\n        if (!esiste) { ++c->parole_sottoalbero; }\n    }\n    c->fine_parola = true;\n    c->peso = peso;\n    return true;\n}\n\nsize_t trie_conta_prefisso(const trie_t *t, const char *prefisso) {\n    if (t == nullptr || !parola_valida(prefisso, true)) { return 0; }\n    const nodo_trie_t *n = trova_nodo(t, prefisso);\n    return (n != nullptr) ? n->parole_sottoalbero : 0;\n}\n\nstatic void sugg_ric(const nodo_trie_t *n, char *buf, size_t prof, size_t max_ris, size_t *trovati, trie_sugg_fn fn, void *ctx) {\n    if (n == nullptr || *trovati >= max_ris) { return; }\n    if (n->fine_parola) {\n        buf[prof] = '\\0';\n        fn(buf, n->peso, ctx);\n        ++(*trovati);\n        if (*trovati >= max_ris) { return; }\n    }\n    for (size_t i = 0; i < ALFABETO && *trovati < max_ris; ++i) {\n        if (n->figli[i] != nullptr) {\n            buf[prof] = (char)('a' + i);\n            sugg_ric(n->figli[i], buf, prof + 1, max_ris, trovati, fn, ctx);\n        }\n    }\n}\n\nsize_t trie_suggerisci(const trie_t *t, const char *prefisso, size_t max_ris, trie_sugg_fn fn, void *ctx) {\n    if (t == nullptr || fn == nullptr || max_ris == 0 || !parola_valida(prefisso, true)) { return 0; }\n    const nodo_trie_t *n = trova_nodo(t, prefisso);\n    if (n == nullptr) { return 0; }\n    char buf[MAX_LEN + 1] = {};\n    size_t len = strlen(prefisso), trovati = 0;\n    memcpy(buf, prefisso, len);\n    sugg_ric(n, buf, len, max_ris, &trovati, fn, ctx);\n    return trovati;\n}\n\nstatic bool rimuovi_ric(trie_t *t, nodo_trie_t *n, const char *s, size_t prof) {\n    if (s[prof] == '\\0') {\n        n->fine_parola = false;\n        n->peso = 0;\n        --n->parole_sottoalbero;\n        return !ha_figli(n);\n    }\n    size_t idx = (size_t)(s[prof] - 'a');\n    bool pota_figlio = rimuovi_ric(t, n->figli[idx], s, prof + 1);\n    --n->parole_sottoalbero;\n    if (pota_figlio) {\n        free(n->figli[idx]);\n        n->figli[idx] = nullptr;\n        --t->n_nodi;\n    }\n    return !n->fine_parola && !ha_figli(n);\n}\n\nbool trie_rimuovi(trie_t *t, const char *parola) {\n    if (t == nullptr || !trie_cerca(t, parola, nullptr)) { return false; }\n    (void)rimuovi_ric(t, t->radice, parola, 0);\n    return true;\n}\n\nsize_t trie_num_parole(const trie_t *t) { return (t != nullptr) ? t->radice->parole_sottoalbero : 0; }\nsize_t trie_num_nodi(const trie_t *t) { return (t != nullptr) ? t->n_nodi : 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"trie.h\"\n\nstatic void stampa_sugg(const char *parola, uint32_t peso, void *ctx) {\n    (void)ctx;\n    printf(\" %s(%\" PRIu32 \")\", parola, peso);\n}\n\nint main(void) {\n    trie_t *t = trie_crea();\n    if (t == nullptr) { return EXIT_FAILURE; }\n    char riga[128], cmd[16], parola[48], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned long peso = 0;\n        size_t k = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %47s %lu %c\", parola, &peso, &extra) == 2 && peso <= UINT32_MAX) {\n            printf(\"ADD %s: %s\\n\", parola, trie_inserisci(t, parola, (uint32_t)peso) ? \"OK\" : \"INVALIDA\");\n        } else if (strcmp(cmd, \"FIND\") == 0 && sscanf(riga, \"FIND %47s %c\", parola, &extra) == 1) {\n            uint32_t p = 0;\n            if (trie_cerca(t, parola, &p)) { printf(\"FIND %s: peso=%\" PRIu32 \"\\n\", parola, p); }\n            else { printf(\"FIND %s: ASSENTE\\n\", parola); }\n        } else if (strcmp(cmd, \"COUNT\") == 0 && sscanf(riga, \"COUNT %47s %c\", parola, &extra) == 1) {\n            const char *pref = (strcmp(parola, \"*\") == 0) ? \"\" : parola;\n            printf(\"COUNT %s: %zu\\n\", parola, trie_conta_prefisso(t, pref));\n        } else if (strcmp(cmd, \"SUGG\") == 0) {\n            int campi = sscanf(riga, \"SUGG %47s %zu %c\", parola, &k, &extra);\n            if (campi == 1) { k = 32; }\n            else if (campi != 2 || k < 1 || k > 32) { trie_distruggi(t); return EXIT_FAILURE; }\n            const char *pref = (strcmp(parola, \"*\") == 0) ? \"\" : parola;\n            printf(\"SUGG %s:\", parola);\n            if (trie_suggerisci(t, pref, k, stampa_sugg, nullptr) == 0) { printf(\" (nessuno)\"); }\n            printf(\"\\n\");\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %47s %c\", parola, &extra) == 1) {\n            printf(\"DEL %s: %s\\n\", parola, trie_rimuovi(t, parola) ? \"OK\" : \"ASSENTE\");\n        } else if (strcmp(cmd, \"NODES\") == 0 && sscanf(riga, \"NODES %c\", &extra) != 1) {\n            printf(\"NODES: parole=%zu nodi=%zu\\n\", trie_num_parole(t), trie_num_nodi(t));\n        } else { trie_distruggi(t); return EXIT_FAILURE; }\n    }\n    trie_distruggi(t);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "23.5",
+      "tipo": "esercizio",
+      "titolo": "Grafo orientato con liste di adiacenza: BFS, DFS, rilevamento cicli e ordinamento topologico",
+      "descrizione": "Realizza su tre file (`grafo.h`, `grafo.c`, `main.c`) un **grafo** orientato con liste di adiacenza come **tipo opaco** `grafo_t` (vertici `0..V-1`), supportando BFS, DFS, rilevamento cicli e ordinamento topologico in `O(V + E)`. (1) In `grafo.h` (protetto da `GRAFO_H`) definisci `typedef struct grafo grafo_t;` e dichiara: `grafo_t *grafo_crea(size_t n_vertici);`, `void grafo_distruggi(grafo_t *g);`, `size_t grafo_num_vertici(const grafo_t *g);`, `bool grafo_aggiungi_arco(grafo_t *g, size_t u, size_t v);` (inserisce `v` nella lista di adiacenza di `u` in ordine crescente senza duplicati, rendendo deterministiche tutte le visite), `bool grafo_bfs(const grafo_t *g, size_t sorgente, int32_t *dist_out, size_t *ordine_out, size_t *n_visitati);` (usa una coda dinamica FIFO per calcolare le distanze in archi, `-1` se irraggiungibile, e l'ordine di scoperta), `bool grafo_dfs(const grafo_t *g, size_t sorgente, size_t *ordine_out, size_t *n_visitati);` e `bool grafo_ordina_topologico(const grafo_t *g, size_t *ordine_out);` (esegue una DFS a tre colori su `0..V-1`: restituisce `false` se incontra un arco verso un vertice in visita — ciclo orientato — altrimenti scrive in `ordine_out` il post-ordine invertito e restituisce `true`). (2) In `main.c` leggi da `stdin` i comandi `INIT <V>` (`1 <= V <= 64`), `EDGE <u> <v>`, `BFS <s>`, `DFS <s>` e `TOPO`, producendo esattamente l'output dell'esempio senza perdite di memoria.",
+      "concetti_da_tenere_a_mente": [
+        "rappresentazione di un grafo orientato con array di liste di adiacenza in spazio O(V + E)",
+        "BFS con coda FIFO per calcolare distanze minime in numero di archi in tempo O(V + E)",
+        "DFS ricorsiva su grafo orientato con marcatura dei vertici visitati",
+        "colorazione a tre stati (bianco, grigio, nero) per rilevare cicli orientati e costruire l'ordinamento topologico"
+      ],
+      "domande_guida": [
+        "Perché nella rilevazione dei cicli su un grafo orientato non basta un singolo array booleano di vertici visitati ma servono tre colori (bianco, grigio, nero)?",
+        "Perché la lista di adiacenza mantiene i vicini di ciascun vertice ordinati per indice crescente?",
+        "In che modo la coda FIFO della BFS garantisce che il primo momento in cui scopri un vertice v corrisponda alla distanza minima in archi dalla sorgente?",
+        "Perché per ottenere un ordinamento topologico da una DFS occorre invertire l'ordine di completamento (post-ordine) dei vertici?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INIT 5\nEDGE 0 2\nEDGE 0 1\nEDGE 1 3\nEDGE 2 3\nEDGE 3 4\nBFS 0\nDFS 0\nTOPO\nEDGE 4 1\nTOPO\n",
+          "output": "INIT: V=5\nBFS(0): ordine=[0 1 2 3 4] dist=[0:0 1:1 2:1 3:2 4:3]\nDFS(0): ordine=[0 1 3 4 2]\nTOPO: 0 2 1 3 4\nTOPO: CICLO RILEVATO\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INIT 4\nEDGE 0 1\nEDGE 2 3\nBFS 0\nDFS 2\nTOPO\n",
+          "output": "INIT: V=4\nBFS(0): ordine=[0 1] dist=[0:0 1:1 2:-1 3:-1]\nDFS(2): ordine=[2 3]\nTOPO: 2 3 0 1\n"
+        },
+        {
+          "input": "INIT 1\nBFS 0\nDFS 0\nTOPO\nEDGE 0 0\nTOPO\n",
+          "output": "INIT: V=1\nBFS(0): ordine=[0] dist=[0:0]\nDFS(0): ordine=[0]\nTOPO: 0\nTOPO: CICLO RILEVATO\n"
+        }
+      ],
+      "soluzione_file": {
+        "grafo.h": "#ifndef GRAFO_H\n#define GRAFO_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct grafo grafo_t;\n\ngrafo_t *grafo_crea(size_t n_vertici);\nvoid grafo_distruggi(grafo_t *g);\nsize_t grafo_num_vertici(const grafo_t *g);\nbool grafo_aggiungi_arco(grafo_t *g, size_t u, size_t v);\nbool grafo_bfs(const grafo_t *g, size_t sorgente, int32_t *dist_out, size_t *ordine_out, size_t *n_visitati);\nbool grafo_dfs(const grafo_t *g, size_t sorgente, size_t *ordine_out, size_t *n_visitati);\nbool grafo_ordina_topologico(const grafo_t *g, size_t *ordine_out);\n\n#endif\n",
+        "grafo.c": "#include \"grafo.h\"\n#include <stdlib.h>\n\ntypedef struct arco {\n    size_t dest;\n    struct arco *prox;\n} arco_t;\n\nstruct grafo {\n    size_t v;\n    arco_t **adj;\n};\n\ngrafo_t *grafo_crea(size_t n_vertici) {\n    if (n_vertici == 0) { return nullptr; }\n    grafo_t *g = calloc(1, sizeof(*g));\n    if (g == nullptr) { return nullptr; }\n    g->adj = calloc(n_vertici, sizeof(*g->adj));\n    if (g->adj == nullptr) { free(g); return nullptr; }\n    g->v = n_vertici;\n    return g;\n}\n\nvoid grafo_distruggi(grafo_t *g) {\n    if (g == nullptr) { return; }\n    for (size_t i = 0; i < g->v; ++i) {\n        arco_t *c = g->adj[i];\n        while (c != nullptr) {\n            arco_t *p = c->prox;\n            free(c);\n            c = p;\n        }\n    }\n    free(g->adj);\n    free(g);\n}\n\nsize_t grafo_num_vertici(const grafo_t *g) { return (g != nullptr) ? g->v : 0; }\n\nbool grafo_aggiungi_arco(grafo_t *g, size_t u, size_t v) {\n    if (g == nullptr || u >= g->v || v >= g->v) { return false; }\n    arco_t **cur = &g->adj[u];\n    while (*cur != nullptr && (*cur)->dest < v) { cur = &(*cur)->prox; }\n    if (*cur != nullptr && (*cur)->dest == v) { return true; }\n    arco_t *nuovo = malloc(sizeof(*nuovo));\n    if (nuovo == nullptr) { return false; }\n    nuovo->dest = v;\n    nuovo->prox = *cur;\n    *cur = nuovo;\n    return true;\n}\n\nbool grafo_bfs(const grafo_t *g, size_t sorgente, int32_t *dist_out, size_t *ordine_out, size_t *n_visitati) {\n    if (g == nullptr || sorgente >= g->v || dist_out == nullptr || ordine_out == nullptr || n_visitati == nullptr) { return false; }\n    size_t *coda = malloc(g->v * sizeof(*coda));\n    if (coda == nullptr) { return false; }\n    for (size_t i = 0; i < g->v; ++i) { dist_out[i] = -1; }\n    size_t testa = 0, fondo = 0, vis = 0;\n    dist_out[sorgente] = 0;\n    coda[fondo++] = sorgente;\n    while (testa < fondo) {\n        size_t u = coda[testa++];\n        ordine_out[vis++] = u;\n        for (const arco_t *a = g->adj[u]; a != nullptr; a = a->prox) {\n            if (dist_out[a->dest] == -1) {\n                dist_out[a->dest] = dist_out[u] + 1;\n                coda[fondo++] = a->dest;\n            }\n        }\n    }\n    free(coda);\n    *n_visitati = vis;\n    return true;\n}\n\nstatic void dfs_ric(const grafo_t *g, size_t u, uint8_t *vis, size_t *ord, size_t *n) {\n    vis[u] = 1;\n    ord[(*n)++] = u;\n    for (const arco_t *a = g->adj[u]; a != nullptr; a = a->prox) {\n        if (vis[a->dest] == 0) { dfs_ric(g, a->dest, vis, ord, n); }\n    }\n}\n\nbool grafo_dfs(const grafo_t *g, size_t sorgente, size_t *ordine_out, size_t *n_visitati) {\n    if (g == nullptr || sorgente >= g->v || ordine_out == nullptr || n_visitati == nullptr) { return false; }\n    uint8_t *vis = calloc(g->v, 1);\n    if (vis == nullptr) { return false; }\n    *n_visitati = 0;\n    dfs_ric(g, sorgente, vis, ordine_out, n_visitati);\n    free(vis);\n    return true;\n}\n\nstatic bool topo_ric(const grafo_t *g, size_t u, uint8_t *colore, size_t *post, size_t *n_post) {\n    colore[u] = 1;\n    for (const arco_t *a = g->adj[u]; a != nullptr; a = a->prox) {\n        if (colore[a->dest] == 1) { return false; }\n        if (colore[a->dest] == 0 && !topo_ric(g, a->dest, colore, post, n_post)) { return false; }\n    }\n    colore[u] = 2;\n    post[(*n_post)++] = u;\n    return true;\n}\n\nbool grafo_ordina_topologico(const grafo_t *g, size_t *ordine_out) {\n    if (g == nullptr || ordine_out == nullptr) { return false; }\n    uint8_t *colore = calloc(g->v, 1);\n    size_t *post = malloc(g->v * sizeof(*post));\n    if (colore == nullptr || post == nullptr) { free(colore); free(post); return false; }\n    size_t n_post = 0;\n    bool ok = true;\n    for (size_t i = 0; i < g->v && ok; ++i) {\n        if (colore[i] == 0) { ok = topo_ric(g, i, colore, post, &n_post); }\n    }\n    if (ok) {\n        for (size_t i = 0; i < g->v; ++i) { ordine_out[i] = post[g->v - 1 - i]; }\n    }\n    free(colore); free(post);\n    return ok;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"grafo.h\"\n\nint main(void) {\n    grafo_t *g = nullptr;\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t u = 0, v = 0;\n        if (strcmp(cmd, \"INIT\") == 0 && sscanf(riga, \"INIT %zu %c\", &v, &extra) == 1 && v >= 1 && v <= 64) {\n            grafo_distruggi(g);\n            g = grafo_crea(v);\n            if (g == nullptr) { return EXIT_FAILURE; }\n            printf(\"INIT: V=%zu\\n\", v);\n        } else if (strcmp(cmd, \"EDGE\") == 0 && g != nullptr && sscanf(riga, \"EDGE %zu %zu %c\", &u, &v, &extra) == 2) {\n            if (!grafo_aggiungi_arco(g, u, v)) { grafo_distruggi(g); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"BFS\") == 0 && g != nullptr && sscanf(riga, \"BFS %zu %c\", &u, &extra) == 1) {\n            int32_t dist[64] = {}; size_t ord[64] = {}, n_vis = 0;\n            if (!grafo_bfs(g, u, dist, ord, &n_vis)) { grafo_distruggi(g); return EXIT_FAILURE; }\n            printf(\"BFS(%zu): ordine=[\", u);\n            for (size_t i = 0; i < n_vis; ++i) { printf(\"%s%zu\", (i == 0) ? \"\" : \" \", ord[i]); }\n            printf(\"] dist=[\");\n            for (size_t i = 0; i < grafo_num_vertici(g); ++i) { printf(\"%s%zu:%\" PRId32, (i == 0) ? \"\" : \" \", i, dist[i]); }\n            printf(\"]\\n\");\n        } else if (strcmp(cmd, \"DFS\") == 0 && g != nullptr && sscanf(riga, \"DFS %zu %c\", &u, &extra) == 1) {\n            size_t ord[64] = {}, n_vis = 0;\n            if (!grafo_dfs(g, u, ord, &n_vis)) { grafo_distruggi(g); return EXIT_FAILURE; }\n            printf(\"DFS(%zu): ordine=[\", u);\n            for (size_t i = 0; i < n_vis; ++i) { printf(\"%s%zu\", (i == 0) ? \"\" : \" \", ord[i]); }\n            printf(\"]\\n\");\n        } else if (strcmp(cmd, \"TOPO\") == 0 && g != nullptr && sscanf(riga, \"TOPO %c\", &extra) != 1) {\n            size_t ord[64] = {};\n            if (grafo_ordina_topologico(g, ord)) {\n                printf(\"TOPO:\");\n                for (size_t i = 0; i < grafo_num_vertici(g); ++i) { printf(\" %zu\", ord[i]); }\n                printf(\"\\n\");\n            } else { printf(\"TOPO: CICLO RILEVATO\\n\"); }\n        } else { grafo_distruggi(g); return EXIT_FAILURE; }\n    }\n    grafo_distruggi(g);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "23.6",
+      "tipo": "esercizio",
+      "titolo": "Algoritmo di Dijkstra O((V + E) log V) integrato con la coda di priorità generica e ricostruzione dei cammini",
+      "descrizione": "Integra in un programma su cinque file (`coda_prio.h`, `coda_prio.c`, `dijkstra.h`, `dijkstra.c`, `main.c`) la **coda di priorità** generica su **heap binario** e l'**algoritmo di Dijkstra** su un grafo orientato pesato con liste di adiacenza. (1) In `coda_prio.h` e `coda_prio.c` (protetto da `CODA_PRIO_H`) realizza il tipo opaco `coda_prio_t` (`cp_crea`, `cp_distruggi`, `cp_inserisci`, `cp_estrai`, `cp_vuota`) con elementi generici `void *` di dimensione `dim_elem` e comparatore `cp_cmp_fn`. (2) In `dijkstra.h` e `dijkstra.c` (protetto da `DIJKSTRA_H`) realizza il grafo pesato opaco `grafo_pesato_t` con: `gp_crea(size_t n_vertici)`, `gp_distruggi`, `gp_num_vertici`, `gp_aggiungi_arco(grafo_pesato_t *g, size_t u, size_t v, int64_t peso)` (rifiuta con `false` vertici fuori limiti o `peso < 0`), `gp_dijkstra(const grafo_pesato_t *g, size_t sorgente, uint64_t *dist_out, int32_t *prec_out)` (inizializza `dist_out[i] = UINT64_MAX`, `prec_out[i] = -1`, usa `coda_prio_t` su coppie `{uint64_t dist; size_t v;}` con *lazy deletion* per le voci obsolete `voce.dist > dist_out[voce.v]` e `ckd_add` nel rilassamento per prevenire overflow) e `gp_ricostruisci_cammino(const int32_t *prec, size_t sorgente, size_t dest, size_t *cammino_out, size_t *len_out)`. (3) In `main.c` gestisci da `stdin` i comandi `INIT <V>` (`1 <= V <= 64`), `EDGE <u> <v> <peso>` (se `peso < 0` stampa `EDGE: PESO NEGATIVO RIFIUTATO` e prosegui), `DIJKSTRA <s>` (stampa per ogni vertice `0..V-1` distanza e cammino completo) e `PATH <s> <t>` (stampa distanza e cammino verso `t`, oppure `IRRAGGIUNGIBILE`), producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "integrazione modulare tra coda di priorità generica opaca e algoritmo di Dijkstra in O((V + E) log V)",
+        "lazy deletion delle voci obsolete estratte dallo heap quando voce.dist > dist[voce.v]",
+        "rilassamento degli archi con ckd_add e rifiuto preventivo dei pesi negativi",
+        "ricostruzione del cammino minimo risalendo l'array dei predecessori prec[]"
+      ],
+      "domande_guida": [
+        "Perché quando dist[v] diminuisce durante il rilassamento puoi inserire una nuova voce nella coda di priorità invece di cercare e aggiornare quella vecchia?",
+        "Quale controllo all'uscita da cp_estrai garantisce che una voce obsoleta non rilassi inutilmente gli archi del vertice v?",
+        "Perché un arco con peso negativo rompe la correttezza dell'algoritmo di Dijkstra?",
+        "In che ordine ottieni i vertici risalendo prec[t] fino alla sorgente s, e come li riordini per stampare il cammino da s a t?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INIT 5\nEDGE 0 1 10\nEDGE 0 2 3\nEDGE 2 1 4\nEDGE 2 3 8\nEDGE 1 3 2\nEDGE 3 4 5\nEDGE 1 2 -1\nDIJKSTRA 0\nPATH 2 4\n",
+          "output": "INIT: V=5\nEDGE: PESO NEGATIVO RIFIUTATO\nDIJKSTRA(0):\n  v=0 dist=0 cammino=0\n  v=1 dist=7 cammino=0->2->1\n  v=2 dist=3 cammino=0->2\n  v=3 dist=9 cammino=0->2->1->3\n  v=4 dist=14 cammino=0->2->1->3->4\nPATH(2->4): dist=11 cammino=2->1->3->4\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INIT 4\nEDGE 0 1 5\nEDGE 2 3 2\nDIJKSTRA 0\nPATH 0 3\nPATH 0 0\n",
+          "output": "INIT: V=4\nDIJKSTRA(0):\n  v=0 dist=0 cammino=0\n  v=1 dist=5 cammino=0->1\n  v=2 dist=INF cammino=IRRAGGIUNGIBILE\n  v=3 dist=INF cammino=IRRAGGIUNGIBILE\nPATH(0->3): IRRAGGIUNGIBILE\nPATH(0->0): dist=0 cammino=0\n"
+        },
+        {
+          "input": "INIT 3\nEDGE 0 1 0\nEDGE 1 2 0\nEDGE 0 2 5\nPATH 0 2\n",
+          "output": "INIT: V=3\nPATH(0->2): dist=0 cammino=0->1->2\n"
+        }
+      ],
+      "soluzione_file": {
+        "coda_prio.h": "#ifndef CODA_PRIO_H\n#define CODA_PRIO_H\n\n#include <stddef.h>\n\ntypedef struct coda_prio coda_prio_t;\ntypedef int (*cp_cmp_fn)(const void *a, const void *b);\n\ncoda_prio_t *cp_crea(size_t dim_elem, cp_cmp_fn cmp);\nvoid cp_distruggi(coda_prio_t *cp);\nbool cp_inserisci(coda_prio_t *cp, const void *elem);\nbool cp_estrai(coda_prio_t *cp, void *out);\nbool cp_vuota(const coda_prio_t *cp);\n\n#endif\n",
+        "coda_prio.c": "#include \"coda_prio.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n#include <string.h>\n\nstruct coda_prio {\n    unsigned char *dati;\n    unsigned char *tmp;\n    size_t dim;\n    size_t len;\n    size_t cap;\n    cp_cmp_fn cmp;\n};\n\nstatic unsigned char *el(const coda_prio_t *cp, size_t i) { return cp->dati + i * cp->dim; }\n\nstatic void scambia(coda_prio_t *cp, size_t i, size_t j) {\n    memcpy(cp->tmp, el(cp, i), cp->dim);\n    memcpy(el(cp, i), el(cp, j), cp->dim);\n    memcpy(el(cp, j), cp->tmp, cp->dim);\n}\n\ncoda_prio_t *cp_crea(size_t dim_elem, cp_cmp_fn cmp) {\n    if (dim_elem == 0 || cmp == nullptr) { return nullptr; }\n    coda_prio_t *cp = calloc(1, sizeof(*cp));\n    if (cp == nullptr) { return nullptr; }\n    cp->tmp = malloc(dim_elem);\n    if (cp->tmp == nullptr) { free(cp); return nullptr; }\n    cp->dim = dim_elem; cp->cmp = cmp;\n    return cp;\n}\n\nvoid cp_distruggi(coda_prio_t *cp) {\n    if (cp == nullptr) { return; }\n    free(cp->dati); free(cp->tmp); free(cp);\n}\n\nbool cp_inserisci(coda_prio_t *cp, const void *elem) {\n    if (cp == nullptr || elem == nullptr) { return false; }\n    if (cp->len == cp->cap) {\n        size_t nuova = (cp->cap == 0) ? 8 : 0;\n        if (cp->cap > 0 && ckd_mul(&nuova, cp->cap, 2)) { return false; }\n        size_t tot = 0;\n        if (ckd_mul(&tot, nuova, cp->dim)) { return false; }\n        unsigned char *nb = realloc(cp->dati, tot);\n        if (nb == nullptr) { return false; }\n        cp->dati = nb; cp->cap = nuova;\n    }\n    size_t i = cp->len++;\n    memcpy(el(cp, i), elem, cp->dim);\n    while (i > 0) {\n        size_t p = (i - 1) / 2;\n        if (cp->cmp(el(cp, i), el(cp, p)) >= 0) { break; }\n        scambia(cp, i, p); i = p;\n    }\n    return true;\n}\n\nbool cp_estrai(coda_prio_t *cp, void *out) {\n    if (cp == nullptr || cp->len == 0) { return false; }\n    if (out != nullptr) { memcpy(out, el(cp, 0), cp->dim); }\n    --cp->len;\n    if (cp->len > 0) {\n        memcpy(el(cp, 0), el(cp, cp->len), cp->dim);\n        size_t i = 0;\n        while (true) {\n            size_t sx = 2 * i + 1, dx = sx + 1, m = i;\n            if (sx < cp->len && cp->cmp(el(cp, sx), el(cp, m)) < 0) { m = sx; }\n            if (dx < cp->len && cp->cmp(el(cp, dx), el(cp, m)) < 0) { m = dx; }\n            if (m == i) { break; }\n            scambia(cp, i, m); i = m;\n        }\n    }\n    return true;\n}\n\nbool cp_vuota(const coda_prio_t *cp) { return cp == nullptr || cp->len == 0; }\n",
+        "dijkstra.h": "#ifndef DIJKSTRA_H\n#define DIJKSTRA_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct grafo_pesato grafo_pesato_t;\n\ngrafo_pesato_t *gp_crea(size_t n_vertici);\nvoid gp_distruggi(grafo_pesato_t *g);\nsize_t gp_num_vertici(const grafo_pesato_t *g);\nbool gp_aggiungi_arco(grafo_pesato_t *g, size_t u, size_t v, int64_t peso);\nbool gp_dijkstra(const grafo_pesato_t *g, size_t sorgente, uint64_t *dist_out, int32_t *prec_out);\nbool gp_ricostruisci_cammino(const int32_t *prec, size_t sorgente, size_t dest, size_t *cammino_out, size_t *len_out);\n\n#endif\n",
+        "dijkstra.c": "#include \"dijkstra.h\"\n#include \"coda_prio.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n\ntypedef struct arco_p {\n    size_t dest;\n    uint64_t peso;\n    struct arco_p *prox;\n} arco_p_t;\n\nstruct grafo_pesato {\n    size_t v;\n    arco_p_t **adj;\n};\n\ntypedef struct voce_dijk {\n    uint64_t dist;\n    size_t v;\n} voce_dijk_t;\n\nstatic int cmp_voce(const void *a, const void *b) {\n    const voce_dijk_t *va = a, *vb = b;\n    if (va->dist != vb->dist) { return (va->dist > vb->dist) - (va->dist < vb->dist); }\n    return (va->v > vb->v) - (va->v < vb->v);\n}\n\ngrafo_pesato_t *gp_crea(size_t n_vertici) {\n    if (n_vertici == 0) { return nullptr; }\n    grafo_pesato_t *g = calloc(1, sizeof(*g));\n    if (g == nullptr) { return nullptr; }\n    g->adj = calloc(n_vertici, sizeof(*g->adj));\n    if (g->adj == nullptr) { free(g); return nullptr; }\n    g->v = n_vertici;\n    return g;\n}\n\nvoid gp_distruggi(grafo_pesato_t *g) {\n    if (g == nullptr) { return; }\n    for (size_t i = 0; i < g->v; ++i) {\n        arco_p_t *c = g->adj[i];\n        while (c != nullptr) { arco_p_t *p = c->prox; free(c); c = p; }\n    }\n    free(g->adj); free(g);\n}\n\nsize_t gp_num_vertici(const grafo_pesato_t *g) { return (g != nullptr) ? g->v : 0; }\n\nbool gp_aggiungi_arco(grafo_pesato_t *g, size_t u, size_t v, int64_t peso) {\n    if (g == nullptr || u >= g->v || v >= g->v || peso < 0) { return false; }\n    arco_p_t *a = malloc(sizeof(*a));\n    if (a == nullptr) { return false; }\n    a->dest = v; a->peso = (uint64_t)peso; a->prox = g->adj[u];\n    g->adj[u] = a;\n    return true;\n}\n\nbool gp_dijkstra(const grafo_pesato_t *g, size_t sorgente, uint64_t *dist_out, int32_t *prec_out) {\n    if (g == nullptr || sorgente >= g->v || dist_out == nullptr || prec_out == nullptr) { return false; }\n    for (size_t i = 0; i < g->v; ++i) { dist_out[i] = UINT64_MAX; prec_out[i] = -1; }\n    coda_prio_t *cp = cp_crea(sizeof(voce_dijk_t), cmp_voce);\n    if (cp == nullptr) { return false; }\n    dist_out[sorgente] = 0;\n    voce_dijk_t ini = {.dist = 0, .v = sorgente};\n    if (!cp_inserisci(cp, &ini)) { cp_distruggi(cp); return false; }\n    voce_dijk_t cur = {};\n    while (cp_estrai(cp, &cur)) {\n        if (cur.dist > dist_out[cur.v]) { continue; }\n        for (const arco_p_t *a = g->adj[cur.v]; a != nullptr; a = a->prox) {\n            uint64_t nd = 0;\n            if (ckd_add(&nd, cur.dist, a->peso)) { continue; }\n            if (nd < dist_out[a->dest]) {\n                dist_out[a->dest] = nd;\n                prec_out[a->dest] = (int32_t)cur.v;\n                voce_dijk_t nv = {.dist = nd, .v = a->dest};\n                if (!cp_inserisci(cp, &nv)) { cp_distruggi(cp); return false; }\n            }\n        }\n    }\n    cp_distruggi(cp);\n    return true;\n}\n\nbool gp_ricostruisci_cammino(const int32_t *prec, size_t sorgente, size_t dest, size_t *cammino_out, size_t *len_out) {\n    if (prec == nullptr || cammino_out == nullptr || len_out == nullptr) { return false; }\n    size_t k = 0, cur = dest;\n    while (true) {\n        cammino_out[k++] = cur;\n        if (cur == sorgente) { break; }\n        if (prec[cur] < 0) { return false; }\n        cur = (size_t)prec[cur];\n    }\n    for (size_t i = 0; i < k / 2; ++i) {\n        size_t t = cammino_out[i]; cammino_out[i] = cammino_out[k - 1 - i]; cammino_out[k - 1 - i] = t;\n    }\n    *len_out = k;\n    return true;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"dijkstra.h\"\n\nstatic void stampa_cammino(const size_t *cam, size_t len) {\n    for (size_t i = 0; i < len; ++i) {\n        printf(\"%s%zu\", (i == 0) ? \"\" : \"->\", cam[i]);\n    }\n}\n\nint main(void) {\n    grafo_pesato_t *g = nullptr;\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t u = 0, v = 0;\n        long long peso = 0;\n        if (strcmp(cmd, \"INIT\") == 0 && sscanf(riga, \"INIT %zu %c\", &v, &extra) == 1 && v >= 1 && v <= 64) {\n            gp_distruggi(g);\n            g = gp_crea(v);\n            if (g == nullptr) { return EXIT_FAILURE; }\n            printf(\"INIT: V=%zu\\n\", v);\n        } else if (strcmp(cmd, \"EDGE\") == 0 && g != nullptr && sscanf(riga, \"EDGE %zu %zu %lld %c\", &u, &v, &peso, &extra) == 3) {\n            if (peso < 0) { printf(\"EDGE: PESO NEGATIVO RIFIUTATO\\n\"); }\n            else if (!gp_aggiungi_arco(g, u, v, (int64_t)peso)) { gp_distruggi(g); return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"DIJKSTRA\") == 0 && g != nullptr && sscanf(riga, \"DIJKSTRA %zu %c\", &u, &extra) == 1) {\n            uint64_t dist[64] = {}; int32_t prec[64] = {}; size_t cam[64] = {}, len = 0;\n            if (!gp_dijkstra(g, u, dist, prec)) { gp_distruggi(g); return EXIT_FAILURE; }\n            printf(\"DIJKSTRA(%zu):\\n\", u);\n            for (size_t i = 0; i < gp_num_vertici(g); ++i) {\n                if (dist[i] == UINT64_MAX) {\n                    printf(\"  v=%zu dist=INF cammino=IRRAGGIUNGIBILE\\n\", i);\n                } else {\n                    gp_ricostruisci_cammino(prec, u, i, cam, &len);\n                    printf(\"  v=%zu dist=%\" PRIu64 \" cammino=\", i, dist[i]);\n                    stampa_cammino(cam, len);\n                    printf(\"\\n\");\n                }\n            }\n        } else if (strcmp(cmd, \"PATH\") == 0 && g != nullptr && sscanf(riga, \"PATH %zu %zu %c\", &u, &v, &extra) == 2 && v < gp_num_vertici(g)) {\n            uint64_t dist[64] = {}; int32_t prec[64] = {}; size_t cam[64] = {}, len = 0;\n            if (!gp_dijkstra(g, u, dist, prec)) { gp_distruggi(g); return EXIT_FAILURE; }\n            if (dist[v] == UINT64_MAX) {\n                printf(\"PATH(%zu->%zu): IRRAGGIUNGIBILE\\n\", u, v);\n            } else {\n                gp_ricostruisci_cammino(prec, u, v, cam, &len);\n                printf(\"PATH(%zu->%zu): dist=%\" PRIu64 \" cammino=\", u, v, dist[v]);\n                stampa_cammino(cam, len);\n                printf(\"\\n\");\n            }\n        } else { gp_distruggi(g); return EXIT_FAILURE; }\n    }\n    gp_distruggi(g);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Calcolare (i - 1) / 2 in un heap binario su un indice size_t uguale a 0 senza controllare i > 0, causando avvolgimento senza segno a SIZE_MAX e accesso fuori dai limiti.",
+    "Aggiornare le altezze nell'ordine sbagliato durante una rotazione AVL (prima la nuova radice e poi il vecchio genitore), corrompendo i fattori di bilanciamento di tutti gli antenati.",
+    "Indicizzare l'array dei figli di un trie con c - 'a' senza verificare prima che c rientri in 'a'..'z', causando accessi fuori dai limiti su lettere maiuscole, cifre o punteggiatura.",
+    "Usare un solo flag booleano visitato[] per rilevare cicli in un grafo orientato: un arco trasversale verso un nodo già completato viene scambiato erroneamente per un ciclo se non si distinguono i nodi ancora attivi (grigi) da quelli completati (neri).",
+    "Applicare l'algoritmo di Dijkstra a un grafo con archi di peso negativo oppure dimenticare di scartare le voci obsolete estratte dalla coda di priorità (voce.dist > dist[v])."
+  ],
+  "differenze_python": [
+    "In Python il modulo heapq fornisce già una coda di priorità pronta all'uso e i dizionari rendono immediata la rappresentazione di trie e grafi; in C progettare un heap binario generico su array contiguo, un albero AVL o liste di adiacenza richiede di gestire esplicitamente allocazione dinamica, comparatori via puntatore a funzione e liberazione in post-ordine, ma consente un controllo preciso su memoria e prestazioni.",
+    "In Python la ricorsione su alberi o grafi profondi incontra rapidamente il limite di ricorsione dell'interprete; in C la profondità massima dipende dalla dimensione dello stack del processo, rendendo ancora più importante il bilanciamento garantito degli alberi AVL e le visite iterative con coda o pila esplicita sui grafi grandi."
+  ]
+}
