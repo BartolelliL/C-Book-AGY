@@ -1,0 +1,43 @@
+{
+  "capitolo": 2,
+  "errori": [],
+  "avvisi": [
+    "02_00.md: usa il termine 'struttura' che il glossario introduce al capitolo 12",
+    "02_01.md: usa il termine 'comportamento indefinito' che il glossario introduce al capitolo 3",
+    "02_01.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "02_01.md: usa il termine 'argomento' che il glossario introduce al capitolo 7",
+    "02_01.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "02_02.md: usa il termine 'espressione' che il glossario introduce al capitolo 3",
+    "02_02.md: usa il termine 'virgola mobile' che il glossario introduce al capitolo 3",
+    "02_02.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "02_03.md: usa il termine 'comportamento indefinito' che il glossario introduce al capitolo 3",
+    "02_03.md: usa il termine 'virgola mobile' che il glossario introduce al capitolo 3",
+    "02_03.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "02_03.md: usa il termine 'argomento' che il glossario introduce al capitolo 7",
+    "02_03.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "02_03.md: usa il termine 'campo' che il glossario introduce al capitolo 12",
+    "02_03.md: usa il termine 'allineamento' che il glossario introduce al capitolo 13",
+    "02_04.md: usa il termine 'espressione' che il glossario introduce al capitolo 3",
+    "02_04.md: usa il termine 'comportamento indefinito' che il glossario introduce al capitolo 3",
+    "02_04.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "02_04.md: usa il termine 'parametro' che il glossario introduce al capitolo 7",
+    "02_04.md: usa il termine 'array' che il glossario introduce al capitolo 8",
+    "02_05.md: usa il termine 'espressione' che il glossario introduce al capitolo 3",
+    "02_05.md: usa il termine 'comportamento indefinito' che il glossario introduce al capitolo 3",
+    "02_05.md: usa il termine 'comportamento dipendente dall'implementazione' che il glossario introduce al capitolo 3",
+    "02_05.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "02_99.md: usa il termine 'comportamento indefinito' che il glossario introduce al capitolo 3",
+    "02_99.md: usa il termine 'virgola mobile' che il glossario introduce al capitolo 3",
+    "02_99.md: usa il termine 'argomento' che il glossario introduce al capitolo 7",
+    "02_99.md: usa il termine 'stringa' che il glossario introduce al capitolo 9",
+    "02_99.md: usa il termine 'campo' che il glossario introduce al capitolo 12",
+    "02_99.md: usa il termine 'allineamento' che il glossario introduce al capitolo 13"
+  ],
+  "info": {
+    "programmi": 5,
+    "frammenti": 9,
+    "errori_voluti": 1,
+    "tracce": 0,
+    "parole": 6617
+  }
+}

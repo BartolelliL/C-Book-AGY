@@ -1,0 +1,128 @@
+## 2.4 Costanti con `const` e `constexpr`
+
+Quando scrivi un programma reale, molti valori non dovrebbero mai cambiare durante l'esecuzione: il numero massimo di posti in una sala, il prezzo del biglietto intero, il codice identificativo di un reparto. Se disseminassi numeri come `120` o `9.50` direttamente nelle chiamate a `printf` o nei calcoli, il codice diventerebbe difficile da capire (che cosa significa `120` in quel punto?) e rischioso da aggiornare (se il valore cambia, devi cercarlo e sostituirlo ovunque, rischiando di dimenticarne qualcuno o di modificare un altro `120` che indicava tutt'altro).
+
+La soluzione è sostituire i numeri sparsi con una **costante** (*constant*): un valore o oggetto di sola lettura che non può essere modificato dopo la sua definizione. In questo libro i nomi delle costanti si scrivono tutti in MAIUSCOLO con parole separate da `_` (per esempio `POSTI_MASSIMI` o `PREZZO_INTERO`), così a colpo d'occhio si distinguono subito dalle variabili normali.
+
+### Il qualificatore `const`
+
+In C il modo classico per dichiarare un oggetto di sola lettura è anteporre il qualificatore `const` al tipo di dato:
+
+<!-- cod: id=2.4-b tipo=frammento -->
+```c
+const int SPETTATORI_PRENOTATI = 84;
+```
+
+Una costante dichiarata con `const` va sempre inizializzata al momento della dichiarazione, perché dopo non potrai più assegnarle alcun valore. Se provi a scrivere un assegnamento successivo su `SPETTATORI_PRENOTATI`, il compilatore rifiuta di compilare il programma segnalando che stai tentando di modificare un oggetto di sola lettura.
+
+Secondo lo standard C23, modificare direttamente un oggetto definito `const` è un errore di compilazione; aggirare il divieto con tecniche avanzate (che incontrerai solo nei capitoli sui puntatori) provoca invece **comportamento indefinito**.
+
+### Lo specificatore `constexpr` in C23
+
+Un oggetto `const` è *di sola lettura*, ma il suo valore iniziale potrebbe essere noto solo durante l'esecuzione del programma (per esempio letto dalla tastiera, come farai nel capitolo 5, o calcolato a partire da altre variabili). Quando invece un valore è davvero fisso e noto già prima che il programma parta — come la capienza di una sala o un parametro fisico — il C23 offre lo specificatore `constexpr`:
+
+<!-- cod: id=2.4-c tipo=frammento -->
+```c
+constexpr int POSTI_MASSIMI = 120;
+constexpr double PREZZO_INTERO = 9.50;
+```
+
+Un oggetto definito con `constexpr` è una costante il cui valore è garantito noto *a tempo di compilazione* (ed è automaticamente anche di sola lettura, quindi non serve scrivere `const` accanto a `constexpr`). Questo offre due vantaggi concreti:
+
+1. il compilatore può usare quel valore in contesti che richiedono una costante nota in compilazione (come la dimensione di un array, che vedremo nel capitolo 8);
+2. l'inizializzatore deve essere un'espressione costante e deve essere rappresentabile *esattamente* nel tipo dichiarato, senza troncamenti silenziosi.
+
+> **C23** — Lo specificatore `constexpr` per gli oggetti è una novità dello standard C23. Se compili con compilatori configurati su standard precedenti (C17 o C11), usa `const` al posto di `constexpr`.
+
+### Quando usare `constexpr` e quando `const`
+
+Riassumendo la regola pratica:
+
+- usa `constexpr` per i parametri fissi del programma il cui valore è scritto direttamente nel codice sorgente (o ricavato da altre costanti note in compilazione);
+- usa `const` per i valori di sola lettura che non devono cambiare dopo l'inizializzazione, ma che non sono necessariamente fissi a tempo di compilazione (oppure quando vuoi proteggere un valore ricevuto da un input o da una funzione, come vedremo nei capitoli 5 e 7).
+
+In entrambi i casi, il compilatore fa da sentinella e ti protegge da modifiche accidentali.
+
+> **Se vieni da Python** — In Python non esistono costanti imposte dal linguaggio: scrivere `POSTI_MASSIMI = 120` in maiuscolo è solo una convenzione tra programmatori e nulla impedisce di riassegnare quel nome più avanti. In C, `const` e `constexpr` sono vincoli verificati direttamente dal compilatore.
+
+### Esempio guidato
+
+Il programma seguente mostra la configurazione di una sala cinematografica: usa `constexpr` per i parametri fissi della sala (`POSTI_MASSIMI`, `PREZZO_INTERO`, `SALA_CODICE`) e `const` per un dato di sola lettura legato alla proiezione della serata (`SPETTATORI_PRENOTATI`).
+
+<!-- cod: id=2.4-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    constexpr int POSTI_MASSIMI = 120;
+    constexpr double PREZZO_INTERO = 9.50;
+    constexpr char SALA_CODICE = 'B';
+
+    const int SPETTATORI_PRENOTATI = 84;
+
+    printf("=== SALA CINEMATOGRAFICA %c ===\n", SALA_CODICE);
+    printf("Capienza massima : %d posti\n", POSTI_MASSIMI);
+    printf("Biglietto intero : %.2f euro\n", PREZZO_INTERO);
+    printf("Prenotati stasera: %d spettatori\n", SPETTATORI_PRENOTATI);
+    return 0;
+}
+```
+
+```output
+=== SALA CINEMATOGRAFICA B ===
+Capienza massima : 120 posti
+Biglietto intero : 9.50 euro
+Prenotati stasera: 84 spettatori
+```
+
+Nota come il codice risulti subito leggibile: nella prima `printf` non appare una lettera isolata senza contesto, ma `SALA_CODICE`, e nelle righe successive `POSTI_MASSIMI`, `PREZZO_INTERO` e `SPETTATORI_PRENOTATI` rendono esplicito il significato di ogni numero.
+
+Che cosa accade se provi a modificare una costante dopo averla dichiarata? Il programma seguente contiene un errore intenzionale: tenta di riassegnare `POSTI_MASSIMI`.
+
+<!-- cod: id=2.4-d tipo=errore -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    constexpr int POSTI_MASSIMI = 120;
+    POSTI_MASSIMI = 150;
+    printf("Posti: %d\n", POSTI_MASSIMI);
+    return 0;
+}
+```
+
+Questo file non produce alcun eseguibile: il compilatore blocca la traduzione segnalando che non è possibile assegnare un nuovo valore a una variabile di sola lettura (`POSTI_MASSIMI`). Lo stesso rifiuto avverrebbe con `const int POSTI_MASSIMI = 120;`.
+
+> **Approfondimento — Controlli più severi di `constexpr` in C23**
+> Con una variabile normale o anche con `const`, se scrivi `const int limite = 3.7;`, il compilatore converte silenziosamente `3.7` in `3` troncando la parte decimale (al massimo emettendo un avviso se hai abilitato opzioni aggiuntive). Con `constexpr int LIMITE = 3.7;`, invece, lo standard C23 impone un errore di compilazione vero e proprio: l'inizializzatore di un oggetto `constexpr` deve essere esattamente rappresentabile nel tipo scelto, senza perdita di valore né di precisione. È una rete di sicurezza molto utile contro errori di battitura nei parametri di configurazione.
+
+### Esercizio 2.4 — Parametri di configurazione di una stampante 3D
+
+**Descrizione**
+
+Scrivi un programma C che definisca tramite `constexpr` quattro parametri hardware fissi di una stampante 3D: `LARGHEZZA_PIATTO_MM` (`int`, `220`), `ALTEZZA_MAX_MM` (`int`, `250`), `DIAMETRO_UGELLO_MM` (`double`, `0.40`) e `PROFILO_QUALITA` (`char`, `'M'`). Definisci poi tramite `const` due impostazioni di sola lettura della stampa corrente: `TEMPERATURA_ESTRUSORE` (`int`, `210`) e `VENTOLA_ATTIVA` (`bool`, `true`). Stampa il riepilogo esattamente come nell'esempio di esecuzione (con due cifre decimali per il diametro dell'ugello).
+
+**Concetti da tenere a mente**
+
+- costante
+- qualificatore `const`
+- specificatore `constexpr` (C23)
+- nomi di costanti in MAIUSCOLO
+
+**Domande guida**
+
+1. In che cosa si distingue una costante definita con `constexpr` da un oggetto qualificato `const`?
+2. Perché conviene raccogliere i parametri di configurazione in costanti con nomi chiari anziché scrivere i numeri direttamente dentro `printf`?
+3. Che cosa fa il compilatore se provi a riassegnare una costante dopo la sua dichiarazione?
+4. Quale specificatore di formato usi per mostrare il diametro dell'ugello esattamente con due cifre dopo la virgola?
+
+**Esempio di esecuzione**
+
+```output
+=== CONFIGURAZIONE STAMPANTE 3D ===
+Piatto (mm): 220 x 250
+Ugello (mm): 0.40
+Profilo: M
+Temperatura estrusore (C): 210
+Ventola attiva (1=vero, 0=falso): 1
+```
