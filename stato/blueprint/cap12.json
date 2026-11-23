@@ -1,0 +1,415 @@
+{
+  "capitolo": 12,
+  "titolo": "Strutture, enumerazioni, typedef",
+  "obiettivi": [
+    "Modellare entità composite con struct e tipi simbolici con enum e typedef",
+    "Accedere ai campi tramite puntatori a struct con l'operatore ->",
+    "Gestire array dinamici di struct e strutture annidate senza perdite di memoria",
+    "Scegliere tra passaggio per valore e passaggio per puntatore a const struct"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "struttura",
+      "definizione": "Tipo aggregato definito con struct che raggruppa più campi, anche di tipi diversi, sotto un unico nome."
+    },
+    {
+      "termine": "campo",
+      "definizione": "Singola variabile dichiarata all'interno di una struct o di una union."
+    },
+    {
+      "termine": "enumerazione",
+      "definizione": "Tipo intero definito con enum che associa nomi simbolici a un insieme finito di costanti intere."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "operatore sizeof e tipo size_t",
+    "funzione",
+    "prototipo",
+    "passaggio per valore",
+    "durata di vita",
+    "array",
+    "inizializzatore designato",
+    "stringa",
+    "terminatore nullo",
+    "puntatore",
+    "dereferenziazione",
+    "puntatore nullo",
+    "stack",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "uso dopo la liberazione",
+    "doppia liberazione",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "12.R1",
+      "enunciato": "Una definizione struct nome_tag { ... }; introduce un tipo struttura composto da uno o più campi memorizzati nell'ordine in cui sono dichiarati. L'operatore punto (s.campo) accede al campo di una variabile struttura s. Una struttura può essere inizializzata per posizione ({v1, v2}) o con inizializzatori designati ({.campo1 = v1, .campo2 = v2}); i campi omessi sono azzerati automaticamente e in C23 l'inizializzatore vuoto {} azzera l'intera struttura.",
+      "nota_standard": "definito: la sequenza dei campi in memoria, l'operatore punto, gli inizializzatori designati, l'azzeramento dei campi non specificati e l'inizializzatore vuoto {} (standardizzato in C23) sono definiti dallo standard C23; leggere un campo di una struttura automatica non inizializzata provoca comportamento indefinito."
+    },
+    {
+      "id": "12.R2",
+      "enunciato": "Una definizione enum nome_tag { COST_0, COST_1, ... }; introduce un tipo enumerazione intero e le relative costanti simboliche (di tipo int per le enumerazioni ordinarie): la prima vale 0 se non specificato, e ogni successiva vale 1 più della precedente. In C23 è possibile specificare il tipo intero sottostante con enum nome_tag : tipo_intero { ... };. La dichiarazione typedef tipo_esistente nuovo_nome; crea un alias tipizzato senza introdurre un tipo distinto.",
+      "nota_standard": "dipendente dall'implementazione: i valori delle costanti di enumerazione, la sintassi C23 con tipo sottostante fisso e il ruolo di typedef come alias sono definiti dallo standard C23; quando il tipo sottostante di un enum non è specificato, la scelta del tipo intero compatibile è dipendente dall'implementazione."
+    },
+    {
+      "id": "12.R3",
+      "enunciato": "Dato un puntatore p a una struttura (struct tag *p oppure const struct tag *p), l'operatore freccia p->campo accede al campo dell'oggetto puntato ed equivale esattamente a (*p).campo. Nella forma con dereferenziazione esplicita le parentesi (*p).campo sono obbligatorie perché gli operatori . e -> hanno precedenza più alta dell'operatore unario * (e anche di &). Prima di usare p->campo occorre verificare che p != nullptr.",
+      "nota_standard": "indefinito: l'equivalenza p->campo == (*p).campo e la precedenza di . e -> rispetto a * e & sono definite dallo standard C23; applicare l'operatore freccia a un puntatore nullo, non inizializzato o già liberato provoca comportamento indefinito."
+    },
+    {
+      "id": "12.R4",
+      "enunciato": "Una struttura può avere come campi array di dimensione fissa, puntatori o altre strutture già definite in modo completo (strutture annidate, i cui campi si raggiungono concatenando . e ->). È possibile costruire array di strutture sullo stack o allocarli sullo heap con malloc, calloc e realloc usando sizeof(*arr). Se una struttura contiene campi puntatore allocati sullo heap (come stringhe create con strdup), occorre liberare con free ciascun campo puntatore prima di liberare la struttura o l'array che la ospita.",
+      "nota_standard": "indefinito: le strutture annidate, gli array di strutture e l'allocazione dinamica tramite sizeof(*arr) sono definiti dallo standard C23; non liberare i campi puntatore prima di liberare la struttura provoca una perdita di memoria, mentre una struttura non può contenere per valore un campo del proprio stesso tipo incompleto (ma solo un puntatore a esso)."
+    },
+    {
+      "id": "12.R5",
+      "enunciato": "Due strutture dello stesso tipo possono essere assegnate direttamente con =, passate per valore a una funzione e restituite per valore da una funzione (copiando automaticamente anche gli eventuali array a dimensione fissa contenuti come campi). Gli operatori == e != non sono definiti per le strutture: il confronto va effettuato campo per campo. Un letterale composto (struct tag){.campo = valore} crea un oggetto struttura senza nome (con durata di vita automatica se dichiarato dentro un blocco). Se una struttura contiene campi puntatore, l'assegnamento = esegue una copia superficiale dell'indirizzo.",
+      "nota_standard": "definito: la copia con =, il passaggio e il ritorno per valore, il divieto di == e != diretti tra strutture e la durata di vita dei letterali composti sono definiti dallo standard C23; liberare due volte lo stesso blocco sullo heap condiviso tra due strutture copiate superficialmente provoca comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o un valore negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr in caso di fallimento."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte (size > 0 in C23), restituendo il nuovo indirizzo oppure nullptr lasciando ptr valido."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap rendendolo nuovamente disponibile; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strcpy",
+      "firma": "char *strcpy(char *restrict s1, const char *restrict s2);",
+      "header": "string.h",
+      "descrizione": "Copia la stringa s2 (incluso '\\0') in s1 assumendo che lo spazio di destinazione sia sufficiente e restituisce s1."
+    },
+    {
+      "nome": "strcspn",
+      "firma": "size_t strcspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto solo da caratteri assenti in s2."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "12.1",
+      "titolo": "Raggruppare dati con struct",
+      "contenuti": [
+        "Limiti delle variabili sciolte e degli array paralleli quando si descrive un'entità con proprietà di tipo diverso: introduzione di struttura (struct) e campo",
+        "Definizione di un tipo struttura con etichetta (struct nome_tag { ... };), punto e virgola obbligatorio dopo la graffa di chiusura e disposizione dei campi in memoria (schema in blocco text)",
+        "Dichiarazione di variabili struttura e accesso in lettura e scrittura ai singoli campi tramite l'operatore punto (.)",
+        "Inizializzazione per posizione, inizializzatore designato ({.codice = 10, .prezzo = 4.50}), azzeramento automatico dei campi omessi e inizializzatore vuoto {} in C23 (con box C23 che indica {0} per i compilatori precedenti)",
+        "Dimensione di una struttura con sizeof(struct nome_tag): perché può essere maggiore o uguale alla somma delle dimensioni dei singoli campi (con rinvio al capitolo 13 per allineamento e padding)"
+      ],
+      "esempio_guidato": "Un programma che definisce struct rilevazione_meteo (con codice stazione char[16], quota int, temperatura double e attiva bool), inizializza una prima struttura con inizializzatori designati e una seconda con {} (C23) aggiornandone poi i campi tramite l'operatore punto, stampa entrambe le schede e confronta sizeof(struct rilevazione_meteo) con la somma delle dimensioni dei campi.",
+      "approfondimento": "Perché gli inizializzatori designati (.campo = valore) sono preferibili all'inizializzazione posizionale: rendono subito chiaro il significato di ogni valore e restano corretti anche se in futuro si riordinano o si aggiungono campi nella definizione della struct.",
+      "esercizio_id": "12.1"
+    },
+    {
+      "id": "12.2",
+      "titolo": "Enumerazioni con enum e alias con typedef",
+      "contenuti": [
+        "Perché sostituire codici numerici magici con un'enumerazione (enum): nomi simbolici autoesplicativi per stati, categorie e opzioni finite",
+        "Definizione di enum nome_tag { ... };: numerazione automatica da 0, valori espliciti personalizzati e uso naturale delle costanti di enumerazione nei costrutti switch con una funzione di conversione in stringa",
+        "Novità C23: enumerazioni con tipo intero sottostante esplicito (enum priorita : int { ... };), segnalata con box C23 per i compilatori C17/C11",
+        "La parola chiave typedef per creare alias di tipo compatti (typedef struct punto punto_t; e typedef enum priorita priorita_t;), distinguendo lo spazio delle etichette struct/enum dai nomi di tipo ordinari",
+        "Buone pratiche con typedef: usarlo per strutture ed enumerazioni mantenendo sempre l'etichetta della struct, ed evitare di nascondere un puntatore dentro un typedef (salvo i tipi opachi che vedremo nel capitolo 19)"
+      ],
+      "esempio_guidato": "Un programma che definisce con typedef un'enumerazione C23 a tipo sottostante int per la priorità di una richiesta di assistenza e una struttura ticket_t, traduce il valore enum in testo leggibile con una funzione basata su switch e calcola il tempo massimo di risposta.",
+      "approfondimento": "Perché typedef non crea un nuovo tipo distinto ma soltanto un sinonimo di un tipo esistente, mentre ogni definizione di struct o enum introduce un tipo effettivamente nuovo nel linguaggio.",
+      "esercizio_id": "12.2"
+    },
+    {
+      "id": "12.3",
+      "titolo": "Puntatori a struct e operatore ->",
+      "contenuti": [
+        "Dichiarazione e inizializzazione di un puntatore a struttura (punto_t *p = &pt; e const punto_t *cp = &pt;)",
+        "Precedenza degli operatori: perché *p.x viene raggruppato come *(p.x) causando un errore di compilazione e perché servono le parentesi in (*p).x",
+        "L'operatore freccia (p->campo) come scrittura idiomatica equivalente a (*p).campo (schema in blocco text con il puntatore che indirizza la struttura e i suoi campi)",
+        "Passaggio di strutture a funzioni tramite puntatore: T * per modificare i campi della struttura del chiamante sul posto e const T * per ispezionarla in sola lettura senza copiarla",
+        "Controllo difensivo p != nullptr prima di usare ->, indirizzo di un singolo campo con &p->campo e allocazione di una singola struttura sullo heap con malloc(sizeof(*p)) e free(p)"
+      ],
+      "esempio_guidato": "Un programma che gestisce un conto corrente conto_t tramite funzioni che ricevono conto_t * (deposita, preleva) e const conto_t * (stampa_conto) usando l'operatore -> e i controlli su nullptr, e mostra anche l'allocazione e la liberazione di una struttura sullo heap con malloc(sizeof(*c)) e free.",
+      "approfondimento": "Come si combinano -> e &: poiché l'operatore freccia ha precedenza superiore all'operatore indirizzo &, l'espressione &p->saldo calcola direttamente l'indirizzo del campo saldo della struttura puntata da p.",
+      "esercizio_id": "12.3"
+    },
+    {
+      "id": "12.4",
+      "titolo": "Array di struct e strutture annidate",
+      "contenuti": [
+        "Dal modello fragile degli array paralleli a un unico array di strutture (studente_t classe[MAX];): località logica e disposizione contigua in memoria (schema in blocco text)",
+        "Accesso agli elementi e ai loro campi con v[i].campo (e (v + i)->campo) e passaggio di array di strutture alle funzioni con const tipo_t v[], size_t n",
+        "Strutture annidate per composizione (per esempio data_t come campo di evento_t): inizializzatori designati annidati e accesso concatenato ev.data.anno e p->data.anno",
+        "Array dinamici di strutture sullo heap con malloc, calloc e crescita geometrica con realloc(arr, nuova_cap * sizeof(*arr)) e puntatore temporaneo",
+        "Strutture con campi puntatore allocati dinamicamente (come char *titolo con strdup): ordine obbligatorio di rilascio (prima free di ogni campo puntatore di ciascun elemento, poi free dell'array di strutture) per evitare perdite di memoria"
+      ],
+      "esempio_guidato": "Un programma che costruisce sullo heap un array dinamico di strutture articolo_t (ciascuna con una struttura annidata dimensioni_t e un campo char *titolo allocato con strdup), raddoppia la capacità con realloc al crescere degli elementi, calcola il volume complessivo e libera prima ogni titolo e poi l'array.",
+      "approfondimento": "Confronto tra un campo char nome[32] incorporato nella struct (nessuna allocazione separata, copia immediata, ma dimensione massima fissa) e un campo char *nome allocato sullo heap con strdup (dimensione su misura, ma richiede liberazione esplicita e attenzione nelle copie).",
+      "esercizio_id": "12.4"
+    },
+    {
+      "id": "12.5",
+      "titolo": "Copia, passaggio e restituzione di struct",
+      "contenuti": [
+        "Assegnamento diretto tra variabili della stessa struttura (s2 = s1): copia di tutti i campi byte per byte, inclusi eventuali array a dimensione fissa incorporati nella struttura",
+        "Perché gli operatori == e != non sono applicabili alle strutture in C e come scrivere una funzione predicato di uguaglianza campo per campo",
+        "Passaggio per valore, restituzione per valore da funzioni costruttrici o di calcolo (vettore_t somma(vettore_t a, vettore_t b)) e creazione al volo di strutture con i letterali composti (vettore_t){.x = 1.0, .y = 2.0}",
+        "Quando scegliere il passaggio per valore (strutture piccole di 1-3 campi scalari) e quando scegliere il passaggio per puntatore a costante const tipo_t * (strutture più ampie o con array interni)",
+        "Copia superficiale contro copia profonda: perché s2 = s1 su una struttura con campo puntatore duplica solo l'indirizzo (causando aliasing e rischio di doppia liberazione) e come scrivere una funzione di clonazione profonda con strdup o malloc"
+      ],
+      "esempio_guidato": "Un programma in due parti: la prima manipola piccole strutture vettore2d_t passate e restituite per valore con letterali composti (vettore2d_t){.x = ..., .y = ...} e una funzione di confronto; la seconda definisce una struttura nota_t con campo char *testo sullo heap e una funzione clona_nota che realizza una copia profonda indipendente.",
+      "approfondimento": "Durata di vita di un letterale composto: dichiarato dentro una funzione, (punto_t){.x = 3, .y = 4} crea un oggetto automatico che vive fino all'uscita dal blocco corrente, perciò non bisogna mai restituirne l'indirizzo all'esterno della funzione.",
+      "esercizio_id": "12.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "12.1",
+      "tipo": "esercizio",
+      "titolo": "Gestione di un lotto di magazzino con struct e inizializzatori designati",
+      "descrizione": "Scrivi un programma C che definisca `struct lotto_merce` con quattro campi: `char codice[16];`, `int quantita;`, `double prezzo_unitario;` e `bool deperibile;`. In `main` dichiara un lotto costante di confronto `const struct lotto_merce riferimento = {.codice = \"BASE-00\", .quantita = 10, .prezzo_unitario = 5.00, .deperibile = false};` e un lotto `struct lotto_merce attivo = {};` (inizializzatore vuoto C23). Leggi dalla prima riga di `stdin` i dati iniziali di `attivo` (`codice`, `quantita >= 0`, `prezzo_unitario >= 0.0` e un intero `dep` pari a `0` o `1` da assegnare a `attivo.deperibile`, validati con `sscanf(riga, \"%15s %d %lf %d %c\", attivo.codice, &attivo.quantita, &attivo.prezzo_unitario, &dep, &extra) == 4`). Leggi poi fino a fine input una sequenza di movimenti (uno per riga): `CARICO <q>` (`q > 0`) somma `q` ad `attivo.quantita`; `SCARICO <q>` (`q > 0`) se `q > attivo.quantita` non modifica la quantità, incrementa `rifiutati` e stampa `Scarico rifiutato: disponibili <quantita>`, altrimenti sottrae `q` da `attivo.quantita`. In caso di input o comando non valido stampa su `stderr` e restituisci `EXIT_FAILURE`. Al termine stampa i campi di `attivo`, il numero di scarichi rifiutati, il valore totale (`quantita * prezzo_unitario`) e la differenza di valore rispetto a `riferimento`, esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "definizione di un tipo struttura con struct e dichiarazione dei campi",
+        "inizializzatore designato {.campo = valore} e inizializzatore vuoto {} (C23)",
+        "accesso in lettura e scrittura ai campi tramite l'operatore punto (.)",
+        "coesione di campi di tipi diversi (char[], int, double, bool) in un unico oggetto"
+      ],
+      "domande_guida": [
+        "Quali valori assumono inizialmente tutti i campi di attivo quando lo dichiari con l'inizializzatore vuoto {} in C23?",
+        "Perché per leggere codice con sscanf non serve l'operatore & davanti ad attivo.codice mentre è necessario davanti ad attivo.quantita e attivo.prezzo_unitario?",
+        "Come accedi ai singoli campi di attivo e di riferimento per calcolare la differenza tra i due valori economici?",
+        "Quale vantaggio offre raggruppare i quattro dati in struct lotto_merce rispetto a gestire quattro variabili separate per ciascun lotto?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "LATTE-01 20 1.50 1\nCARICO 10\nSCARICO 35\nSCARICO 12\n",
+          "output": "Scarico rifiutato: disponibili 30\nLotto: LATTE-01 (deperibile: si)\nQuantita finale: 18, prezzo: 1.50 euro\nScarichi rifiutati: 1\nValore attivo: 27.00 euro (diff da BASE-00: -23.00 euro)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "BULLONI-9 50 2.00 0\nCARICO 25\nSCARICO 15\n",
+          "output": "Lotto: BULLONI-9 (deperibile: no)\nQuantita finale: 60, prezzo: 2.00 euro\nScarichi rifiutati: 0\nValore attivo: 120.00 euro (diff da BASE-00: +70.00 euro)\n"
+        },
+        {
+          "input": "VUOTO-0 0 10.00 0\nSCARICO 1\n",
+          "output": "Scarico rifiutato: disponibili 0\nLotto: VUOTO-0 (deperibile: no)\nQuantita finale: 0, prezzo: 10.00 euro\nScarichi rifiutati: 1\nValore attivo: 0.00 euro (diff da BASE-00: -50.00 euro)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstruct lotto_merce {\n    char codice[16];\n    int quantita;\n    double prezzo_unitario;\n    bool deperibile;\n};\n\nint main(void) {\n    const struct lotto_merce riferimento = {\n        .codice = \"BASE-00\", .quantita = 10, .prezzo_unitario = 5.00, .deperibile = false\n    };\n    struct lotto_merce attivo = {};\n    char riga[128], cmd[16], extra = '\\0';\n    int dep = 0, q = 0, rifiutati = 0;\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%15s %d %lf %d %c\", attivo.codice, &attivo.quantita,\n               &attivo.prezzo_unitario, &dep, &extra) != 4 ||\n        attivo.quantita < 0 || attivo.prezzo_unitario < 0.0 || (dep != 0 && dep != 1)) {\n        fprintf(stderr, \"Errore: dati lotto non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n    attivo.deperibile = (dep == 1);\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s %d %c\", cmd, &q, &extra) != 2 || q <= 0) {\n            fprintf(stderr, \"Errore: movimento non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (strcmp(cmd, \"CARICO\") == 0) {\n            attivo.quantita += q;\n        } else if (strcmp(cmd, \"SCARICO\") == 0) {\n            if (q > attivo.quantita) {\n                ++rifiutati;\n                printf(\"Scarico rifiutato: disponibili %d\\n\", attivo.quantita);\n            } else {\n                attivo.quantita -= q;\n            }\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    double val_att = attivo.quantita * attivo.prezzo_unitario;\n    double val_rif = riferimento.quantita * riferimento.prezzo_unitario;\n    printf(\"Lotto: %s (deperibile: %s)\\n\", attivo.codice, attivo.deperibile ? \"si\" : \"no\");\n    printf(\"Quantita finale: %d, prezzo: %.2f euro\\n\", attivo.quantita, attivo.prezzo_unitario);\n    printf(\"Scarichi rifiutati: %d\\n\", rifiutati);\n    printf(\"Valore attivo: %.2f euro (diff da %s: %+.2f euro)\\n\",\n           val_att, riferimento.codice, val_att - val_rif);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "12.2",
+      "tipo": "esercizio",
+      "titolo": "Smistamento di pacchi postali con enum e typedef",
+      "descrizione": "Scrivi un programma C che definisca con `typedef` un'enumerazione C23 con tipo intero sottostante fisso `typedef enum zona_consegna : int { ZONA_URBANA = 0, ZONA_NAZIONALE = 1, ZONA_ISOLE = 2, ZONA_ESTERO = 3 } zona_t;` e una struttura `typedef struct pacco { int id; zona_t zona; double peso_kg; } pacco_t;`. Dichiara prima di `main` i prototipi di due funzioni: `const char *nome_zona(zona_t z)` (restituisce `\"Urbana\"`, `\"Nazionale\"`, `\"Isole\"` o `\"Estero\"` tramite `switch`) e `double calcola_tariffa(pacco_t p)` (usa `switch (p.zona)`: base `4.00` + `0.50`/kg per `ZONA_URBANA`, base `6.50` + `0.80`/kg per `ZONA_NAZIONALE`, base `9.00` + `1.10`/kg per `ZONA_ISOLE`, base `14.00` + `2.00`/kg per `ZONA_ESTERO`). In `main` leggi dalla prima riga di `stdin` `n` (`1..50`) e dalle successive `n` righe `id codice_zona peso_kg` (`id > 0`, `codice_zona` intero in `0..3`, `peso_kg > 0.0`; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Per ogni riga costruisci un `pacco_t`, stampa `Pacco #<id> [<nome_zona>, <peso> kg]: <tariffa> euro`, aggiorna il conteggio della zona in `int conteggi[4] = {0};` e la somma delle tariffe, e al termine stampa il riepilogo per zona e l'incasso totale esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "definizione di un'enumerazione con enum e tipo sottostante esplicito (: int in C23)",
+        "creazione di alias di tipo leggibili per enum e struct con typedef",
+        "selezione su valori enum con switch e funzione di traduzione in stringa",
+        "uso dei valori enum (0..3) come indici sicuri di un array di contatori"
+      ],
+      "domande_guida": [
+        "Quale vantaggio offre usare le costanti simboliche ZONA_URBANA..ZONA_ESTERO nello switch rispetto ai numeri 0..3?",
+        "Che cosa garantisce la specifica C23 : int nella definizione di enum zona_consegna : int?",
+        "Perché conviene validare che codice_zona letto da stdin sia compreso tra 0 e 3 prima di convertirlo in zona_t?",
+        "Come permette typedef di scrivere pacco_t e zona_t nelle firme delle funzioni senza ripetere ogni volta struct ed enum?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3\n101 0 2.0\n102 2 5.0\n103 3 1.5\n",
+          "output": "Pacco #101 [Urbana, 2.00 kg]: 5.00 euro\nPacco #102 [Isole, 5.00 kg]: 14.50 euro\nPacco #103 [Estero, 1.50 kg]: 17.00 euro\nRiepilogo zone -> Urbana: 1, Nazionale: 0, Isole: 1, Estero: 1\nIncasso totale: 36.50 euro\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "2\n10 1 10.0\n20 1 2.5\n",
+          "output": "Pacco #10 [Nazionale, 10.00 kg]: 14.50 euro\nPacco #20 [Nazionale, 2.50 kg]: 8.50 euro\nRiepilogo zone -> Urbana: 0, Nazionale: 2, Isole: 0, Estero: 0\nIncasso totale: 23.00 euro\n"
+        },
+        {
+          "input": "1\n500 0 1.0\n",
+          "output": "Pacco #500 [Urbana, 1.00 kg]: 4.50 euro\nRiepilogo zone -> Urbana: 1, Nazionale: 0, Isole: 0, Estero: 0\nIncasso totale: 4.50 euro\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef enum zona_consegna : int {\n    ZONA_URBANA = 0,\n    ZONA_NAZIONALE = 1,\n    ZONA_ISOLE = 2,\n    ZONA_ESTERO = 3\n} zona_t;\n\ntypedef struct pacco {\n    int id;\n    zona_t zona;\n    double peso_kg;\n} pacco_t;\n\nconst char *nome_zona(zona_t z);\ndouble calcola_tariffa(pacco_t p);\n\nint main(void) {\n    char riga[128], extra = '\\0';\n    int n = 0, conteggi[4] = {0};\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n, &extra) != 1 || n < 1 || n > 50) {\n        fprintf(stderr, \"Errore: numero pacchi non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    double totale = 0.0;\n    for (int i = 0; i < n; ++i) {\n        int id = 0, cod_z = 0;\n        double peso = 0.0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %d %lf %c\", &id, &cod_z, &peso, &extra) != 3 ||\n            id <= 0 || cod_z < 0 || cod_z > 3 || peso <= 0.0) {\n            fprintf(stderr, \"Errore: dati pacco non validi.\\n\");\n            return EXIT_FAILURE;\n        }\n        pacco_t p = {.id = id, .zona = (zona_t)cod_z, .peso_kg = peso};\n        double costo = calcola_tariffa(p);\n        ++conteggi[p.zona];\n        totale += costo;\n        printf(\"Pacco #%d [%s, %.2f kg]: %.2f euro\\n\", p.id, nome_zona(p.zona), p.peso_kg, costo);\n    }\n    printf(\"Riepilogo zone -> Urbana: %d, Nazionale: %d, Isole: %d, Estero: %d\\n\",\n           conteggi[0], conteggi[1], conteggi[2], conteggi[3]);\n    printf(\"Incasso totale: %.2f euro\\n\", totale);\n    return EXIT_SUCCESS;\n}\n\nconst char *nome_zona(zona_t z) {\n    switch (z) {\n        case ZONA_URBANA: return \"Urbana\";\n        case ZONA_NAZIONALE: return \"Nazionale\";\n        case ZONA_ISOLE: return \"Isole\";\n        default: return \"Estero\";\n    }\n}\n\ndouble calcola_tariffa(pacco_t p) {\n    switch (p.zona) {\n        case ZONA_URBANA: return 4.00 + 0.50 * p.peso_kg;\n        case ZONA_NAZIONALE: return 6.50 + 0.80 * p.peso_kg;\n        case ZONA_ISOLE: return 9.00 + 1.10 * p.peso_kg;\n        default: return 14.00 + 2.00 * p.peso_kg;\n    }\n}\n"
+    },
+    {
+      "id": "12.3",
+      "tipo": "esercizio",
+      "titolo": "Controllo di un'unità batteria tramite puntatori a struct e operatore ->",
+      "descrizione": "Scrivi un programma C che definisca `typedef struct batteria { char seriale[20]; int capacita_wh; int carica_wh; int cicli_completi; bool in_allarme; } batteria_t;` e dichiari prima di `main` i prototipi di tre funzioni che accedono ai campi tramite l'operatore `->` dopo aver verificato che il puntatore non sia `nullptr`: `bool ricarica_batteria(batteria_t *b, int wh)` (rifiuta e restituisce `false` se `b == nullptr || b->in_allarme || wh <= 0`; altrimenti aumenta `b->carica_wh` di `wh` senza superare `b->capacita_wh`, incrementa `b->cicli_completi` se `b->carica_wh == b->capacita_wh` e restituisce `true`), `bool scarica_batteria(batteria_t *b, int wh)` (rifiuta e restituisce `false` se `b == nullptr || b->in_allarme || wh <= 0 || wh > b->carica_wh`; altrimenti sottrae `wh` da `b->carica_wh`, imposta `b->in_allarme = true` se `b->carica_wh * 10 < b->capacita_wh` e restituisce `true`) e `void stampa_batteria(const batteria_t *b)` (stampa lo stato). In `main` leggi dalla prima riga `seriale capacita_wh carica_wh` (`capacita_wh > 0`, `0 <= carica_wh <= capacita_wh`) inizializzando `in_allarme` a `carica_wh * 10 < capacita_wh`, poi elabora i comandi `CARICA <wh>`, `SCARICA <wh>` e `RESET` (che imposta `in_allarme = false` tramite un puntatore `batteria_t *ptr = &unita;`) fino a fine input, stampando ogni esito e lo stato finale con `stampa_batteria(&unita)` esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "puntatori a struct (batteria_t * e const batteria_t *)",
+        "operatore freccia (p->campo) equivalente a (*p).campo",
+        "modifica sul posto della struttura del chiamante tramite passaggio per puntatore",
+        "controllo difensivo p != nullptr prima di accedere ai campi con ->"
+      ],
+      "domande_guida": [
+        "Perché all'interno di ricarica_batteria e scarica_batteria occorre scrivere b->carica_wh invece di *b.carica_wh?",
+        "Qual è la differenza tra il parametro batteria_t *b delle funzioni di modifica e il parametro const batteria_t *b di stampa_batteria?",
+        "Perché le modifiche effettuate su b->carica_wh e b->in_allarme si riflettono direttamente sulla variabile unita dichiarata in main?",
+        "In che modo il controllo b->carica_wh * 10 < b->capacita_wh verifica che la carica sia scesa sotto il 10% senza usare numeri in virgola mobile?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "BAT-A1 1000 300\nSCARICA 250\nCARICA 200\nRESET\nCARICA 950\n",
+          "output": "SCARICA 250: ok (carica=50 Wh, allarme=1)\nCARICA 200: rifiutata\nRESET allarme eseguito\nCARICA 950: ok (carica=1000 Wh, cicli=1)\nBatteria BAT-A1: 1000/1000 Wh, cicli=1, allarme=0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "BAT-B2 500 500\nSCARICA 600\nSCARICA 200\nCARICA 200\n",
+          "output": "SCARICA 600: rifiutata\nSCARICA 200: ok (carica=300 Wh, allarme=0)\nCARICA 200: ok (carica=500 Wh, cicli=1)\nBatteria BAT-B2: 500/500 Wh, cicli=1, allarme=0\n"
+        },
+        {
+          "input": "BAT-C3 200 10\nCARICA 50\nRESET\nCARICA 50\n",
+          "output": "CARICA 50: rifiutata\nRESET allarme eseguito\nCARICA 50: ok (carica=60 Wh, cicli=0)\nBatteria BAT-C3: 60/200 Wh, cicli=0, allarme=0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct batteria {\n    char seriale[20];\n    int capacita_wh;\n    int carica_wh;\n    int cicli_completi;\n    bool in_allarme;\n} batteria_t;\n\nbool ricarica_batteria(batteria_t *b, int wh);\nbool scarica_batteria(batteria_t *b, int wh);\nvoid stampa_batteria(const batteria_t *b);\n\nint main(void) {\n    batteria_t unita = {};\n    batteria_t *ptr = &unita;\n    char riga[128], cmd[16], extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%19s %d %d %c\", ptr->seriale, &ptr->capacita_wh, &ptr->carica_wh, &extra) != 3 ||\n        ptr->capacita_wh <= 0 || ptr->carica_wh < 0 || ptr->carica_wh > ptr->capacita_wh) {\n        fprintf(stderr, \"Errore: dati batteria non validi.\\n\");\n        return EXIT_FAILURE;\n    }\n    ptr->in_allarme = (ptr->carica_wh * 10 < ptr->capacita_wh);\n    int wh = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) == 1 && strcmp(cmd, \"RESET\") == 0 &&\n            sscanf(riga, \"RESET %c\", &extra) != 1) {\n            ptr->in_allarme = false;\n            printf(\"RESET allarme eseguito\\n\");\n        } else if (sscanf(riga, \"%15s %d %c\", cmd, &wh, &extra) == 2 && wh > 0) {\n            if (strcmp(cmd, \"CARICA\") == 0) {\n                if (ricarica_batteria(ptr, wh)) {\n                    printf(\"CARICA %d: ok (carica=%d Wh, cicli=%d)\\n\", wh, ptr->carica_wh, ptr->cicli_completi);\n                } else { printf(\"CARICA %d: rifiutata\\n\", wh); }\n            } else if (strcmp(cmd, \"SCARICA\") == 0) {\n                if (scarica_batteria(ptr, wh)) {\n                    printf(\"SCARICA %d: ok (carica=%d Wh, allarme=%d)\\n\", wh, ptr->carica_wh, ptr->in_allarme);\n                } else { printf(\"SCARICA %d: rifiutata\\n\", wh); }\n            } else { fprintf(stderr, \"Errore: comando.\\n\"); return EXIT_FAILURE; }\n        } else { fprintf(stderr, \"Errore: formato.\\n\"); return EXIT_FAILURE; }\n    }\n    stampa_batteria(ptr);\n    return EXIT_SUCCESS;\n}\n\nbool ricarica_batteria(batteria_t *b, int wh) {\n    if (b == nullptr || b->in_allarme || wh <= 0) { return false; }\n    b->carica_wh = (b->carica_wh + wh >= b->capacita_wh) ? b->capacita_wh : (b->carica_wh + wh);\n    if (b->carica_wh == b->capacita_wh) { ++b->cicli_completi; }\n    return true;\n}\n\nbool scarica_batteria(batteria_t *b, int wh) {\n    if (b == nullptr || b->in_allarme || wh <= 0 || wh > b->carica_wh) { return false; }\n    b->carica_wh -= wh;\n    if (b->carica_wh * 10 < b->capacita_wh) { b->in_allarme = true; }\n    return true;\n}\n\nvoid stampa_batteria(const batteria_t *b) {\n    if (b != nullptr) {\n        printf(\"Batteria %s: %d/%d Wh, cicli=%d, allarme=%d\\n\",\n               b->seriale, b->carica_wh, b->capacita_wh, b->cicli_completi, b->in_allarme);\n    }\n}\n"
+    },
+    {
+      "id": "12.4",
+      "tipo": "esercizio",
+      "titolo": "Registro dinamico di eventi con struct annidate e stringhe sullo heap",
+      "descrizione": "Scrivi un programma C che definisca una struttura `typedef struct orario { int ore; int minuti; } orario_t;` annidata dentro `typedef struct evento { orario_t inizio; int durata_min; char *titolo; } evento_t;`. Leggi dalla prima riga di `stdin` un orario di filtro `ore minuti` (`0 <= ore <= 23`, `0 <= minuti <= 59`). Leggi poi fino a fine input un numero arbitrario di righe nel formato `ore minuti durata titolo` (`durata > 0` e `titolo` non vuoto, estratto con `%63s`), memorizzandole in un array dinamico `evento_t *agenda = nullptr;` gestito con `len` e `cap` che raddoppia di capacità (`0 -> 2 -> 4 -> ...`) tramite `realloc` e puntatore temporaneo, e duplicando `titolo` sullo heap con `strdup`. In caso di errore libera ogni `agenda[i].titolo` già allocato e poi `agenda`, stampa su `stderr` e restituisci `EXIT_FAILURE`. Terminata la lettura, scorri `agenda` e stampa tutti gli eventi il cui orario `inizio` è maggiore o uguale al filtro (`inizio.ore > filtro.ore || (inizio.ore == filtro.ore && inizio.minuti >= filtro.minuti)`), calcolando il numero di eventi selezionati e la somma delle loro durate. Infine libera tutti i campi `titolo` e l'array `agenda` e stampa il riepilogo esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "strutture annidate (orario_t dentro evento_t) e accesso concatenato ev.inizio.ore",
+        "array dinamico di struct sullo heap ridimensionato con realloc(agenda, nuova_cap * sizeof(*agenda))",
+        "campo puntatore char *titolo allocato sullo heap con strdup",
+        "rilascio ordinato della memoria: prima free(agenda[i].titolo) per ogni elemento, poi free(agenda)"
+      ],
+      "domande_guida": [
+        "Come si accede al campo minuti dell'orario di inizio dell'i-esimo elemento dell'array agenda?",
+        "Che cosa succederebbe se a fine programma chiamassi soltanto free(agenda) senza aver prima chiamato free(agenda[i].titolo) in un ciclo?",
+        "Perché non potresti chiamare free(agenda[i].titolo) dopo aver già eseguito free(agenda)?",
+        "Come confronti correttamente due strutture orario_t per stabilire se un evento inizia a partire dall'orario di filtro?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "10 30\n09 15 45 Briefing\n10 30 60 Laboratorio_C\n14 00 30 Revisione_codice\n10 00 20 Pausa\n",
+          "output": "10:30 (60 min) - Laboratorio_C\n14:00 (30 min) - Revisione_codice\nEventi totali: 4 (capacita array: 4)\nSelezionati da 10:30: 2 (durata totale: 90 min)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "18 00\n08 30 50 Lezione_1\n12 00 40 Lezione_2\n",
+          "output": "Eventi totali: 2 (capacita array: 2)\nSelezionati da 18:00: 0 (durata totale: 0 min)\n"
+        },
+        {
+          "input": "00 00\n",
+          "output": "Eventi totali: 0 (capacita array: 0)\nSelezionati da 00:00: 0 (durata totale: 0 min)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct orario { int ore; int minuti; } orario_t;\ntypedef struct evento { orario_t inizio; int durata_min; char *titolo; } evento_t;\n\nvoid libera_agenda(evento_t *a, size_t n) {\n    for (size_t i = 0; i < n; ++i) { free(a[i].titolo); }\n    free(a);\n}\n\nint main(void) {\n    char riga[128], buf_tit[64], extra = '\\0';\n    orario_t filtro = {};\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &filtro.ore, &filtro.minuti, &extra) != 2 ||\n        filtro.ore < 0 || filtro.ore > 23 || filtro.minuti < 0 || filtro.minuti > 59) {\n        fprintf(stderr, \"Errore: orario filtro non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    evento_t *agenda = nullptr;\n    size_t len = 0, cap = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        int h = 0, m = 0, dur = 0;\n        if (sscanf(riga, \"%d %d %d %63s %c\", &h, &m, &dur, buf_tit, &extra) != 4 ||\n            h < 0 || h > 23 || m < 0 || m > 59 || dur <= 0) {\n            libera_agenda(agenda, len);\n            fprintf(stderr, \"Errore: evento non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (len == cap) {\n            size_t ncap = (cap == 0) ? 2 : cap * 2;\n            evento_t *tmp = realloc(agenda, ncap * sizeof(*agenda));\n            if (tmp == nullptr) { libera_agenda(agenda, len); return EXIT_FAILURE; }\n            agenda = tmp; cap = ncap;\n        }\n        char *copia = strdup(buf_tit);\n        if (copia == nullptr) { libera_agenda(agenda, len); return EXIT_FAILURE; }\n        agenda[len++] = (evento_t){.inizio = {.ore = h, .minuti = m}, .durata_min = dur, .titolo = copia};\n    }\n    int sel = 0, dur_tot = 0;\n    for (size_t i = 0; i < len; ++i) {\n        orario_t t = agenda[i].inizio;\n        if (t.ore > filtro.ore || (t.ore == filtro.ore && t.minuti >= filtro.minuti)) {\n            printf(\"%02d:%02d (%d min) - %s\\n\", t.ore, t.minuti, agenda[i].durata_min, agenda[i].titolo);\n            ++sel; dur_tot += agenda[i].durata_min;\n        }\n    }\n    printf(\"Eventi totali: %zu (capacita array: %zu)\\n\", len, cap);\n    printf(\"Selezionati da %02d:%02d: %d (durata totale: %d min)\\n\", filtro.ore, filtro.minuti, sel, dur_tot);\n    libera_agenda(agenda, len);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "12.5",
+      "tipo": "esercizio",
+      "titolo": "Operazioni su intervalli per valore, letterali composti e copia profonda di fasce",
+      "descrizione": "Scrivi un programma C che definisca `typedef struct intervallo { int min; int max; } intervallo_t;` e `typedef struct fascia { intervallo_t lim; char *etichetta; } fascia_t;`. Dichiara prima di `main` i prototipi di quattro funzioni: `intervallo_t crea_intervallo(int a, int b)` (restituisce per valore il letterale composto `(intervallo_t){.min = (a <= b ? a : b), .max = (a <= b ? b : a)}`), `bool intervallo_uguale(const intervallo_t *a, const intervallo_t *b)` (confronta campo per campo i due intervalli passati per puntatore a `const`), `bool intersezione(intervallo_t a, intervallo_t b, intervallo_t *out)` (calcola `lo = a.min > b.min ? a.min : b.min` e `hi = a.max < b.max ? a.max : b.max`; se `lo <= hi` assegna `*out = (intervallo_t){.min = lo, .max = hi}` e restituisce `true`, altrimenti `false`) e `bool clona_fascia(const fascia_t *orig, fascia_t *dest)` (copia `orig->lim` per assegnamento di struct e duplica `orig->etichetta` con `strdup` per ottenere una copia profonda indipendente). In `main` leggi due righe: dalla prima `a1 b1 nome` (`%31s`), dalla seconda `a2 b2 delta`. Crea `fascia_t f1` con `crea_intervallo(a1, b1)` e `strdup(nome)`, clonala in `fascia_t f2` con `clona_fascia(&f1, &f2)` e trasla `f2.lim` di `delta` (`f2.lim.min += delta; f2.lim.max += delta;`) modificando il primo carattere di `f2.etichetta` in `'@'` per dimostrare che `f1` resta invariata. Confronta `f1.lim` con `crea_intervallo(a2, b2)` tramite `intervallo_uguale`, calcola l'intersezione tra `f1.lim` e il secondo intervallo, stampa tutto come nell'esempio e libera entrambe le etichette.",
+      "concetti_da_tenere_a_mente": [
+        "passaggio e restituzione di piccole struct per valore con letterali composti (intervallo_t){...}",
+        "confronto campo per campo tramite puntatori a const (assenza di == tra struct)",
+        "differenza tra copia superficiale (=) e copia profonda (clona_fascia con strdup) per struct con puntatori",
+        "indipendenza in memoria del clone rispetto alla struttura originale"
+      ],
+      "domande_guida": [
+        "Perché non puoi confrontare direttamente due variabili intervallo_t scrivendo i1 == i2 ma devi usare la funzione intervallo_uguale?",
+        "Che cosa accadrebbe a f1.etichetta e al momento delle due chiamate a free se copiassi f2 = f1 con un semplice assegnamento invece di usare clona_fascia?",
+        "Come viene usato il letterale composto dentro crea_intervallo e intersezione per costruire un oggetto intervallo_t senza dichiarare una variabile temporanea?",
+        "Perché per intervallo_t (due soli int) è pratico il passaggio per valore mentre per fascia_t conviene il passaggio per puntatore a const?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "30 10 Normale\n20 40 5\n",
+          "output": "Originale f1: [10, 30] etichetta=Normale\nClone mod f2: [15, 35] etichetta=@ormale\nSecondo intervallo: [20, 40] (uguale a f1: no)\nIntersezione f1 e secondo: [20, 30]\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 15 Base\n15 0 -5\n",
+          "output": "Originale f1: [0, 15] etichetta=Base\nClone mod f2: [-5, 10] etichetta=@ase\nSecondo intervallo: [0, 15] (uguale a f1: si)\nIntersezione f1 e secondo: [0, 15]\n"
+        },
+        {
+          "input": "1 5 Bassa\n10 20 0\n",
+          "output": "Originale f1: [1, 5] etichetta=Bassa\nClone mod f2: [1, 5] etichetta=@assa\nSecondo intervallo: [10, 20] (uguale a f1: no)\nIntersezione f1 e secondo: vuota\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct intervallo { int min; int max; } intervallo_t;\ntypedef struct fascia { intervallo_t lim; char *etichetta; } fascia_t;\n\nintervallo_t crea_intervallo(int a, int b);\nbool intervallo_uguale(const intervallo_t *a, const intervallo_t *b);\nbool intersezione(intervallo_t a, intervallo_t b, intervallo_t *out);\nbool clona_fascia(const fascia_t *orig, fascia_t *dest);\n\nint main(void) {\n    char riga[128], nome[32], extra = '\\0';\n    int a1 = 0, b1 = 0, a2 = 0, b2 = 0, delta = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %31s %c\", &a1, &b1, nome, &extra) != 3) { return EXIT_FAILURE; }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %d %c\", &a2, &b2, &delta, &extra) != 3) { return EXIT_FAILURE; }\n    fascia_t f1 = {.lim = crea_intervallo(a1, b1), .etichetta = strdup(nome)};\n    fascia_t f2 = {};\n    if (f1.etichetta == nullptr || !clona_fascia(&f1, &f2)) { free(f1.etichetta); return EXIT_FAILURE; }\n    f2.lim.min += delta; f2.lim.max += delta;\n    f2.etichetta[0] = '@';\n    intervallo_t sec = crea_intervallo(a2, b2), inter = {};\n    printf(\"Originale f1: [%d, %d] etichetta=%s\\n\", f1.lim.min, f1.lim.max, f1.etichetta);\n    printf(\"Clone mod f2: [%d, %d] etichetta=%s\\n\", f2.lim.min, f2.lim.max, f2.etichetta);\n    printf(\"Secondo intervallo: [%d, %d] (uguale a f1: %s)\\n\",\n           sec.min, sec.max, intervallo_uguale(&f1.lim, &sec) ? \"si\" : \"no\");\n    if (intersezione(f1.lim, sec, &inter)) {\n        printf(\"Intersezione f1 e secondo: [%d, %d]\\n\", inter.min, inter.max);\n    } else { printf(\"Intersezione f1 e secondo: vuota\\n\"); }\n    free(f1.etichetta); free(f2.etichetta);\n    return EXIT_SUCCESS;\n}\n\nintervallo_t crea_intervallo(int a, int b) {\n    return (intervallo_t){.min = (a <= b ? a : b), .max = (a <= b ? b : a)};\n}\n\nbool intervallo_uguale(const intervallo_t *a, const intervallo_t *b) {\n    return a != nullptr && b != nullptr && a->min == b->min && a->max == b->max;\n}\n\nbool intersezione(intervallo_t a, intervallo_t b, intervallo_t *out) {\n    int lo = (a.min > b.min) ? a.min : b.min, hi = (a.max < b.max) ? a.max : b.max;\n    if (lo > hi) { return false; }\n    if (out != nullptr) { *out = (intervallo_t){.min = lo, .max = hi}; }\n    return true;\n}\n\nbool clona_fascia(const fascia_t *orig, fascia_t *dest) {\n    if (orig == nullptr || dest == nullptr) { return false; }\n    char *copia = strdup(orig->etichetta);\n    if (copia == nullptr) { return false; }\n    *dest = (fascia_t){.lim = orig->lim, .etichetta = copia};\n    return true;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare il punto e virgola finale dopo la parentesi graffa di chiusura di una definizione di struct o di enum.",
+    "Scrivere *p.campo invece di p->campo (oppure (*p).campo): poiché l'operatore punto ha precedenza maggiore di *, il compilatore prova a dereferenziare il campo anziché il puntatore.",
+    "Tentare di confrontare due strutture direttamente con s1 == s2 o s1 != s2 invece di confrontarne i singoli campi in una funzione dedicata.",
+    "Liberare una struttura (o un array dinamico di strutture) con free senza aver prima liberato i campi puntatore allocati sullo heap al suo interno, causando una perdita di memoria.",
+    "Copiare con = una struttura che contiene un campo puntatore allocato sullo heap senza duplicare il blocco puntato (copia superficiale), provocando modifiche incrociate e doppia liberazione.",
+    "Omettere la parola chiave struct quando si dichiara una variabile senza aver definito un alias con typedef, oppure nascondere un puntatore dentro un typedef rendendo poco visibili le dereferenziazioni."
+  ],
+  "differenze_python": [
+    "In Python le classi raggruppano sia attributi sia metodi e gli attributi possono essere aggiunti anche a tempo di esecuzione; in C una struct contiene solo campi dati fissati a tempo di compilazione e le funzioni che operano su di essa sono esterne.",
+    "In Python l'assegnamento b = a tra due oggetti copia solo il riferimento allo stesso oggetto; in C l'assegnamento s2 = s1 tra due variabili struct copia per valore tutti i campi in una struttura distinta.",
+    "In Python si usa sempre l'operatore punto (obj.campo) perché ogni variabile è implicitamente un riferimento; in C si distingue tra accesso diretto su un valore struttura (s.campo) e accesso tramite puntatore a struttura (p->campo)."
+  ]
+}

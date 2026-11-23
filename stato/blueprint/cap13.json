@@ -1,0 +1,459 @@
+{
+  "capitolo": 13,
+  "titolo": "Dati a basso livello",
+  "obiettivi": [
+    "Spiegare la rappresentazione binaria in complemento a due e usare i tipi a dimensione fissa di <stdint.h> e <inttypes.h>",
+    "Manipolare singoli bit con operatori bit a bit, maschere e spostamenti evitando comportamento indefinito",
+    "Usare union e unioni etichettate e definire campi di bit con consapevolezza dei loro limiti",
+    "Analizzare ordine dei byte, allineamento e padding delle struct usando alignof e offsetof"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "complemento a due",
+      "definizione": "Codifica binaria degli interi con segno adottata dal C23 in cui il bit più significativo ha peso negativo."
+    },
+    {
+      "termine": "maschera di bit",
+      "definizione": "Valore intero usato con gli operatori bit a bit per leggere, impostare, azzerare o invertire specifici bit."
+    },
+    {
+      "termine": "unione",
+      "definizione": "Tipo definito con union i cui campi condividono la stessa area di memoria e solo uno alla volta è attivo."
+    },
+    {
+      "termine": "unione etichettata",
+      "definizione": "Coppia formata da un'enumerazione (etichetta) e da una union che registra quale campo della union è attualmente valido."
+    },
+    {
+      "termine": "ordine dei byte",
+      "definizione": "Convenzione dell'architettura (little-endian o big-endian) che stabilisce come i byte di un numero multibyte sono disposti in memoria."
+    },
+    {
+      "termine": "allineamento",
+      "definizione": "Vincolo per cui l'indirizzo in memoria di un oggetto di un certo tipo deve essere multiplo di una potenza di due."
+    },
+    {
+      "termine": "padding",
+      "definizione": "Byte di riempimento inseriti dal compilatore dentro o in fondo a una struct per soddisfare i vincoli di allineamento."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "specificatore di formato",
+    "operatore sizeof e tipo size_t",
+    "costanti di <limits.h>",
+    "espressione",
+    "precedenza degli operatori",
+    "conversione implicita",
+    "cast esplicito",
+    "overflow",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "comportamento non specificato",
+    "puntatore",
+    "indirizzo di memoria",
+    "dereferenziazione",
+    "struttura",
+    "campo",
+    "enumerazione"
+  ],
+  "regole": [
+    {
+      "id": "13.R1",
+      "enunciato": "In C23 gli interi con segno sono rappresentati obbligatoriamente in complemento a due: su N bit il bit più significativo (bit N - 1) ha peso -2^(N-1) e l'intervallo va da -2^(N-1) a 2^(N-1) - 1. I letterali interi possono essere scritti in binario con prefisso 0b/0B (C23) e in esadecimale con prefisso 0x/0X. L'header <stdint.h> fornisce i tipi a larghezza esatta int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, i tipi per puntatori intptr_t e uintptr_t, e i limiti INT8_MIN..UINT64_MAX e SIZE_MAX; <inttypes.h> fornisce le macro di formato PRIdN, PRIuN e PRIxN per printf.",
+      "nota_standard": "definito: il complemento a due obbligatorio e i letterali binari 0b sono standardizzati in C23; i tipi intN_t e uintN_t in <stdint.h> hanno larghezza esatta N bit senza bit di padding, mentre l'overflow aritmetico sui tipi con segno rimane comportamento indefinito."
+    },
+    {
+      "id": "13.R2",
+      "enunciato": "Gli operatori bit a bit & (AND), | (OR), ^ (XOR) e ~ (NOT) e gli operatori di spostamento << e >> (con &=, |=, ^=, <<=, >>=) agiscono sui bit degli operandi interi dopo le promozioni intere. In x << k e x >> k il conteggio k deve essere non negativo e strettamente minore della larghezza in bit del tipo promosso di x. Per evitare comportamento indefinito o dipendente dall'implementazione, le manipolazioni di bit e le maschere di bit vanno eseguite su tipi interi senza segno.",
+      "nota_standard": "indefinito: se k < 0 o k >= larghezza in bit del tipo promosso di x il comportamento è indefinito; per x con segno, x << k è comportamento indefinito se x < 0 o se il risultato non è rappresentabile nel tipo promosso, mentre x >> k su x < 0 è comportamento dipendente dall'implementazione."
+    },
+    {
+      "id": "13.R3",
+      "enunciato": "Una definizione union nome_tag { ... }; dichiara un tipo unione i cui campi sono tutti sovrapposti a partire dallo stesso indirizzo di memoria (offset 0); la dimensione della union è pari almeno al campo più grande, arrotondata all'allineamento massimo dei suoi campi. Solo un campo alla volta è attivo. Un'unione etichettata racchiude in una struct un campo enum (etichetta) e una union, permettendo di verificare sempre l'etichetta prima di accedere al campo corrispondente.",
+      "nota_standard": "non specificato: la sovrapposizione dei campi di una union a offset 0 è definita dallo standard C23; leggere un campo diverso dall'ultimo campo scritto reinterpreta i byte sottostanti (con risultato non specificato o rappresentazione non valida se non si accede tramite tipo carattere)."
+    },
+    {
+      "id": "13.R4",
+      "enunciato": "All'interno di una struct, un campo di bit (unsigned int nome : larghezza; oppure bool nome : 1;) riserva il numero specificato di bit all'interno di un'unità di memorizzazione. Non è consentito applicare l'operatore indirizzo &, sizeof o offsetof a un campo di bit, perché un campo di bit non ha un indirizzo di byte autonomo.",
+      "nota_standard": "dipendente dall'implementazione: il divieto di &, sizeof e offsetof sui campi di bit è fissato dallo standard C23; l'ordine di posizionamento dei bit dentro l'unità di memoria, l'eventuale padding tra unità e il segno di un campo di bit dichiarato int semplice sono dipendenti dall'implementazione."
+    },
+    {
+      "id": "13.R5",
+      "enunciato": "L'ordine dei byte (endianness) determina come i byte di un intero multibyte sono disposti a indirizzi crescenti: in little-endian il byte meno significativo (LSB) si trova all'indirizzo più basso, in big-endian il byte più significativo (MSB) si trova all'indirizzo più basso. In C è sempre lecito leggere i byte della rappresentazione di qualunque oggetto tramite un puntatore const unsigned char * (o const uint8_t *). Per serializzare interi in modo portabile si estraggono e ricompongono i singoli byte con spostamenti (>>, <<) e maschere (& 0xFFU).",
+      "nota_standard": "dipendente dall'implementazione: l'ordine dei byte nativo della macchina è dipendente dall'implementazione, mentre l'ispezione dei byte tramite unsigned char * e il valore aritmetico degli spostamenti bit a bit sono definiti dallo standard C23."
+    },
+    {
+      "id": "13.R6",
+      "enunciato": "Ogni tipo completo T ha un requisito di allineamento in byte (sempre una potenza di due) restituito dall'operatore alignof(T) (parola chiave C23, di tipo size_t), e sizeof(T) è sempre un multiplo di alignof(T). In una struct il primo campo si trova sempre a offset 0, ma il compilatore può inserire byte di padding tra i campi e in fondo alla struttura per rispettare l'allineamento di ciascun campo e dell'intera struct. La macro offsetof(tipo_struct, campo) di <stddef.h> restituisce l'offset in byte (di tipo size_t) del campo dall'inizio della struct.",
+      "nota_standard": "dipendente dall'implementazione: alignof, offsetof, offset 0 del primo campo e la divisibilità di sizeof(T) per alignof(T) sono definiti dallo standard C23; i valori numerici di alignof e i byte di padding dipendono dall'ABI della piattaforma, e il contenuto dei byte di padding è non specificato."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout (incluse le macro PRI* di <inttypes.h>) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strncpy",
+      "firma": "char *strncpy(char *restrict s1, const char *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia al più n caratteri da s2 in s1 riempiendo di '\\0' se s2 è più corta di n."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "13.1",
+      "titolo": "Interi in binario, complemento a due e <stdint.h>",
+      "contenuti": [
+        "Rappresentazione posizionale in base 2 e base 16 (corrispondenza esatta tra 1 cifra esadecimale e 4 bit), letterale binario 0b... in C23 (con box C23) e letterale esadecimale 0x... con separatori di cifre",
+        "Codifica in complemento a due obbligatoria in C23 per gli interi con segno: peso negativo -2^(N-1) del bit più significativo, calcolo di -x come ~x + 1 e asimmetria tra minimo (-2^(N-1)) e massimo (2^(N-1) - 1) (schema in blocco text su 8 bit)",
+        "Perché le dimensioni di int e long variano tra architetture e come <stdint.h> garantisce larghezze esatte con int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t e le costanti INT8_MIN..UINT64_MAX e SIZE_MAX",
+        "I tipi intptr_t e uintptr_t in <stdint.h> per memorizzare un indirizzo convertito in intero senza perdita di bit su architetture a 32 o 64 bit",
+        "Stampa portabile dei tipi a larghezza fissa con <inttypes.h>: concatenazione delle macro PRId8, PRIu8, PRIx8, PRId16, PRIu16, PRIx16, PRId32, PRIu32, PRIx32, PRId64, PRIu64, PRIx64 nella stringa di formato di printf"
+      ],
+      "esempio_guidato": "Un programma che dichiara costanti con letterali binari (0b...) ed esadecimali (0x...) usando i tipi di <stdint.h>, mostra la rappresentazione in complemento a due di valori int8_t (inclusi -1, INT8_MIN e INT8_MAX) confrontati con uint8_t, verifica SIZE_MAX e uintptr_t e stampa ogni valore con le macro PRI* di <inttypes.h>.",
+      "approfondimento": "Perché lo standard C23 ha reso il complemento a due l'unica rappresentazione valida per gli interi con segno, ma ha mantenuto l'overflow aritmetico con segno come comportamento indefinito per consentire le ottimizzazioni dei compilatori.",
+      "esercizio_id": "13.1"
+    },
+    {
+      "id": "13.2",
+      "titolo": "Operatori bit a bit, maschere e spostamenti",
+      "contenuti": [
+        "Operatori logici bit a bit & (AND), | (OR), ^ (XOR), ~ (NOT) e assegnamenti composti &=, |=, ^=, distinguendoli dagli operatori logici booleani &&, ||, !",
+        "Operatori di spostamento << e >> (con <<= e >>=): comportamento sui tipi senza segno e condizioni di comportamento indefinito o dipendente dall'implementazione (conteggio negativo o >= larghezza del tipo, spostamento di valori negativi o in overflow con segno)",
+        "Costruzione di una maschera di bit (1U << k) e i quattro idiomi fondamentali: impostare un bit (x |= (1U << k)), azzerare un bit (x &= ~(1U << k)), invertire un bit (x ^= (1U << k)) e controllare un bit ((x & (1U << k)) != 0)",
+        "Impacchettamento ed estrazione di sotto-campi di più bit dentro un uint32_t o uint16_t mediante spostamento e maschera ((val >> pos) & ((1U << len) - 1U))",
+        "Interazione tra promozioni intere e operatori ~ e << su uint8_t e uint16_t (promossi a int con segno) e perché lavorare sempre con costanti senza segno (1U, 1ULL) e cast espliciti"
+      ],
+      "esempio_guidato": "Un programma che impacchetta quattro canali a 8 bit (alfa, rosso, verde, blu) in un colore ARGB a 32 bit (uint32_t), li riestrae con >> e & 0xFFU e manipola i flag di un registro di controllo a 16 bit (uint16_t) con maschere di bit.",
+      "approfondimento": "La trappola di precedenza tra & e == / !=: perché in C l'espressione (stato & MASCHERA) != 0 richiede sempre le parentesi tonde attorno a stato & MASCHERA.",
+      "esercizio_id": "13.2"
+    },
+    {
+      "id": "13.3",
+      "titolo": "Unioni e unioni etichettate",
+      "contenuti": [
+        "Cos'è un'unione (union): tutti i campi iniziano a offset 0 e condividono la stessa area di memoria (schema comparativo struct contro union in blocco text)",
+        "Dimensione di una union con sizeof (pari al campo più ampio arrotondato all'allineamento massimo) e concetto di campo attivo",
+        "Inizializzazione di una union (primo campo oppure campo scelto con inizializzatore designato {.reale = 2.5}) e rischio di leggere un campo diverso da quello attivo",
+        "Progettazione di un'unione etichettata (tagged union): combinare in una struct un campo enum (etichetta) e una union per rappresentare valori di tipo variabile in modo sicuro",
+        "Scrittura di funzioni che ispezionano e trasformano unioni etichettate tramite switch sull'etichetta, accedendo esclusivamente al campo valido"
+      ],
+      "esempio_guidato": "Un programma che definisce un'unione etichettata messaggio_telemetria_t (con etichetta enum per quota intera int32_t, tensione double o sigla char[8]), confronta sizeof della union e della struct equivalente ed elabora un array di messaggi con switch sull'etichetta.",
+      "approfondimento": "Come le unioni etichettate permettono di modellare tipi somma (variant) in C puro senza sprechi di memoria: le ritroveremo nel capitolo 26 per rappresentare i token, i valori e i nodi dell'albero sintattico dell'interprete.",
+      "esercizio_id": "13.3"
+    },
+    {
+      "id": "13.4",
+      "titolo": "Campi di bit",
+      "contenuti": [
+        "Dichiarazione di campi di bit dentro una struct (unsigned int codice : 4;, bool abilitato : 1;) per compattare flag e piccoli intervalli interi",
+        "Tipi consentiti (unsigned int, signed int, bool), perché specificare sempre unsigned int anziché int semplice e aritmetica modulare sui campi di bit senza segno",
+        "Campi di bit anonimi (unsigned int : 3;) e di allineamento (: 0;) e vincoli sintattici dello standard: divieto di applicare &, sizeof o offsetof a un campo di bit",
+        "Limiti di portabilità dei campi di bit: ordine dei bit dentro il byte (da destra a sinistra o viceversa) e allineamento tra unità sono dipendenti dall'implementazione",
+        "Quando usare i campi di bit (strutture dati interne in memoria) e quando preferire tipi uint16_t/uint32_t con maschere e spostamenti espliciti (formati di file, rete e hardware)"
+      ],
+      "esempio_guidato": "Un programma che definisce una struttura con campi di bit per lo stato interno di un dispositivo, ne verifica la compattezza con sizeof e il troncamento modulare su un campo a 3 bit, e mostra come convertirla in un uint16_t portabile tramite maschere e spostamenti.",
+      "approfondimento": "Perché l'operatore indirizzo & è illegale sui campi di bit: in C ogni puntatore indirizza un byte intero in memoria, mentre più campi di bit coabitano all'interno dello stesso byte.",
+      "esercizio_id": "13.4"
+    },
+    {
+      "id": "13.5",
+      "titolo": "Ordine dei byte in memoria",
+      "contenuti": [
+        "Cos'è l'ordine dei byte (endianness) per interi multibyte (uint16_t, uint32_t, uint64_t): differenza tra valore numerico astratto e sequenza dei byte in memoria",
+        "Architetture little-endian (LSB all'indirizzo più basso) contro architetture big-endian (MSB all'indirizzo più basso, ordine standard dei protocolli di rete): schema in blocco text per 0x12345678",
+        "Ispezione sicura dei byte di un oggetto tramite un puntatore const uint8_t * (o const unsigned char *) e riconoscimento a tempo di esecuzione dell'ordine dei byte tramite una variabile uint16_t pari a 0x0001",
+        "Funzioni di inversione dell'ordine dei byte (byte swap) per uint16_t e uint32_t scritte con spostamenti e maschere",
+        "Serializzazione e deserializzazione portabile in un buffer uint8_t[]: perché estrarre i byte con (val >> 24) & 0xFFU produce sempre l'ordine desiderato indipendentemente dall'architettura su cui gira il programma"
+      ],
+      "esempio_guidato": "Un programma che serializza un valore uint32_t (0x12345678) in due buffer uint8_t[4] — uno in formato big-endian e uno in formato little-endian — tramite spostamenti e maschere, stampa i singoli byte in esadecimale e ricostruisce il valore originale da entrambi i buffer in modo indipendente dalla CPU ospite.",
+      "approfondimento": "Perché gli operatori >> e << vedono sempre il numero come valore matematico unico e mai come array di byte: grazie a questo, serializzare con >> e & 0xFFU non richiede di controllare se la macchina attuale sia little-endian o big-endian.",
+      "esercizio_id": "13.5"
+    },
+    {
+      "id": "13.6",
+      "titolo": "Allineamento, padding, alignof e offsetof",
+      "contenuti": [
+        "Vincoli di allineamento dell'hardware e operatore C23 alignof(tipo) (di tipo size_t): perché un oggetto di tipo T viene collocato a indirizzi multipli di alignof(T)",
+        "Inserimento automatico di byte di padding tra i campi di una struct e in coda alla struttura: schema in blocco text della mappa byte per byte di una struct",
+        "La macro offsetof(tipo_struct, campo) di <stddef.h> per ottenere la posizione esatta in byte di ogni campo rispetto all'inizio della struct",
+        "Ottimizzazione dello spazio: come riordinare i campi di una struct per allineamento decrescente (dal più grande al più piccolo) riduce o elimina il padding senza alterare i dati",
+        "Perché sizeof(struct) è sempre un multiplo di alignof(struct) (garantendo l'allineamento negli array di struct) e perché i byte di padding hanno contenuto non specificato (con cenno ad alignas che vedremo nel capitolo 22)"
+      ],
+      "esempio_guidato": "Un programma che confronta due struct con gli stessi campi a larghezza fissa (uint64_t, uint32_t e due uint8_t) ordinati in modo sparso e in modo decrescente di allineamento, stampando alignof, sizeof, l'offsetof di ogni campo e i byte di padding risparmiati.",
+      "approfondimento": "Perché il padding spiega in modo definitivo il divieto di confrontare due struct confrontandone direttamente il blocco grezzo di byte: due strutture con tutti i campi uguali possono contenere byte spuri diversi nelle zone di padding.",
+      "esercizio_id": "13.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "13.1",
+      "tipo": "esercizio",
+      "titolo": "Analizzatore di parole a 16 bit in complemento a due con <stdint.h> e <inttypes.h>",
+      "descrizione": "Scrivi un programma C che includa `<inttypes.h>`, `<stddef.h>`, `<stdint.h>`, `<stdio.h>` e `<stdlib.h>` per analizzare parole binarie a 16 bit. Dichiara prima di `main` tre funzioni: `int16_t interpreta_c2_16(uint16_t u)` (restituisce il valore in complemento a due associato ai 16 bit di `u` senza provocare comportamento indefinito: se `(u & 0x8000U) == 0` restituisce `(int16_t)u`, altrimenti calcola `-(int32_t)((uint16_t)(~u) + 1U)` e lo converte in `int16_t`), `int conta_bit_16(uint16_t u)` (conta i bit a `1` in `u`) e `void formatta_bin16(uint16_t u, char out[20])` (scrive i 16 bit dal più significativo al meno significativo in 4 gruppi di 4 bit separati da `'_'`, es. `1000_0000_0000_0000`). In `main` leggi dalla prima riga `n` (`0 <= n <= 64`) e dalle successive `n` righe un intero esadecimale o decimale non negativo `val <= UINT16_MAX` (`65535`, letto con `\"%u %c\"` == `1`; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Se `n == 0` stampa `Nessuna parola da analizzare.` e restituisci `EXIT_SUCCESS`. Altrimenti per ogni parola `u` (`uint16_t`) stampa con `PRIx16`, `PRIu16`, `PRId16`: `#<i>: hex=0x<4hex> bin=<bin16> u=<u16> c2=<s16> bit1=<k>`, accumulando la somma senza segno in `uint64_t` (`PRIu64`), la somma con segno in `int64_t` (`PRId64`), il minimo e il massimo in complemento a due e il conteggio dei valori negativi e dei valori uguali agli estremi `INT16_MIN` o `INT16_MAX`, stampando il riepilogo esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "rappresentazione in complemento a due su 16 bit e peso negativo -32768 del bit 15",
+        "tipi a larghezza esatta uint16_t, int16_t, uint64_t, int64_t e limiti UINT16_MAX, INT16_MIN, INT16_MAX (<stdint.h>)",
+        "stampa portabile con le macro PRIx16, PRIu16, PRId16, PRIu64 e PRId64 (<inttypes.h>)",
+        "ricostruzione aritmetica di ~u + 1 su uint16_t senza overflow con segno"
+      ],
+      "domande_guida": [
+        "Perché la parola 0xFFFF vale 65535 come uint16_t ma vale -1 quando viene interpretata in complemento a due come int16_t?",
+        "Quale bit di un uint16_t stabilisce se il corrispondente valore in complemento a due è negativo e qual è il suo peso?",
+        "Come funziona la concatenazione della macro PRId16 o PRIu64 dentro la stringa di formato di printf?",
+        "Perché per accumulare la somma di molti valori int16_t o uint16_t è opportuno usare int64_t e uint64_t?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\n32767\n32768\n65535\n42\n",
+          "output": "#0: hex=0x7fff bin=0111_1111_1111_1111 u=32767 c2=32767 bit1=15\n#1: hex=0x8000 bin=1000_0000_0000_0000 u=32768 c2=-32768 bit1=1\n#2: hex=0xffff bin=1111_1111_1111_1111 u=65535 c2=-1 bit1=16\n#3: hex=0x002a bin=0000_0000_0010_1010 u=42 c2=42 bit1=3\nSomma unsigned: 131112, somma c2: 40\nMin c2: -32768, max c2: 32767\nNegativi: 2, estremi (INT16_MIN/MAX): 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0\n",
+          "output": "Nessuna parola da analizzare.\n"
+        },
+        {
+          "input": "1\n0\n",
+          "output": "#0: hex=0x0000 bin=0000_0000_0000_0000 u=0 c2=0 bit1=0\nSomma unsigned: 0, somma c2: 0\nMin c2: 0, max c2: 0\nNegativi: 0, estremi (INT16_MIN/MAX): 0\n"
+        },
+        {
+          "input": "2\n65530\n65535\n",
+          "output": "#0: hex=0xfffa bin=1111_1111_1111_1010 u=65530 c2=-6 bit1=14\n#1: hex=0xffff bin=1111_1111_1111_1111 u=65535 c2=-1 bit1=16\nSomma unsigned: 131065, somma c2: -7\nMin c2: -6, max c2: -1\nNegativi: 2, estremi (INT16_MIN/MAX): 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nint16_t interpreta_c2_16(uint16_t u);\nint conta_bit_16(uint16_t u);\nvoid formatta_bin16(uint16_t u, char out[20]);\n\nint main(void) {\n    char riga[128], bin[20], extra = '\\0';\n    int n = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n, &extra) != 1 || n < 0 || n > 64) {\n        fprintf(stderr, \"Errore: numero campioni non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (n == 0) {\n        printf(\"Nessuna parola da analizzare.\\n\");\n        return EXIT_SUCCESS;\n    }\n    uint64_t somma_u = 0;\n    int64_t somma_s = 0;\n    int16_t min_s = INT16_MAX, max_s = INT16_MIN;\n    int negativi = 0, estremi = 0;\n    for (int i = 0; i < n; ++i) {\n        unsigned int v = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%u %c\", &v, &extra) != 1 || v > UINT16_MAX) {\n            fprintf(stderr, \"Errore: parola a 16 bit non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        uint16_t u = (uint16_t)v;\n        int16_t s = interpreta_c2_16(u);\n        formatta_bin16(u, bin);\n        printf(\"#%d: hex=0x%04\" PRIx16 \" bin=%s u=%\" PRIu16 \" c2=%\" PRId16 \" bit1=%d\\n\",\n               i, u, bin, u, s, conta_bit_16(u));\n        somma_u += u;\n        somma_s += s;\n        if (s < min_s) { min_s = s; }\n        if (s > max_s) { max_s = s; }\n        if (s < 0) { ++negativi; }\n        if (s == INT16_MIN || s == INT16_MAX) { ++estremi; }\n    }\n    printf(\"Somma unsigned: %\" PRIu64 \", somma c2: %\" PRId64 \"\\n\", somma_u, somma_s);\n    printf(\"Min c2: %\" PRId16 \", max c2: %\" PRId16 \"\\n\", min_s, max_s);\n    printf(\"Negativi: %d, estremi (INT16_MIN/MAX): %d\\n\", negativi, estremi);\n    return EXIT_SUCCESS;\n}\n\nint16_t interpreta_c2_16(uint16_t u) {\n    if ((u & 0x8000U) == 0U) { return (int16_t)u; }\n    uint16_t mag = (uint16_t)((uint16_t)(~u) + 1U);\n    return (mag == 0x8000U) ? INT16_MIN : (int16_t)(-(int32_t)mag);\n}\n\nint conta_bit_16(uint16_t u) {\n    int c = 0;\n    for (int b = 0; b < 16; ++b) {\n        if ((u & (uint16_t)(1U << b)) != 0U) { ++c; }\n    }\n    return c;\n}\n\nvoid formatta_bin16(uint16_t u, char out[20]) {\n    size_t pos = 0;\n    for (int b = 15; b >= 0; --b) {\n        out[pos++] = ((u & (uint16_t)(1U << b)) != 0U) ? '1' : '0';\n        if (b > 0 && b % 4 == 0) { out[pos++] = '_'; }\n    }\n    out[pos] = '\\0';\n}\n"
+    },
+    {
+      "id": "13.2",
+      "tipo": "esercizio",
+      "titolo": "Codificatore e decodificatore di istruzioni a 32 bit per una mini-CPU con maschere e spostamenti",
+      "descrizione": "Una mini-CPU codifica ogni istruzione in una parola `uint32_t` con questo layout: bit `31..28` = `opcode` (`0..15`), bit `27..24` = `rd` (`0..15`), bit `23..20` = `rs` (`0..15`), bit `19..16` = `flags` (`0..15`), bit `15..0` = `imm` (`int16_t` in `-32768..32767`, memorizzato nei 16 bit bassi come `(uint16_t)imm`). Definisci `typedef struct istruzione { uint8_t opcode; uint8_t rd; uint8_t rs; uint8_t flags; int16_t imm; } istruzione_t;` e tre funzioni: `uint32_t codifica_istruzione(const istruzione_t *i)`, `istruzione_t decodifica_istruzione(uint32_t w)` (che ricostruisce `imm` con segno dai 16 bit bassi senza comportamento indefinito) e `uint32_t aggiorna_flags(uint32_t w, uint8_t set_m, uint8_t clr_m, uint8_t tog_m)` (che sui 4 bit di `flags` applica nell'ordine `|= (set_m & 0x0FU)`, `&= ~(clr_m & 0x0FU)` e `^= (tog_m & 0x0FU)` lasciando invariati gli altri 28 bit). In `main` leggi comandi fino a fine input: `ENC <op> <rd> <rs> <flags> <imm>` stampa `ENC -> 0x<8hex>`; `DEC <u32>` (letto con `%u`) decodifica e stampa `DEC 0x<8hex> -> op=<op> rd=<rd> rs=<rs> flags=0x<1hex> imm=<imm>`; `FLG <u32> <set> <clr> <tog>` aggiorna i flag e stampa `FLG 0x<8hex> -> 0x<8hex> (flags=0x<1hex>)`. Valida ogni dominio (in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`) e al termine stampa `Operazioni eseguite: <tot>`.",
+      "concetti_da_tenere_a_mente": [
+        "impacchettamento di campi in un uint32_t con spostamenti a sinistra (<<) e OR bit a bit (|)",
+        "estrazione di campi con spostamenti a destra (>>) e maschere di bit (& 0x0FU, & 0xFFFFU)",
+        "aggiornamento selettivo di bit con |= (imposta), &= ~ (azzera) e ^= (inverte)",
+        "uso esclusivo di operandi senza segno (uint32_t) per evitare comportamento indefinito negli spostamenti"
+      ],
+      "domande_guida": [
+        "Perché in codifica_istruzione devi convertire ciascun campo a uint32_t e mascherare imm con 0xFFFFU prima di applicare << e |?",
+        "Come fai in aggiorna_flags a modificare solo i bit 19..16 della parola a 32 bit senza alterare opcode, registri e immediato?",
+        "Perché spostare di 28 posizioni a sinistra un int con segno a 32 bit può provocare comportamento indefinito mentre su uint32_t è sempre definito?",
+        "Quale sequenza di spostamento e maschera estrae esattamente i 4 bit del registro rs (posizioni 23..20)?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ENC 2 1 3 5 -10\nDEC 557187062\nFLG 557187062 8 1 2\n",
+          "output": "ENC -> 0x2135fff6\nDEC 0x2135fff6 -> op=2 rd=1 rs=3 flags=0x5 imm=-10\nFLG 0x2135fff6 -> 0x213efff6 (flags=0xe)\nOperazioni eseguite: 3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "ENC 15 15 15 15 -32768\nDEC 4294934528\nENC 0 0 0 0 32767\n",
+          "output": "ENC -> 0xffff8000\nDEC 0xffff8000 -> op=15 rd=15 rs=15 flags=0xf imm=-32768\nENC -> 0x00007fff\nOperazioni eseguite: 3\n"
+        },
+        {
+          "input": "",
+          "output": "Operazioni eseguite: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct istruzione {\n    uint8_t opcode;\n    uint8_t rd;\n    uint8_t rs;\n    uint8_t flags;\n    int16_t imm;\n} istruzione_t;\n\nuint32_t codifica_istruzione(const istruzione_t *i);\nistruzione_t decodifica_istruzione(uint32_t w);\nuint32_t aggiorna_flags(uint32_t w, uint8_t set_m, uint8_t clr_m, uint8_t tog_m);\n\nint main(void) {\n    char riga[128], cmd[16], extra = '\\0';\n    int tot = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"ENC\") == 0) {\n            int op = 0, rd = 0, rs = 0, fl = 0, im = 0;\n            if (sscanf(riga, \"ENC %d %d %d %d %d %c\", &op, &rd, &rs, &fl, &im, &extra) != 5 ||\n                (op | rd | rs | fl) < 0 || (op | rd | rs | fl) > 15 ||\n                im < INT16_MIN || im > INT16_MAX) {\n                fprintf(stderr, \"Errore: parametri ENC non validi.\\n\");\n                return EXIT_FAILURE;\n            }\n            istruzione_t ist = {(uint8_t)op, (uint8_t)rd, (uint8_t)rs, (uint8_t)fl, (int16_t)im};\n            printf(\"ENC -> 0x%08\" PRIx32 \"\\n\", codifica_istruzione(&ist));\n        } else if (strcmp(cmd, \"DEC\") == 0) {\n            unsigned int w_in = 0;\n            if (sscanf(riga, \"DEC %u %c\", &w_in, &extra) != 1) {\n                fprintf(stderr, \"Errore: parametro DEC non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint32_t w = (uint32_t)w_in;\n            istruzione_t d = decodifica_istruzione(w);\n            printf(\"DEC 0x%08\" PRIx32 \" -> op=%\" PRIu8 \" rd=%\" PRIu8 \" rs=%\" PRIu8 \" flags=0x%\" PRIx8 \" imm=%\" PRId16 \"\\n\",\n                   w, d.opcode, d.rd, d.rs, d.flags, d.imm);\n        } else if (strcmp(cmd, \"FLG\") == 0) {\n            unsigned int w_in = 0;\n            int s = 0, c = 0, t = 0;\n            if (sscanf(riga, \"FLG %u %d %d %d %c\", &w_in, &s, &c, &t, &extra) != 4 ||\n                (s | c | t) < 0 || (s | c | t) > 15) {\n                fprintf(stderr, \"Errore: parametri FLG non validi.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint32_t nw = aggiorna_flags((uint32_t)w_in, (uint8_t)s, (uint8_t)c, (uint8_t)t);\n            printf(\"FLG 0x%08\" PRIx32 \" -> 0x%08\" PRIx32 \" (flags=0x%\" PRIx8 \")\\n\",\n                   (uint32_t)w_in, nw, (uint8_t)((nw >> 16) & 0x0FU));\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n        ++tot;\n    }\n    printf(\"Operazioni eseguite: %d\\n\", tot);\n    return EXIT_SUCCESS;\n}\n\nuint32_t codifica_istruzione(const istruzione_t *i) {\n    uint32_t imm_u = (uint32_t)(uint16_t)i->imm;\n    return ((uint32_t)(i->opcode & 0x0FU) << 28) |\n           ((uint32_t)(i->rd & 0x0FU) << 24) |\n           ((uint32_t)(i->rs & 0x0FU) << 20) |\n           ((uint32_t)(i->flags & 0x0FU) << 16) | imm_u;\n}\n\nistruzione_t decodifica_istruzione(uint32_t w) {\n    uint16_t u = (uint16_t)(w & 0xFFFFU);\n    int16_t imm = ((u & 0x8000U) == 0U) ? (int16_t)u :\n                  ((u == 0x8000U) ? INT16_MIN : (int16_t)(-(int32_t)(uint16_t)((uint16_t)(~u) + 1U)));\n    return (istruzione_t){\n        .opcode = (uint8_t)((w >> 28) & 0x0FU),\n        .rd = (uint8_t)((w >> 24) & 0x0FU),\n        .rs = (uint8_t)((w >> 20) & 0x0FU),\n        .flags = (uint8_t)((w >> 16) & 0x0FU),\n        .imm = imm\n    };\n}\n\nuint32_t aggiorna_flags(uint32_t w, uint8_t set_m, uint8_t clr_m, uint8_t tog_m) {\n    uint8_t f = (uint8_t)((w >> 16) & 0x0FU);\n    f = (uint8_t)(f | (set_m & 0x0FU));\n    f = (uint8_t)(f & (uint8_t)~(clr_m & 0x0FU));\n    f = (uint8_t)(f ^ (tog_m & 0x0FU));\n    return (w & ~(0x0FU << 16)) | ((uint32_t)f << 16);\n}\n"
+    },
+    {
+      "id": "13.3",
+      "tipo": "esercizio",
+      "titolo": "Valutatore di celle di un foglio di calcolo basato su unioni etichettate",
+      "descrizione": "Scrivi un programma C che modelli un vettore di `8` celle (`cella_t foglio[8]`) tramite un'unione etichettata. Definisci `typedef enum tipo_cella : int { CELLA_VUOTA = 0, CELLA_INT = 1, CELLA_REAL = 2, CELLA_TESTO = 3, CELLA_ERR = 4 } tipo_cella_t;`, l'unione `typedef union dato_cella { int64_t intero; double reale; char testo[16]; int cod_err; } dato_cella_t;` e la struttura `typedef struct cella { tipo_cella_t tipo; dato_cella_t dato; } cella_t;`. Implementa `cella_t somma_celle(const cella_t *a, const cella_t *b)`: se una cella è `CELLA_ERR` propaga quel codice d'errore (dando precedenza ad `a`); se una è `CELLA_VUOTA` restituisce `CELLA_ERR` con codice `10` (cella vuota); se una è `CELLA_TESTO` restituisce `CELLA_ERR` con codice `20` (tipo incompatibile); se entrambe sono `CELLA_INT` restituisce `CELLA_INT` con `a->dato.intero + b->dato.intero`; altrimenti converte i due operandi numerici a `double` e restituisce `CELLA_REAL`. In `main` leggi comandi fino a fine input (`idx` in `0..7`): `INT <idx> <val>`, `REAL <idx> <val>`, `TXT <idx> <parola>` (`%15s`), `ADD <dest> <i1> <i2>` (assegna `foglio[dest] = somma_celle(&foglio[i1], &foglio[i2])`) e `CLR <idx>` (imposta `CELLA_VUOTA`). Al termine stampa `sizeof(dato_cella_t) <= sizeof(cella_t)` (`1` o `0`), tutte le celle non vuote nel formato `C<i> [TIPO]: <valore>` e il conteggio di celle numeriche (`INT` + `REAL`), testuali ed errori.",
+      "concetti_da_tenere_a_mente": [
+        "definizione di un'unione (union) con campi sovrapposti in memoria",
+        "costruzione di un'unione etichettata (struct con enum tipo + union dato)",
+        "accesso esclusivo al campo attivo della union guidato da switch sull'etichetta",
+        "promozione controllata tra intero e reale e propagazione degli errori"
+      ],
+      "domande_guida": [
+        "Perché sizeof(dato_cella_t) è determinata dal campo più grande (char testo[16]) anziché dalla somma di int64_t, double, char[16] e int?",
+        "Che cosa accadrebbe se leggessi c->dato.reale quando c->tipo vale invece CELLA_INT o CELLA_TESTO?",
+        "Come fa somma_celle a sommare correttamente una cella CELLA_INT e una cella CELLA_REAL producendo una nuova cella CELLA_REAL?",
+        "Perché se il comando ADD usa lo stesso indice come destinazione e come operando (es. ADD 0 0 1) passare il risultato per valore evita di corrompere gli operandi durante il calcolo?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INT 0 25\nINT 1 17\nADD 2 0 1\nREAL 3 2.50\nADD 4 2 3\nTXT 5 Totale\nADD 6 4 5\nADD 7 0 7\n",
+          "output": "Verifica sizeof(union) <= sizeof(struct): 1\nC0 [INT]: 25\nC1 [INT]: 17\nC2 [INT]: 42\nC3 [REAL]: 2.50\nC4 [REAL]: 44.50\nC5 [TXT]: Totale\nC6 [ERR]: #20\nC7 [ERR]: #10\nRiepilogo -> numeriche: 5, testo: 1, errori: 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INT 0 100\nCLR 0\n",
+          "output": "Verifica sizeof(union) <= sizeof(struct): 1\nRiepilogo -> numeriche: 0, testo: 0, errori: 0\n"
+        },
+        {
+          "input": "TXT 0 Ciao\nADD 1 0 0\nINT 2 5\nADD 3 1 2\n",
+          "output": "Verifica sizeof(union) <= sizeof(struct): 1\nC0 [TXT]: Ciao\nC1 [ERR]: #20\nC2 [INT]: 5\nC3 [ERR]: #20\nRiepilogo -> numeriche: 1, testo: 1, errori: 2\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef enum tipo_cella : int {\n    CELLA_VUOTA = 0, CELLA_INT = 1, CELLA_REAL = 2, CELLA_TESTO = 3, CELLA_ERR = 4\n} tipo_cella_t;\n\ntypedef union dato_cella {\n    int64_t intero;\n    double reale;\n    char testo[16];\n    int cod_err;\n} dato_cella_t;\n\ntypedef struct cella {\n    tipo_cella_t tipo;\n    dato_cella_t dato;\n} cella_t;\n\ncella_t somma_celle(const cella_t *a, const cella_t *b);\nvoid stampa_cella(int idx, const cella_t *c);\n\nint main(void) {\n    cella_t foglio[8] = {};\n    char riga[128], cmd[16], buf[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int idx = 0, i1 = 0, i2 = 0;\n        long long v_int = 0;\n        double v_real = 0.0;\n        if (strcmp(cmd, \"INT\") == 0 && sscanf(riga, \"INT %d %lld %c\", &idx, &v_int, &extra) == 2 && idx >= 0 && idx < 8) {\n            foglio[idx] = (cella_t){.tipo = CELLA_INT, .dato = {.intero = (int64_t)v_int}};\n        } else if (strcmp(cmd, \"REAL\") == 0 && sscanf(riga, \"REAL %d %lf %c\", &idx, &v_real, &extra) == 2 && idx >= 0 && idx < 8) {\n            foglio[idx] = (cella_t){.tipo = CELLA_REAL, .dato = {.reale = v_real}};\n        } else if (strcmp(cmd, \"TXT\") == 0 && sscanf(riga, \"TXT %d %15s %c\", &idx, buf, &extra) == 2 && idx >= 0 && idx < 8) {\n            foglio[idx] = (cella_t){.tipo = CELLA_TESTO};\n            strncpy(foglio[idx].dato.testo, buf, sizeof(foglio[idx].dato.testo) - 1);\n        } else if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %d %d %d %c\", &idx, &i1, &i2, &extra) == 3 &&\n                   (idx | i1 | i2) >= 0 && idx < 8 && i1 < 8 && i2 < 8) {\n            foglio[idx] = somma_celle(&foglio[i1], &foglio[i2]);\n        } else if (strcmp(cmd, \"CLR\") == 0 && sscanf(riga, \"CLR %d %c\", &idx, &extra) == 1 && idx >= 0 && idx < 8) {\n            foglio[idx] = (cella_t){.tipo = CELLA_VUOTA};\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"Verifica sizeof(union) <= sizeof(struct): %d\\n\", sizeof(dato_cella_t) <= sizeof(cella_t));\n    int num = 0, txt = 0, err = 0;\n    for (int i = 0; i < 8; ++i) {\n        stampa_cella(i, &foglio[i]);\n        if (foglio[i].tipo == CELLA_INT || foglio[i].tipo == CELLA_REAL) { ++num; }\n        else if (foglio[i].tipo == CELLA_TESTO) { ++txt; }\n        else if (foglio[i].tipo == CELLA_ERR) { ++err; }\n    }\n    printf(\"Riepilogo -> numeriche: %d, testo: %d, errori: %d\\n\", num, txt, err);\n    return EXIT_SUCCESS;\n}\n\ncella_t somma_celle(const cella_t *a, const cella_t *b) {\n    if (a->tipo == CELLA_ERR) { return *a; }\n    if (b->tipo == CELLA_ERR) { return *b; }\n    if (a->tipo == CELLA_VUOTA || b->tipo == CELLA_VUOTA) {\n        return (cella_t){.tipo = CELLA_ERR, .dato = {.cod_err = 10}};\n    }\n    if (a->tipo == CELLA_TESTO || b->tipo == CELLA_TESTO) {\n        return (cella_t){.tipo = CELLA_ERR, .dato = {.cod_err = 20}};\n    }\n    if (a->tipo == CELLA_INT && b->tipo == CELLA_INT) {\n        return (cella_t){.tipo = CELLA_INT, .dato = {.intero = a->dato.intero + b->dato.intero}};\n    }\n    double va = (a->tipo == CELLA_INT) ? (double)a->dato.intero : a->dato.reale;\n    double vb = (b->tipo == CELLA_INT) ? (double)b->dato.intero : b->dato.reale;\n    return (cella_t){.tipo = CELLA_REAL, .dato = {.reale = va + vb}};\n}\n\nvoid stampa_cella(int idx, const cella_t *c) {\n    switch (c->tipo) {\n        case CELLA_INT: printf(\"C%d [INT]: %\" PRId64 \"\\n\", idx, c->dato.intero); break;\n        case CELLA_REAL: printf(\"C%d [REAL]: %.2f\\n\", idx, c->dato.reale); break;\n        case CELLA_TESTO: printf(\"C%d [TXT]: %s\\n\", idx, c->dato.testo); break;\n        case CELLA_ERR: printf(\"C%d [ERR]: #%d\\n\", idx, c->dato.cod_err); break;\n        default: break;\n    }\n}\n"
+    },
+    {
+      "id": "13.4",
+      "tipo": "esercizio",
+      "titolo": "Configurazione di porte di uno switch di rete con campi di bit ed esportazione portabile",
+      "descrizione": "Scrivi un programma C che gestisca `4` porte di uno switch di rete (`porta_bf_t porte[4]`) usando una struttura con campi di bit `typedef struct porta_bf { unsigned int attiva : 1; unsigned int duplex : 1; unsigned int velocita : 2; unsigned int vlan : 4; unsigned int priorita : 3; unsigned int : 5; } porta_bf_t;`. Per garantire una serializzazione indipendente dall'ordine dei campi di bit del compilatore, implementa due funzioni di conversione verso un registro `uint16_t` con layout fisso (bit `0` = `attiva`, bit `1` = `duplex`, bit `3..2` = `velocita`, bit `7..4` = `vlan`, bit `10..8` = `priorita`): `uint16_t esporta_porta(const porta_bf_t *p)` e `porta_bf_t importa_porta(uint16_t reg)`. In `main` leggi comandi fino a fine input (`id` in `0..3`): `SET <id> <attiva> <duplex> <vel> <vlan> <prio>` (valida ciascun valore rispetto alla larghezza in bit `0..1`, `0..1`, `0..3`, `0..15`, `0..7`), `IMP <id> <reg_u16>` (importa un `uint16_t <= 0x07FFU` con `importa_porta`), `INC_PRIO <id>` (incrementa `porte[id].priorita` di `1`, mostrando il riavvolgimento automatico modulo `8` da `7` a `0` del campo di bit `unsigned int priorita : 3`). Al termine stampa per tutte le `4` porte `P<id>: attiva=<a> duplex=<d> vel=<v> vlan=<vl> prio=<pr> -> reg=0x<04hex>` e il conteggio delle porte attive.",
+      "concetti_da_tenere_a_mente": [
+        "definizione di campi di bit unsigned int nome : larghezza dentro una struct",
+        "aritmetica modulare automatica (modulo 2^k) sui campi di bit unsigned",
+        "campi di bit anonimi di riempimento (unsigned int : 5;)",
+        "conversione esplicita tra struct a campi di bit e uint16_t per garantire portabilità binaria"
+      ],
+      "domande_guida": [
+        "Perché non puoi serializzare direttamente in rete i byte grezzi di porta_bf_t ma devi usare esporta_porta e importa_porta?",
+        "Che valore assume il campo unsigned int priorita : 3 quando vale 7 e gli sommi 1?",
+        "Perché non potresti passare &porte[id].vlan direttamente a sscanf per leggere il valore della VLAN?",
+        "Qual è l'intervallo di valori rappresentabili da un campo di bit unsigned int vlan : 4?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "SET 0 1 1 2 10 6\nINC_PRIO 0\nINC_PRIO 0\nIMP 2 1451\n",
+          "output": "P0: attiva=1 duplex=1 vel=2 vlan=10 prio=0 -> reg=0x00ab\nP1: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP2: attiva=1 duplex=1 vel=2 vlan=10 prio=5 -> reg=0x05ab\nP3: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nPorte attive: 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SET 1 1 0 3 15 7\nSET 3 1 1 1 1 1\n",
+          "output": "P0: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP1: attiva=1 duplex=0 vel=3 vlan=15 prio=7 -> reg=0x07fd\nP2: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP3: attiva=1 duplex=1 vel=1 vlan=1 prio=1 -> reg=0x0117\nPorte attive: 2\n"
+        },
+        {
+          "input": "",
+          "output": "P0: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP1: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP2: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nP3: attiva=0 duplex=0 vel=0 vlan=0 prio=0 -> reg=0x0000\nPorte attive: 0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct porta_bf {\n    unsigned int attiva : 1;\n    unsigned int duplex : 1;\n    unsigned int velocita : 2;\n    unsigned int vlan : 4;\n    unsigned int priorita : 3;\n    unsigned int : 5;\n} porta_bf_t;\n\nuint16_t esporta_porta(const porta_bf_t *p);\nporta_bf_t importa_porta(uint16_t reg);\n\nint main(void) {\n    porta_bf_t porte[4] = {};\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        int id = 0, a = 0, d = 0, v = 0, vl = 0, pr = 0;\n        unsigned int reg_in = 0;\n        if (strcmp(cmd, \"SET\") == 0 &&\n            sscanf(riga, \"SET %d %d %d %d %d %d %c\", &id, &a, &d, &v, &vl, &pr, &extra) == 6 &&\n            id >= 0 && id < 4 && (a | d) >= 0 && (a | d) <= 1 &&\n            v >= 0 && v <= 3 && vl >= 0 && vl <= 15 && pr >= 0 && pr <= 7) {\n            porte[id] = (porta_bf_t){\n                .attiva = (unsigned int)a, .duplex = (unsigned int)d,\n                .velocita = (unsigned int)v, .vlan = (unsigned int)vl, .priorita = (unsigned int)pr\n            };\n        } else if (strcmp(cmd, \"IMP\") == 0 &&\n                   sscanf(riga, \"IMP %d %u %c\", &id, &reg_in, &extra) == 2 &&\n                   id >= 0 && id < 4 && reg_in <= 0x07FFU) {\n            porte[id] = importa_porta((uint16_t)reg_in);\n        } else if (strcmp(cmd, \"INC_PRIO\") == 0 &&\n                   sscanf(riga, \"INC_PRIO %d %c\", &id, &extra) == 1 && id >= 0 && id < 4) {\n            porte[id].priorita = (unsigned int)(porte[id].priorita + 1U);\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    int attive = 0;\n    for (int i = 0; i < 4; ++i) {\n        uint16_t r = esporta_porta(&porte[i]);\n        if (porte[i].attiva != 0U) { ++attive; }\n        printf(\"P%d: attiva=%u duplex=%u vel=%u vlan=%u prio=%u -> reg=0x%04\" PRIx16 \"\\n\",\n               i, porte[i].attiva, porte[i].duplex, porte[i].velocita,\n               porte[i].vlan, porte[i].priorita, r);\n    }\n    printf(\"Porte attive: %d\\n\", attive);\n    return EXIT_SUCCESS;\n}\n\nuint16_t esporta_porta(const porta_bf_t *p) {\n    return (uint16_t)((p->attiva & 1U) |\n                      ((p->duplex & 1U) << 1) |\n                      ((p->velocita & 3U) << 2) |\n                      ((p->vlan & 15U) << 4) |\n                      ((p->priorita & 7U) << 8));\n}\n\nporta_bf_t importa_porta(uint16_t reg) {\n    return (porta_bf_t){\n        .attiva = (unsigned int)(reg & 1U),\n        .duplex = (unsigned int)((reg >> 1) & 1U),\n        .velocita = (unsigned int)((reg >> 2) & 3U),\n        .vlan = (unsigned int)((reg >> 4) & 15U),\n        .priorita = (unsigned int)((reg >> 8) & 7U)\n    };\n}\n"
+    },
+    {
+      "id": "13.5",
+      "tipo": "esercizio",
+      "titolo": "Serializzatore e decodificatore di trame binarie in formato big-endian e little-endian",
+      "descrizione": "Scrivi un programma C che serializzi e decodifichi un'intestazione di pacchetto di `8` byte (`uint8_t buf[8]`) composta da tre campi: `uint16_t id` (byte `0..1`), `uint16_t lunghezza` (byte `2..3`) e `uint32_t chiave` (byte `4..7`). Implementa le funzioni portabili basate su spostamenti e maschere: `void scrivi_u16_be(uint8_t b[2], uint16_t v)`, `void scrivi_u32_be(uint8_t b[4], uint32_t v)`, `uint16_t leggi_u16_be(const uint8_t b[2])`, `uint32_t leggi_u32_be(const uint8_t b[4])`, `uint16_t swap_u16(uint16_t v)` e `uint32_t swap_u32(uint32_t v)` (che invertono l'ordine dei byte di `uint16_t` e `uint32_t`). In `main` leggi comandi fino a fine input: `PACK <id> <len> <chiave>` (`id <= 65535`, `len <= 65535`, `chiave <= 4294967295`) serializza i tre campi in `buf_be[8]` (big-endian) e, applicando `swap_u16` e `swap_u32`, in `buf_le[8]` (little-endian), stampando entrambe le sequenze di `8` byte esadecimali; `UNPACK_BE <b0> ... <b7>` (8 interi `0..255`) decodifica gli 8 byte come big-endian e stampa `UNPACK_BE -> id=<id> len=<len> chiave=0x<08hex>`; `UNPACK_LE <b0> ... <b7>` li decodifica come little-endian combinando `leggi_u*_be` e `swap_u*` e stampa `UNPACK_LE -> id=<id> len=<len> chiave=0x<08hex>`. In caso di input errato scrivi su `stderr` e restituisci `EXIT_FAILURE`.",
+      "concetti_da_tenere_a_mente": [
+        "differenza tra ordine dei byte big-endian (MSB al primo byte) e little-endian (LSB al primo byte)",
+        "inversione dell'ordine dei byte (byte swap) su uint16_t e uint32_t con spostamenti e maschere",
+        "serializzazione e deserializzazione in array uint8_t[] indipendenti dall'architettura ospite",
+        "dualità tra lettura little-endian e lettura big-endian seguita da byte swap"
+      ],
+      "domande_guida": [
+        "Perché scrivi_u32_be(b, v) produce esattamente gli stessi 4 byte in memoria sia quando il programma gira su una CPU little-endian sia su una CPU big-endian?",
+        "Quale espressione con >> e << inverte i 4 byte di un valore uint32_t dentro swap_u32?",
+        "Perché decodificare 4 byte in formato little-endian equivale a leggerli con leggi_u32_be e passare il risultato a swap_u32?",
+        "In quale posizione del buffer buf_be[8] finisce il byte più significativo di chiave e in quale posizione finisce invece in buf_le[8]?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "PACK 258 1024 305419896\nUNPACK_BE 1 2 4 0 18 52 86 120\nUNPACK_LE 2 1 0 4 120 86 52 18\n",
+          "output": "BE: 01 02 04 00 12 34 56 78\nLE: 02 01 00 04 78 56 34 12\nUNPACK_BE -> id=258 len=1024 chiave=0x12345678\nUNPACK_LE -> id=258 len=1024 chiave=0x12345678\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "PACK 0 65535 4294967295\nUNPACK_LE 255 0 0 255 1 0 0 0\n",
+          "output": "BE: 00 00 ff ff ff ff ff ff\nLE: 00 00 ff ff ff ff ff ff\nUNPACK_LE -> id=255 len=65280 chiave=0x00000001\n"
+        },
+        {
+          "input": "UNPACK_BE 0 1 0 2 0 0 0 3\n",
+          "output": "UNPACK_BE -> id=1 len=2 chiave=0x00000003\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nvoid scrivi_u16_be(uint8_t b[2], uint16_t v) {\n    b[0] = (uint8_t)((v >> 8) & 0xFFU);\n    b[1] = (uint8_t)(v & 0xFFU);\n}\n\nvoid scrivi_u32_be(uint8_t b[4], uint32_t v) {\n    b[0] = (uint8_t)((v >> 24) & 0xFFU);\n    b[1] = (uint8_t)((v >> 16) & 0xFFU);\n    b[2] = (uint8_t)((v >> 8) & 0xFFU);\n    b[3] = (uint8_t)(v & 0xFFU);\n}\n\nuint16_t leggi_u16_be(const uint8_t b[2]) {\n    return (uint16_t)(((uint16_t)b[0] << 8) | (uint16_t)b[1]);\n}\n\nuint32_t leggi_u32_be(const uint8_t b[4]) {\n    return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) |\n           ((uint32_t)b[2] << 8) | (uint32_t)b[3];\n}\n\nuint16_t swap_u16(uint16_t v) {\n    return (uint16_t)((v >> 8) | (v << 8));\n}\n\nuint32_t swap_u32(uint32_t v) {\n    return ((v >> 24) & 0x000000FFU) | ((v >> 8) & 0x0000FF00U) |\n           ((v << 8) & 0x00FF0000U) | ((v << 24) & 0xFF000000U);\n}\n\nvoid stampa_8byte(const char *pref, const uint8_t b[8]) {\n    printf(\"%s:\", pref);\n    for (int i = 0; i < 8; ++i) { printf(\" %02\" PRIx8, b[i]); }\n    printf(\"\\n\");\n}\n\nint main(void) {\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"PACK\") == 0) {\n            unsigned int id = 0, len = 0, ch = 0;\n            if (sscanf(riga, \"PACK %u %u %u %c\", &id, &len, &ch, &extra) != 3 ||\n                id > UINT16_MAX || len > UINT16_MAX) {\n                fprintf(stderr, \"Errore: parametri PACK non validi.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint8_t be[8], le[8];\n            scrivi_u16_be(be, (uint16_t)id);\n            scrivi_u16_be(be + 2, (uint16_t)len);\n            scrivi_u32_be(be + 4, (uint32_t)ch);\n            scrivi_u16_be(le, swap_u16((uint16_t)id));\n            scrivi_u16_be(le + 2, swap_u16((uint16_t)len));\n            scrivi_u32_be(le + 4, swap_u32((uint32_t)ch));\n            stampa_8byte(\"BE\", be);\n            stampa_8byte(\"LE\", le);\n        } else if (strcmp(cmd, \"UNPACK_BE\") == 0 || strcmp(cmd, \"UNPACK_LE\") == 0) {\n            unsigned int v[8];\n            if (sscanf(riga, \"%*s %u %u %u %u %u %u %u %u %c\",\n                       &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &extra) != 8) {\n                fprintf(stderr, \"Errore: byte UNPACK non validi.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint8_t b[8];\n            for (int i = 0; i < 8; ++i) {\n                if (v[i] > UINT8_MAX) { return EXIT_FAILURE; }\n                b[i] = (uint8_t)v[i];\n            }\n            uint16_t id = leggi_u16_be(b), len = leggi_u16_be(b + 2);\n            uint32_t ch = leggi_u32_be(b + 4);\n            if (strcmp(cmd, \"UNPACK_LE\") == 0) {\n                id = swap_u16(id); len = swap_u16(len); ch = swap_u32(ch);\n            }\n            printf(\"%s -> id=%\" PRIu16 \" len=%\" PRIu16 \" chiave=0x%08\" PRIx32 \"\\n\", cmd, id, len, ch);\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "13.6",
+      "tipo": "esercizio",
+      "titolo": "Calcolatore e ottimizzatore di layout di struct con alignof, offsetof e riduzione del padding",
+      "descrizione": "Scrivi un programma C che verifichi prima con `alignof` e `offsetof` (`<stddef.h>`) due strutture reali con gli stessi campi a larghezza fissa: `typedef struct rec_sparso { uint8_t t; uint32_t v; uint8_t f; uint16_t c; } rec_sparso_t;` e `typedef struct rec_compatto { uint32_t v; uint16_t c; uint8_t t; uint8_t f; } rec_compatto_t;`, stampando `Verifica struct C -> sparso: size=<S1> align=<A1> off_v=<O1>, compatto: size=<S2> align=<A2> off_c=<O2>`. Poi leggi da `stdin` la specifica di una struttura composta da `n` campi scalari (`1 <= n <= 20`): la prima riga contiene `n`, le successive `n` righe contengono `nome dimensione count` (`nome` fino a `15` caratteri, `dimensione` in `{1, 2, 4, 8}` byte con allineamento pari a `dimensione`, e `count` in `1..16` per un campo singolo o piccolo array `tipo nome[count]` di occupazione `dimensione * count` e allineamento `dimensione`). Implementa una funzione `size_t calcola_layout(campo_spec_t v[], size_t n, size_t *align_out, size_t *pad_tot_out)` che assegna a ogni campo l'`offset` allineato al minimo multiplo del suo allineamento `>= pos_corrente`, somma il padding interno e aggiunge il padding finale per rendere la dimensione totale multipla dell'allineamento massimo. Stampa la mappa originale (`nome: off=<off> dim=<bytes> align=<a>`), poi riordina una copia dei campi per allineamento decrescente (mantenendo l'ordine originale a parità di allineamento), ricalcola il layout ottimizzato e stampa dimensione, allineamento, padding prima e dopo e byte risparmiati.",
+      "concetti_da_tenere_a_mente": [
+        "operatore alignof (C23) e macro offsetof (<stddef.h>)",
+        "regola di allineamento dei campi: offset multiplo dell'allineamento del campo",
+        "padding interno tra i campi e padding di coda per allineare sizeof(struct) ad alignof(struct)",
+        "riordinamento stabile dei campi per allineamento decrescente per minimizzare il padding"
+      ],
+      "domande_guida": [
+        "Perché in rec_sparso_t il compilatore inserisce 3 byte di padding dopo il primo uint8_t prima del campo uint32_t v?",
+        "Quale formula aritmetica calcola il più piccolo multiplo di align maggiore o uguale alla posizione corrente pos?",
+        "Perché anche alla fine dell'ultimo campo possono essere necessari byte di padding di coda?",
+        "Perché ordinare i campi per allineamento decrescente (8, 4, 2, 1) riduce o elimina i buchi di padding interni?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\nflag1 1 1\ntimestamp 8 1\ncodice 2 1\nvalore 4 1\n",
+          "output": "Verifica struct C -> sparso: size=12 align=4 off_v=4, compatto: size=8 align=4 off_c=4\nLayout originale:\n  flag1: off=0 dim=1 align=1\n  timestamp: off=8 dim=8 align=8\n  codice: off=16 dim=2 align=2\n  valore: off=20 dim=4 align=4\nOriginale -> size=24 align=8 padding=9\nOttimizzato -> size=16 align=8 padding=1 (risparmio=8 byte)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "3\na 8 1\nb 4 1\nc 2 2\n",
+          "output": "Verifica struct C -> sparso: size=12 align=4 off_v=4, compatto: size=8 align=4 off_c=4\nLayout originale:\n  a: off=0 dim=8 align=8\n  b: off=8 dim=4 align=4\n  c: off=12 dim=4 align=2\nOriginale -> size=16 align=8 padding=0\nOttimizzato -> size=16 align=8 padding=0 (risparmio=0 byte)\n"
+        },
+        {
+          "input": "3\nb1 1 1\nw1 4 1\nb2 1 1\n",
+          "output": "Verifica struct C -> sparso: size=12 align=4 off_v=4, compatto: size=8 align=4 off_c=4\nLayout originale:\n  b1: off=0 dim=1 align=1\n  w1: off=4 dim=4 align=4\n  b2: off=8 dim=1 align=1\nOriginale -> size=12 align=4 padding=6\nOttimizzato -> size=8 align=4 padding=2 (risparmio=4 byte)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct rec_sparso { uint8_t t; uint32_t v; uint8_t f; uint16_t c; } rec_sparso_t;\ntypedef struct rec_compatto { uint32_t v; uint16_t c; uint8_t t; uint8_t f; } rec_compatto_t;\n\ntypedef struct campo_spec {\n    char nome[16];\n    size_t align;\n    size_t bytes;\n    size_t offset;\n} campo_spec_t;\n\nsize_t allinea_su(size_t pos, size_t a) {\n    size_t r = pos % a;\n    return (r == 0) ? pos : (pos + (a - r));\n}\n\nsize_t calcola_layout(campo_spec_t v[], size_t n, size_t *align_out, size_t *pad_out) {\n    size_t pos = 0, max_a = 1, pad = 0;\n    for (size_t i = 0; i < n; ++i) {\n        if (v[i].align > max_a) { max_a = v[i].align; }\n        size_t allineato = allinea_su(pos, v[i].align);\n        pad += allineato - pos;\n        v[i].offset = allineato;\n        pos = allineato + v[i].bytes;\n    }\n    size_t tot = allinea_su(pos, max_a);\n    pad += tot - pos;\n    *align_out = max_a;\n    *pad_out = pad;\n    return tot;\n}\n\nint main(void) {\n    char riga[128], extra = '\\0';\n    int n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 1 || n_in > 20) {\n        fprintf(stderr, \"Errore: numero campi non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    campo_spec_t orig[20] = {}, ord[20] = {};\n    for (size_t i = 0; i < n; ++i) {\n        int d = 0, cnt = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%15s %d %d %c\", orig[i].nome, &d, &cnt, &extra) != 3 ||\n            (d != 1 && d != 2 && d != 4 && d != 8) || cnt < 1 || cnt > 16) {\n            fprintf(stderr, \"Errore: specifica campo non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        orig[i].align = (size_t)d;\n        orig[i].bytes = (size_t)d * (size_t)cnt;\n        ord[i] = orig[i];\n    }\n    for (size_t i = 1; i < n; ++i) {\n        campo_spec_t chiave = ord[i];\n        size_t j = i;\n        while (j > 0 && ord[j - 1].align < chiave.align) {\n            ord[j] = ord[j - 1];\n            --j;\n        }\n        ord[j] = chiave;\n    }\n    size_t a_orig = 0, p_orig = 0, a_ott = 0, p_ott = 0;\n    size_t s_orig = calcola_layout(orig, n, &a_orig, &p_orig);\n    size_t s_ott = calcola_layout(ord, n, &a_ott, &p_ott);\n    printf(\"Verifica struct C -> sparso: size=%zu align=%zu off_v=%zu, compatto: size=%zu align=%zu off_c=%zu\\n\",\n           sizeof(rec_sparso_t), alignof(rec_sparso_t), offsetof(rec_sparso_t, v),\n           sizeof(rec_compatto_t), alignof(rec_compatto_t), offsetof(rec_compatto_t, c));\n    printf(\"Layout originale:\\n\");\n    for (size_t i = 0; i < n; ++i) {\n        printf(\"  %s: off=%zu dim=%zu align=%zu\\n\", orig[i].nome, orig[i].offset, orig[i].bytes, orig[i].align);\n    }\n    printf(\"Originale -> size=%zu align=%zu padding=%zu\\n\", s_orig, a_orig, p_orig);\n    printf(\"Ottimizzato -> size=%zu align=%zu padding=%zu (risparmio=%zu byte)\\n\",\n           s_ott, a_ott, p_ott, s_orig - s_ott);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Confondere gli operatori bit a bit (&, |, ~) con gli operatori logici booleani (&&, ||, !) oppure omettere le parentesi in (valore & MASCHERA) != 0 (poiché != ha precedenza più alta di &).",
+    "Eseguire spostamenti << o >> di un numero di bit negativo o maggiore o uguale alla larghezza del tipo promosso, oppure spostare a sinistra un intero con segno negativo o in overflow, provocando comportamento indefinito.",
+    "Leggere da una union un campo diverso dall'ultimo campo in cui si è scritto, oppure accedere a un'unione etichettata senza prima controllare il campo enum dell'etichetta.",
+    "Tentare di applicare l'operatore indirizzo &, sizeof o offsetof a un campo di bit, oppure affidarsi all'ordine fisico dei campi di bit per scambiare dati binari tra piattaforme o compilatori diversi.",
+    "Assumere che tutte le architetture usino lo stesso ordine dei byte (per esempio little-endian) invece di serializzare esplicitamente i byte con spostamenti e maschere.",
+    "Supporre che sizeof(struct) sia uguale alla somma delle dimensioni dei suoi campi ignorando i byte di padding inseriti dal compilatore per soddisfare i vincoli di alignof."
+  ],
+  "differenze_python": [
+    "In Python gli interi hanno precisione arbitraria e non hanno una larghezza fissa in bit (quindi ~x non inverte un numero fisso di 8, 16 o 32 bit); in C ogni tipo di <stdint.h> ha una larghezza fissa esatta in complemento a due.",
+    "In Python una variabile può cambiare liberamente tipo a tempo di esecuzione con un costo gestito dall'interprete; in C per rappresentare un valore che può assumere uno tra più tipi fissi si costruisce esplicitamente un'unione etichettata (struct con enum e union).",
+    "In Python la disposizione interna degli oggetti in memoria è nascosta dall'interprete; in C il programmatore può ispezionare ordine dei byte, allineamento (alignof) e posizione esatta dei campi (offsetof) e ridurre il padding riordinando i campi di una struct."
+  ]
+}
