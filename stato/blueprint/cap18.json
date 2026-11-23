@@ -1,0 +1,426 @@
+{
+  "capitolo": 18,
+  "titolo": "Tabelle hash",
+  "obiettivi": [
+    "Spiegare il funzionamento di una funzione di hash e il problema delle collisioni",
+    "Implementare una tabella hash con risoluzione delle collisioni per concatenamento",
+    "Monitorare il fattore di carico ed eseguire il ridimensionamento (rehashing) senza perdite di memoria",
+    "Progettare una tabella hash generica con void * e puntatori a funzione per hash, confronto e rilascio"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "tabella hash",
+      "definizione": "Struttura dati associativa che mappa chiavi a valori usando una funzione di hash per accedere in tempo medio costante."
+    },
+    {
+      "termine": "funzione di hash",
+      "definizione": "Funzione deterministica che trasforma una chiave di dimensione arbitraria in un intero usato per scegliere il secchio della tabella."
+    },
+    {
+      "termine": "collisione",
+      "definizione": "Caso in cui due chiavi distinte producono lo stesso indice di secchio in una tabella hash."
+    },
+    {
+      "termine": "fattore di carico",
+      "definizione": "Rapporto tra il numero di elementi memorizzati in una tabella hash e il numero totale dei suoi secchi."
+    },
+    {
+      "termine": "ridimensionamento",
+      "definizione": "Operazione di riallocazione di una tabella hash con più secchi e ricalcolo delle posizioni di tutte le chiavi."
+    }
+  ],
+  "concetti_richiesti": [
+    "funzione",
+    "overflow",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "array",
+    "stringa",
+    "puntatore",
+    "dereferenziazione",
+    "puntatore nullo",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "uso dopo la liberazione",
+    "doppia liberazione",
+    "sanitizer",
+    "struttura",
+    "campo",
+    "allineamento",
+    "padding",
+    "puntatore a puntatore",
+    "puntatore pendente",
+    "puntatore generico",
+    "contenitore generico",
+    "puntatore a funzione",
+    "callback",
+    "lista concatenata",
+    "possesso della memoria"
+  ],
+  "regole": [
+    {
+      "id": "18.R1",
+      "enunciato": "Una funzione di hash per tabelle hash è deterministica: a chiavi uguali deve produrre sempre lo stesso intero senza segno (uint64_t o size_t), poi ridotto all'indice del secchio mediante h % num_secchi (con num_secchi > 0). Nel calcolo dell'hash sui byte di una stringa o di un buffer occorre convertire i caratteri a unsigned char e usare aritmetica intera senza segno (il cui wraparound modulo 2^N è definito), evitando sia il segno dipendente dall'implementazione di char sia l'overflow con segno. Per il principio dei cassetti le collisioni sono inevitabili, quindi la tabella deve memorizzare la chiave e verificarne l'uguaglianza.",
+      "nota_standard": "indefinito: l'aritmetica modulare su uint64_t e size_t e la lettura dei byte come unsigned char sono definite dallo standard C23; il segno di char è dipendente dall'implementazione, mentre l'overflow su interi con segno o la divisione modulo num_secchi == 0 provocano comportamento indefinito."
+    },
+    {
+      "id": "18.R2",
+      "enunciato": "In una tabella hash con concatenamento l'array dei secchi ha tipo nodo_t **secchi (allocato sullo heap con tutti gli elementi inizializzati a nullptr), e ciascun secchio è la testa di una lista semplicemente concatenata. Inserimento, ricerca e rimozione operano sulla sola catena secchi[idx]: l'inserimento di una chiave già presente aggiorna il valore senza creare duplicati; la rimozione tramite puntatore a puntatore nodo_t **cur = &t->secchi[idx] unifica il caso del primo nodo e dei nodi interni; la distruzione libera ogni catena salvando curr->prox prima di liberare chiave e nodo, poi libera l'array secchi.",
+      "nota_standard": "indefinito: l'inizializzazione esplicita di ogni puntatore secchi[i] = nullptr e la gestione delle catene sono definite dallo standard C23; accedere a secchi con indice fuori limiti o leggere curr->prox dopo free(curr) provoca comportamento indefinito."
+    },
+    {
+      "id": "18.R3",
+      "enunciato": "Il fattore di carico alpha = (double)len / (double)cap misura il riempimento medio dei secchi. Quando l'inserimento di una nuova chiave farebbe superare la soglia scelta (tipicamente 0.75, verificabile in aritmetica intera come (len + 1) * 4 > cap * 3 previa verifica di overflow), occorre eseguire il ridimensionamento (rehashing) allocando un nuovo array di secchi di capacità maggiore (controllando nuova_cap <= SIZE_MAX / sizeof(nodo_t *)), ricalcolando l'indice di secchio di ogni nodo esistente (preferibilmente riusando l'hash memorizzato nel nodo) e ricollegando i nodi esistenti senza riallocarli. Se malloc fallisce durante il ridimensionamento, la tabella originale deve restare integra senza perdite di memoria.",
+      "nota_standard": "indefinito: il controllo di overflow su nuova_cap * sizeof(nodo_t *) e lo spostamento dei puntatori ai nodi sono definiti dallo standard C23; liberare o sovrascrivere t->secchi prima di verificare che il nuovo array sia diverso da nullptr provoca perdita di memoria o dereferenziazione nulla (comportamento indefinito)."
+    },
+    {
+      "id": "18.R4",
+      "enunciato": "Una tabella hash generica memorizza coppie (void *chiave, void *valore) e riceve le callback hash_fn e uguali_fn. Le due callback devono rispettare l'invariante fondamentale: se uguali(a, b) è true, allora deve valere hash(a) == hash(b). Per chiavi di tipo struct non si deve mai calcolare l'hash sui byte grezzi della struct (sizeof(*s)), perché i byte di padding possono contenere valori indeterminati e far divergere l'hash di due chiavi logicamente uguali: occorre invece combinare esplicitamente i singoli campi.",
+      "nota_standard": "indefinito: l'invocazione di callback su const void * e il calcolo dell'hash campo per campo sono definiti dallo standard C23; leggere byte di padding non inizializzati produce valori non specificati violando il contratto dell'hash, e riconvertire void * a un tipo incompatibile provoca comportamento indefinito."
+    },
+    {
+      "id": "18.R5",
+      "enunciato": "Il possesso di chiavi e valori in una tabella hash generica si esprime con due callback distruttore indipendenti distruggi_chiave e distruggi_valore (ciascuna nullptr per la modalità prestito). Se un inserimento fallisce per memoria esaurita, la tabella non acquisisce il possesso e lascia al chiamante la responsabilità di liberare chiave e valore. Su aggiornamento di una chiave esistente occorre liberare il vecchio valore (solo se distruggi_valore != nullptr e vecchio != nuovo) e la chiave ridondante (solo se distruggi_chiave != nullptr e nuova_chiave != nodo->chiave). Non si deve mai modificare una chiave mentre è inserita nella tabella, perché cambiarne l'hash la rende irraggiungibile.",
+      "nota_standard": "indefinito: il rilascio controllato tramite distruggi_chiave e distruggi_valore è definito dallo standard C23; liberare lo stesso oggetto sia nel chiamante sia nella tabella o su auto-aggiornamento provoca doppia liberazione (comportamento indefinito), mentre distruggere una tabella proprietaria prima di una tabella in prestito lascia puntatori pendenti."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    },
+    {
+      "nome": "tolower",
+      "firma": "int tolower(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce la lettera minuscola corrispondente a c (passato come unsigned char o EOF) se è maiuscola, altrimenti c."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "18.1",
+      "titolo": "Come funziona una tabella hash e cosa fa una funzione di hash",
+      "contenuti": [
+        "Motivazione della tabella hash: passare dalla ricerca lineare e dall'albero binario di ricerca all'accesso diretto per chiave in tempo medio costante mappando una chiave in un indice di secchio",
+        "Definizione e proprietà di una funzione di hash per tabelle: determinismo, distribuzione uniforme (sensibilità all'ordine dei byte), efficienza e differenza rispetto agli hash crittografici",
+        "Implementazioni concrete in C23 con aritmetica intera senza segno (uint64_t) e cast a unsigned char: FNV-1a a 64 bit e djb2 per stringhe, funzioni di mescolamento di bit per interi, e riduzione all'indice tramite h % num_secchi",
+        "Inevitabilità delle collisioni (principio dei cassetti) e motivo per cui la tabella deve conservare la chiave originale e verificarne l'uguaglianza"
+      ],
+      "esempio_guidato": "Un programma che confronta una somma ingenua dei byte con FNV-1a a 64 bit su un piccolo insieme di parole contenente anagrammi (come \"roma\" e \"amor\"), stampando gli hash in esadecimale e gli indici di secchio modulo 8 per mostrare come la somma collida sistematicamente mentre FNV-1a distribuisca le chiavi.",
+      "approfondimento": "Perché in C una funzione di hash su stringhe converte sempre i caratteri a unsigned char e calcola su uint64_t: il segno di char dipende dall'implementazione (un byte con bit alto a 1 diventerebbe negativo) e l'overflow su interi con segno è comportamento indefinito, mentre il wraparound modulo 2^64 di uint64_t è completamente definito e portabile.",
+      "esercizio_id": "18.1"
+    },
+    {
+      "id": "18.2",
+      "titolo": "Gestire le collisioni con il concatenamento",
+      "contenuti": [
+        "Risoluzione delle collisioni per concatenamento (separate chaining): array dinamico di puntatori nodo_t **secchi in cui ciascun secchio è la testa di una lista semplicemente concatenata, illustrato con schema di memoria in blocco text",
+        "Inserimento con semantica dizionario: ricerca nella catena secchi[idx], aggiornamento del valore su chiave duplicata oppure allocazione di nodo e copia della chiave (strdup) con inserimento in testa alla catena",
+        "Ricerca e rimozione su una singola catena usando il puntatore a puntatore nodo_t **cur = &t->secchi[idx] (dal capitolo 17) per trattare in modo uniforme il primo nodo e i nodi successivi",
+        "Distruzione completa della tabella senza perdite di memoria (salvare prox prima di liberare chiave e nodo, poi free(t->secchi)) e cenno comparativo all'indirizzamento aperto"
+      ],
+      "esempio_guidato": "Una piccola rubrica telefonica (nome -> numero interno) su tabella hash a 8 secchi fissi con concatenamento: inserisce contatti che producono una collisione sullo stesso secchio, aggiorna un contatto esistente, esegue ricerche presenti e assenti, rimuove nodi in testa e in coda a una catena e distrugge la tabella.",
+      "approfondimento": "Inizializzazione portabile dell'array di secchi: anziché fare affidamento sul fatto che calloc riempia la memoria di bit zero (su architetture storiche il puntatore nullo non era obbligato a essere tutti bit a zero), allocare con malloc e inizializzare esplicitamente ogni elemento a nullptr con un ciclo for è conforme allo standard C23 su qualunque architettura.",
+      "esercizio_id": "18.2"
+    },
+    {
+      "id": "18.3",
+      "titolo": "Fattore di carico e ridimensionamento",
+      "contenuti": [
+        "Cos'è il fattore di carico (len / cap) e perché mantenere una capacità fissa fa crescere la lunghezza media delle catene degradando le prestazioni della tabella hash",
+        "Soglia di ridimensionamento (es. 0.75) verificata in aritmetica intera senza errori di virgola mobile ((len + 1) * 4 > cap * 3) e controllo preventivo di overflow su nuova_cap <= SIZE_MAX / sizeof(nodo_t *)",
+        "Algoritmo di ridimensionamento (rehashing) per spostamento dei nodi esistenti: allocare il nuovo array di secchi, salvare l'hash nel nodo per evitare ricalcoli, ricollegare i puntatori dei nodi nei nuovi secchi senza chiamare malloc per i nodi e liberare il vecchio array",
+        "Integrità della tabella in caso di fallimento di malloc durante il ridimensionamento e idea del costo ammortizzato del raddoppio della capacità"
+      ],
+      "esempio_guidato": "Un listino prezzi (codice prodotto -> prezzo) su tabella hash con capacità iniziale 4 che raddoppia automaticamente al superamento del fattore di carico 0.75, stampando prima e dopo ogni ridimensionamento lunghezza, capacità, fattore di carico e catena più lunga.",
+      "approfondimento": "Perché spostare i nodi esistenti durante il ridimensionamento è superiore al reinserimento tramite nuove allocazioni: richiede una sola allocazione (il nuovo array di secchi), non duplica le chiavi e garantisce che un eventuale fallimento di memoria lasci la tabella precedente intatta senza alcuna pulizia parziale.",
+      "esercizio_id": "18.3"
+    },
+    {
+      "id": "18.4",
+      "titolo": "La tabella hash generica con void * e puntatori a funzione",
+      "contenuti": [
+        "Generalizzazione dei nodi della tabella hash con void *chiave, void *valore e uint64_t hash, combinando il puntatore generico (capitolo 15) con i puntatori a funzione (capitolo 16)",
+        "Definizione dei tipi callback hash_fn, uguali_fn e visita_fn (con parametro di contesto void *ctx per iterare sulla tabella senza esporne i nodi interni)",
+        "Invariante fondamentale tra hash e uguaglianza (uguali(a, b) => hash(a) == hash(b)) e filtro rapido curr->hash == h && t->uguali(curr->chiave, chiave) durante la scansione delle catene",
+        "Scrivere callback corrette per chiavi stringa (anche insensibili alle maiuscole) e per chiavi struct: perché è vietato fare hash sui byte grezzi della struct a causa del padding e come combinare i campi in modo portabile"
+      ],
+      "esempio_guidato": "Un programma che istanzia la stessa tabella hash generica per due domini diversi: una mappa da stringa (sigla città) a int (popolazione) e una mappa da struct coord_t { int x; int y; } (con hash campo per campo) a stringa (nome zona), usando una callback di visita con ctx per filtrare i dati.",
+      "approfondimento": "La trappola del padding nelle chiavi struct: due variabili struct con gli stessi valori nei campi possono contenere byte di padding diversi in memoria; calcolare l'hash su sizeof(*s) byte viola l'invariante uguali(a, b) => hash(a) == hash(b) e rende casualmente irreperibili chiavi già presenti.",
+      "esercizio_id": "18.4"
+    },
+    {
+      "id": "18.5",
+      "titolo": "Regole di possesso della memoria nella tabella hash",
+      "contenuti": [
+        "Separare il possesso delle chiavi dal possesso dei valori tramite due callback distruttore indipendenti (distruggi_chiave e distruggi_valore, ciascuna nullptr per la modalità prestito)",
+        "Contratti di ciclo di vita per ogni operazione: fallimento di inserimento (il chiamante conserva il possesso), aggiornamento di chiave esistente (liberare vecchio valore e chiave ridondante proteggendo l'auto-assegnamento), rimozione distruttiva ed estrazione del valore (ht_estrai) che restituisce il possesso al chiamante",
+        "Tabelle con possesso misto (es. indice di alias che possiede le chiavi stringa ma prende in prestito i valori da una tabella proprietaria) e mantenimento della coerenza per evitare puntatori pendenti",
+        "Divieto di mutare una chiave già inserita nella tabella (pena la perdita di raggiungibilità) e preparazione all'incapsulamento della tabella hash come tipo opaco su più file nel capitolo 19"
+      ],
+      "esempio_guidato": "Una tabella hash generica con distruggi_chiave e distruggi_valore configurabili usata prima come archivio proprietario di record dinamici (con aggiornamento, estrazione e rimozione) e poi affiancata da una tabella secondaria in prestito distrutta per prima, verificando che ogni oggetto creato venga distrutto esattamente una volta.",
+      "approfondimento": "Perché una chiave inserita in una tabella hash deve essere trattata come immutabile finché resta nella tabella: alterare un campo della chiave cambia il valore di hash_fn senza spostare il nodo nel nuovo secchio, rendendo la chiave invisibile a ricerca e rimozione e causando errori difficili da diagnosticare.",
+      "esercizio_id": "18.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "18.1",
+      "tipo": "esercizio",
+      "titolo": "Analizzatore di funzioni di hash e distribuzione sui secchi per stringhe e interi",
+      "descrizione": "Scrivi un programma C che implementi tre funzioni di hash deterministiche basate su aritmetica senza segno a `64` bit (`uint64_t`): (1) `uint64_t hash_fnv1a(const char *s)` (FNV-1a a 64 bit: valore iniziale `14695981039346656037ULL`, per ogni byte convertito a `unsigned char` esegue `h ^= byte; h *= 1099511628211ULL;`); (2) `uint64_t hash_djb2(const char *s)` (valore iniziale `5381ULL`, per ogni byte `unsigned char` esegue `h = h * 33ULL + byte;`); (3) `uint64_t hash_mix64(uint64_t x)` (mescolamento a 64 bit: `x ^= x >> 30; x *= 0xbf58476d1ce4e5b9ULL; x ^= x >> 27; x *= 0x94d049bb133111ebULL; x ^= x >> 31; return x;`). Implementa inoltre `void stampa_stat(const char *nome, const size_t *cont, size_t m, size_t n)` che, dato l'array `cont` di lunghezza `m` contenente il numero di chiavi mappate in ciascun secchio, calcola `occupati` (secchi con `cont[i] > 0`), `vuoti` (`m - occupati`), `collisioni` (`n - occupati`) e `max_carico` (massimo di `cont[i]`), stampando `STAT <nome>: occupati=<occ> vuoti=<vuoti> collisioni=<coll> max_carico=<max>`. In `main` leggi dalla prima riga `<modo> <m> <n>` dove `<modo>` è `STR` oppure `INT`, `1 <= m <= 64` e `0 <= n <= 64`. Alloca dinamicamente due array di contatori `size_t` di lunghezza `m` con `calloc`. Se `<modo>` è `STR`, leggi `n` righe contenenti ciascuna una parola (senza spazi, max `63` caratteri), calcola `i1 = (size_t)(hash_fnv1a(k) % m)` e `i2 = (size_t)(hash_djb2(k) % m)`, incrementa i rispettivi contatori, stampa `<parola>: fnv1a=<i1> djb2=<i2>` e al termine chiama `stampa_stat` per `fnv1a` e `djb2`. Se `<modo>` è `INT`, leggi `n` righe contenenti ciascuna un intero senza segno `uint64_t`, confronta `i1 = (size_t)(x % m)` (`identita`) con `i2 = (size_t)(hash_mix64(x) % m)` (`mix64`), stampa `<x>: identita=<i1> mix64=<i2>` e al termine stampa le statistiche per `identita` e `mix64`. Libera tutta la memoria allocata prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "determinismo della funzione di hash e riduzione all'indice di secchio con h % m",
+        "uso obbligatorio di uint64_t e cast a unsigned char per evitare overflow con segno e char negativi",
+        "confronto tra modulo diretto x % m e mescolamento di bit su chiavi intere strutturate (multipli di m)",
+        "calcolo delle metriche di distribuzione: secchi occupati, secchi vuoti, collisioni e carico massimo"
+      ],
+      "domande_guida": [
+        "Perché nelle funzioni hash_fnv1a e hash_djb2 devi convertire ogni carattere della stringa a unsigned char prima di combinarlo con uint64_t?",
+        "Che cosa succede alle collisioni con la funzione identita (x % m) se inserisci 8 chiavi intere tutte multiple di m?",
+        "Perché il numero totale di collisioni su n chiavi distribuite in m secchi equivale esattamente a n - occupati?",
+        "Quale vantaggio offre l'aritmetica su uint64_t rispetto a int64_t quando moltiplichi ripetutamente per una grande costante prima?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "STR 8 5\nroma\namor\nmora\ncane\ngatto\n",
+          "output": "roma: fnv1a=0 djb2=4\namor: fnv1a=2 djb2=4\nmora: fnv1a=4 djb2=4\ncane: fnv1a=0 djb2=4\ngatto: fnv1a=6 djb2=4\nSTAT fnv1a: occupati=4 vuoti=4 collisioni=1 max_carico=2\nSTAT djb2: occupati=1 vuoti=7 collisioni=4 max_carico=5\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "INT 8 5\n0\n8\n16\n24\n32\n",
+          "output": "0: identita=0 mix64=0\n8: identita=0 mix64=0\n16: identita=0 mix64=5\n24: identita=0 mix64=0\n32: identita=0 mix64=5\nSTAT identita: occupati=1 vuoti=7 collisioni=4 max_carico=5\nSTAT mix64: occupati=2 vuoti=6 collisioni=3 max_carico=3\n"
+        },
+        {
+          "input": "STR 4 0\n",
+          "output": "STAT fnv1a: occupati=0 vuoti=4 collisioni=0 max_carico=0\nSTAT djb2: occupati=0 vuoti=4 collisioni=0 max_carico=0\n"
+        },
+        {
+          "input": "STR 1 2\nalfa\nbeta\n",
+          "output": "alfa: fnv1a=0 djb2=0\nbeta: fnv1a=0 djb2=0\nSTAT fnv1a: occupati=1 vuoti=0 collisioni=1 max_carico=2\nSTAT djb2: occupati=1 vuoti=0 collisioni=1 max_carico=2\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_SECCHI = 64;\nconstexpr size_t MAX_CHIAVI = 64;\n\nuint64_t hash_fnv1a(const char *s) {\n    uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *p = (const unsigned char *)s; *p != '\\0'; ++p) {\n        h ^= (uint64_t)(*p);\n        h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nuint64_t hash_djb2(const char *s) {\n    uint64_t h = 5381ULL;\n    for (const unsigned char *p = (const unsigned char *)s; *p != '\\0'; ++p) {\n        h = h * 33ULL + (uint64_t)(*p);\n    }\n    return h;\n}\n\nuint64_t hash_mix64(uint64_t x) {\n    x ^= x >> 30;\n    x *= 0xbf58476d1ce4e5b9ULL;\n    x ^= x >> 27;\n    x *= 0x94d049bb133111ebULL;\n    x ^= x >> 31;\n    return x;\n}\n\nvoid stampa_stat(const char *nome, const size_t *cont, size_t m, size_t n) {\n    size_t occupati = 0;\n    size_t max_carico = 0;\n    for (size_t i = 0; i < m; ++i) {\n        if (cont[i] > 0) {\n            ++occupati;\n            if (cont[i] > max_carico) {\n                max_carico = cont[i];\n            }\n        }\n    }\n    size_t vuoti = m - occupati;\n    size_t collisioni = n - occupati;\n    printf(\"STAT %s: occupati=%zu vuoti=%zu collisioni=%zu max_carico=%zu\\n\",\n           nome, occupati, vuoti, collisioni, max_carico);\n}\n\nint main(void) {\n    char riga[256], modo[8], extra = '\\0';\n    int m_in = 0, n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%7s %d %d %c\", modo, &m_in, &n_in, &extra) != 3 ||\n        m_in < 1 || (size_t)m_in > MAX_SECCHI || n_in < 0 || (size_t)n_in > MAX_CHIAVI ||\n        (strcmp(modo, \"STR\") != 0 && strcmp(modo, \"INT\") != 0)) {\n        fprintf(stderr, \"Errore: intestazione non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t m = (size_t)m_in;\n    size_t n = (size_t)n_in;\n    size_t *c1 = calloc(m, sizeof(*c1));\n    size_t *c2 = calloc(m, sizeof(*c2));\n    if (c1 == nullptr || c2 == nullptr) {\n        free(c1);\n        free(c2);\n        fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n        return EXIT_FAILURE;\n    }\n    if (strcmp(modo, \"STR\") == 0) {\n        for (size_t i = 0; i < n; ++i) {\n            char chiave[64];\n            if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n                sscanf(riga, \"%63s %c\", chiave, &extra) != 1) {\n                free(c1);\n                free(c2);\n                fprintf(stderr, \"Errore: chiave stringa non valida.\\n\");\n                return EXIT_FAILURE;\n            }\n            size_t i1 = (size_t)(hash_fnv1a(chiave) % m);\n            size_t i2 = (size_t)(hash_djb2(chiave) % m);\n            ++c1[i1];\n            ++c2[i2];\n            printf(\"%s: fnv1a=%zu djb2=%zu\\n\", chiave, i1, i2);\n        }\n        stampa_stat(\"fnv1a\", c1, m, n);\n        stampa_stat(\"djb2\", c2, m, n);\n    } else {\n        for (size_t i = 0; i < n; ++i) {\n            unsigned long long val = 0;\n            if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n                sscanf(riga, \"%llu %c\", &val, &extra) != 1) {\n                free(c1);\n                free(c2);\n                fprintf(stderr, \"Errore: chiave intera non valida.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint64_t x = (uint64_t)val;\n            size_t i1 = (size_t)(x % m);\n            size_t i2 = (size_t)(hash_mix64(x) % m);\n            ++c1[i1];\n            ++c2[i2];\n            printf(\"%\" PRIu64 \": identita=%zu mix64=%zu\\n\", x, i1, i2);\n        }\n        stampa_stat(\"identita\", c1, m, n);\n        stampa_stat(\"mix64\", c2, m, n);\n    }\n    free(c1);\n    free(c2);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "18.2",
+      "tipo": "esercizio",
+      "titolo": "Contatore di frequenze su tabella hash con concatenamento e ispezione dei secchi",
+      "descrizione": "Scrivi un programma C che implementi una tabella hash a capacità fissa con risoluzione delle collisioni per concatenamento per contare le frequenze di parole chiave. Definisci `typedef struct nodo_freq { char *chiave; int64_t conteggio; struct nodo_freq *prox; } nodo_freq_t;` e `typedef struct tab_freq { nodo_freq_t **secchi; size_t cap; size_t len; } tab_freq_t;`. Usa la funzione di hash FNV-1a a `64` bit su `unsigned char` (`offset = 14695981039346656037ULL`, `primo = 1099511628211ULL`) e implementa cinque funzioni: (1) `bool tab_init(tab_freq_t *t, size_t cap)` che alloca `t->secchi` con `malloc` (controllando `cap >= 1 && cap <= 64`) e inizializza esplicitamente ogni `t->secchi[i] = nullptr`; (2) `int tab_aggiungi(tab_freq_t *t, const char *chiave, int64_t delta, size_t *secchio_out, int64_t *val_out)` che cerca `chiave` nel secchio `idx = (size_t)(hash_fnv1a(chiave) % t->cap)`: se presente somma `delta` al `conteggio` e restituisce `0` (aggiornato); se assente alloca nodo e copia della chiave con `strdup`, inserisce in testa a `t->secchi[idx]`, incrementa `t->len` e restituisce `1` (inserito), oppure `-1` se l'allocazione fallisce senza perdere memoria; (3) `const nodo_freq_t *tab_cerca(const tab_freq_t *t, const char *chiave)`; (4) `bool tab_rimuovi(tab_freq_t *t, const char *chiave)` che rimuove il nodo tramite puntatore a puntatore `nodo_freq_t **cur = &t->secchi[idx];` liberando `chiave` e nodo; (5) `void tab_distruggi(tab_freq_t *t)` che libera tutte le catene, `t->secchi` e azzera i campi. In `main` leggi dalla prima riga `cap` (`1 <= cap <= 64`), poi leggi comandi da `stdin` fino a fine input: `INC <parola> <delta>` (`delta > 0`), `GET <parola>`, `DEL <parola>` e `DUMP` (che stampa i secchi non vuoti in ordine di indice oppure `  (vuota)` se `len == 0`), producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "array dinamico di secchi nodo_freq_t **secchi con inizializzazione esplicita a nullptr",
+        "gestione delle collisioni tramite liste semplicemente concatenate per secchio",
+        "aggiornamento in-place su chiave duplicata e duplicazione con strdup solo su nuovo inserimento",
+        "rimozione uniforme di testa e nodi interni di una catena con nodo_freq_t **cur",
+        "distruzione completa salvando curr->prox prima di liberare chiave e nodo"
+      ],
+      "domande_guida": [
+        "Che cosa succede se in tab_aggiungi l'allocazione di strdup(chiave) fallisce dopo che malloc per il nodo è riuscita?",
+        "Perché nella rimozione dentro una catena del secchio idx conviene usare nodo_freq_t **cur = &t->secchi[idx];?",
+        "Come si comporta la tabella nel caso limite cap == 1 con più chiavi diverse e perché è un ottimo banco di prova per le collisioni?",
+        "In che ordine devi liberare curr->chiave, curr e t->secchi in tab_distruggi per evitare sia perdite di memoria sia uso dopo la liberazione?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4\nINC mela 2\nINC pera 1\nINC mela 3\nINC uva 4\nINC kiwi 2\nDUMP\nGET mela\nGET pesca\nDEL mela\nDEL pesca\nDUMP\n",
+          "output": "INS mela=2 (secchio=0)\nINS pera=1 (secchio=3)\nUPD mela=5 (secchio=0)\nINS uva=4 (secchio=1)\nINS kiwi=2 (secchio=1)\nTabella (len=4, cap=4):\n  [0]: mela=5\n  [1]: kiwi=2 -> uva=4\n  [3]: pera=1\nGET mela: 5\nGET pesca: NON TROVATO\nDEL mela: OK\nDEL pesca: NON TROVATO\nTabella (len=3, cap=4):\n  [1]: kiwi=2 -> uva=4\n  [3]: pera=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "4\nDUMP\nGET alfa\nDEL alfa\n",
+          "output": "Tabella (len=0, cap=4):\n  (vuota)\nGET alfa: NON TROVATO\nDEL alfa: NON TROVATO\n"
+        },
+        {
+          "input": "1\nINC uno 1\nINC due 2\nINC tre 3\nDUMP\nDEL due\nDEL tre\nDEL uno\nDUMP\n",
+          "output": "INS uno=1 (secchio=0)\nINS due=2 (secchio=0)\nINS tre=3 (secchio=0)\nTabella (len=3, cap=1):\n  [0]: tre=3 -> due=2 -> uno=1\nDEL due: OK\nDEL tre: OK\nDEL uno: OK\nTabella (len=0, cap=1):\n  (vuota)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_CAP = 64;\n\ntypedef struct nodo_freq {\n    char *chiave;\n    int64_t conteggio;\n    struct nodo_freq *prox;\n} nodo_freq_t;\n\ntypedef struct tab_freq {\n    nodo_freq_t **secchi;\n    size_t cap;\n    size_t len;\n} tab_freq_t;\n\nuint64_t hash_fnv1a(const char *s) {\n    uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *p = (const unsigned char *)s; *p != '\\0'; ++p) {\n        h ^= (uint64_t)(*p);\n        h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nbool tab_init(tab_freq_t *t, size_t cap) {\n    if (t == nullptr || cap < 1 || cap > MAX_CAP) { return false; }\n    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) {\n        t->cap = 0;\n        t->len = 0;\n        return false;\n    }\n    for (size_t i = 0; i < cap; ++i) { t->secchi[i] = nullptr; }\n    t->cap = cap;\n    t->len = 0;\n    return true;\n}\n\nconst nodo_freq_t *tab_cerca(const tab_freq_t *t, const char *chiave) {\n    size_t idx = (size_t)(hash_fnv1a(chiave) % t->cap);\n    for (const nodo_freq_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (strcmp(c->chiave, chiave) == 0) { return c; }\n    }\n    return nullptr;\n}\n\nint tab_aggiungi(tab_freq_t *t, const char *chiave, int64_t delta,\n                 size_t *secchio_out, int64_t *val_out) {\n    size_t idx = (size_t)(hash_fnv1a(chiave) % t->cap);\n    *secchio_out = idx;\n    for (nodo_freq_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (strcmp(c->chiave, chiave) == 0) {\n            c->conteggio += delta;\n            *val_out = c->conteggio;\n            return 0;\n        }\n    }\n    nodo_freq_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return -1; }\n    n->chiave = strdup(chiave);\n    if (n->chiave == nullptr) {\n        free(n);\n        return -1;\n    }\n    n->conteggio = delta;\n    n->prox = t->secchi[idx];\n    t->secchi[idx] = n;\n    ++t->len;\n    *val_out = n->conteggio;\n    return 1;\n}\n\nbool tab_rimuovi(tab_freq_t *t, const char *chiave) {\n    size_t idx = (size_t)(hash_fnv1a(chiave) % t->cap);\n    nodo_freq_t **cur = &t->secchi[idx];\n    while (*cur != nullptr && strcmp((*cur)->chiave, chiave) != 0) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    nodo_freq_t *da_lib = *cur;\n    *cur = da_lib->prox;\n    free(da_lib->chiave);\n    free(da_lib);\n    --t->len;\n    return true;\n}\n\nvoid tab_distruggi(tab_freq_t *t) {\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_freq_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_freq_t *prossimo = c->prox;\n            free(c->chiave);\n            free(c);\n            c = prossimo;\n        }\n    }\n    free(t->secchi);\n    t->secchi = nullptr;\n    t->cap = 0;\n    t->len = 0;\n}\n\nvoid tab_dump(const tab_freq_t *t) {\n    printf(\"Tabella (len=%zu, cap=%zu):\\n\", t->len, t->cap);\n    if (t->len == 0) {\n        printf(\"  (vuota)\\n\");\n        return;\n    }\n    for (size_t i = 0; i < t->cap; ++i) {\n        if (t->secchi[i] == nullptr) { continue; }\n        printf(\"  [%zu]:\", i);\n        for (const nodo_freq_t *c = t->secchi[i]; c != nullptr; c = c->prox) {\n            printf(\"%s%s=%\" PRId64, (c == t->secchi[i]) ? \" \" : \" -> \", c->chiave, c->conteggio);\n        }\n        printf(\"\\n\");\n    }\n}\n\nint main(void) {\n    char riga[256], cmd[16], parola[48], extra = '\\0';\n    int cap_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &cap_in, &extra) != 1 || cap_in < 1 || (size_t)cap_in > MAX_CAP) {\n        fprintf(stderr, \"Errore: capacità iniziale non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    tab_freq_t tab = {};\n    if (!tab_init(&tab, (size_t)cap_in)) { return EXIT_FAILURE; }\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long delta = 0;\n        if (strcmp(cmd, \"INC\") == 0 && sscanf(riga, \"INC %47s %lld %c\", parola, &delta, &extra) == 2 && delta > 0) {\n            size_t secchio = 0;\n            int64_t val = 0;\n            int r = tab_aggiungi(&tab, parola, (int64_t)delta, &secchio, &val);\n            if (r == -1) { tab_distruggi(&tab); return EXIT_FAILURE; }\n            printf(\"%s %s=%\" PRId64 \" (secchio=%zu)\\n\", (r == 1) ? \"INS\" : \"UPD\", parola, val, secchio);\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %47s %c\", parola, &extra) == 1) {\n            const nodo_freq_t *n = tab_cerca(&tab, parola);\n            if (n != nullptr) { printf(\"GET %s: %\" PRId64 \"\\n\", parola, n->conteggio); }\n            else { printf(\"GET %s: NON TROVATO\\n\", parola); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %47s %c\", parola, &extra) == 1) {\n            printf(\"DEL %s: %s\\n\", parola, tab_rimuovi(&tab, parola) ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"DUMP\") == 0 && sscanf(riga, \"DUMP %c\", &extra) != 1) {\n            tab_dump(&tab);\n        } else {\n            tab_distruggi(&tab);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    tab_distruggi(&tab);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "18.3",
+      "tipo": "esercizio",
+      "titolo": "Tabella hash auto-ridimensionante con soglia intera, hash memorizzato nel nodo e spostamento a zero allocazioni",
+      "descrizione": "Scrivi un programma C che implementi una tabella hash di configurazione (`char *chiave -> int32_t valore`) capace di eseguire il ridimensionamento automatico (rehashing) spostando i nodi esistenti senza allocarne di nuovi. Definisci `typedef struct nodo_cfg { char *chiave; uint64_t hash; int32_t valore; struct nodo_cfg *prox; } nodo_cfg_t;` e `typedef struct tab_cfg { nodo_cfg_t **secchi; size_t cap; size_t len; size_t num_rehash; size_t nodi_allocati; } tab_cfg_t;`. Implementa: (1) `bool tab_init(tab_cfg_t *t, size_t cap)` (`1 <= cap <= 16`); (2) `bool tab_ridimensiona(tab_cfg_t *t, size_t nuova_cap, size_t *spostati_out)` che verifica `nuova_cap >= 1 && nuova_cap <= 1024 && nuova_cap <= SIZE_MAX / sizeof(*t->secchi)`, alloca il nuovo array di secchi inizializzato a `nullptr`, sposta tutti i nodi esistenti ricalcolando solo `nodo->hash % nuova_cap` (senza chiamare `hash_fnv1a` né `malloc` per nodo), libera il vecchio `t->secchi`, aggiorna `t->secchi`, `t->cap` e incrementa `t->num_rehash` (se fallisce lascia la tabella intatta); (3) `int tab_put(tab_cfg_t *t, const char *chiave, int32_t val, bool *rehash_fatto, size_t *vecchia_cap, size_t *spostati)` che prima controlla se `chiave` è già presente (se sì aggiorna il valore e restituisce `0` SENZA attivare il ridimensionamento), altrimenti se `(t->len + 1) * 4 > t->cap * 3` chiama `tab_ridimensiona(t, t->cap * 2, spostati)`, poi alloca il nuovo nodo (incrementando `t->nodi_allocati`) e inserisce in testa restituendo `1` (`-1` in caso di errore); (4) `const nodo_cfg_t *tab_cerca(const tab_cfg_t *t, const char *chiave)` (confrontando `c->hash == h && strcmp(c->chiave, chiave) == 0`), `bool tab_rimuovi(tab_cfg_t *t, const char *chiave)`, `size_t tab_max_catena(const tab_cfg_t *t)` e `void tab_distruggi(tab_cfg_t *t)`. In `main` leggi dalla prima riga `cap_iniziale` (`1 <= cap_iniziale <= 16`), poi leggi comandi fino a fine input: `PUT <chiave> <val>`, `GET <chiave>`, `DEL <chiave>`, `RESERVE <target_cap>` (rifiuta con `RESERVE RIFIUTATO` se `target_cap == 0 || target_cap > 1024`, stampa `RESERVE NOOP (cap=<cap>)` se `target_cap <= cap`, altrimenti ridimensiona a `target_cap`) e `STAT`, producendo l'output esatto dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "verifica della soglia di fattore di carico 0.75 in aritmetica intera ((len + 1) * 4 > cap * 3)",
+        "ridimensionamento spostando i nodi esistenti tramite l'hash memorizzato nel nodo senza nuove allocazioni",
+        "aggiornamento di una chiave esistente senza attivare un ridimensionamento inutile",
+        "integrità della tabella quando una richiesta di ridimensionamento è rifiutata o fallisce"
+      ],
+      "domande_guida": [
+        "Perché in tab_put devi verificare se chiave è già presente prima di controllare la soglia (t->len + 1) * 4 > t->cap * 3?",
+        "Come dimostra il contatore nodi_allocati che tab_ridimensiona sposta i nodi esistenti senza riallocarli?",
+        "Quale vantaggio pratico offre salvare uint64_t hash dentro ogni nodo_cfg_t sia in tab_ridimensiona sia in tab_cerca?",
+        "Che cosa accade alla tabella quando il comando RESERVE riceve un valore fuori limite come 0 oppure 5000?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "2\nPUT host 80\nPUT port 443\nPUT port 8443\nPUT mode 1\nPUT debug 0\nSTAT\nGET port\nDEL mode\nRESERVE 2000\nRESERVE 16\nSTAT\n",
+          "output": "INS host=80\nREHASH 2 -> 4 (spostati=1)\nINS port=443\nUPD port=8443\nINS mode=1\nREHASH 4 -> 8 (spostati=3)\nINS debug=0\nSTAT len=4 cap=8 carico=0.50 max_catena=1 rehash=2 alloc_nodi=4\nGET port: 8443\nDEL mode: OK\nRESERVE RIFIUTATO\nREHASH 8 -> 16 (spostati=3)\nSTAT len=3 cap=16 carico=0.19 max_catena=1 rehash=3 alloc_nodi=4\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "4\nSTAT\nRESERVE 0\nRESERVE 4\nRESERVE 2\nGET x\nDEL x\n",
+          "output": "STAT len=0 cap=4 carico=0.00 max_catena=0 rehash=0 alloc_nodi=0\nRESERVE RIFIUTATO\nRESERVE NOOP (cap=4)\nRESERVE NOOP (cap=4)\nGET x: NON TROVATO\nDEL x: NON TROVATO\n"
+        },
+        {
+          "input": "4\nPUT a 1\nPUT b 2\nPUT c 3\nPUT a 10\nDEL b\nPUT d 4\nSTAT\n",
+          "output": "INS a=1\nINS b=2\nINS c=3\nUPD a=10\nDEL b: OK\nINS d=4\nSTAT len=3 cap=4 carico=0.75 max_catena=1 rehash=0 alloc_nodi=4\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_CAP_INIT = 16;\nconstexpr size_t MAX_CAP_TAB = 1024;\n\ntypedef struct nodo_cfg {\n    char *chiave;\n    uint64_t hash;\n    int32_t valore;\n    struct nodo_cfg *prox;\n} nodo_cfg_t;\n\ntypedef struct tab_cfg {\n    nodo_cfg_t **secchi;\n    size_t cap;\n    size_t len;\n    size_t num_rehash;\n    size_t nodi_allocati;\n} tab_cfg_t;\n\nuint64_t hash_fnv1a(const char *s) {\n    uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *p = (const unsigned char *)s; *p != '\\0'; ++p) {\n        h ^= (uint64_t)(*p);\n        h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nbool tab_init(tab_cfg_t *t, size_t cap) {\n    if (t == nullptr || cap < 1 || cap > MAX_CAP_INIT) { return false; }\n    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) { return false; }\n    for (size_t i = 0; i < cap; ++i) { t->secchi[i] = nullptr; }\n    t->cap = cap;\n    t->len = 0;\n    t->num_rehash = 0;\n    t->nodi_allocati = 0;\n    return true;\n}\n\nbool tab_ridimensiona(tab_cfg_t *t, size_t nuova_cap, size_t *spostati_out) {\n    if (t == nullptr || nuova_cap < 1 || nuova_cap > MAX_CAP_TAB ||\n        nuova_cap > SIZE_MAX / sizeof(*t->secchi)) { return false; }\n    nodo_cfg_t **nuovi = malloc(nuova_cap * sizeof(*nuovi));\n    if (nuovi == nullptr) { return false; }\n    for (size_t i = 0; i < nuova_cap; ++i) { nuovi[i] = nullptr; }\n    size_t spostati = 0;\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_cfg_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_cfg_t *prossimo = c->prox;\n            size_t idx = (size_t)(c->hash % nuova_cap);\n            c->prox = nuovi[idx];\n            nuovi[idx] = c;\n            ++spostati;\n            c = prossimo;\n        }\n    }\n    free(t->secchi);\n    t->secchi = nuovi;\n    t->cap = nuova_cap;\n    ++t->num_rehash;\n    if (spostati_out != nullptr) { *spostati_out = spostati; }\n    return true;\n}\n\nconst nodo_cfg_t *tab_cerca(const tab_cfg_t *t, const char *chiave) {\n    uint64_t h = hash_fnv1a(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (const nodo_cfg_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && strcmp(c->chiave, chiave) == 0) { return c; }\n    }\n    return nullptr;\n}\n\nint tab_put(tab_cfg_t *t, const char *chiave, int32_t val,\n            bool *rehash_fatto, size_t *vecchia_cap, size_t *spostati) {\n    *rehash_fatto = false;\n    uint64_t h = hash_fnv1a(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (nodo_cfg_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && strcmp(c->chiave, chiave) == 0) {\n            c->valore = val;\n            return 0;\n        }\n    }\n    if ((t->len + 1) * 4 > t->cap * 3) {\n        *vecchia_cap = t->cap;\n        if (!tab_ridimensiona(t, t->cap * 2, spostati)) { return -1; }\n        *rehash_fatto = true;\n        idx = (size_t)(h % t->cap);\n    }\n    nodo_cfg_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return -1; }\n    n->chiave = strdup(chiave);\n    if (n->chiave == nullptr) { free(n); return -1; }\n    n->hash = h;\n    n->valore = val;\n    n->prox = t->secchi[idx];\n    t->secchi[idx] = n;\n    ++t->len;\n    ++t->nodi_allocati;\n    return 1;\n}\n\nbool tab_rimuovi(tab_cfg_t *t, const char *chiave) {\n    uint64_t h = hash_fnv1a(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    nodo_cfg_t **cur = &t->secchi[idx];\n    while (*cur != nullptr && ((*cur)->hash != h || strcmp((*cur)->chiave, chiave) != 0)) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    nodo_cfg_t *da_lib = *cur;\n    *cur = da_lib->prox;\n    free(da_lib->chiave);\n    free(da_lib);\n    --t->len;\n    return true;\n}\n\nsize_t tab_max_catena(const tab_cfg_t *t) {\n    size_t max_c = 0;\n    for (size_t i = 0; i < t->cap; ++i) {\n        size_t lung = 0;\n        for (const nodo_cfg_t *c = t->secchi[i]; c != nullptr; c = c->prox) { ++lung; }\n        if (lung > max_c) { max_c = lung; }\n    }\n    return max_c;\n}\n\nvoid tab_distruggi(tab_cfg_t *t) {\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_cfg_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_cfg_t *p = c->prox;\n            free(c->chiave);\n            free(c);\n            c = p;\n        }\n    }\n    free(t->secchi);\n    *t = (tab_cfg_t){};\n}\n\nint main(void) {\n    char riga[256], cmd[16], chiave[48], extra = '\\0';\n    int cap_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &cap_in, &extra) != 1 || cap_in < 1 || (size_t)cap_in > MAX_CAP_INIT) {\n        fprintf(stderr, \"Errore: capacità iniziale non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    tab_cfg_t tab = {};\n    if (!tab_init(&tab, (size_t)cap_in)) { return EXIT_FAILURE; }\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long v = 0;\n        size_t target = 0;\n        if (strcmp(cmd, \"PUT\") == 0 && sscanf(riga, \"PUT %47s %lld %c\", chiave, &v, &extra) == 2 &&\n            v >= INT32_MIN && v <= INT32_MAX) {\n            bool rh = false; size_t old_cap = 0, sp = 0;\n            int r = tab_put(&tab, chiave, (int32_t)v, &rh, &old_cap, &sp);\n            if (r == -1) { tab_distruggi(&tab); return EXIT_FAILURE; }\n            if (rh) { printf(\"REHASH %zu -> %zu (spostati=%zu)\\n\", old_cap, tab.cap, sp); }\n            printf(\"%s %s=%\" PRId32 \"\\n\", (r == 1) ? \"INS\" : \"UPD\", chiave, (int32_t)v);\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %47s %c\", chiave, &extra) == 1) {\n            const nodo_cfg_t *n = tab_cerca(&tab, chiave);\n            if (n != nullptr) { printf(\"GET %s: %\" PRId32 \"\\n\", chiave, n->valore); }\n            else { printf(\"GET %s: NON TROVATO\\n\", chiave); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %47s %c\", chiave, &extra) == 1) {\n            printf(\"DEL %s: %s\\n\", chiave, tab_rimuovi(&tab, chiave) ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"RESERVE\") == 0 && sscanf(riga, \"RESERVE %zu %c\", &target, &extra) == 1) {\n            if (target < 1 || target > MAX_CAP_TAB) { printf(\"RESERVE RIFIUTATO\\n\"); }\n            else if (target <= tab.cap) { printf(\"RESERVE NOOP (cap=%zu)\\n\", tab.cap); }\n            else {\n                size_t old_cap = tab.cap, sp = 0;\n                if (!tab_ridimensiona(&tab, target, &sp)) { printf(\"RESERVE RIFIUTATO\\n\"); }\n                else { printf(\"REHASH %zu -> %zu (spostati=%zu)\\n\", old_cap, tab.cap, sp); }\n            }\n        } else if (strcmp(cmd, \"STAT\") == 0 && sscanf(riga, \"STAT %c\", &extra) != 1) {\n            double carico = (double)tab.len / (double)tab.cap;\n            printf(\"STAT len=%zu cap=%zu carico=%.2f max_catena=%zu rehash=%zu alloc_nodi=%zu\\n\",\n                   tab.len, tab.cap, carico, tab_max_catena(&tab), tab.num_rehash, tab.nodi_allocati);\n        } else {\n            tab_distruggi(&tab); return EXIT_FAILURE;\n        }\n    }\n    tab_distruggi(&tab);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "18.4",
+      "tipo": "esercizio",
+      "titolo": "Tabella hash generica riutilizzata per chiavi stringa case-insensitive e chiavi struct con padding",
+      "descrizione": "Scrivi un programma C che implementi una tabella hash generica basata su `void *` e puntatori a funzione (`typedef uint64_t (*hash_fn)(const void *chiave);`, `typedef bool (*uguali_fn)(const void *a, const void *b);`, `typedef void (*visita_fn)(const void *chiave, void *valore, void *ctx);`) con ridimensionamento automatico al superamento del fattore di carico `0.75` (`(len + 1) * 4 > cap * 3`). Definisci `nodo_ht_t` (`void *chiave; void *valore; uint64_t hash; struct nodo_ht *prox;`) e `tab_ht_t` (`nodo_ht_t **secchi; size_t cap; size_t len; hash_fn hash; uguali_fn uguali;`) con le funzioni `ht_init`, `ht_ridimensiona`, `ht_inserisci` (`1` inserito, `0` aggiornato, `-1` errore), `ht_cerca`, `ht_rimuovi`, `ht_visita` e `ht_distruggi` (in modalità prestito: la tabella possiede solo i propri nodi, mentre `main` possiede i pool di chiavi e valori). Riutilizza la STESSA `tab_ht_t` contemporaneamente per due tabelle in `main`: (1) `ht_str` con chiavi stringa `char[24]` confrontate in modo **insensibile alle maiuscole/minuscole** (`hash_str_ci` con FNV-1a su `tolower((unsigned char)*p)` e `uguali_str_ci` coerente, garantendo `uguali(a, b) => hash(a) == hash(b)`) e valori `int32_t`; (2) `ht_celle` con chiavi `typedef struct chiave_cella { uint8_t piano; int32_t stanza; } chiave_cella_t;` (struttura dotata di padding tra `piano` e `stanza`) e valori `double`, usando `hash_cella` calcolato **campo per campo** (FNV-1a sul byte `piano` e sui `4` byte di `(uint32_t)stanza` in ordine di spostamento `0, 8, 16, 24`, mai sui byte grezzi della struct) e `uguali_cella`. Per dimostrare l'indipendenza dal padding, in `main` pre-riempi con `memset(..., 0x55, ...)` le chiavi memorizzate e con `memset(..., 0xAA, ...)` le chiavi di ricerca/rimozione prima di assegnare `.piano` e `.stanza`. Leggi da `stdin` i comandi `S_PUT <k> <v>`, `S_GET <k>`, `S_DEL <k>`, `C_PUT <piano> <stanza> <temp>`, `C_GET <piano> <stanza>`, `C_DEL <piano> <stanza>` e `REPORT <soglia_temp>` (che usa `ht_visita` con un contesto `ctx` per sommare i valori di `ht_str` e calcolare conteggio e media delle celle con temperatura `>= soglia_temp`), producendo l'output esatto dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "tabella hash generica su void * parametrizzata dalle callback hash_fn, uguali_fn e visita_fn",
+        "invariante fondamentale uguali(a, b) => hash(a) == hash(b) sulle stringhe case-insensitive",
+        "calcolo portabile campo per campo dell'hash di una struct per ignorare i byte di padding",
+        "attraversamento della tabella generica tramite ht_visita e parametro di contesto void *ctx"
+      ],
+      "domande_guida": [
+        "Che cosa accadrebbe in ht_str se uguali_str_ci ignorasse maiuscole e minuscole ma hash_str_ci usasse i caratteri senza tolower?",
+        "Perché pre-riempire con 0x55 le chiavi inserite in ht_celle e con 0xAA le chiavi passate a ht_cerca smaschera subito un hash calcolato erroneamente su sizeof(chiave_cella_t) byte?",
+        "In che modo ht_visita con il parametro void *ctx permette di aggregare dati di entrambi i domini senza esporre nodo_ht_t né usare variabili globali?",
+        "Perché il controllo curr->hash == h && t->uguali(curr->chiave, chiave) può evitare chiamate superflue a t->uguali?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "S_PUT Alfa 10\nS_PUT beta 25\nS_PUT ALFA 40\nS_GET alfa\nC_PUT 1 101 21.5\nC_PUT 2 204 18.0\nC_PUT 1 101 23.0\nC_GET 1 101\nREPORT 20.0\nS_DEL BETA\nC_DEL 2 204\nREPORT 20.0\n",
+          "output": "S_INS Alfa=10\nS_INS beta=25\nS_UPD ALFA=40\nS_GET alfa: 40\nC_INS (1,101)=21.5\nC_INS (2,204)=18.0\nC_UPD (1,101)=23.0\nC_GET (1,101): 23.0\nREPORT str: len=2 somma=65\nREPORT celle: len=2 sopra_soglia=1 media_sopra=23.00\nS_DEL BETA: OK\nC_DEL (2,204): OK\nREPORT str: len=1 somma=40\nREPORT celle: len=1 sopra_soglia=1 media_sopra=23.00\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "S_GET assente\nC_GET 0 1\nS_DEL assente\nC_DEL 0 1\nREPORT 10.0\n",
+          "output": "S_GET assente: NON TROVATO\nC_GET (0,1): NON TROVATO\nS_DEL assente: NON TROVATO\nC_DEL (0,1): NON TROVATO\nREPORT str: len=0 somma=0\nREPORT celle: len=0 sopra_soglia=0 media_sopra=0.00\n"
+        },
+        {
+          "input": "S_PUT k1 1\nS_PUT k2 2\nS_PUT k3 3\nS_PUT k4 4\nS_PUT k5 5\nS_GET K5\nC_PUT 0 -5 15.5\nC_PUT 3 12 22.5\nC_GET 0 -5\nREPORT 15.0\n",
+          "output": "S_INS k1=1\nS_INS k2=2\nS_INS k3=3\nS_INS k4=4\nS_INS k5=5\nS_GET K5: 5\nC_INS (0,-5)=15.5\nC_INS (3,12)=22.5\nC_GET (0,-5): 15.5\nREPORT str: len=5 somma=15\nREPORT celle: len=2 sopra_soglia=2 media_sopra=19.00\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t MAX_POOL = 32;\n\ntypedef uint64_t (*hash_fn)(const void *chiave);\ntypedef bool (*uguali_fn)(const void *a, const void *b);\ntypedef void (*visita_fn)(const void *chiave, void *valore, void *ctx);\n\ntypedef struct nodo_ht {\n    void *chiave;\n    void *valore;\n    uint64_t hash;\n    struct nodo_ht *prox;\n} nodo_ht_t;\n\ntypedef struct tab_ht {\n    nodo_ht_t **secchi;\n    size_t cap;\n    size_t len;\n    hash_fn hash;\n    uguali_fn uguali;\n} tab_ht_t;\n\ntypedef struct chiave_cella { uint8_t piano; int32_t stanza; } chiave_cella_t;\ntypedef struct ctx_calde { double soglia; size_t conteggio; double somma; } ctx_calde_t;\n\nbool ht_init(tab_ht_t *t, size_t cap, hash_fn h, uguali_fn u) {\n    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) { return false; }\n    for (size_t i = 0; i < cap; ++i) { t->secchi[i] = nullptr; }\n    t->cap = cap; t->len = 0; t->hash = h; t->uguali = u;\n    return true;\n}\n\nbool ht_ridimensiona(tab_ht_t *t, size_t nuova_cap) {\n    if (nuova_cap == 0 || nuova_cap > SIZE_MAX / sizeof(*t->secchi)) { return false; }\n    nodo_ht_t **nuovi = malloc(nuova_cap * sizeof(*nuovi));\n    if (nuovi == nullptr) { return false; }\n    for (size_t i = 0; i < nuova_cap; ++i) { nuovi[i] = nullptr; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_ht_t *p = c->prox;\n            size_t idx = (size_t)(c->hash % nuova_cap);\n            c->prox = nuovi[idx];\n            nuovi[idx] = c;\n            c = p;\n        }\n    }\n    free(t->secchi);\n    t->secchi = nuovi;\n    t->cap = nuova_cap;\n    return true;\n}\n\nint ht_inserisci(tab_ht_t *t, void *chiave, void *valore) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) { c->valore = valore; return 0; }\n    }\n    if ((t->len + 1) * 4 > t->cap * 3) {\n        if (!ht_ridimensiona(t, t->cap * 2)) { return -1; }\n        idx = (size_t)(h % t->cap);\n    }\n    nodo_ht_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return -1; }\n    *n = (nodo_ht_t){.chiave = chiave, .valore = valore, .hash = h, .prox = t->secchi[idx]};\n    t->secchi[idx] = n;\n    ++t->len;\n    return 1;\n}\n\nvoid *ht_cerca(const tab_ht_t *t, const void *chiave) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (const nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) { return c->valore; }\n    }\n    return nullptr;\n}\n\nbool ht_rimuovi(tab_ht_t *t, const void *chiave) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    nodo_ht_t **cur = &t->secchi[idx];\n    while (*cur != nullptr && ((*cur)->hash != h || !t->uguali((*cur)->chiave, chiave))) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    nodo_ht_t *d = *cur; *cur = d->prox; free(d); --t->len;\n    return true;\n}\n\nvoid ht_visita(const tab_ht_t *t, visita_fn fn, void *ctx) {\n    for (size_t i = 0; i < t->cap; ++i) {\n        for (const nodo_ht_t *c = t->secchi[i]; c != nullptr; c = c->prox) { fn(c->chiave, c->valore, ctx); }\n    }\n}\n\nvoid ht_distruggi(tab_ht_t *t) {\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) { nodo_ht_t *p = c->prox; free(c); c = p; }\n    }\n    free(t->secchi); *t = (tab_ht_t){};\n}\n\nuint64_t hash_str_ci(const void *p) {\n    uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *s = p; *s != '\\0'; ++s) {\n        h ^= (uint64_t)(unsigned char)tolower(*s);\n        h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nbool uguali_str_ci(const void *a, const void *b) {\n    const unsigned char *sa = a, *sb = b;\n    while (*sa != '\\0' && *sb != '\\0') {\n        if (tolower(*sa) != tolower(*sb)) { return false; }\n        ++sa; ++sb;\n    }\n    return *sa == *sb;\n}\n\nuint64_t hash_cella(const void *p) {\n    const chiave_cella_t *c = p;\n    uint64_t h = 14695981039346656037ULL;\n    h ^= (uint64_t)c->piano; h *= 1099511628211ULL;\n    uint32_t st = (uint32_t)c->stanza;\n    for (unsigned int sh = 0; sh < 32; sh += 8) {\n        h ^= (uint64_t)((st >> sh) & 0xffU); h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nbool uguali_cella(const void *a, const void *b) {\n    const chiave_cella_t *ca = a, *cb = b;\n    return ca->piano == cb->piano && ca->stanza == cb->stanza;\n}\n\nvoid visita_somma_str(const void *k, void *v, void *ctx) {\n    (void)k; *(int64_t *)ctx += *(const int32_t *)v;\n}\n\nvoid visita_calde(const void *k, void *v, void *ctx) {\n    (void)k; ctx_calde_t *c = ctx; double t = *(const double *)v;\n    if (t >= c->soglia) { ++c->conteggio; c->somma += t; }\n}\n\nint main(void) {\n    tab_ht_t ht_str = {}, ht_celle = {};\n    if (!ht_init(&ht_str, 4, hash_str_ci, uguali_str_ci) ||\n        !ht_init(&ht_celle, 4, hash_cella, uguali_cella)) {\n        ht_distruggi(&ht_str); ht_distruggi(&ht_celle); return EXIT_FAILURE;\n    }\n    char pool_ks[MAX_POOL][24] = {}; int32_t pool_vs[MAX_POOL] = {}; size_t ns = 0;\n    chiave_cella_t pool_kc[MAX_POOL]; double pool_vc[MAX_POOL] = {}; size_t nc = 0;\n    char riga[256], cmd[16], kbuf[24], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long vi = 0, st = 0; unsigned int pi = 0; double td = 0.0;\n        if (strcmp(cmd, \"S_PUT\") == 0 && sscanf(riga, \"S_PUT %23s %lld %c\", kbuf, &vi, &extra) == 2 && ns < MAX_POOL) {\n            int i = 0; while (kbuf[i] != '\\0') { pool_ks[ns][i] = kbuf[i]; ++i; } pool_ks[ns][i] = '\\0';\n            pool_vs[ns] = (int32_t)vi;\n            int r = ht_inserisci(&ht_str, pool_ks[ns], &pool_vs[ns]); ++ns;\n            printf(\"%s %s=%\" PRId32 \"\\n\", (r == 1) ? \"S_INS\" : \"S_UPD\", kbuf, (int32_t)vi);\n        } else if (strcmp(cmd, \"S_GET\") == 0 && sscanf(riga, \"S_GET %23s %c\", kbuf, &extra) == 1) {\n            const int32_t *v = ht_cerca(&ht_str, kbuf);\n            if (v != nullptr) { printf(\"S_GET %s: %\" PRId32 \"\\n\", kbuf, *v); }\n            else { printf(\"S_GET %s: NON TROVATO\\n\", kbuf); }\n        } else if (strcmp(cmd, \"S_DEL\") == 0 && sscanf(riga, \"S_DEL %23s %c\", kbuf, &extra) == 1) {\n            printf(\"S_DEL %s: %s\\n\", kbuf, ht_rimuovi(&ht_str, kbuf) ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"C_PUT\") == 0 && sscanf(riga, \"C_PUT %u %lld %lf %c\", &pi, &st, &td, &extra) == 3 && pi <= UINT8_MAX && nc < MAX_POOL) {\n            memset(&pool_kc[nc], 0x55, sizeof(pool_kc[nc]));\n            pool_kc[nc].piano = (uint8_t)pi; pool_kc[nc].stanza = (int32_t)st; pool_vc[nc] = td;\n            int r = ht_inserisci(&ht_celle, &pool_kc[nc], &pool_vc[nc]); ++nc;\n            printf(\"%s (%u,%\" PRId32 \")=%.1f\\n\", (r == 1) ? \"C_INS\" : \"C_UPD\", pi, (int32_t)st, td);\n        } else if (strcmp(cmd, \"C_GET\") == 0 && sscanf(riga, \"C_GET %u %lld %c\", &pi, &st, &extra) == 2 && pi <= UINT8_MAX) {\n            chiave_cella_t kc; memset(&kc, 0xAA, sizeof(kc)); kc.piano = (uint8_t)pi; kc.stanza = (int32_t)st;\n            const double *v = ht_cerca(&ht_celle, &kc);\n            if (v != nullptr) { printf(\"C_GET (%u,%\" PRId32 \"): %.1f\\n\", pi, (int32_t)st, *v); }\n            else { printf(\"C_GET (%u,%\" PRId32 \"): NON TROVATO\\n\", pi, (int32_t)st); }\n        } else if (strcmp(cmd, \"C_DEL\") == 0 && sscanf(riga, \"C_DEL %u %lld %c\", &pi, &st, &extra) == 2 && pi <= UINT8_MAX) {\n            chiave_cella_t kc; memset(&kc, 0xAA, sizeof(kc)); kc.piano = (uint8_t)pi; kc.stanza = (int32_t)st;\n            printf(\"C_DEL (%u,%\" PRId32 \"): %s\\n\", pi, (int32_t)st, ht_rimuovi(&ht_celle, &kc) ? \"OK\" : \"NON TROVATO\");\n        } else if (strcmp(cmd, \"REPORT\") == 0 && sscanf(riga, \"REPORT %lf %c\", &td, &extra) == 1) {\n            int64_t somma_s = 0; ht_visita(&ht_str, visita_somma_str, &somma_s);\n            ctx_calde_t cc = {.soglia = td, .conteggio = 0, .somma = 0.0}; ht_visita(&ht_celle, visita_calde, &cc);\n            double media = (cc.conteggio > 0) ? (cc.somma / (double)cc.conteggio) : 0.0;\n            printf(\"REPORT str: len=%zu somma=%\" PRId64 \"\\n\", ht_str.len, somma_s);\n            printf(\"REPORT celle: len=%zu sopra_soglia=%zu media_sopra=%.2f\\n\", ht_celle.len, cc.conteggio, media);\n        } else { ht_distruggi(&ht_str); ht_distruggi(&ht_celle); return EXIT_FAILURE; }\n    }\n    ht_distruggi(&ht_str); ht_distruggi(&ht_celle);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "18.5",
+      "tipo": "esercizio",
+      "titolo": "Tabella hash generica con possesso configurabile, indice di alias in prestito ed estrazione del possesso",
+      "descrizione": "Scrivi un programma C che estenda la tabella hash generica con regole di possesso configurabili tramite due callback distruttore indipendenti: `distruggi_chiave` e `distruggi_valore` (`typedef void (*distruggi_fn)(void *ptr);`, ciascuna `nullptr` in modalità prestito). Implementa `tab_ht_t *ht_crea(size_t cap, hash_fn h, uguali_fn u, distruggi_fn d_chiave, distruggi_fn d_valore)`, `int ht_inserisci(tab_ht_t *t, void *chiave, void *valore)` (su chiave esistente libera `curr->valore` se `d_valore != nullptr && curr->valore != valore`, aggiorna il valore, libera `chiave` se `d_chiave != nullptr && curr->chiave != chiave` e restituisce `0`; su chiave nuova ridimensiona se `(len + 1) * 4 > cap * 3`, inserisce e restituisce `1`; su fallimento di allocazione NON libera né `chiave` né `valore` e restituisce `-1`), `void *ht_cerca(const tab_ht_t *t, const void *chiave)`, `bool ht_estrai(tab_ht_t *t, const void *chiave, void **val_out)` (scollega il nodo, libera la chiave se `d_chiave != nullptr`, e se `val_out != nullptr` trasferisce il valore in `*val_out` senza distruggerlo, altrimenti chiama `d_valore`), `bool ht_rimuovi(tab_ht_t *t, const void *chiave)` (chiama `ht_estrai(t, chiave, nullptr)`), `size_t ht_rimuovi_per_valore(tab_ht_t *t, const void *valore)` (rimuove tutte le voci che puntano a `valore`) e `void ht_distruggi(tab_ht_t *t)`. Modella chiavi tracciate `typedef struct chiave_str { char *testo; size_t *cont_dist; } chiave_str_t;` e risorse annidate `typedef struct risorsa { char *etichetta; int32_t punteggio; size_t *cont_dist; } risorsa_t;` (senza variabili globali: i distruttori incrementano `*cont_dist` prima di liberare `testo`/`etichetta` e la struct). In `main` crea due tabelle: `tab_prop` proprietaria di chiavi e valori (`distruggi_kstr`, `distruggi_risorsa`) e `tab_alias` con possesso misto (proprietaria delle chiavi `distruggi_kstr`, valori in prestito `nullptr`). Leggi da `stdin` i comandi `PUT <chiave> <etichetta> <punteggio>` (su aggiornamento rimuove prima da `tab_alias` eventuali alias del vecchio valore per non lasciare puntatori pendenti), `ALIAS <alias> <chiave>`, `GET <chiave>`, `GET_ALIAS <alias>`, `DEL <chiave>`, `EXTRACT <chiave>` (estrae la risorsa da `tab_prop`, pulisce eventuali alias, la stampa e la libera esplicitamente nel chiamante) e `BILANCIO`. Prima di uscire distruggi `tab_alias` PRIMA di `tab_prop` e stampa il bilancio finale di chiavi e valori creati/distrutti.",
+      "concetti_da_tenere_a_mente": [
+        "callback distruttore indipendenti distruggi_chiave e distruggi_valore (possesso vs prestito)",
+        "gestione sicura dell'aggiornamento su chiave duplicata senza perdite di memoria né doppie liberazioni",
+        "estrazione con trasferimento di possesso al chiamante (ht_estrai) rispetto alla rimozione distruttiva",
+        "coerenza tra tabella proprietaria e tabella di alias in prestito (pulizia degli alias e ordine di distruzione)"
+      ],
+      "domande_guida": [
+        "Perché tab_alias usa distruggi_kstr come distruggi_chiave ma nullptr come distruggi_valore?",
+        "Che cosa succederebbe se durante PUT su una chiave già presente in tab_prop non rimuovessi prima da tab_alias gli alias che puntavano alla vecchia risorsa?",
+        "In che modo ht_estrai differisce da ht_rimuovi rispetto al possesso della chiave e del valore?",
+        "Perché nel controllo di aggiornamento dentro ht_inserisci conviene verificare curr->valore != valore e curr->chiave != chiave prima di chiamare i distruttori?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "PUT srv1 WebApp 90\nPUT srv2 Database 80\nALIAS main srv1\nALIAS prod srv1\nGET_ALIAS main\nPUT srv1 WebAppV2 95\nGET_ALIAS main\nALIAS prod srv2\nEXTRACT srv2\nGET_ALIAS prod\nBILANCIO\nDEL srv1\n",
+          "output": "PUT srv1: INSERITO\nPUT srv2: INSERITO\nALIAS main -> srv1: INSERITO\nALIAS prod -> srv1: INSERITO\nGET_ALIAS main: WebApp (90)\nPUT srv1: AGGIORNATO (alias_invalidati=2)\nGET_ALIAS main: NON TROVATO\nALIAS prod -> srv2: INSERITO\nEXTRACT srv2: Database (80) (alias_invalidati=1)\nGET_ALIAS prod: NON TROVATO\nBILANCIO chiavi=6/5 valori=3/2\nDEL srv1: OK (alias_invalidati=0)\nFINE chiavi=6/6 valori=3/3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "GET x\nGET_ALIAS a\nDEL x\nEXTRACT x\nALIAS a x\nBILANCIO\n",
+          "output": "GET x: NON TROVATO\nGET_ALIAS a: NON TROVATO\nDEL x: NON TROVATO\nEXTRACT x: NON TROVATO\nALIAS a: ASSENTE x\nBILANCIO chiavi=0/0 valori=0/0\nFINE chiavi=0/0 valori=0/0\n"
+        },
+        {
+          "input": "PUT k1 Uno 10\nALIAS a1 k1\nALIAS a1 k1\nGET k1\nDEL k1\nGET_ALIAS a1\n",
+          "output": "PUT k1: INSERITO\nALIAS a1 -> k1: INSERITO\nALIAS a1 -> k1: AGGIORNATO\nGET k1: Uno (10)\nDEL k1: OK (alias_invalidati=1)\nGET_ALIAS a1: NON TROVATO\nFINE chiavi=3/3 valori=1/1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef uint64_t (*hash_fn)(const void *chiave);\ntypedef bool (*uguali_fn)(const void *a, const void *b);\ntypedef void (*distruggi_fn)(void *ptr);\n\ntypedef struct nodo_ht {\n    void *chiave; void *valore; uint64_t hash; struct nodo_ht *prox;\n} nodo_ht_t;\n\ntypedef struct tab_ht {\n    nodo_ht_t **secchi; size_t cap; size_t len;\n    hash_fn hash; uguali_fn uguali; distruggi_fn d_chiave; distruggi_fn d_valore;\n} tab_ht_t;\n\ntypedef struct chiave_str { char *testo; size_t *cont_dist; } chiave_str_t;\ntypedef struct risorsa { char *etichetta; int32_t punteggio; size_t *cont_dist; } risorsa_t;\n\ntab_ht_t *ht_crea(size_t cap, hash_fn h, uguali_fn u, distruggi_fn dc, distruggi_fn dv) {\n    tab_ht_t *t = malloc(sizeof(*t));\n    if (t == nullptr) { return nullptr; }\n    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) { free(t); return nullptr; }\n    for (size_t i = 0; i < cap; ++i) { t->secchi[i] = nullptr; }\n    t->cap = cap; t->len = 0; t->hash = h; t->uguali = u; t->d_chiave = dc; t->d_valore = dv;\n    return t;\n}\n\nbool ht_ridimensiona(tab_ht_t *t, size_t nuova_cap) {\n    if (nuova_cap == 0 || nuova_cap > SIZE_MAX / sizeof(*t->secchi)) { return false; }\n    nodo_ht_t **nuovi = malloc(nuova_cap * sizeof(*nuovi));\n    if (nuovi == nullptr) { return false; }\n    for (size_t i = 0; i < nuova_cap; ++i) { nuovi[i] = nullptr; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_ht_t *p = c->prox; size_t idx = (size_t)(c->hash % nuova_cap);\n            c->prox = nuovi[idx]; nuovi[idx] = c; c = p;\n        }\n    }\n    free(t->secchi); t->secchi = nuovi; t->cap = nuova_cap;\n    return true;\n}\n\nint ht_inserisci(tab_ht_t *t, void *chiave, void *valore) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) {\n            if (t->d_valore != nullptr && c->valore != valore) { t->d_valore(c->valore); }\n            c->valore = valore;\n            if (t->d_chiave != nullptr && c->chiave != chiave) { t->d_chiave(chiave); }\n            return 0;\n        }\n    }\n    if ((t->len + 1) * 4 > t->cap * 3) {\n        if (!ht_ridimensiona(t, t->cap * 2)) { return -1; }\n        idx = (size_t)(h % t->cap);\n    }\n    nodo_ht_t *n = malloc(sizeof(*n));\n    if (n == nullptr) { return -1; }\n    *n = (nodo_ht_t){.chiave = chiave, .valore = valore, .hash = h, .prox = t->secchi[idx]};\n    t->secchi[idx] = n; ++t->len;\n    return 1;\n}\n\nvoid *ht_cerca(const tab_ht_t *t, const void *chiave) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    for (const nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) { return c->valore; }\n    }\n    return nullptr;\n}\n\nbool ht_estrai(tab_ht_t *t, const void *chiave, void **val_out) {\n    uint64_t h = t->hash(chiave);\n    size_t idx = (size_t)(h % t->cap);\n    nodo_ht_t **cur = &t->secchi[idx];\n    while (*cur != nullptr && ((*cur)->hash != h || !t->uguali((*cur)->chiave, chiave))) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    nodo_ht_t *d = *cur; *cur = d->prox;\n    if (t->d_chiave != nullptr) { t->d_chiave(d->chiave); }\n    if (val_out != nullptr) { *val_out = d->valore; }\n    else if (t->d_valore != nullptr) { t->d_valore(d->valore); }\n    free(d); --t->len;\n    return true;\n}\n\nbool ht_rimuovi(tab_ht_t *t, const void *chiave) { return ht_estrai(t, chiave, nullptr); }\n\nsize_t ht_rimuovi_per_valore(tab_ht_t *t, const void *valore) {\n    size_t rim = 0;\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t **cur = &t->secchi[i];\n        while (*cur != nullptr) {\n            if ((*cur)->valore == valore) {\n                nodo_ht_t *d = *cur; *cur = d->prox;\n                if (t->d_chiave != nullptr) { t->d_chiave(d->chiave); }\n                if (t->d_valore != nullptr) { t->d_valore(d->valore); }\n                free(d); --t->len; ++rim;\n            } else { cur = &(*cur)->prox; }\n        }\n    }\n    return rim;\n}\n\nvoid ht_distruggi(tab_ht_t *t) {\n    if (t == nullptr) { return; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_ht_t *p = c->prox;\n            if (t->d_chiave != nullptr) { t->d_chiave(c->chiave); }\n            if (t->d_valore != nullptr) { t->d_valore(c->valore); }\n            free(c); c = p;\n        }\n    }\n    free(t->secchi); free(t);\n}\n\nuint64_t hash_kstr(const void *p) {\n    const chiave_str_t *k = p; uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *s = (const unsigned char *)k->testo; *s != '\\0'; ++s) {\n        h ^= (uint64_t)(*s); h *= 1099511628211ULL;\n    }\n    return h;\n}\n\nbool uguali_kstr(const void *a, const void *b) {\n    return strcmp(((const chiave_str_t *)a)->testo, ((const chiave_str_t *)b)->testo) == 0;\n}\n\nvoid distruggi_kstr(void *p) {\n    chiave_str_t *k = p; if (k == nullptr) { return; }\n    if (k->cont_dist != nullptr) { ++(*k->cont_dist); }\n    free(k->testo); free(k);\n}\n\nchiave_str_t *crea_kstr(const char *s, size_t *c_cre, size_t *c_dis) {\n    chiave_str_t *k = malloc(sizeof(*k));\n    if (k == nullptr) { return nullptr; }\n    k->testo = strdup(s); if (k->testo == nullptr) { free(k); return nullptr; }\n    k->cont_dist = c_dis; ++(*c_cre); return k;\n}\n\nvoid distruggi_risorsa(void *p) {\n    risorsa_t *r = p; if (r == nullptr) { return; }\n    if (r->cont_dist != nullptr) { ++(*r->cont_dist); }\n    free(r->etichetta); free(r);\n}\n\nrisorsa_t *crea_risorsa(const char *et, int32_t pt, size_t *v_cre, size_t *v_dis) {\n    risorsa_t *r = malloc(sizeof(*r)); if (r == nullptr) { return nullptr; }\n    r->etichetta = strdup(et); if (r->etichetta == nullptr) { free(r); return nullptr; }\n    r->punteggio = pt; r->cont_dist = v_dis; ++(*v_cre); return r;\n}\n\nint main(void) {\n    size_t k_cre = 0, k_dis = 0, v_cre = 0, v_dis = 0;\n    tab_ht_t *tab_prop = ht_crea(4, hash_kstr, uguali_kstr, distruggi_kstr, distruggi_risorsa);\n    tab_ht_t *tab_alias = ht_crea(4, hash_kstr, uguali_kstr, distruggi_kstr, nullptr);\n    if (tab_prop == nullptr || tab_alias == nullptr) { ht_distruggi(tab_alias); ht_distruggi(tab_prop); return EXIT_FAILURE; }\n    char riga[256], cmd[16], a[48], b[48], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long pt = 0;\n        if (strcmp(cmd, \"PUT\") == 0 && sscanf(riga, \"PUT %47s %47s %lld %c\", a, b, &pt, &extra) == 3) {\n            chiave_str_t kq = {.testo = a, .cont_dist = nullptr};\n            void *vecchio = ht_cerca(tab_prop, &kq);\n            chiave_str_t *kh = crea_kstr(a, &k_cre, &k_dis);\n            risorsa_t *rh = crea_risorsa(b, (int32_t)pt, &v_cre, &v_dis);\n            int esito = (kh != nullptr && rh != nullptr) ? ht_inserisci(tab_prop, kh, rh) : -1;\n            if (esito == -1) { distruggi_kstr(kh); distruggi_risorsa(rh); ht_distruggi(tab_alias); ht_distruggi(tab_prop); return EXIT_FAILURE; }\n            if (esito == 0) { printf(\"PUT %s: AGGIORNATO (alias_invalidati=%zu)\\n\", a, ht_rimuovi_per_valore(tab_alias, vecchio)); }\n            else { printf(\"PUT %s: INSERITO\\n\", a); }\n        } else if (strcmp(cmd, \"ALIAS\") == 0 && sscanf(riga, \"ALIAS %47s %47s %c\", a, b, &extra) == 2) {\n            chiave_str_t kq = {.testo = b, .cont_dist = nullptr}; void *val = ht_cerca(tab_prop, &kq);\n            if (val == nullptr) { printf(\"ALIAS %s: ASSENTE %s\\n\", a, b); continue; }\n            chiave_str_t *ka = crea_kstr(a, &k_cre, &k_dis);\n            int esito = (ka != nullptr) ? ht_inserisci(tab_alias, ka, val) : -1;\n            if (esito == -1) { distruggi_kstr(ka); ht_distruggi(tab_alias); ht_distruggi(tab_prop); return EXIT_FAILURE; }\n            printf(\"ALIAS %s -> %s: %s\\n\", a, b, (esito == 1) ? \"INSERITO\" : \"AGGIORNATO\");\n        } else if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %47s %c\", a, &extra) == 1) {\n            chiave_str_t kq = {.testo = a, .cont_dist = nullptr}; const risorsa_t *r = ht_cerca(tab_prop, &kq);\n            if (r != nullptr) { printf(\"GET %s: %s (%\" PRId32 \")\\n\", a, r->etichetta, r->punteggio); }\n            else { printf(\"GET %s: NON TROVATO\\n\", a); }\n        } else if (strcmp(cmd, \"GET_ALIAS\") == 0 && sscanf(riga, \"GET_ALIAS %47s %c\", a, &extra) == 1) {\n            chiave_str_t kq = {.testo = a, .cont_dist = nullptr}; const risorsa_t *r = ht_cerca(tab_alias, &kq);\n            if (r != nullptr) { printf(\"GET_ALIAS %s: %s (%\" PRId32 \")\\n\", a, r->etichetta, r->punteggio); }\n            else { printf(\"GET_ALIAS %s: NON TROVATO\\n\", a); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %47s %c\", a, &extra) == 1) {\n            chiave_str_t kq = {.testo = a, .cont_dist = nullptr}; void *val = ht_cerca(tab_prop, &kq);\n            if (val == nullptr) { printf(\"DEL %s: NON TROVATO\\n\", a); }\n            else { size_t inv = ht_rimuovi_per_valore(tab_alias, val); ht_rimuovi(tab_prop, &kq); printf(\"DEL %s: OK (alias_invalidati=%zu)\\n\", a, inv); }\n        } else if (strcmp(cmd, \"EXTRACT\") == 0 && sscanf(riga, \"EXTRACT %47s %c\", a, &extra) == 1) {\n            chiave_str_t kq = {.testo = a, .cont_dist = nullptr}; void *estr = nullptr;\n            if (!ht_estrai(tab_prop, &kq, &estr)) { printf(\"EXTRACT %s: NON TROVATO\\n\", a); }\n            else { size_t inv = ht_rimuovi_per_valore(tab_alias, estr); risorsa_t *r = estr; printf(\"EXTRACT %s: %s (%\" PRId32 \") (alias_invalidati=%zu)\\n\", a, r->etichetta, r->punteggio, inv); distruggi_risorsa(r); }\n        } else if (strcmp(cmd, \"BILANCIO\") == 0 && sscanf(riga, \"BILANCIO %c\", &extra) != 1) {\n            printf(\"BILANCIO chiavi=%zu/%zu valori=%zu/%zu\\n\", k_cre, k_dis, v_cre, v_dis);\n        } else { ht_distruggi(tab_alias); ht_distruggi(tab_prop); return EXIT_FAILURE; }\n    }\n    ht_distruggi(tab_alias); ht_distruggi(tab_prop);\n    printf(\"FINE chiavi=%zu/%zu valori=%zu/%zu\\n\", k_cre, k_dis, v_cre, v_dis);\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Usare char direttamente (che può avere segno) o interi con segno nel calcolo di una funzione di hash, ottenendo valori diversi tra piattaforme o overflow con segno (comportamento indefinito).",
+    "Calcolare l'hash di una struct passando sizeof(*s) byte grezzi alla funzione di hash: i byte di padding non inizializzati violano l'invariante uguali(a, b) => hash(a) == hash(b) e rendono irreperibili chiavi già inserite.",
+    "Sovrascrivere o liberare t->secchi durante il ridimensionamento prima di verificare che il nuovo array sia stato allocato con successo, oppure riallocare inutilmente i nodi invece di spostarli.",
+    "Dimenticare di liberare la vecchia risorsa o la chiave ridondante durante l'aggiornamento di una chiave già esistente, oppure non proteggere il caso di auto-aggiornamento (curr->valore == valore).",
+    "Modificare una chiave in memoria dopo averla inserita nella tabella hash, alterandone l'hash e rendendo il nodo irraggiungibile nelle ricerche e rimozioni successive."
+  ],
+  "differenze_python": [
+    "In Python il tipo dict è integrato nel linguaggio, ridimensiona automaticamente, richiede chiavi immutabili (hashable) tramite __hash__ e __eq__ e gestisce la memoria col garbage collector; in C occorre progettare esplicitamente secchi, collisioni, ridimensionamento, callback hash_fn/uguali_fn e regole di possesso.",
+    "In Python una tupla usata come chiave viene sottoposta a hash campo per campo in automatico; in C una struct contiene byte di padding che non vanno mai inclusi nell'hash, perciò l'hash va calcolato combinando esplicitamente i singoli campi."
+  ]
+}

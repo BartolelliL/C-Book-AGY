@@ -1,0 +1,433 @@
+{
+  "capitolo": 19,
+  "titolo": "Programmi su più file",
+  "obiettivi": [
+    "Separare interfaccia e implementazione tra file di intestazione (.h) e file sorgenti (.c) con compilazione separata",
+    "Proteggere gli header con protezioni di inclusione e controllare il collegamento con static, extern e inline",
+    "Nascondere la rappresentazione interna di una struttura dati mediante tipi opachi",
+    "Organizzare la tabella hash generica come libreria riutilizzabile su più file"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "file di intestazione",
+      "definizione": "File con estensione .h che espone dichiarazioni di tipi, costanti e prototipi condivisi tra più file sorgenti."
+    },
+    {
+      "termine": "unità di traduzione",
+      "definizione": "Singolo file sorgente .c dopo l'espansione di tutti gli #include e delle direttive del preprocessore."
+    },
+    {
+      "termine": "compilazione separata",
+      "definizione": "Compilazione indipendente di ciascun file .c in un file oggetto, seguita dal collegamento finale in un unico eseguibile."
+    },
+    {
+      "termine": "collegamento",
+      "definizione": "Proprietà che stabilisce se un identificatore dichiarato in più unità di traduzione indica lo stesso oggetto o funzione (esterno, interno o assente)."
+    },
+    {
+      "termine": "protezione di inclusione",
+      "definizione": "Coppia di direttive #ifndef/#define/#endif che impedisce l'inclusione multipla dello stesso file di intestazione."
+    },
+    {
+      "termine": "tipo opaco",
+      "definizione": "Struttura dichiarata nell'header in modo incompleto e definita solo nel file .c, accessibile dall'esterno tramite puntatore e funzioni."
+    }
+  ],
+  "concetti_richiesti": [
+    "codice sorgente",
+    "compilatore",
+    "eseguibile",
+    "preprocessore",
+    "collegatore",
+    "errore di compilazione",
+    "dichiarazione",
+    "costante",
+    "funzione",
+    "prototipo",
+    "visibilità",
+    "durata di vita",
+    "puntatore",
+    "puntatore nullo",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "struttura",
+    "campo",
+    "enumerazione",
+    "puntatore generico",
+    "contenitore generico",
+    "puntatore a funzione",
+    "callback",
+    "possesso della memoria",
+    "tabella hash",
+    "funzione di hash",
+    "collisione",
+    "fattore di carico",
+    "ridimensionamento"
+  ],
+  "regole": [
+    {
+      "id": "19.R1",
+      "enunciato": "In un programma su più file l'interfaccia pubblica di un modulo risiede in un file di intestazione (.h) contenente solo dichiarazioni (tipi, costanti, prototipi), mentre l'implementazione risiede nel corrispondente file sorgente (.c). Ciascun file .c, dopo l'espansione del preprocessore, forma un'unità di traduzione compilata indipendentemente in un file oggetto; il collegatore unisce i file oggetto nell'eseguibile finale. Ogni file modulo.c deve includere \"modulo.h\" come prima direttiva per verificare l'autosufficienza dell'header e la coerenza delle firme. Inserire in un .h definizioni di variabili o funzioni non-inline con collegamento esterno e includerlo in più .c viola la regola di definizione unica provocando un errore del collegatore.",
+      "nota_standard": "indefinito: le fasi di traduzione, le unità di traduzione e il requisito di una sola definizione esterna per gli identificatori con collegamento esterno usati nel programma sono definiti dallo standard C23; dichiarare un prototipo nel .h incompatibile con la definizione nel .c (quando l'header non è incluso nel .c) provoca comportamento indefinito."
+    },
+    {
+      "id": "19.R2",
+      "enunciato": "Ogni file di intestazione deve essere racchiuso in una protezione di inclusione standard (#ifndef NOME_UNIVOCO_H / #define NOME_UNIVOCO_H / ... / #endif) affinché inclusioni multiple o a diamante nella stessa unità di traduzione non causino errori di ridefinizione. La direttiva #define definisce costanti simboliche o flag del preprocessore (rimovibili con #undef); le direttive #ifdef, #ifndef, #if, #elif, #else, #endif e l'operatore defined(...) controllano la compilazione condizionale prima della compilazione C vera e propria. Le macro con nomi che iniziano con doppio underscore (__) o con underscore seguito da lettera maiuscola sono riservate all'implementazione e non vanno mai usate come protezioni di inclusione.",
+      "nota_standard": "definito: il funzionamento delle direttive del preprocessore e della compilazione condizionale è definito dallo standard C23; l'uso di identificatori riservati (come _MODULO_H o __MODULO_H__) provoca comportamento indefinito."
+    },
+    {
+      "id": "19.R3",
+      "enunciato": "Un identificatore a livello di file ha per default collegamento esterno (condivisibile tra unità di traduzione); qualificarlo con static gli assegna collegamento interno rendendolo privato alla sola unità di traduzione, evitando conflitti di nomi tra moduli. La parola chiave extern in un header dichiara un oggetto condiviso senza definirlo, lasciando l'unica definizione in un solo file .c. Una funzione static inline nell'header ha collegamento interno in ogni unità di traduzione; una funzione inline senza static nell'header fornisce una definizione inline ma richiede una dichiarazione extern inline (o definizione non-inline) in esattamente un file .c per emettere la definizione esterna richiesta dal collegatore.",
+      "nota_standard": "indefinito: le regole di collegamento (esterno, interno, assente) e il modello inline/extern inline sono definiti dallo standard C23; usare una funzione inline non-static senza fornire una definizione esterna in alcuna unità di traduzione può causare un errore del collegatore, mentre fornire definizioni inline incoerenti tra unità di traduzione provoca comportamento indefinito."
+    },
+    {
+      "id": "19.R4",
+      "enunciato": "Un tipo opaco si realizza dichiarando nell'header una struttura incompleta (typedef struct nome nome_t;) e collocando la definizione completa struct nome { ... }; esclusivamente nel file .c di implementazione. Fuori dal file .c il tipo è incompleto: il chiamante può dichiarare puntatori nome_t * e const nome_t * e invocarne le funzioni di interfaccia (creazione sullo heap, operazioni, interrogazioni e distruzione), ma non può applicare sizeof(nome_t), allocare istanze sullo stack né accedere direttamente ai campi con ->.",
+      "nota_standard": "definito: i tipi struttura incompleti e i puntatori a tipi incompleti sono definiti dallo standard C23; tentare di dereferenziare un tipo incompleto, calcolarne sizeof o accedere ai suoi campi fuori dall'unità di traduzione che lo completa è una violazione di vincolo rifiutata con errore di compilazione."
+    },
+    {
+      "id": "19.R5",
+      "enunciato": "Una libreria modulare ben progettata (come la tabella hash generica opaca) espone un header autosufficiente con prefisso di modulo uniforme, tipo opaco, callback tipizzate, una struct di configurazione usabile con inizializzatori designati e funzioni di creazione/distruzione sicure (il distruttore accetta nullptr senza errori). Tutti i tipi ausiliari (come struct nodo_ht) e gli helper interni (come il ridimensionamento) restano privati con collegamento interno nel solo file .c.",
+      "nota_standard": "definito: l'incapsulamento mediante tipi opachi, struct di configurazione e funzioni static interne è completamente definito dallo standard C23 e garantisce la separazione tra interfaccia binaria/sorgente e dettagli implementativi."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "19.1",
+      "titolo": "File di intestazione, file sorgenti e compilazione separata",
+      "contenuti": [
+        "Perché spezzare un programma C in più file: separare interfaccia (file di intestazione .h) e implementazione (file sorgente .c) per chiarezza, riuso e ricompilazione selettiva",
+        "Unità di traduzione e fasi della compilazione separata: preprocessore, compilazione indipendente dei singoli .c in file oggetto (-c) e collegamento finale in un eseguibile",
+        "Differenza tra #include <...> e #include \"...\", regola d'oro di includere \"modulo.h\" come prima direttiva dentro modulo.c per verificare autosufficienza e coerenza delle firme",
+        "Cosa inserire nel file di intestazione (dichiarazioni di tipi, prototipi, costanti) e cosa vietare assolutamente (definizioni di funzioni non-inline o variabili con collegamento esterno che provocano errori di definizione multipla)"
+      ],
+      "esempio_guidato": "Un programma di geometria 2D suddiviso in tre file (geometria.h, geometria.c, main.c) che definisce punto_t e rettangolo_t nell'header, implementa area, perimetro e distanza nel file sorgente includendo \"geometria.h\" per primo e li richiama da main.c, mostrando la compilazione separata in file oggetto e il collegamento finale.",
+      "approfondimento": "Perché modulo.c dovrebbe includere sempre \"modulo.h\" prima di ogni altro header: se modulo.h dimentica un #include (come <stddef.h> o <stdint.h>), il compilatore segnala subito l'errore compilando modulo.c invece di lasciarlo emergere solo in un futuro file chiamante.",
+      "esercizio_id": "19.1"
+    },
+    {
+      "id": "19.2",
+      "titolo": "Protezioni di inclusione e direttive del preprocessore",
+      "contenuti": [
+        "Inclusione multipla e dipendenze a diamante tra header (main.c include a.h e b.h, e b.h include a.h): perché senza protezione il compilatore rifiuta la ridefinizione di struct",
+        "Protezione di inclusione standard (#ifndef NOME_H / #define NOME_H / ... / #endif): meccanismo di espansione, scelta di nomi univoci non riservati (mai prefissi __ o _Maiuscola)",
+        "Costanti simboliche e flag con #define e rimozione con #undef: confronto con const e constexpr (capitolo 2) e criteri di scelta; rinvio al capitolo 21 per le macro con argomenti",
+        "Compilazione condizionale con #ifdef, #ifndef, #if, #elif, #else, #endif e l'operatore defined(...) per selezionare configurazioni o valori predefiniti sovrascrivibili da riga di comando"
+      ],
+      "esempio_guidato": "Un piccolo programma su quattro file (tipi.h, filtro.h, filtro.c, main.c) con dipendenza a diamante protetta da protezioni di inclusione e configurazione a tempo di compilazione del livello di log tramite #ifndef, #define, #if, #elif, #else, #endif e defined.",
+      "approfondimento": "Protezioni di inclusione standard contro #pragma once: sebbene #pragma once sia diffuso, non appartiene allo standard ISO C23 e può fallire in presenza di collegamenti simbolici o copie duplicate; la tripla #ifndef/#define/#endif è sempre portabile.",
+      "esercizio_id": "19.2"
+    },
+    {
+      "id": "19.3",
+      "titolo": "Visibilità tra file: static, extern e inline",
+      "contenuti": [
+        "I tre tipi di collegamento in C: esterno (predefinito a livello di file), interno (static a livello di file, distinto dallo static locale del capitolo 7) e assente (variabili locali)",
+        "Incapsulare funzioni ausiliarie e stato privato di un modulo con static a livello di file per prevenire collisioni di simboli tra unità di traduzione",
+        "Dichiarare dati condivisi con extern nell'header e definirli una sola volta in un file .c (preferendo tabelle const ed evitando stato globale mutabile)",
+        "Funzioni inline in C23: static inline nell'header (collegamento interno senza conflitti) rispetto alla coppia inline nell'header + extern inline in un solo .c per emettere la definizione esterna"
+      ],
+      "esempio_guidato": "Un programma su più file (contatore.h, contatore.c, main.c) che dichiara una costante condivisa con extern const, usa una funzione ausiliaria static privata al .c, espone un helper static inline nell'header e dimostra la coppia inline / extern inline prendendo l'indirizzo della funzione da main.c.",
+      "approfondimento": "Il modello inline del C23 rispetto al C++: in C una definizione inline priva di static non genera automaticamente un simbolo esterno debole; per garantire che il programma si colleghi anche a ottimizzazioni spente (-O0) o quando si prende l'indirizzo della funzione occorre una dichiarazione extern inline in esattamente un file .c.",
+      "esercizio_id": "19.3"
+    },
+    {
+      "id": "19.4",
+      "titolo": "Incapsulamento con i tipi opachi",
+      "contenuti": [
+        "Limiti delle struct trasparenti negli header: i chiamanti possono corrompere gli invarianti accedendo ai campi e qualsiasi modifica interna rompe la separazione tra moduli",
+        "Dichiarazione incompleta (typedef struct nome nome_t;) nel file di intestazione e definizione completa della struct esclusivamente nel file .c",
+        "Operazioni lecite sul tipo opaco fuori dal modulo (puntatori nome_t *, const nome_t *, chiamate alle funzioni API) e operazioni rifiutate dal compilatore (sizeof, allocazione sullo stack, accesso ->)",
+        "Progettazione dell'interfaccia di un tipo opaco: costruttore sullo heap, distruttore tollerante a nullptr, getter const e libertà di cambiare l'implementazione interna senza toccare il codice client"
+      ],
+      "esempio_guidato": "Una pila dinamica di interi incapsulata come tipo opaco su tre file (pila.h, pila.c, main.c) in cui pila.h espone solo typedef struct pila pila_t; e i prototipi, affiancato da un breve blocco di tipo errore che mostra il rifiuto di sizeof(pila_t) e p->len da parte del compilatore.",
+      "approfondimento": "Come disegnare un'API opaca pulita in C: adottare un prefisso comune per tutti i simboli del modulo (es. pila_crea, pila_distruggi), accettare const sul puntatore per tutte le operazioni di lettura, rendere innocuo il distruttore su nullptr e documentare nel .h le precondizioni e il possesso della memoria.",
+      "esercizio_id": "19.4"
+    },
+    {
+      "id": "19.5",
+      "titolo": "Organizzare una libreria: la tabella hash come tipo opaco",
+      "contenuti": [
+        "Raggiungimento del traguardo del libro: trasformare la tabella hash generica del capitolo 18 in una libreria modulare opaca riutilizzabile (tabella_hash.h e tabella_hash.c)",
+        "Progettazione di tabella_hash.h: protezione di inclusione, typedef struct tabella_hash tabella_hash_t;, typedef delle callback, struct di configurazione ht_config_t (usabile con inizializzatori designati), enum di esito e helper predefiniti per chiavi stringa",
+        "Implementazione privata in tabella_hash.c: struct nodo_ht, struct tabella_hash e funzione static ht_ridimensiona completamente nascosti al chiamante",
+        "Uso della libreria da main.c con istanze multiple e diversi contratti di possesso della memoria, preparando il suo impiego diretto nell'interprete del capitolo 26"
+      ],
+      "esempio_guidato": "La libreria opaca completa (tabella_hash.h e tabella_hash.c) collegata a un main.c che gestisce un archivio di parametri di sistema con ht_config_t, chiavi stringa e valori int * posseduti, mostrando creazione, inserimento, aggiornamento, visita con ctx, estrazione e distruzione senza mai accedere ai campi interni.",
+      "approfondimento": "Il pattern della struct di configurazione (ht_config_t) in C23: passare &(ht_config_t){.cap_iniziale = 8, .hash = ..., .uguali = ...} rende auto-documentata ogni chiamata, azzera automaticamente a nullptr i distruttori omessi (modalità prestito) e consente di estendere la libreria con nuovi campi senza riscrivere i chiamanti.",
+      "esercizio_id": "19.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "19.1",
+      "tipo": "esercizio",
+      "titolo": "Modulo di aritmetica razionale su più file con separazione tra interfaccia e implementazione",
+      "descrizione": "Scrivi un programma C organizzato su tre file (`razionale.h`, `razionale.c`, `main.c`) che implementi un modulo per l'aritmetica esatta sui numeri razionali (frazioni `num / den` ridotte ai minimi termini). Nel file di intestazione `razionale.h` definisci `typedef struct razionale { int64_t num; int64_t den; } razionale_t;` e dichiara cinque funzioni: (1) `razionale_t raz_crea(int64_t num, int64_t den, bool *ok)` che rifiuta `den == 0` impostando `*ok = false`, altrimenti porta il segno sul numeratore (`den > 0`), normalizza `0 / den` in `0 / 1`, divide per il massimo comun divisore (algoritmo di Euclide) e imposta `*ok = true`; (2) `razionale_t raz_somma(razionale_t a, razionale_t b)`; (3) `razionale_t raz_moltiplica(razionale_t a, razionale_t b)`; (4) `int raz_confronta(razionale_t a, razionale_t b)` che restituisce `-1`, `0` oppure `1`; (5) `void raz_stampa(razionale_t r)` che stampa `<num>` se `r.den == 1`, altrimenti `<num>/<den>`. Nel file `razionale.c` includi `\"razionale.h\"` come prima direttiva e implementa il modulo (nessuna funzione definita nell'header). In `main.c` leggi comandi da `stdin` fino a fine input: `NORM <n> <d>`, `ADD <n1> <d1> <n2> <d2>`, `MUL <n1> <d1> <n2> <d2>` e `CMP <n1> <d1> <n2> <d2>` (se un denominatore è `0` stampa `ERRORE DENOMINATORE ZERO` e prosegui), producendo l'output esatto dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "separazione tra file di intestazione (.h con tipi e prototipi) e file sorgente (.c con definizioni)",
+        "inclusione di \"razionale.h\" come prima direttiva in razionale.c per verificare coerenza e autosufficienza",
+        "compilazione separata di razionale.c e main.c seguita dal collegamento nell'eseguibile finale",
+        "normalizzazione canonica di frazioni (segno sul numeratore, riduzione tramite MCD, gestione di den == 0)"
+      ],
+      "domande_guida": [
+        "Perché razionale.h deve includere <stdint.h> direttamente invece di sperare che lo faccia main.c prima di #include \"razionale.h\"?",
+        "Che cosa accadrebbe al momento del collegamento se definissi il corpo di raz_somma dentro razionale.h e lo includessi sia in razionale.c sia in main.c?",
+        "Perché in razionale.c conviene scrivere #include \"razionale.h\" come prima riga del file?",
+        "Come garantisce raz_crea una rappresentazione unica anche per frazioni come 0/-5 o -6/-8?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "NORM -6 -8\nNORM 0 -5\nNORM 4 0\nADD 1 6 1 3\nMUL -2 3 9 4\nCMP 2 3 3 5\nCMP 2 4 1 2\nCMP -1 2 1 3\n",
+          "output": "3/4\n0\nERRORE DENOMINATORE ZERO\n1/2\n-3/2\n1\n0\n-1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "ADD 1 2 -1 2\nMUL 0 7 5 3\nNORM 10 -2\nADD 1 0 1 2\n",
+          "output": "0\n0\n-5\nERRORE DENOMINATORE ZERO\n"
+        },
+        {
+          "input": "CMP -3 4 -2 3\nMUL -3 -4 -2 3\n",
+          "output": "-1\n-1/2\n"
+        }
+      ],
+      "soluzione_file": {
+        "razionale.h": "#include <stdint.h>\n\ntypedef struct razionale {\n    int64_t num;\n    int64_t den;\n} razionale_t;\n\nrazionale_t raz_crea(int64_t num, int64_t den, bool *ok);\nrazionale_t raz_somma(razionale_t a, razionale_t b);\nrazionale_t raz_moltiplica(razionale_t a, razionale_t b);\nint raz_confronta(razionale_t a, razionale_t b);\nvoid raz_stampa(razionale_t r);\n",
+        "razionale.c": "#include \"razionale.h\"\n#include <inttypes.h>\n#include <stdio.h>\n\nint64_t mcd_pos(int64_t a, int64_t b) {\n    if (a < 0) { a = -a; }\n    if (b < 0) { b = -b; }\n    while (b != 0) {\n        int64_t r = a % b;\n        a = b;\n        b = r;\n    }\n    return (a == 0) ? 1 : a;\n}\n\nrazionale_t raz_crea(int64_t num, int64_t den, bool *ok) {\n    if (den == 0) {\n        if (ok != nullptr) { *ok = false; }\n        return (razionale_t){.num = 0, .den = 1};\n    }\n    if (den < 0) {\n        num = -num;\n        den = -den;\n    }\n    if (num == 0) {\n        den = 1;\n    } else {\n        int64_t g = mcd_pos(num, den);\n        num /= g;\n        den /= g;\n    }\n    if (ok != nullptr) { *ok = true; }\n    return (razionale_t){.num = num, .den = den};\n}\n\nrazionale_t raz_somma(razionale_t a, razionale_t b) {\n    bool ok = false;\n    return raz_crea(a.num * b.den + b.num * a.den, a.den * b.den, &ok);\n}\n\nrazionale_t raz_moltiplica(razionale_t a, razionale_t b) {\n    bool ok = false;\n    return raz_crea(a.num * b.num, a.den * b.den, &ok);\n}\n\nint raz_confronta(razionale_t a, razionale_t b) {\n    int64_t lhs = a.num * b.den;\n    int64_t rhs = b.num * a.den;\n    return (lhs > rhs) - (lhs < rhs);\n}\n\nvoid raz_stampa(razionale_t r) {\n    if (r.den == 1) {\n        printf(\"%\" PRId64 \"\\n\", r.num);\n    } else {\n        printf(\"%\" PRId64 \"/%\" PRId64 \"\\n\", r.num, r.den);\n    }\n}\n",
+        "main.c": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"razionale.h\"\n\nint main(void) {\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long n1 = 0, d1 = 0, n2 = 0, d2 = 0;\n        if (strcmp(cmd, \"NORM\") == 0 && sscanf(riga, \"NORM %lld %lld %c\", &n1, &d1, &extra) == 2) {\n            bool ok = false;\n            razionale_t r = raz_crea((int64_t)n1, (int64_t)d1, &ok);\n            if (!ok) { printf(\"ERRORE DENOMINATORE ZERO\\n\"); }\n            else { raz_stampa(r); }\n        } else if ((strcmp(cmd, \"ADD\") == 0 || strcmp(cmd, \"MUL\") == 0 || strcmp(cmd, \"CMP\") == 0) &&\n                   sscanf(riga, \"%*15s %lld %lld %lld %lld %c\", &n1, &d1, &n2, &d2, &extra) == 4) {\n            bool ok1 = false, ok2 = false;\n            razionale_t a = raz_crea((int64_t)n1, (int64_t)d1, &ok1);\n            razionale_t b = raz_crea((int64_t)n2, (int64_t)d2, &ok2);\n            if (!ok1 || !ok2) {\n                printf(\"ERRORE DENOMINATORE ZERO\\n\");\n            } else if (strcmp(cmd, \"ADD\") == 0) {\n                raz_stampa(raz_somma(a, b));\n            } else if (strcmp(cmd, \"MUL\") == 0) {\n                raz_stampa(raz_moltiplica(a, b));\n            } else {\n                printf(\"%d\\n\", raz_confronta(a, b));\n            }\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "19.2",
+      "tipo": "esercizio",
+      "titolo": "Architettura a diamante con protezioni di inclusione e configurazione tramite direttive del preprocessore",
+      "descrizione": "Scrivi un programma C su quattro file (`misura.h`, `statistica.h`, `statistica.c`, `main.c`) che dimostri l'uso delle protezioni di inclusione su una dipendenza a diamante e delle direttive del preprocessore `#define`, `#undef`, `#ifndef`, `#if`, `#elif`, `#else`, `#endif` e `defined`. (1) In `misura.h` (protetto da `MISURA_H`) imposta `#ifndef LIVELLO_PRECISIONE` / `#define LIVELLO_PRECISIONE 2` / `#endif`, seleziona il formato `FMT_VAL` con `#if LIVELLO_PRECISIONE == 1` (`\"%.1f\"`), `#elif LIVELLO_PRECISIONE == 2` (`\"%.2f\"`), `#else` (`\"%.3f\"`), `#endif` e definisci `typedef struct misura { int32_t id; double valore; } misura_t;`. (2) In `statistica.h` (protetto da `STATISTICA_H`) includi `\"misura.h\"`, definisci `typedef struct riepilogo { size_t n; double min; double max; double media; } riepilogo_t;` e dichiara `bool calcola_riepilogo(const misura_t *arr, size_t n, riepilogo_t *out);` e `size_t conta_anomalie(const misura_t *arr, size_t n, double soglia);`. (3) In `statistica.c` includi `\"statistica.h\"`, definisci localmente `#define TOLLERANZA_ANOMALIA 1e-9` per il confronto `arr[i].valore > soglia + TOLLERANZA_ANOMALIA` dentro `conta_anomalie` e rimuovi la costante subito dopo con `#undef TOLLERANZA_ANOMALIA`. (4) In `main.c` includi `\"misura.h\"`, `\"statistica.h\"` e nuovamente `\"misura.h\"` (verificando che la protezione di inclusione impedisca errori di ridefinizione), controlla con `#if defined(MISURA_H) && defined(STATISTICA_H)` la corretta inclusione stampando `Config: precisione=<LIVELLO_PRECISIONE>`, poi leggi da `stdin` la prima riga `<n> <soglia>` (`0 <= n <= 64`) e `n` righe `<id> <valore>`, stampando riepilogo e numero di anomalie esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "protezione di inclusione standard (#ifndef/#define/#endif) con nomi univoci non riservati",
+        "risoluzione delle inclusioni multiple e a diamante tra più file di intestazione",
+        "compilazione condizionale tramite #ifndef, #if, #elif, #else, #endif e defined(...)",
+        "limitazione dell'ambito di una costante del preprocessore tramite #define e #undef"
+      ],
+      "domande_guida": [
+        "Quale errore di compilazione si verificherebbe in main.c se rimuovessi la protezione di inclusione da misura.h?",
+        "Perché #ifndef LIVELLO_PRECISIONE / #define LIVELLO_PRECISIONE 2 / #endif permette di cambiare precisione dalla riga di comando del compilatore senza modificare misura.h?",
+        "Quale utilità ha #undef TOLLERANZA_ANOMALIA subito dopo conta_anomalie in statistica.c?",
+        "Perché non bisogna chiamare una protezione di inclusione _MISURA_H oppure __MISURA_H__?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "4 25.0\n101 21.5\n102 25.0\n103 28.4\n104 26.1\n",
+          "output": "Config: precisione=2\nRiepilogo (n=4): min=21.50 max=28.40 media=25.25\nAnomalie (> 25.00): 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 10.0\n",
+          "output": "Config: precisione=2\nRiepilogo (n=0): nessun dato\nAnomalie (> 10.00): 0\n"
+        },
+        {
+          "input": "1 15.0\n7 15.5\n",
+          "output": "Config: precisione=2\nRiepilogo (n=1): min=15.50 max=15.50 media=15.50\nAnomalie (> 15.00): 1\n"
+        }
+      ],
+      "soluzione_file": {
+        "misura.h": "#ifndef MISURA_H\n#define MISURA_H\n\n#include <stdint.h>\n\n#ifndef LIVELLO_PRECISIONE\n#define LIVELLO_PRECISIONE 2\n#endif\n\n#if LIVELLO_PRECISIONE == 1\n#define FMT_VAL \"%.1f\"\n#elif LIVELLO_PRECISIONE == 2\n#define FMT_VAL \"%.2f\"\n#else\n#define FMT_VAL \"%.3f\"\n#endif\n\ntypedef struct misura {\n    int32_t id;\n    double valore;\n} misura_t;\n\n#endif\n",
+        "statistica.h": "#ifndef STATISTICA_H\n#define STATISTICA_H\n\n#include <stddef.h>\n#include \"misura.h\"\n\ntypedef struct riepilogo {\n    size_t n;\n    double min;\n    double max;\n    double media;\n} riepilogo_t;\n\nbool calcola_riepilogo(const misura_t *arr, size_t n, riepilogo_t *out);\nsize_t conta_anomalie(const misura_t *arr, size_t n, double soglia);\n\n#endif\n",
+        "statistica.c": "#include \"statistica.h\"\n\nbool calcola_riepilogo(const misura_t *arr, size_t n, riepilogo_t *out) {\n    if (out == nullptr || n == 0 || arr == nullptr) {\n        return false;\n    }\n    double mn = arr[0].valore;\n    double mx = arr[0].valore;\n    double somma = 0.0;\n    for (size_t i = 0; i < n; ++i) {\n        double v = arr[i].valore;\n        if (v < mn) { mn = v; }\n        if (v > mx) { mx = v; }\n        somma += v;\n    }\n    *out = (riepilogo_t){.n = n, .min = mn, .max = mx, .media = somma / (double)n};\n    return true;\n}\n\n#define TOLLERANZA_ANOMALIA 1e-9\nsize_t conta_anomalie(const misura_t *arr, size_t n, double soglia) {\n    if (arr == nullptr || n == 0) { return 0; }\n    size_t cont = 0;\n    for (size_t i = 0; i < n; ++i) {\n        if (arr[i].valore > soglia + TOLLERANZA_ANOMALIA) {\n            ++cont;\n        }\n    }\n    return cont;\n}\n#undef TOLLERANZA_ANOMALIA\n",
+        "main.c": "#include <stdio.h>\n#include <stdlib.h>\n#include \"misura.h\"\n#include \"statistica.h\"\n#include \"misura.h\"\n\nconstexpr size_t MAX_MISURE = 64;\n\nint main(void) {\n#if defined(MISURA_H) && defined(STATISTICA_H)\n    printf(\"Config: precisione=%d\\n\", LIVELLO_PRECISIONE);\n#endif\n    char riga[256], extra = '\\0';\n    int n_in = 0;\n    double soglia = 0.0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %lf %c\", &n_in, &soglia, &extra) != 2 ||\n        n_in < 0 || (size_t)n_in > MAX_MISURE) {\n        fprintf(stderr, \"Errore: intestazione non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    misura_t dati[MAX_MISURE] = {};\n    for (size_t i = 0; i < n; ++i) {\n        long long id = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%lld %lf %c\", &id, &dati[i].valore, &extra) != 2 ||\n            id < INT32_MIN || id > INT32_MAX) {\n            fprintf(stderr, \"Errore: misura non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        dati[i].id = (int32_t)id;\n    }\n    riepilogo_t r = {};\n    if (calcola_riepilogo(dati, n, &r)) {\n        printf(\"Riepilogo (n=%zu): min=\" FMT_VAL \" max=\" FMT_VAL \" media=\" FMT_VAL \"\\n\",\n               r.n, r.min, r.max, r.media);\n    } else {\n        printf(\"Riepilogo (n=0): nessun dato\\n\");\n    }\n    size_t anom = conta_anomalie(dati, n, soglia);\n    printf(\"Anomalie (> \" FMT_VAL \"): %zu\\n\", soglia, anom);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "19.3",
+      "tipo": "esercizio",
+      "titolo": "Moduli con helper static omonimi, tabelle extern const e funzioni static inline / extern inline",
+      "descrizione": "Scrivi un programma C organizzato su cinque file (`valuta.h`, `valuta.c`, `imposta.h`, `imposta.c`, `main.c`) che eserciti in modo completo il collegamento esterno, il collegamento interno con `static`, le dichiarazioni `extern` e le funzioni `inline` del C23. (1) In `valuta.h` (protetto da `VALUTA_H`) dichiara `extern const int32_t TASSI_MILLI[];` ed `extern const size_t NUM_VALUTE;`, definisci `static inline int64_t cent_da_euro(int64_t euro)` (`euro * 100`), definisci `inline int64_t satura_cent(int64_t v, int64_t lo, int64_t hi)` (limita `v` a `[lo, hi]`) e dichiara `bool converti_cent(int64_t cent, size_t cod_valuta, int64_t *out);`. (2) In `valuta.c` definisci `const int32_t TASSI_MILLI[] = {1000, 1080, 860};`, `const size_t NUM_VALUTE = 3;`, la dichiarazione esterna `extern inline int64_t satura_cent(int64_t v, int64_t lo, int64_t hi);`, una funzione privata `static int64_t applica_fattore(int64_t base, int32_t milli)` che calcola il prodotto scalato per `1000` con arrotondamento al centesimo più vicino (`(base >= 0) ? (base * (int64_t)milli + 500) / 1000 : (base * (int64_t)milli - 500) / 1000`), e `converti_cent` (che verifica `cod_valuta < NUM_VALUTE`). (3) In `imposta.h` (protetto da `IMPOSTA_H`) dichiara `extern const int32_t ALIQUOTA_PREDEFINITA_MILLI;` e `int64_t calcola_lordo_cent(int64_t netto_cent, int32_t aliquota_milli);`. (4) In `imposta.c` definisci `const int32_t ALIQUOTA_PREDEFINITA_MILLI = 220;`, una propria funzione privata `static int64_t applica_fattore(int64_t base, int32_t milli)` con lo STESSO nome di quella in `valuta.c` (dimostrando che `static` evita collisioni al collegamento) che calcola `base + (base * (int64_t)milli + 500) / 1000` (o `- 500` se negativo), e `calcola_lordo_cent` (usa `ALIQUOTA_PREDEFINITA_MILLI` quando `aliquota_milli < 0`). (5) In `main.c` assegna l'indirizzo di `satura_cent` a un puntatore a funzione `clamp_fn fn_satura = satura_cent;` (verificando al collegamento l'emissione del simbolo `extern inline`) e leggi da `stdin` i comandi `EURO <e>`, `CONV <cent> <cod>`, `IVA <cent> <aliquota_milli>` e `CLAMP <v> <lo> <hi>`, stampando l'output esatto dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "collegamento interno con static a livello di file per evitare collisioni tra funzioni omonime in file .c diversi",
+        "dichiarazione extern nell'header associata a un'unica definizione const nel file .c",
+        "differenza tra static inline (collegamento interno) e inline nell'header + extern inline in un solo .c",
+        "verifica della definizione esterna di una funzione inline prendendone l'indirizzo tramite puntatore a funzione"
+      ],
+      "domande_guida": [
+        "Perché il programma si collega senza errori nonostante sia valuta.c sia imposta.c definiscano una funzione chiamata applica_fattore?",
+        "Che cosa accadrebbe al collegamento se rimuovessi extern inline int64_t satura_cent(...); da valuta.c mantenendo fn_satura = satura_cent; in main.c?",
+        "Perché nell'header valuta.h scrivi extern const size_t NUM_VALUTE; senza inizializzatore, riservando = 3 al solo valuta.c?",
+        "Qual è la differenza di collegamento tra cent_da_euro (static inline) e satura_cent (inline + extern inline)?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "EURO 15\nCONV 1000 1\nCONV 1000 9\nIVA 1000 -1\nIVA 500 100\nCLAMP 2500 0 2000\n",
+          "output": "EURO 15 -> 1500 cent\nCONV 1000 [1] -> 1080 cent\nCONV ERRORE VALUTA 9\nIVA 1000 -> 1220 cent\nIVA 500 -> 550 cent\nCLAMP -> 2000 cent\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "CONV 250 2\nCONV 0 0\nIVA 0 -1\nCLAMP -50 0 100\nCLAMP 42 0 100\n",
+          "output": "CONV 250 [2] -> 215 cent\nCONV 0 [0] -> 0 cent\nIVA 0 -> 0 cent\nCLAMP -> 0 cent\nCLAMP -> 42 cent\n"
+        },
+        {
+          "input": "EURO -3\nCONV 100 3\n",
+          "output": "EURO -3 -> -300 cent\nCONV ERRORE VALUTA 3\n"
+        }
+      ],
+      "soluzione_file": {
+        "valuta.h": "#ifndef VALUTA_H\n#define VALUTA_H\n\n#include <stddef.h>\n#include <stdint.h>\n\nextern const int32_t TASSI_MILLI[];\nextern const size_t NUM_VALUTE;\n\nstatic inline int64_t cent_da_euro(int64_t euro) {\n    return euro * 100;\n}\n\ninline int64_t satura_cent(int64_t v, int64_t lo, int64_t hi) {\n    if (v < lo) { return lo; }\n    if (v > hi) { return hi; }\n    return v;\n}\n\nbool converti_cent(int64_t cent, size_t cod_valuta, int64_t *out);\n\n#endif\n",
+        "valuta.c": "#include \"valuta.h\"\n\nconst int32_t TASSI_MILLI[] = {1000, 1080, 860};\nconst size_t NUM_VALUTE = 3;\n\nextern inline int64_t satura_cent(int64_t v, int64_t lo, int64_t hi);\n\nstatic int64_t applica_fattore(int64_t base, int32_t milli) {\n    int64_t num = base * (int64_t)milli;\n    return (num >= 0) ? ((num + 500) / 1000) : ((num - 500) / 1000);\n}\n\nbool converti_cent(int64_t cent, size_t cod_valuta, int64_t *out) {\n    if (out == nullptr || cod_valuta >= NUM_VALUTE) { return false; }\n    *out = applica_fattore(cent, TASSI_MILLI[cod_valuta]);\n    return true;\n}\n",
+        "imposta.h": "#ifndef IMPOSTA_H\n#define IMPOSTA_H\n\n#include <stdint.h>\n\nextern const int32_t ALIQUOTA_PREDEFINITA_MILLI;\n\nint64_t calcola_lordo_cent(int64_t netto_cent, int32_t aliquota_milli);\n\n#endif\n",
+        "imposta.c": "#include \"imposta.h\"\n\nconst int32_t ALIQUOTA_PREDEFINITA_MILLI = 220;\n\nstatic int64_t applica_fattore(int64_t base, int32_t milli) {\n    int64_t num = base * (int64_t)milli;\n    int64_t quota = (num >= 0) ? ((num + 500) / 1000) : ((num - 500) / 1000);\n    return base + quota;\n}\n\nint64_t calcola_lordo_cent(int64_t netto_cent, int32_t aliquota_milli) {\n    int32_t aliq = (aliquota_milli < 0) ? ALIQUOTA_PREDEFINITA_MILLI : aliquota_milli;\n    return applica_fattore(netto_cent, aliq);\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"imposta.h\"\n#include \"valuta.h\"\n\ntypedef int64_t (*clamp_fn)(int64_t, int64_t, int64_t);\n\nint main(void) {\n    clamp_fn fn_satura = satura_cent;\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long a = 0, b = 0, c = 0;\n        size_t cod = 0;\n        if (strcmp(cmd, \"EURO\") == 0 && sscanf(riga, \"EURO %lld %c\", &a, &extra) == 1) {\n            printf(\"EURO %lld -> %\" PRId64 \" cent\\n\", a, cent_da_euro((int64_t)a));\n        } else if (strcmp(cmd, \"CONV\") == 0 && sscanf(riga, \"CONV %lld %zu %c\", &a, &cod, &extra) == 2) {\n            int64_t ris = 0;\n            if (converti_cent((int64_t)a, cod, &ris)) {\n                printf(\"CONV %lld [%zu] -> %\" PRId64 \" cent\\n\", a, cod, ris);\n            } else {\n                printf(\"CONV ERRORE VALUTA %zu\\n\", cod);\n            }\n        } else if (strcmp(cmd, \"IVA\") == 0 && sscanf(riga, \"IVA %lld %lld %c\", &a, &b, &extra) == 2) {\n            printf(\"IVA %lld -> %\" PRId64 \" cent\\n\", a, calcola_lordo_cent((int64_t)a, (int32_t)b));\n        } else if (strcmp(cmd, \"CLAMP\") == 0 && sscanf(riga, \"CLAMP %lld %lld %lld %c\", &a, &b, &c, &extra) == 3 && b <= c) {\n            printf(\"CLAMP -> %\" PRId64 \" cent\\n\", fn_satura((int64_t)a, (int64_t)b, (int64_t)c));\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "19.4",
+      "tipo": "esercizio",
+      "titolo": "Buffer circolare a sovrascrittura incapsulato come tipo opaco",
+      "descrizione": "Scrivi un programma C organizzato su tre file (`anello.h`, `anello.c`, `main.c`) che incapsuli un buffer circolare a capacità fissa per campioni `int32_t` come **tipo opaco**. (1) In `anello.h` (protetto da `ANELLO_H`) dichiara SOLO il tipo incompleto `typedef struct anello anello_t;` (nessun campo esposto!) e i prototipi: `anello_t *anello_crea(size_t cap);` (accetta `1 <= cap <= 64`, altrimenti `nullptr`), `void anello_distruggi(anello_t *a);` (sicura su `nullptr`), `bool anello_inserisci(anello_t *a, int32_t val, bool *sovrascritto);` (se il buffer è pieno sovrascrive l'elemento più vecchio avanzando l'indice di inizio, incrementa il contatore interno `scartati` e imposta `*sovrascritto = true`), `bool anello_estrai(anello_t *a, int32_t *out);`, `bool anello_leggi_i(const anello_t *a, size_t idx, int32_t *out);` (legge il `idx`-esimo elemento dal più vecchio al più recente), `void anello_svuota(anello_t *a);` (svuota gli elementi preservando `cap` e `scartati`), `size_t anello_len(const anello_t *a);`, `size_t anello_cap(const anello_t *a);` e `size_t anello_scartati(const anello_t *a);`. (2) In `anello.c` definisci privatamente `struct anello` e implementa tutte le funzioni preservando tutti gli invarianti. (3) In `main.c` usa esclusivamente `anello_t *` e le funzioni pubbliche di `anello.h`: leggi dalla prima riga `cap` (`1 <= cap <= 64`), verifica `anello_crea(0) == nullptr` e `anello_distruggi(nullptr)`, poi leggi da `stdin` i comandi `PUSH <val>`, `POP`, `PEEK <idx>`, `CLEAR`, `STAT` e `DUMP`, producendo esattamente l'output dell'esempio e distruggendo il buffer al termine.",
+      "concetti_da_tenere_a_mente": [
+        "dichiarazione incompleta typedef struct anello anello_t; nell'header e definizione completa nel solo file .c",
+        "impossibilità per main.c di leggere o corrompere i campi interni (inizio, len, scartati, dati)",
+        "ciclo di vita completo sullo heap: anello_crea con validazione e anello_distruggi sicuro su nullptr",
+        "lettura indicizzata dell'anello tramite anello_leggi_i senza esporre la geometria circolare interna"
+      ],
+      "domande_guida": [
+        "Perché main.c non può dichiarare anello_t buf; sullo stack né scrivere a->scartati = 0;?",
+        "Come fa anello_inserisci ad aggiornare correttamente inizio, len e scartati quando il buffer è già pieno (len == cap)?",
+        "Perché anello_distruggi deve gestire esplicitamente il caso a == nullptr senza dereferenziare a?",
+        "Quale vantaggio offre esporre anello_leggi_i invece di restituire un puntatore diretto all'array interno dati?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3\nPUSH 10\nPUSH 20\nPUSH 30\nPUSH 40\nDUMP\nPEEK 1\nPOP\nSTAT\nCLEAR\nPOP\nDUMP\n",
+          "output": "PUSH 10 (len=1)\nPUSH 20 (len=2)\nPUSH 30 (len=3)\nPUSH 40 (sovrascritto, len=3)\nDUMP (3/3): 20 30 40\nPEEK[1]: 30\nPOP: 20\nSTAT len=2 cap=3 scartati=1\nCLEAR\nPOP: VUOTO\nDUMP (0/3): (vuoto)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\nPOP\nPEEK 0\nPUSH 5\nPUSH 9\nDUMP\nSTAT\nPOP\nSTAT\n",
+          "output": "POP: VUOTO\nPEEK[0]: FUORI LIMITI\nPUSH 5 (len=1)\nPUSH 9 (sovrascritto, len=1)\nDUMP (1/1): 9\nSTAT len=1 cap=1 scartati=1\nPOP: 9\nSTAT len=0 cap=1 scartati=1\n"
+        },
+        {
+          "input": "2\nPUSH -1\nPUSH -2\nPOP\nPUSH -3\nDUMP\nPEEK 2\n",
+          "output": "PUSH -1 (len=1)\nPUSH -2 (len=2)\nPOP: -1\nPUSH -3 (len=2)\nDUMP (2/2): -2 -3\nPEEK[2]: FUORI LIMITI\n"
+        }
+      ],
+      "soluzione_file": {
+        "anello.h": "#ifndef ANELLO_H\n#define ANELLO_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct anello anello_t;\n\nanello_t *anello_crea(size_t cap);\nvoid anello_distruggi(anello_t *a);\nbool anello_inserisci(anello_t *a, int32_t val, bool *sovrascritto);\nbool anello_estrai(anello_t *a, int32_t *out);\nbool anello_leggi_i(const anello_t *a, size_t idx, int32_t *out);\nvoid anello_svuota(anello_t *a);\nsize_t anello_len(const anello_t *a);\nsize_t anello_cap(const anello_t *a);\nsize_t anello_scartati(const anello_t *a);\n\n#endif\n",
+        "anello.c": "#include \"anello.h\"\n#include <stdlib.h>\n\nstatic constexpr size_t MAX_CAP_ANELLO = 64;\n\nstruct anello {\n    int32_t *dati;\n    size_t cap;\n    size_t inizio;\n    size_t len;\n    size_t scartati;\n};\n\nanello_t *anello_crea(size_t cap) {\n    if (cap < 1 || cap > MAX_CAP_ANELLO) { return nullptr; }\n    anello_t *a = malloc(sizeof(*a));\n    if (a == nullptr) { return nullptr; }\n    a->dati = malloc(cap * sizeof(*a->dati));\n    if (a->dati == nullptr) { free(a); return nullptr; }\n    a->cap = cap;\n    a->inizio = 0;\n    a->len = 0;\n    a->scartati = 0;\n    return a;\n}\n\nvoid anello_distruggi(anello_t *a) {\n    if (a == nullptr) { return; }\n    free(a->dati);\n    free(a);\n}\n\nbool anello_inserisci(anello_t *a, int32_t val, bool *sovrascritto) {\n    if (a == nullptr) { return false; }\n    if (a->len == a->cap) {\n        a->dati[a->inizio] = val;\n        a->inizio = (a->inizio + 1) % a->cap;\n        ++a->scartati;\n        if (sovrascritto != nullptr) { *sovrascritto = true; }\n    } else {\n        a->dati[(a->inizio + a->len) % a->cap] = val;\n        ++a->len;\n        if (sovrascritto != nullptr) { *sovrascritto = false; }\n    }\n    return true;\n}\n\nbool anello_estrai(anello_t *a, int32_t *out) {\n    if (a == nullptr || a->len == 0) { return false; }\n    if (out != nullptr) { *out = a->dati[a->inizio]; }\n    a->inizio = (a->inizio + 1) % a->cap;\n    --a->len;\n    return true;\n}\n\nbool anello_leggi_i(const anello_t *a, size_t idx, int32_t *out) {\n    if (a == nullptr || out == nullptr || idx >= a->len) { return false; }\n    *out = a->dati[(a->inizio + idx) % a->cap];\n    return true;\n}\n\nvoid anello_svuota(anello_t *a) {\n    if (a == nullptr) { return; }\n    a->inizio = 0;\n    a->len = 0;\n}\n\nsize_t anello_len(const anello_t *a) { return (a != nullptr) ? a->len : 0; }\nsize_t anello_cap(const anello_t *a) { return (a != nullptr) ? a->cap : 0; }\nsize_t anello_scartati(const anello_t *a) { return (a != nullptr) ? a->scartati : 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"anello.h\"\n\nint main(void) {\n    anello_t *invalido = anello_crea(0);\n    anello_distruggi(invalido);\n    char riga[256], cmd[16], extra = '\\0';\n    int cap_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &cap_in, &extra) != 1 || cap_in < 1) {\n        return EXIT_FAILURE;\n    }\n    anello_t *a = anello_crea((size_t)cap_in);\n    if (a == nullptr) { return EXIT_FAILURE; }\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long v = 0;\n        size_t idx = 0;\n        if (strcmp(cmd, \"PUSH\") == 0 && sscanf(riga, \"PUSH %lld %c\", &v, &extra) == 1 && v >= INT32_MIN && v <= INT32_MAX) {\n            bool sovr = false;\n            anello_inserisci(a, (int32_t)v, &sovr);\n            if (sovr) { printf(\"PUSH %\" PRId32 \" (sovrascritto, len=%zu)\\n\", (int32_t)v, anello_len(a)); }\n            else { printf(\"PUSH %\" PRId32 \" (len=%zu)\\n\", (int32_t)v, anello_len(a)); }\n        } else if (strcmp(cmd, \"POP\") == 0 && sscanf(riga, \"POP %c\", &extra) != 1) {\n            int32_t x = 0;\n            if (anello_estrai(a, &x)) { printf(\"POP: %\" PRId32 \"\\n\", x); }\n            else { printf(\"POP: VUOTO\\n\"); }\n        } else if (strcmp(cmd, \"PEEK\") == 0 && sscanf(riga, \"PEEK %zu %c\", &idx, &extra) == 1) {\n            int32_t x = 0;\n            if (anello_leggi_i(a, idx, &x)) { printf(\"PEEK[%zu]: %\" PRId32 \"\\n\", idx, x); }\n            else { printf(\"PEEK[%zu]: FUORI LIMITI\\n\", idx); }\n        } else if (strcmp(cmd, \"CLEAR\") == 0 && sscanf(riga, \"CLEAR %c\", &extra) != 1) {\n            anello_svuota(a); printf(\"CLEAR\\n\");\n        } else if (strcmp(cmd, \"STAT\") == 0 && sscanf(riga, \"STAT %c\", &extra) != 1) {\n            printf(\"STAT len=%zu cap=%zu scartati=%zu\\n\", anello_len(a), anello_cap(a), anello_scartati(a));\n        } else if (strcmp(cmd, \"DUMP\") == 0 && sscanf(riga, \"DUMP %c\", &extra) != 1) {\n            printf(\"DUMP (%zu/%zu):\", anello_len(a), anello_cap(a));\n            if (anello_len(a) == 0) { printf(\" (vuoto)\\n\"); }\n            else {\n                for (size_t i = 0; i < anello_len(a); ++i) {\n                    int32_t x = 0; anello_leggi_i(a, i, &x); printf(\" %\" PRId32, x);\n                }\n                printf(\"\\n\");\n            }\n        } else { anello_distruggi(a); return EXIT_FAILURE; }\n    }\n    anello_distruggi(a);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "19.5",
+      "tipo": "esercizio",
+      "titolo": "Libreria opaca tabella_hash su più file con doppio indice (proprietario e in prestito)",
+      "descrizione": "Realizza la libreria riutilizzabile della **tabella hash generica come tipo opaco** organizzata su tre file (`tabella_hash.h`, `tabella_hash.c`, `main.c`). (1) In `tabella_hash.h` (protetto da `TABELLA_HASH_H`) dichiara il tipo opaco `typedef struct tabella_hash tabella_hash_t;`, i tipi callback (`ht_hash_fn`, `ht_uguali_fn`, `ht_distruggi_fn`, `ht_visita_fn`), `typedef enum ht_esito { HT_ERRORE = -1, HT_AGGIORNATO = 0, HT_INSERITO = 1 } ht_esito_t;`, la struct di configurazione `typedef struct ht_config { size_t cap_iniziale; ht_hash_fn hash; ht_uguali_fn uguali; ht_distruggi_fn distruggi_chiave; ht_distruggi_fn distruggi_valore; } ht_config_t;`, gli helper per stringhe `ht_hash_stringa` e `ht_uguali_stringa` e le operazioni `ht_crea(const ht_config_t *cfg)`, `ht_distruggi`, `ht_inserisci`, `ht_cerca`, `ht_rimuovi`, `ht_estrai`, `ht_visita`, `ht_len` e `ht_cap`. (2) In `tabella_hash.c` definisci privatamente `struct nodo_ht`, `struct tabella_hash` e la funzione `static bool ht_ridimensiona` (raddoppio automatico al superamento del fattore di carico `0.75`: `(len + 1) * 4 > cap * 3`), implementando l'intera libreria con gestione sicura del possesso (su aggiornamento libera vecchio valore e chiave ridondante se posseduti; `ht_distruggi(nullptr)` non fa nulla). (3) In `main.c` modella `typedef struct studente { int32_t matricola; char *nome; int32_t voto; size_t *cont_dist; } studente_t;` e istanzia DUE tabelle opache con `ht_config_t`: `per_matricola` (chiavi `int32_t *` possedute con `free`, valori `studente_t *` posseduti con `distruggi_studente`) e `per_nome` (chiavi `char *` possedute con `free` usando `ht_hash_stringa`/`ht_uguali_stringa`, valori `studente_t *` **in prestito** lasciando `.distruggi_valore = nullptr`). Leggi da `stdin` i comandi `ADD <matricola> <nome> <voto>` (nomi distinti tra studenti diversi; su aggiornamento di una matricola esistente rimuove prima il vecchio nome da `per_nome`), `BY_ID <matricola>`, `BY_NAME <nome>`, `DEL <matricola>` (estrae da `per_matricola` con `ht_estrai`, rimuove da `per_nome` e libera lo studente) e `MEDIA` (usa `ht_visita` su `per_matricola` con un contesto `ctx`). Distruggi `per_nome` PRIMA di `per_matricola` e stampa il bilancio finale `FINE creati=<cre> distrutti=<dis>` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "tabella hash generica incapsulata come tipo opaco (struct nodo_ht e struct tabella_hash private in tabella_hash.c)",
+        "configurazione tramite ht_config_t e inizializzatori designati con distruttori indipendenti",
+        "riutilizzo della stessa libreria opaca su due domini distinti (chiavi int32_t * e chiavi stringa)",
+        "coerenza tra tabella proprietaria (per_matricola) e indice secondario in prestito (per_nome) e ordine di distruzione"
+      ],
+      "domande_guida": [
+        "Perché in tabella_hash.h la struct nodo_ht non compare affatto mentre tabella_hash_t è solo una dichiarazione incompleta?",
+        "In che modo passare &(ht_config_t){.cap_iniziale = 4, .hash = ht_hash_stringa, .uguali = ht_uguali_stringa, .distruggi_chiave = free} imposta automaticamente per_nome in modalità prestito per i valori?",
+        "Perché nel comando DEL conviene usare ht_estrai su per_matricola prima di rimuovere il nome da per_nome?",
+        "Perché main.c deve chiamare ht_distruggi(per_nome) prima di ht_distruggi(per_matricola)?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 101 Lucia 28\nADD 102 Marco 24\nADD 103 Elena 30\nADD 104 Davide 26\nBY_ID 103\nBY_NAME Marco\nADD 102 MarcoB 27\nBY_NAME Marco\nBY_NAME MarcoB\nMEDIA\nDEL 101\nBY_NAME Lucia\nMEDIA\n",
+          "output": "ADD 101: INSERITO\nADD 102: INSERITO\nADD 103: INSERITO\nADD 104: INSERITO\nID 103: Elena (30)\nNAME Marco: #102 (24)\nADD 102: AGGIORNATO\nNAME Marco: NON TROVATO\nNAME MarcoB: #102 (27)\nMEDIA (len=4, cap=8): 27.75\nDEL 101: OK\nNAME Lucia: NON TROVATO\nMEDIA (len=3, cap=8): 27.67\nFINE creati=5 distrutti=5\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "BY_ID 1\nBY_NAME Nessuno\nDEL 1\nMEDIA\n",
+          "output": "ID 1: NON TROVATO\nNAME Nessuno: NON TROVATO\nDEL 1: NON TROVATO\nMEDIA (len=0, cap=4): 0.00\nFINE creati=0 distrutti=0\n"
+        },
+        {
+          "input": "ADD 10 Solo 30\nDEL 10\nBY_ID 10\nMEDIA\n",
+          "output": "ADD 10: INSERITO\nDEL 10: OK\nID 10: NON TROVATO\nMEDIA (len=0, cap=4): 0.00\nFINE creati=1 distrutti=1\n"
+        }
+      ],
+      "soluzione_file": {
+        "tabella_hash.h": "#ifndef TABELLA_HASH_H\n#define TABELLA_HASH_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct tabella_hash tabella_hash_t;\ntypedef uint64_t (*ht_hash_fn)(const void *chiave);\ntypedef bool (*ht_uguali_fn)(const void *a, const void *b);\ntypedef void (*ht_distruggi_fn)(void *ptr);\ntypedef void (*ht_visita_fn)(const void *chiave, void *valore, void *ctx);\n\ntypedef enum ht_esito { HT_ERRORE = -1, HT_AGGIORNATO = 0, HT_INSERITO = 1 } ht_esito_t;\n\ntypedef struct ht_config {\n    size_t cap_iniziale;\n    ht_hash_fn hash;\n    ht_uguali_fn uguali;\n    ht_distruggi_fn distruggi_chiave;\n    ht_distruggi_fn distruggi_valore;\n} ht_config_t;\n\ntabella_hash_t *ht_crea(const ht_config_t *cfg);\nvoid ht_distruggi(tabella_hash_t *t);\nht_esito_t ht_inserisci(tabella_hash_t *t, void *chiave, void *valore);\nvoid *ht_cerca(const tabella_hash_t *t, const void *chiave);\nbool ht_rimuovi(tabella_hash_t *t, const void *chiave);\nbool ht_estrai(tabella_hash_t *t, const void *chiave, void **val_out);\nvoid ht_visita(const tabella_hash_t *t, ht_visita_fn fn, void *ctx);\nsize_t ht_len(const tabella_hash_t *t);\nsize_t ht_cap(const tabella_hash_t *t);\nuint64_t ht_hash_stringa(const void *chiave);\nbool ht_uguali_stringa(const void *a, const void *b);\n\n#endif\n",
+        "tabella_hash.c": "#include \"tabella_hash.h\"\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct nodo_ht {\n    void *chiave; void *valore; uint64_t hash; struct nodo_ht *prox;\n} nodo_ht_t;\n\nstruct tabella_hash {\n    nodo_ht_t **secchi; size_t cap; size_t len;\n    ht_hash_fn hash; ht_uguali_fn uguali;\n    ht_distruggi_fn d_chiave; ht_distruggi_fn d_valore;\n};\n\nstatic bool ht_ridimensiona(tabella_hash_t *t, size_t nuova_cap) {\n    if (nuova_cap == 0 || nuova_cap > SIZE_MAX / sizeof(*t->secchi)) { return false; }\n    nodo_ht_t **nuovi = malloc(nuova_cap * sizeof(*nuovi));\n    if (nuovi == nullptr) { return false; }\n    for (size_t i = 0; i < nuova_cap; ++i) { nuovi[i] = nullptr; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_ht_t *p = c->prox; size_t idx = (size_t)(c->hash % nuova_cap);\n            c->prox = nuovi[idx]; nuovi[idx] = c; c = p;\n        }\n    }\n    free(t->secchi); t->secchi = nuovi; t->cap = nuova_cap;\n    return true;\n}\n\ntabella_hash_t *ht_crea(const ht_config_t *cfg) {\n    if (cfg == nullptr || cfg->hash == nullptr || cfg->uguali == nullptr) { return nullptr; }\n    size_t cap = (cfg->cap_iniziale > 0) ? cfg->cap_iniziale : 8;\n    tabella_hash_t *t = malloc(sizeof(*t));\n    if (t == nullptr) { return nullptr; }\n    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) { free(t); return nullptr; }\n    for (size_t i = 0; i < cap; ++i) { t->secchi[i] = nullptr; }\n    t->cap = cap; t->len = 0; t->hash = cfg->hash; t->uguali = cfg->uguali;\n    t->d_chiave = cfg->distruggi_chiave; t->d_valore = cfg->distruggi_valore;\n    return t;\n}\n\nvoid ht_distruggi(tabella_hash_t *t) {\n    if (t == nullptr) { return; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        nodo_ht_t *c = t->secchi[i];\n        while (c != nullptr) {\n            nodo_ht_t *p = c->prox;\n            if (t->d_chiave != nullptr) { t->d_chiave(c->chiave); }\n            if (t->d_valore != nullptr) { t->d_valore(c->valore); }\n            free(c); c = p;\n        }\n    }\n    free(t->secchi); free(t);\n}\n\nht_esito_t ht_inserisci(tabella_hash_t *t, void *chiave, void *valore) {\n    if (t == nullptr || chiave == nullptr) { return HT_ERRORE; }\n    uint64_t h = t->hash(chiave); size_t idx = (size_t)(h % t->cap);\n    for (nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) {\n            if (t->d_valore != nullptr && c->valore != valore) { t->d_valore(c->valore); }\n            c->valore = valore;\n            if (t->d_chiave != nullptr && c->chiave != chiave) { t->d_chiave(chiave); }\n            return HT_AGGIORNATO;\n        }\n    }\n    if ((t->len + 1) * 4 > t->cap * 3) {\n        if (!ht_ridimensiona(t, t->cap * 2)) { return HT_ERRORE; }\n        idx = (size_t)(h % t->cap);\n    }\n    nodo_ht_t *n = malloc(sizeof(*n)); if (n == nullptr) { return HT_ERRORE; }\n    *n = (nodo_ht_t){.chiave = chiave, .valore = valore, .hash = h, .prox = t->secchi[idx]};\n    t->secchi[idx] = n; ++t->len;\n    return HT_INSERITO;\n}\n\nvoid *ht_cerca(const tabella_hash_t *t, const void *chiave) {\n    if (t == nullptr || chiave == nullptr) { return nullptr; }\n    uint64_t h = t->hash(chiave); size_t idx = (size_t)(h % t->cap);\n    for (const nodo_ht_t *c = t->secchi[idx]; c != nullptr; c = c->prox) {\n        if (c->hash == h && t->uguali(c->chiave, chiave)) { return c->valore; }\n    }\n    return nullptr;\n}\n\nbool ht_estrai(tabella_hash_t *t, const void *chiave, void **val_out) {\n    if (t == nullptr || chiave == nullptr) { return false; }\n    uint64_t h = t->hash(chiave); size_t idx = (size_t)(h % t->cap);\n    nodo_ht_t **cur = &t->secchi[idx];\n    while (*cur != nullptr && ((*cur)->hash != h || !t->uguali((*cur)->chiave, chiave))) {\n        cur = &(*cur)->prox;\n    }\n    if (*cur == nullptr) { return false; }\n    nodo_ht_t *d = *cur; *cur = d->prox;\n    if (t->d_chiave != nullptr) { t->d_chiave(d->chiave); }\n    if (val_out != nullptr) { *val_out = d->valore; }\n    else if (t->d_valore != nullptr) { t->d_valore(d->valore); }\n    free(d); --t->len;\n    return true;\n}\n\nbool ht_rimuovi(tabella_hash_t *t, const void *chiave) { return ht_estrai(t, chiave, nullptr); }\n\nvoid ht_visita(const tabella_hash_t *t, ht_visita_fn fn, void *ctx) {\n    if (t == nullptr || fn == nullptr) { return; }\n    for (size_t i = 0; i < t->cap; ++i) {\n        for (const nodo_ht_t *c = t->secchi[i]; c != nullptr; c = c->prox) { fn(c->chiave, c->valore, ctx); }\n    }\n}\n\nsize_t ht_len(const tabella_hash_t *t) { return (t != nullptr) ? t->len : 0; }\nsize_t ht_cap(const tabella_hash_t *t) { return (t != nullptr) ? t->cap : 0; }\n\nuint64_t ht_hash_stringa(const void *chiave) {\n    uint64_t h = 14695981039346656037ULL;\n    for (const unsigned char *p = chiave; *p != '\\0'; ++p) { h ^= (uint64_t)(*p); h *= 1099511628211ULL; }\n    return h;\n}\n\nbool ht_uguali_stringa(const void *a, const void *b) { return strcmp(a, b) == 0; }\n",
+        "main.c": "#include <inttypes.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"tabella_hash.h\"\n\ntypedef struct studente { int32_t matricola; char *nome; int32_t voto; size_t *cont_dist; } studente_t;\ntypedef struct ctx_media { int64_t somma; size_t n; } ctx_media_t;\n\nstatic uint64_t hash_i32(const void *p) {\n    uint64_t x = (uint32_t)(*(const int32_t *)p);\n    x ^= x >> 30; x *= 0xbf58476d1ce4e5b9ULL; x ^= x >> 27; x *= 0x94d049bb133111ebULL; return x ^ (x >> 31);\n}\n\nstatic bool uguali_i32(const void *a, const void *b) { return *(const int32_t *)a == *(const int32_t *)b; }\n\nstatic void distruggi_studente(void *p) {\n    studente_t *s = p; if (s == nullptr) { return; }\n    if (s->cont_dist != nullptr) { ++(*s->cont_dist); }\n    free(s->nome); free(s);\n}\n\nstatic void somma_voti(const void *k, void *v, void *ctx) {\n    (void)k; ctx_media_t *cm = ctx; cm->somma += ((const studente_t *)v)->voto; ++cm->n;\n}\n\nint main(void) {\n    size_t creati = 0, distrutti = 0;\n    tabella_hash_t *per_mat = ht_crea(&(ht_config_t){\n        .cap_iniziale = 4, .hash = hash_i32, .uguali = uguali_i32,\n        .distruggi_chiave = free, .distruggi_valore = distruggi_studente});\n    tabella_hash_t *per_nome = ht_crea(&(ht_config_t){\n        .cap_iniziale = 4, .hash = ht_hash_stringa, .uguali = ht_uguali_stringa,\n        .distruggi_chiave = free});\n    if (per_mat == nullptr || per_nome == nullptr) { ht_distruggi(per_nome); ht_distruggi(per_mat); return EXIT_FAILURE; }\n    char riga[256], cmd[16], nome[48], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long mat = 0, voto = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %lld %47s %lld %c\", &mat, nome, &voto, &extra) == 3) {\n            int32_t m32 = (int32_t)mat;\n            studente_t *vecchio = ht_cerca(per_mat, &m32);\n            if (vecchio != nullptr) { ht_rimuovi(per_nome, vecchio->nome); }\n            int32_t *km = malloc(sizeof(*km)); char *kn = strdup(nome); studente_t *s = malloc(sizeof(*s));\n            if (km == nullptr || kn == nullptr || s == nullptr) { free(km); free(kn); free(s); ht_distruggi(per_nome); ht_distruggi(per_mat); return EXIT_FAILURE; }\n            s->nome = strdup(nome);\n            if (s->nome == nullptr) { free(km); free(kn); free(s); ht_distruggi(per_nome); ht_distruggi(per_mat); return EXIT_FAILURE; }\n            *km = m32; s->matricola = m32; s->voto = (int32_t)voto; s->cont_dist = &distrutti; ++creati;\n            ht_esito_t es = ht_inserisci(per_mat, km, s);\n            if (es == HT_ERRORE || ht_inserisci(per_nome, kn, s) == HT_ERRORE) {\n                if (es == HT_ERRORE) { free(km); distruggi_studente(s); }\n                free(kn); ht_distruggi(per_nome); ht_distruggi(per_mat); return EXIT_FAILURE;\n            }\n            printf(\"ADD %\" PRId32 \": %s\\n\", m32, (es == HT_INSERITO) ? \"INSERITO\" : \"AGGIORNATO\");\n        } else if (strcmp(cmd, \"BY_ID\") == 0 && sscanf(riga, \"BY_ID %lld %c\", &mat, &extra) == 1) {\n            int32_t m32 = (int32_t)mat; const studente_t *s = ht_cerca(per_mat, &m32);\n            if (s != nullptr) { printf(\"ID %\" PRId32 \": %s (%\" PRId32 \")\\n\", m32, s->nome, s->voto); }\n            else { printf(\"ID %\" PRId32 \": NON TROVATO\\n\", m32); }\n        } else if (strcmp(cmd, \"BY_NAME\") == 0 && sscanf(riga, \"BY_NAME %47s %c\", nome, &extra) == 1) {\n            const studente_t *s = ht_cerca(per_nome, nome);\n            if (s != nullptr) { printf(\"NAME %s: #%\" PRId32 \" (%\" PRId32 \")\\n\", nome, s->matricola, s->voto); }\n            else { printf(\"NAME %s: NON TROVATO\\n\", nome); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %lld %c\", &mat, &extra) == 1) {\n            int32_t m32 = (int32_t)mat; void *estr = nullptr;\n            if (!ht_estrai(per_mat, &m32, &estr)) { printf(\"DEL %\" PRId32 \": NON TROVATO\\n\", m32); }\n            else { studente_t *s = estr; ht_rimuovi(per_nome, s->nome); distruggi_studente(s); printf(\"DEL %\" PRId32 \": OK\\n\", m32); }\n        } else if (strcmp(cmd, \"MEDIA\") == 0 && sscanf(riga, \"MEDIA %c\", &extra) != 1) {\n            ctx_media_t cm = {}; ht_visita(per_mat, somma_voti, &cm);\n            double media = (cm.n > 0) ? ((double)cm.somma / (double)cm.n) : 0.0;\n            printf(\"MEDIA (len=%zu, cap=%zu): %.2f\\n\", ht_len(per_mat), ht_cap(per_mat), media);\n        } else { ht_distruggi(per_nome); ht_distruggi(per_mat); return EXIT_FAILURE; }\n    }\n    ht_distruggi(per_nome); ht_distruggi(per_mat);\n    printf(\"FINE creati=%zu distrutti=%zu\\n\", creati, distrutti);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Definire funzioni non-inline o variabili globali non-static dentro un file di intestazione (.h) incluso da più file .c, causando errori di definizione multipla al momento del collegamento.",
+    "Dimenticare la protezione di inclusione (#ifndef/#define/#endif) in un file di intestazione (oppure usare lo stesso nome di guardia in due header diversi o un nome riservato che inizia con _Maiuscola o __).",
+    "Scrivere una funzione inline senza static in un file di intestazione dimenticando la dichiarazione extern inline in un file .c, provocando errori di simbolo non risolto quando la funzione non viene espansa o se ne prende l'indirizzo.",
+    "Dimenticare di includere \"modulo.h\" come prima direttiva in modulo.c, lasciando nascoste eventuali divergenze tra i prototipi dell'header e le definizioni reali o dipendenze mancanti nell'header.",
+    "Esporre la definizione completa di una struct nell'header di una libreria invece di usare un tipo opaco, oppure tentare di usare sizeof(tipo_opaco_t) o accedere ai campi con -> fuori dal file .c di implementazione."
+  ],
+  "differenze_python": [
+    "In Python ogni file .py è direttamente un modulo importabile a tempo di esecuzione con import; in C la modularità separa esplicitamente l'interfaccia (.h) dall'implementazione (.c) e avviene in due fasi distinte: compilazione separata di ciascuna unità di traduzione e collegamento finale.",
+    "In Python l'incapsulamento degli attributi si basa su convenzioni come il prefisso _nome, ma rimane aggirabile a tempo di esecuzione; in C un tipo opaco (struct incompleta nell'header) impedisce l'accesso diretto ai campi già a tempo di compilazione."
+  ]
+}
