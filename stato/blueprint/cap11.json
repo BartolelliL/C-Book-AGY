@@ -1,0 +1,462 @@
+{
+  "capitolo": 11,
+  "titolo": "Memoria dinamica",
+  "obiettivi": [
+    "Distinguere durata di vita e ruolo di stack e heap",
+    "Allocare, ridimensionare e liberare memoria dinamica con malloc, calloc, realloc e free controllando sempre i fallimenti",
+    "Costruire array dinamici che crescono in modo sicuro senza perdere il puntatore originale",
+    "Riconoscere ed eliminare perdite di memoria, uso dopo la liberazione e doppia liberazione con i sanitizer"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "stack",
+      "definizione": "Area di memoria gestita automaticamente in ordine ultimo entrato primo uscito per variabili locali e chiamate di funzione."
+    },
+    {
+      "termine": "heap",
+      "definizione": "Area di memoria da cui il programma richiede e rilascia blocchi di durata controllata esplicitamente con malloc e free."
+    },
+    {
+      "termine": "allocazione dinamica",
+      "definizione": "Richiesta di memoria a tempo di esecuzione sullo heap mediante funzioni come malloc, calloc e realloc."
+    },
+    {
+      "termine": "perdita di memoria",
+      "definizione": "Errore in cui un blocco allocato dinamicamente non è più raggiungibile ma non viene mai liberato con free."
+    },
+    {
+      "termine": "uso dopo la liberazione",
+      "definizione": "Accesso a memoria dinamica già rilasciata con free, che provoca comportamento indefinito."
+    },
+    {
+      "termine": "doppia liberazione",
+      "definizione": "Chiamata ripetuta di free sullo stesso blocco di memoria senza una nuova allocazione intermedia."
+    },
+    {
+      "termine": "sanitizer",
+      "definizione": "Strumento integrato nel compilatore che inserisce controlli a tempo di esecuzione per rilevare errori di memoria o comportamento indefinito."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "operatore sizeof e tipo size_t",
+    "funzione",
+    "durata di vita",
+    "array",
+    "accesso fuori dai limiti",
+    "stringa",
+    "terminatore nullo",
+    "buffer overflow",
+    "puntatore",
+    "dereferenziazione",
+    "puntatore nullo",
+    "aritmetica dei puntatori",
+    "comportamento indefinito"
+  ],
+  "regole": [
+    {
+      "id": "11.R1",
+      "enunciato": "Le variabili locali automatiche risiedono sullo stack: nascono all'ingresso nel blocco e scompaiono automaticamente alla sua uscita. I blocchi ottenuti tramite allocazione dinamica risiedono sullo heap e sopravvivono al ritorno dalle funzioni finché il programma non li rilascia esplicitamente con free (oppure finché il programma termina).",
+      "nota_standard": "definito: la durata di vita automatica e quella allocata sono definite dallo standard C23; accedere a un oggetto automatico dopo l'uscita dal blocco o a un blocco dinamico dopo free provoca comportamento indefinito."
+    },
+    {
+      "id": "11.R2",
+      "enunciato": "malloc(size) alloca size byte sullo heap con contenuto indeterminato; calloc(nmemb, size) alloca spazio per nmemb oggetti da size byte inizializzati tutti a zero (tutti i bit a 0) e verifica l'overflow del prodotto nmemb * size. Entrambe restituiscono void *, che in C si converte implicitamente a qualsiasi puntatore a oggetto T * senza cast, oppure nullptr in caso di fallimento. Il puntatore restituito va sempre controllato prima dell'uso.",
+      "nota_standard": "dipendente dall'implementazione: il successo, il fallimento e il risultato di malloc(0) o calloc(0, ...) sono definiti o dipendenti dall'implementazione (può tornare nullptr oppure un puntatore univoco non dereferenziabile da passare comunque a free); leggere byte non inizializzati restituiti da malloc provoca comportamento indefinito."
+    },
+    {
+      "id": "11.R3",
+      "enunciato": "free(ptr) rilascia un blocco precedentemente restituito da malloc, calloc, realloc, strdup o strndup. Chiamare free(nullptr) è sempre definito e non fa nulla. Dopo free(ptr) è buona pratica impostare ptr = nullptr. Chiamare free su un puntatore non proveniente dall'allocatore (come l'indirizzo di una variabile locale o un puntatore spostato) o chiamarlo due volte sullo stesso blocco è illegale.",
+      "nota_standard": "indefinito: free(nullptr) è definito dallo standard C23; liberare un indirizzo non allocato dinamicamente, eseguire una doppia liberazione o accedere al blocco dopo free (uso dopo la liberazione) provoca comportamento indefinito."
+    },
+    {
+      "id": "11.R4",
+      "enunciato": "realloc(ptr, nuova_dim) ridimensiona un blocco già allocato preservando il contenuto fino al minimo tra vecchia e nuova dimensione (eventualmente spostando il blocco in una nuova posizione). Se ptr è nullptr equivale a malloc(nuova_dim). Se fallisce restituisce nullptr lasciando intatto il blocco originale: occorre quindi salvare sempre il risultato in un puntatore temporaneo prima di aggiornare il puntatore originale. In C23 chiamare realloc con nuova_dim == 0 è vietato.",
+      "nota_standard": "indefinito: la preservazione dei dati e la validità di ptr in caso di fallimento sono definite dallo standard C23; in C23 chiamare realloc(ptr, 0) provoca comportamento indefinito (per rilasciare un blocco si deve usare free)."
+    },
+    {
+      "id": "11.R5",
+      "enunciato": "Le funzioni C23 strdup(s) e strndup(s, n) in <string.h> allocano dinamicamente una nuova stringa (copiando l'intera stringa s o al più n caratteri più '\\0'), restituiscono nullptr se l'allocazione fallisce e richiedono che il chiamante liberi il risultato con free. La funzione exit(status) in <stdlib.h> termina immediatamente il programma svuotando gli stream di uscita e restituendo status (EXIT_SUCCESS o EXIT_FAILURE) all'ambiente.",
+      "nota_standard": "definito: strdup, strndup (standardizzate in C23) ed exit sono definite dallo standard C23; passare a strdup o strndup un puntatore nullo o una sequenza non valida provoca comportamento indefinito."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti (o negativo in caso di errore)."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti (o negativo in caso di errore)."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr in caso di fallimento."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte (size > 0 in C23), restituendo il nuovo indirizzo oppure nullptr lasciando ptr valido."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap rendendolo nuovamente disponibile; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "exit",
+      "firma": "void exit(int status);",
+      "header": "stdlib.h",
+      "descrizione": "Termina immediatamente l'esecuzione del programma svuotando gli stream aperti e restituendo status (EXIT_SUCCESS o EXIT_FAILURE) all'ambiente."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce il numero di caratteri della stringa s che precedono il terminatore nullo '\\0'."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strncmp",
+      "firma": "int strncmp(const char *s1, const char *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta al più i primi n caratteri di s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strcpy",
+      "firma": "char *strcpy(char *restrict s1, const char *restrict s2);",
+      "header": "string.h",
+      "descrizione": "Copia la stringa s2 (incluso '\\0') in s1 assumendo che lo spazio di destinazione sia sufficiente e restituisce s1."
+    },
+    {
+      "nome": "strcspn",
+      "firma": "size_t strcspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto solo da caratteri assenti in s2."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "strndup",
+      "firma": "char *strndup(const char *s, size_t size);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia di al più size caratteri di s aggiungendo sempre '\\0' e restituisce l'indirizzo oppure nullptr."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "11.1",
+      "titolo": "Stack e heap: perché serve la memoria dinamica",
+      "contenuti": [
+        "Organizzazione concettuale della memoria di un programma: stack per chiamate di funzione e variabili locali automatiche, heap per l'allocazione dinamica (schema in blocco text)",
+        "Funzionamento LIFO dello stack: creazione di un frame a ogni chiamata di funzione e distruzione automatica al ritorno",
+        "Limiti strutturali degli array sullo stack: dimensione fissa decisa a compilazione (spreco o insufficienza di spazio), capacità complessiva ridotta dello stack e impossibilità di restituire un array locale da una funzione",
+        "Perché nel libro non usiamo gli array a lunghezza variabile (VLA): allocazione sullo stack senza controllo d'errore e rischio di stack overflow silenzioso",
+        "Ruolo dello heap: richiedere la dimensione esatta a tempo di esecuzione, verificare il successo della richiesta e controllare esplicitamente la durata di vita del blocco (anticipando 11.2)"
+      ],
+      "esempio_guidato": "Un programma che confronta lo spazio occupato da un buffer fisso sullo stack con la quantità reale di dati letti da stdin e mostra la profondità dei frame di chiamata attraverso una breve funzione ricorsiva, affiancato da un frammento esplicitamente vietato che tenta di restituire un array locale allocato sullo stack.",
+      "approfondimento": "Perché sullo stack l'allocazione è quasi istantanea (basta spostare un puntatore di stack) mentre sullo heap richiede il lavoro di un gestore della memoria: per oggetti piccoli di dimensione nota e vita breve lo stack resta sempre la scelta migliore.",
+      "esercizio_id": "11.1"
+    },
+    {
+      "id": "11.2",
+      "titolo": "Allocare e liberare memoria: malloc, calloc e free",
+      "contenuti": [
+        "Sintassi e uso idiomatico di malloc: int *p = malloc(n * sizeof(*p)); senza cast esplicito del puntatore generico void * (breve cenno a void * con rinvio al capitolo 15)",
+        "Controllo obbligatorio di nullptr dopo ogni allocazione e gestione di errori fatali con fprintf(stderr, ...) ed exit(EXIT_FAILURE)",
+        "Differenza tra malloc (memoria con valori indeterminati) e calloc(n, sizeof(*p)) (azzeramento bit per bit e controllo interno dell'overflow di n * sizeof(*p))",
+        "Rilascio esplicito con free(p), sicurezza di free(nullptr) e buona pratica di scrivere p = nullptr subito dopo free",
+        "Duplicazione dinamica di stringhe in C23 con strdup e strndup (<string.h>, con box C23 per compilatori meno recenti) e obbligo di liberare il risultato con free"
+      ],
+      "esempio_guidato": "Un programma che legge il numero di temperature di una stazione meteo, alloca l'array dinamico con calloc controllando il fallimento tramite una funzione ausiliaria con exit(EXIT_FAILURE), calcola media ed escursione, duplica il nome della stazione con strdup e il prefisso di 3 lettere con strndup e libera ogni blocco impostando i puntatori a nullptr.",
+      "approfondimento": "Perché in C è preferibile scrivere malloc(n * sizeof(*p)) senza il cast (int *): evita di ripetere il tipo in due punti diversi (riducendo gli errori in caso di modifica) e sfrutta la conversione implicita definita dallo standard da void * a qualsiasi puntatore a oggetto.",
+      "esercizio_id": "11.2"
+    },
+    {
+      "id": "11.3",
+      "titolo": "Ridimensionare blocchi con realloc e array dinamici",
+      "contenuti": [
+        "Come funziona realloc(ptr, nuova_dim): estensione sul posto quando possibile oppure allocazione in una nuova area con copia dei dati esistenti e rilascio automatico del vecchio blocco",
+        "Idioma sicuro con puntatore temporaneo: T *tmp = realloc(p, nuova_dim); if (tmp == nullptr) { ... } p = tmp; e perché scrivere p = realloc(p, ...) perde l'indirizzo originale in caso di errore",
+        "Casi limite in C23: realloc(nullptr, dim) equivale a malloc(dim), mentre realloc(ptr, 0) è comportamento indefinito in C23 (per liberare si usa sempre free)",
+        "Costruzione di un array dinamico di lunghezza ignota gestendo insieme lunghezza effettiva (len) e capacità allocata (cap) con crescita geometrica per raddoppio (es. 0 -> 4 -> 8 -> 16)",
+        "Vantaggio prestazionale del raddoppio rispetto a chiamare realloc a ogni elemento e compattazione finale (shrink-to-fit) quando len > 0"
+      ],
+      "esempio_guidato": "Un programma che legge da stdin un numero imprecisato di misure double accumulandole in un array dinamico che parte da capacità 4 e raddoppia con realloc e puntatore temporaneo, stampando ogni raddoppio, la media finale e liberando correttamente il blocco.",
+      "approfondimento": "Perché raddoppiare la capacità a ogni riempimento mantiene proporzionale a n il numero totale di copie (1 + 2 + 4 + ... + n < 2n), mentre aumentare la capacità di 1 a ogni elemento porterebbe a un costo quadratico.",
+      "esercizio_id": "11.3"
+    },
+    {
+      "id": "11.4",
+      "titolo": "Perdite di memoria, uso dopo free e doppia liberazione",
+      "contenuti": [
+        "Perdita di memoria (memory leak): sovrascrittura del puntatore senza free, uscite anticipate su rami di errore e mancata liberazione di blocchi parziali quando fallisce una seconda allocazione",
+        "Uso dopo la liberazione (use-after-free): lettura o scrittura su un blocco già liberato (comportamento indefinito, illustrato solo in un frammento vietato) e mitigazione con p = nullptr (con rinvio al puntatore pendente del capitolo 14)",
+        "Doppia liberazione (double free): chiamare free due volte sullo stesso blocco o tramite due puntatori alias che condividono lo stesso indirizzo (illustrato solo in un frammento vietato)",
+        "Altri errori fatali sullo heap: passare a free un puntatore spostato con aritmetica (++p) o un indirizzo dello stack, e scrivere oltre la fine del blocco (heap buffer overflow)",
+        "Disciplina di gestione sicura: un solo proprietario chiaro per ogni blocco, copie indipendenti (strdup) anziché condivisione accidentale di puntatori e rilascio ordinato su tutti i percorsi di uscita"
+      ],
+      "esempio_guidato": "Un programma corretto che alloca una coppia di buffer dinamici (un array di interi e un'etichetta con strdup), mostra la pulizia ordinata su un percorso di errore intermedio e azzera i puntatori dopo free, affiancato da tre brevi frammenti esplicitamente vietati per perdita di memoria, uso dopo la liberazione e doppia liberazione.",
+      "approfondimento": "Quando due puntatori p e q puntano allo stesso blocco allocato, chiamare free(p) rende invalido anche q: nel capitolo 17 formalizzeremo le regole di possesso della memoria per strutture dati complesse.",
+      "esercizio_id": "11.4"
+    },
+    {
+      "id": "11.5",
+      "titolo": "Individuare gli errori di memoria con i sanitizer",
+      "contenuti": [
+        "Perché gli avvisi del compilatore non bastano: molti errori di memoria si manifestano solo a tempo di esecuzione e il comportamento indefinito può sembrare funzionante su piccoli casi di prova",
+        "Cos'è un sanitizer: strumentazione automatica inserita dal compilatore con -fsanitize=address (AddressSanitizer) e -fsanitize=undefined (UndefinedBehaviorSanitizer), insieme a -g per numeri di riga chiari",
+        "Nota portabile su più sistemi (Linux, macOS, Windows): uso di -fsanitize=address,undefined -g con GCC e Clang (e opzioni analoghe su altri compilatori) e rilevazione delle perdite di memoria",
+        "Come interpretare una segnalazione di sanitizer in modo generale (senza legarsi al formato letterale di un singolo compilatore): classe dell'errore, riga dell'accesso illecito e riga dell'allocazione o liberazione",
+        "Ciclo di verifica sistematico: testare ogni programma con allocazione dinamica sotto sanitizer su casi normali, vuoti, al limite e di errore fino a ottenere zero segnalazioni"
+      ],
+      "esempio_guidato": "Un programma corretto e pronto per essere verificato con -fsanitize=address,undefined -g che concatena parole in un buffer dinamico riservando esattamente lunghezza + 1 byte per '\\0' e liberando ogni allocazione temporanea, affiancato da un breve frammento vietato con l'errore classico malloc(strlen(s)) (mancanza del byte per '\\0') che il sanitizer rileva immediatamente.",
+      "approfondimento": "Come funziona a grandi linee AddressSanitizer: circonda i blocchi allocati con zone di guardia (redzone) e marca la memoria liberata come avvelenata, riuscendo a bloccare sul nascere sia gli sforamenti di un solo byte sia gli usi dopo la liberazione.",
+      "esercizio_id": "11.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "11.1",
+      "tipo": "esercizio",
+      "titolo": "Simulatore di stack delle chiamate e soglia heap",
+      "descrizione": "Scrivi un programma C che simuli la gestione LIFO di uno stack delle chiamate di capacità configurabile e il dirottamento sullo heap di blocchi grandi (senza usare `malloc`, applicando gli array dei capitoli precedenti per osservare il comportamento di stack e heap). Leggi dalla prima riga di `stdin` `limite_stack` (`int` compreso tra `1` e `1'000'000`, in byte). Usa `constexpr size_t MAX_FRAME = 32;` e due array paralleli `char nomi[MAX_FRAME][32]` e `size_t dim_frame[MAX_FRAME]` per rappresentare i frame attivi sullo stack. Leggi poi fino a fine input una sequenza di comandi (uno per riga; ignora le righe vuote): `CALL <nome> <byte>` (`nome` fino a `31` caratteri senza spazi, `byte` in `1..1'000'000`) prova a inserire un frame sullo stack; se `profondita == MAX_FRAME` oppure `usati + dim > limite_stack`, NON inserisce il frame e stampa `STACK OVERFLOW: <nome> richiede <byte> B (disponibili <disp> B)`, altrimenti inserisce il frame, aggiorna `usati` e `picco_stack` e stampa `CALL <nome> (+<byte> B) -> stack=<usati>/<limite> B`. `RET` rimuove l'ultimo frame inserito (LIFO): se `profondita == 0` stampa `ERRORE: stack vuoto`, altrimenti rimuove il frame, decrementa `usati` e stampa `RET <nome> (-<byte> B) -> stack=<usati>/<limite> B`. `HEAP <nome> <byte>` (`byte` in `1..1'000'000`) registra una richiesta sullo heap senza consumare stack, somma `byte` a `totale_heap` e stampa `HEAP <nome> (+<byte> B) -> heap=<totale_heap> B`. In caso di formato o comando non valido stampa su `stderr` e restituisci `EXIT_FAILURE`. Al termine stampa picco dello stack, numero di frame rimasti sullo stack e totale richiesto sullo heap esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "ordine LIFO (ultimo entrato, primo uscito) dei frame sullo stack",
+        "capacità limitata dello stack e condizione di stack overflow",
+        "differenza tra memoria sullo stack (automatica per chiamata) e memoria sullo heap (indipendente dai frame)",
+        "validazione rigorosa dell'input e gestione sicura dei limiti dell'array"
+      ],
+      "domande_guida": [
+        "Quale frame deve essere rimosso per primo quando arriva un comando RET e quale indice degli array nomi e dim_frame lo rappresenta?",
+        "Perché devi controllare usati + dim > limite_stack prima di aggiungere il nuovo frame invece di aggiornare usati e poi verificare?",
+        "In che modo il comando HEAP differisce da CALL rispetto al contatore usati e al picco dello stack?",
+        "Che cosa rappresenta il numero di frame rimasti sullo stack al termine dell'esecuzione?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "1000\nCALL main 256\nCALL elabora 512\nCALL stampa 400\nHEAP buffer_grande 4096\nRET\nCALL stampa 400\nRET\nRET\n",
+          "output": "CALL main (+256 B) -> stack=256/1000 B\nCALL elabora (+512 B) -> stack=768/1000 B\nSTACK OVERFLOW: stampa richiede 400 B (disponibili 232 B)\nHEAP buffer_grande (+4096 B) -> heap=4096 B\nRET elabora (-512 B) -> stack=256/1000 B\nCALL stampa (+400 B) -> stack=656/1000 B\nRET stampa (-400 B) -> stack=256/1000 B\nRET main (-256 B) -> stack=0/1000 B\nPicco stack: 768 B\nFrame rimasti sullo stack: 0\nTotale richiesto sullo heap: 4096 B\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "500\nRET\nCALL avvio 300\nHEAP archivio 2000\n",
+          "output": "ERRORE: stack vuoto\nCALL avvio (+300 B) -> stack=300/500 B\nHEAP archivio (+2000 B) -> heap=2000 B\nPicco stack: 300 B\nFrame rimasti sullo stack: 1\nTotale richiesto sullo heap: 2000 B\n"
+        },
+        {
+          "input": "128\n",
+          "output": "Picco stack: 0 B\nFrame rimasti sullo stack: 0\nTotale richiesto sullo heap: 0 B\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    constexpr size_t MAX_FRAME = 32;\n    char nomi[MAX_FRAME][32];\n    size_t dim_frame[MAX_FRAME] = {0};\n    char riga[128], cmd[16], nome[32];\n    int lim_in = 0, byte_in = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &lim_in, &extra) != 1 || lim_in < 1 || lim_in > 1'000'000) {\n        fprintf(stderr, \"Errore: limite stack non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t limite = (size_t)lim_in, prof = 0, usati = 0, picco = 0, heap_tot = 0;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"CALL\") == 0) {\n            if (sscanf(riga, \"CALL %31s %d %c\", nome, &byte_in, &extra) != 2 ||\n                byte_in < 1 || byte_in > 1'000'000) {\n                fprintf(stderr, \"Errore: comando CALL non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            size_t dim = (size_t)byte_in;\n            if (prof == MAX_FRAME || dim > limite - usati) {\n                printf(\"STACK OVERFLOW: %s richiede %zu B (disponibili %zu B)\\n\",\n                       nome, dim, limite - usati);\n            } else {\n                strcpy(nomi[prof], nome);\n                dim_frame[prof++] = dim;\n                usati += dim;\n                if (usati > picco) { picco = usati; }\n                printf(\"CALL %s (+%zu B) -> stack=%zu/%zu B\\n\", nome, dim, usati, limite);\n            }\n        } else if (strcmp(cmd, \"RET\") == 0 && sscanf(riga, \"RET %c\", &extra) != 1) {\n            if (prof == 0) {\n                printf(\"ERRORE: stack vuoto\\n\");\n            } else {\n                --prof;\n                usati -= dim_frame[prof];\n                printf(\"RET %s (-%zu B) -> stack=%zu/%zu B\\n\",\n                       nomi[prof], dim_frame[prof], usati, limite);\n            }\n        } else if (strcmp(cmd, \"HEAP\") == 0) {\n            if (sscanf(riga, \"HEAP %31s %d %c\", nome, &byte_in, &extra) != 2 ||\n                byte_in < 1 || byte_in > 1'000'000) {\n                fprintf(stderr, \"Errore: comando HEAP non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            heap_tot += (size_t)byte_in;\n            printf(\"HEAP %s (+%d B) -> heap=%zu B\\n\", nome, byte_in, heap_tot);\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"Picco stack: %zu B\\nFrame rimasti sullo stack: %zu\\nTotale richiesto sullo heap: %zu B\\n\",\n           picco, prof, heap_tot);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "11.2",
+      "tipo": "esercizio",
+      "titolo": "Analisi dinamica di punteggi e targhette con malloc, calloc, strdup e strndup",
+      "descrizione": "Scrivi un programma C che utilizzi `malloc`, `calloc`, `free`, `exit` (`<stdlib.h>`) e le funzioni C23 `strdup` e `strndup` (`<string.h>`). Definisci prima di `main` una funzione ausiliaria `void errore_fatale(const char *messaggio)` che stampi `Errore: <messaggio>` su `stderr` e termini il programma con `exit(EXIT_FAILURE)`. In `main` leggi dalla prima riga di `stdin` un'etichetta non vuota (buffer di `64` byte, rimuovendo `'\\n'` con `strcspn`), dalla seconda riga due interi `n` (`1..1000`) e `k` (`1..63`), e dalle successive `n` righe gli `n` punteggi interi (`0..100`). Alloca dinamicamente: una copia completa dell'etichetta con `strdup`, un codice abbreviato di al più `k` caratteri con `strndup`, un array di `n` interi con `malloc(n * sizeof(*punteggi))` per i punteggi e una tabella di `101` contatori azzerati con `calloc(101, sizeof(*freq))` per le frequenze dei punteggi `0..100`. Controlla che nessuna allocazione sia `nullptr` (in caso di errore di allocazione o di input libera i blocchi già allocati e chiama `errore_fatale`). Calcola minimo, massimo, media (`%.2f`), numero di punteggi distinti presenti e punteggio più frequente (a parità di frequenza, il punteggio numericamente più piccolo). Stampa il riepilogo esattamente come nell'esempio di esecuzione, libera tutti i blocchi con `free` impostando ogni puntatore a `nullptr` e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "allocazione con malloc(n * sizeof(*p)) senza cast esplicito",
+        "allocazione azzerata con calloc(101, sizeof(*freq)) per contatori di frequenza",
+        "duplicazione dinamica di stringhe in C23 con strdup e strndup",
+        "controllo di nullptr, gestione degli errori con exit(EXIT_FAILURE) e rilascio con free"
+      ],
+      "domande_guida": [
+        "Perché calloc è particolarmente adatta per la tabella delle frequenze rispetto a malloc?",
+        "Quale differenza c'è tra il comportamento di strdup e quello di strndup quando la stringa originale è più lunga di k caratteri?",
+        "Perché il codice abbreviato restituito da strndup e la copia restituita da strdup vanno liberati esplicitamente con free?",
+        "Perché è sicuro chiamare free su tutti e quattro i puntatori in caso di errore se li hai inizializzati prima a nullptr?"
+      ],
+      "difficolta": 2,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "Verifica-Informatica\n6 8\n80\n95\n80\n70\n95\n80\n",
+          "output": "Etichetta: Verifica-Informatica (codice: Verifica)\nCampioni: 6, distinti: 3\nMin: 70, max: 95, media: 83.33\nPunteggio piu frequente: 80 (3 volte)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "C23\n4 10\n100\n0\n100\n0\n",
+          "output": "Etichetta: C23 (codice: C23)\nCampioni: 4, distinti: 2\nMin: 0, max: 100, media: 50.00\nPunteggio piu frequente: 0 (2 volte)\n"
+        },
+        {
+          "input": "Test\n1 2\n42\n",
+          "output": "Etichetta: Test (codice: Te)\nCampioni: 1, distinti: 1\nMin: 42, max: 42, media: 42.00\nPunteggio piu frequente: 42 (1 volte)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nvoid errore_fatale(const char *messaggio);\n\nint main(void) {\n    char riga[128], buf_nome[64];\n    int n_in = 0, k_in = 0;\n    char extra = '\\0';\n\n    if (fgets(buf_nome, (int)sizeof(buf_nome), stdin) == nullptr) {\n        errore_fatale(\"etichetta mancante.\");\n    }\n    buf_nome[strcspn(buf_nome, \"\\n\")] = '\\0';\n    if (buf_nome[0] == '\\0') { errore_fatale(\"etichetta vuota.\"); }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &n_in, &k_in, &extra) != 2 ||\n        n_in < 1 || n_in > 1000 || k_in < 1 || k_in > 63) {\n        errore_fatale(\"parametri n o k non validi.\");\n    }\n    size_t n = (size_t)n_in, k = (size_t)k_in;\n    char *nome = strdup(buf_nome);\n    char *codice = strndup(buf_nome, k);\n    int *punteggi = malloc(n * sizeof(*punteggi));\n    int *freq = calloc(101, sizeof(*freq));\n    if (nome == nullptr || codice == nullptr || punteggi == nullptr || freq == nullptr) {\n        free(nome); free(codice); free(punteggi); free(freq);\n        errore_fatale(\"allocazione memoria fallita.\");\n    }\n    long long somma = 0;\n    for (size_t i = 0; i < n; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%d %c\", &punteggi[i], &extra) != 1 ||\n            punteggi[i] < 0 || punteggi[i] > 100) {\n            free(nome); free(codice); free(punteggi); free(freq);\n            errore_fatale(\"punteggio non valido (atteso 0..100).\");\n        }\n        somma += punteggi[i];\n        ++freq[punteggi[i]];\n    }\n    int minimo = punteggi[0], massimo = punteggi[0], modale = 0, distinti = 0;\n    for (size_t i = 1; i < n; ++i) {\n        if (punteggi[i] < minimo) { minimo = punteggi[i]; }\n        if (punteggi[i] > massimo) { massimo = punteggi[i]; }\n    }\n    for (int v = 0; v <= 100; ++v) {\n        if (freq[v] > 0) { ++distinti; }\n        if (freq[v] > freq[modale]) { modale = v; }\n    }\n    printf(\"Etichetta: %s (codice: %s)\\n\", nome, codice);\n    printf(\"Campioni: %zu, distinti: %d\\n\", n, distinti);\n    printf(\"Min: %d, max: %d, media: %.2f\\n\", minimo, massimo, (double)somma / (double)n);\n    printf(\"Punteggio piu frequente: %d (%d volte)\\n\", modale, freq[modale]);\n    free(nome); nome = nullptr;\n    free(codice); codice = nullptr;\n    free(punteggi); punteggi = nullptr;\n    free(freq); freq = nullptr;\n    return EXIT_SUCCESS;\n}\n\nvoid errore_fatale(const char *messaggio) {\n    fprintf(stderr, \"Errore: %s\\n\", messaggio);\n    exit(EXIT_FAILURE);\n}\n"
+    },
+    {
+      "id": "11.3",
+      "tipo": "esercizio",
+      "titolo": "Array dinamico a crescita geometrica e compattazione con realloc",
+      "descrizione": "Scrivi un programma C che legga da `stdin` una soglia intera `soglia` dalla prima riga (`\"%d %c\"` == `1`) e poi un numero arbitrario (anche nullo) di interi dalle righe successive fino a fine input (`-100'000..100'000`; in caso di formato o intervallo non valido libera la memoria allocata, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`). Accumula i valori letti in un array dinamico `int *dati = nullptr;` gestendo lunghezza effettiva `len` e capacità `cap` inizialmente entrambe a `0`. Ogni volta che `len == cap`, calcola `nuova_cap = (cap == 0) ? 2 : cap * 2;` e ridimensiona con `realloc` salvando il risultato in un puntatore temporaneo `int *tmp` (senza mai sovrascrivere `dati` prima del controllo `tmp == nullptr`), contando il numero di ridimensionamenti di crescita eseguiti e conservando la capacità di picco raggiunta. Terminata la lettura, filtra l'array sul posto mantenendo in ordine relativo solo i valori `>= soglia` (lunghezza `len_filt`). Se `len_filt == 0`, libera `dati` con `free(dati); dati = nullptr; cap = 0;` senza mai chiamare `realloc(dati, 0)` (comportamento indefinito in C23); se invece `len_filt > 0 && len_filt < cap`, compatta il blocco alla dimensione esatta `len_filt` con `realloc` e puntatore temporaneo. Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "crescita geometrica (raddoppio della capacità) con coppia (len, cap)",
+        "uso obbligatorio di un puntatore temporaneo con realloc per non perdere il blocco originale",
+        "equivalenza tra realloc(nullptr, dim) e malloc(dim) alla prima crescita",
+        "divieto di realloc(ptr, 0) in C23 e uso di free quando la lunghezza scende a zero"
+      ],
+      "domande_guida": [
+        "Perché devi assegnare il valore restituito da realloc a una variabile temporanea tmp invece di scrivere direttamente dati = realloc(dati, ...)?",
+        "Che cosa succede alla prima chiamata di realloc quando dati vale ancora nullptr?",
+        "Perché quando len_filt risulta 0 devi chiamare free(dati) anziché realloc(dati, 0)?",
+        "Quanti ridimensionamenti di crescita avvengono leggendo 5 elementi se la capacità parte da 0 e passa a 2, 4, 8?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "10\n5\n12\n-3\n25\n10\n",
+          "output": "Letti: 5, capacita picco: 8, ridimensionamenti: 3\nCapacita finale: 3, filtrati (>= 10): 3\nValori: 12 25 10\nSomma filtrati: 47\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "50\n10\n20\n30\n",
+          "output": "Letti: 3, capacita picco: 4, ridimensionamenti: 2\nCapacita finale: 0, filtrati (>= 50): 0\nValori: (nessuno)\n"
+        },
+        {
+          "input": "0\n",
+          "output": "Letti: 0, capacita picco: 0, ridimensionamenti: 0\nCapacita finale: 0, filtrati (>= 0): 0\nValori: (nessuno)\n"
+        },
+        {
+          "input": "-5\n-5\n0\n",
+          "output": "Letti: 2, capacita picco: 2, ridimensionamenti: 1\nCapacita finale: 2, filtrati (>= -5): 2\nValori: -5 0\nSomma filtrati: -5\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nint main(void) {\n    char riga[128];\n    int soglia = 0, valore = 0;\n    char extra = '\\0';\n\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &soglia, &extra) != 1) {\n        fprintf(stderr, \"Errore: soglia non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n\n    int *dati = nullptr;\n    size_t len = 0, cap = 0, ridim = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %c\", &valore, &extra) != 1 ||\n            valore < -100'000 || valore > 100'000) {\n            free(dati);\n            fprintf(stderr, \"Errore: valore non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (len == cap) {\n            size_t nuova_cap = (cap == 0) ? 2 : cap * 2;\n            int *tmp = realloc(dati, nuova_cap * sizeof(*dati));\n            if (tmp == nullptr) {\n                free(dati);\n                fprintf(stderr, \"Errore: riallocazione fallita.\\n\");\n                return EXIT_FAILURE;\n            }\n            dati = tmp;\n            cap = nuova_cap;\n            ++ridim;\n        }\n        dati[len++] = valore;\n    }\n    size_t cap_picco = cap;\n    size_t len_filt = 0;\n    long long somma = 0;\n    for (size_t i = 0; i < len; ++i) {\n        if (dati[i] >= soglia) {\n            dati[len_filt++] = dati[i];\n            somma += dati[i];\n        }\n    }\n    if (len_filt == 0) {\n        free(dati); dati = nullptr; cap = 0;\n    } else if (len_filt < cap) {\n        int *tmp = realloc(dati, len_filt * sizeof(*dati));\n        if (tmp != nullptr) { dati = tmp; cap = len_filt; }\n    }\n    printf(\"Letti: %zu, capacita picco: %zu, ridimensionamenti: %zu\\n\", len, cap_picco, ridim);\n    printf(\"Capacita finale: %zu, filtrati (>= %d): %zu\\n\", cap, soglia, len_filt);\n    if (len_filt == 0) {\n        printf(\"Valori: (nessuno)\\n\");\n    } else {\n        printf(\"Valori:\");\n        for (size_t i = 0; i < len_filt; ++i) { printf(\" %d\", dati[i]); }\n        printf(\"\\nSomma filtrati: %lld\\n\", somma);\n    }\n    free(dati); dati = nullptr;\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "11.4",
+      "tipo": "esercizio",
+      "titolo": "Gestione sicura di buffer attivo e backup senza perdite né doppie liberazioni",
+      "descrizione": "Scrivi un programma C che gestisca due stringhe allocate dinamicamente con possesso indipendente, `char *attivo = nullptr;` e `char *backup = nullptr;`, evitando qualsiasi perdita di memoria, uso dopo la liberazione o doppia liberazione su ogni percorso di esecuzione. Leggi da `stdin` una sequenza di comandi (una riga per comando, buffer di `128` byte, rimuovendo `'\\n'` con `strcspn`; ignora le righe vuote): `IMPOSTA <testo>` (dove `<testo>` è non vuoto dopo il singolo spazio) crea una copia dinamica con `strdup`, la verifica prima di sostituire `attivo`, libera il vecchio `attivo` per evitare perdite di memoria e stampa `Attivo impostato: [<attivo>]`; `BACKUP` se `attivo == nullptr` stampa `Backup impossibile: attivo vuoto`, altrimenti crea in `backup` una copia indipendente di `attivo` con `strdup` (mai assegnando `backup = attivo`), liberando l'eventuale vecchio `backup`, e stampa `Backup salvato: [<backup>]`; `RIPRISTINA` se `backup == nullptr` stampa `Ripristino impossibile: backup vuoto`, altrimenti sostituisce `attivo` con una copia indipendente di `backup` tramite `strdup` e stampa `Attivo ripristinato: [<attivo>]`; `SVUOTA A` (oppure `SVUOTA B`) libera `attivo` (oppure `backup`) se non nullo impostandolo subito a `nullptr` e stampa `Attivo svuotato` (o `Backup svuotato`), mentre se è già `nullptr` stampa `Attivo gia vuoto` (o `Backup gia vuoto`) evitando doppie liberazioni; `STATO` stampa `Stato -> attivo=[<attivo o vuoto>], backup=[<backup o vuoto>]`. Su comando sconosciuto o fallimento di allocazione libera entrambi i buffer prima di restituire `EXIT_FAILURE` con messaggio su `stderr`. A fine input conta quanti dei due buffer erano ancora allocati (`0`, `1` o `2`), liberali entrambi impostandoli a `nullptr` e stampa `Buffer rilasciati alla chiusura: <count>`.",
+      "concetti_da_tenere_a_mente": [
+        "liberazione del vecchio blocco prima di riassegnare un puntatore per prevenire perdite di memoria",
+        "copie indipendenti con strdup anziché condivisione dello stesso puntatore (aliasing)",
+        "azzeramento del puntatore (p = nullptr) subito dopo free per prevenire uso dopo la liberazione e doppia liberazione",
+        "pulizia di tutte le risorse allocate anche sui rami di errore"
+      ],
+      "domande_guida": [
+        "Quale errore di memoria provocheresti se in BACKUP scrivessi backup = attivo invece di allocare una copia indipendente con strdup?",
+        "Perché conviene chiamare strdup(sorgente) in un puntatore temporaneo prima di eseguire free(attivo)?",
+        "Come fa il programma a evitare una doppia liberazione se l'utente invia due volte consecutive il comando SVUOTA A?",
+        "Perché è necessario liberare sia attivo sia backup anche prima di uscire con EXIT_FAILURE in caso di comando non valido?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "IMPOSTA versione 1\nBACKUP\nIMPOSTA versione 2\nSTATO\nSVUOTA A\nSVUOTA A\nRIPRISTINA\nSTATO\n",
+          "output": "Attivo impostato: [versione 1]\nBackup salvato: [versione 1]\nAttivo impostato: [versione 2]\nStato -> attivo=[versione 2], backup=[versione 1]\nAttivo svuotato\nAttivo gia vuoto\nAttivo ripristinato: [versione 1]\nStato -> attivo=[versione 1], backup=[versione 1]\nBuffer rilasciati alla chiusura: 2\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "BACKUP\nRIPRISTINA\nSVUOTA B\nSTATO\n",
+          "output": "Backup impossibile: attivo vuoto\nRipristino impossibile: backup vuoto\nBackup gia vuoto\nStato -> attivo=[vuoto], backup=[vuoto]\nBuffer rilasciati alla chiusura: 0\n"
+        },
+        {
+          "input": "IMPOSTA solo attivo\nBACKUP\nSVUOTA B\n",
+          "output": "Attivo impostato: [solo attivo]\nBackup salvato: [solo attivo]\nBackup svuotato\nBuffer rilasciati alla chiusura: 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char riga[128];\n    char *attivo = nullptr, *backup = nullptr;\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        riga[strcspn(riga, \"\\n\")] = '\\0';\n        if (riga[0] == '\\0') { continue; }\n        if (strncmp(riga, \"IMPOSTA \", 8) == 0 && riga[8] != '\\0') {\n            char *copia = strdup(riga + 8);\n            if (copia == nullptr) {\n                free(attivo); free(backup);\n                fprintf(stderr, \"Errore: allocazione fallita.\\n\");\n                return EXIT_FAILURE;\n            }\n            free(attivo);\n            attivo = copia;\n            printf(\"Attivo impostato: [%s]\\n\", attivo);\n        } else if (strcmp(riga, \"BACKUP\") == 0) {\n            if (attivo == nullptr) {\n                printf(\"Backup impossibile: attivo vuoto\\n\");\n            } else {\n                char *copia = strdup(attivo);\n                if (copia == nullptr) {\n                    free(attivo); free(backup);\n                    fprintf(stderr, \"Errore: allocazione fallita.\\n\");\n                    return EXIT_FAILURE;\n                }\n                free(backup);\n                backup = copia;\n                printf(\"Backup salvato: [%s]\\n\", backup);\n            }\n        } else if (strcmp(riga, \"RIPRISTINA\") == 0) {\n            if (backup == nullptr) {\n                printf(\"Ripristino impossibile: backup vuoto\\n\");\n            } else {\n                char *copia = strdup(backup);\n                if (copia == nullptr) {\n                    free(attivo); free(backup);\n                    fprintf(stderr, \"Errore: allocazione fallita.\\n\");\n                    return EXIT_FAILURE;\n                }\n                free(attivo);\n                attivo = copia;\n                printf(\"Attivo ripristinato: [%s]\\n\", attivo);\n            }\n        } else if (strcmp(riga, \"SVUOTA A\") == 0) {\n            if (attivo == nullptr) { printf(\"Attivo gia vuoto\\n\"); }\n            else { free(attivo); attivo = nullptr; printf(\"Attivo svuotato\\n\"); }\n        } else if (strcmp(riga, \"SVUOTA B\") == 0) {\n            if (backup == nullptr) { printf(\"Backup gia vuoto\\n\"); }\n            else { free(backup); backup = nullptr; printf(\"Backup svuotato\\n\"); }\n        } else if (strcmp(riga, \"STATO\") == 0) {\n            printf(\"Stato -> attivo=[%s], backup=[%s]\\n\",\n                   attivo != nullptr ? attivo : \"vuoto\",\n                   backup != nullptr ? backup : \"vuoto\");\n        } else {\n            free(attivo); free(backup);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    int rilasciati = (attivo != nullptr ? 1 : 0) + (backup != nullptr ? 1 : 0);\n    free(attivo); attivo = nullptr;\n    free(backup); backup = nullptr;\n    printf(\"Buffer rilasciati alla chiusura: %d\\n\", rilasciati);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "11.5",
+      "tipo": "esercizio",
+      "titolo": "Estrattore e concatenatore dinamico di sottostringhe verificato con sanitizer",
+      "descrizione": "Scrivi un programma C progettato per superare senza alcuna segnalazione la compilazione e l'esecuzione con AddressSanitizer e UndefinedBehaviorSanitizer (`-fsanitize=address,undefined -g`). Leggi da `stdin` la prima riga `testo` (buffer `256` byte, rimuovendo `'\\n'` con `strcspn`; deve essere non vuota) e la seconda riga `sep` (separatore, buffer `16` byte, rimuovendo `'\\n'` con `strcspn`; può essere vuota). Leggi poi fino a fine input una sequenza di coppie intere `inizio lunghezza` (`\"%d %d %c\"` == `2`; in caso di formato errato libera la memoria allocata, scrivi su `stderr` e restituisci `EXIT_FAILURE`). Per ogni coppia verifica i limiti prima di accedere a `testo` evitando overflow: una richiesta è valida solo se `inizio >= 0 && lunghezza > 0 && (size_t)inizio < len_testo && (size_t)lunghezza <= len_testo - (size_t)inizio`. Se non è valida incrementa `scartate` e stampa `Richiesta (<inizio>, <lunghezza>): fuori dai limiti`. Se è valida: estrai la sottostringa sullo heap con `strndup(testo + inizio, (size_t)lunghezza)`, ridimensiona il buffer dinamico `char *risultato` con `realloc` usando un puntatore temporaneo e riservando esattamente `nuova_len + 1` byte per il terminatore nullo `'\\0'`, accoda `sep` (solo dalla seconda fetta valida in poi) e la fetta estratta, stampa `Fetta <validi>: [<fetta>]` e libera subito `fetta` impostandola a `nullptr`. A fine input stampa il conteggio di fette valide e scartate e la stringa concatenata con la sua lunghezza (`Risultato (len=<L>): [<risultato>]`), libera `risultato` e restituisci `EXIT_SUCCESS`.",
+      "concetti_da_tenere_a_mente": [
+        "riserva esatta del byte extra (+ 1) per il terminatore nullo sullo heap per evitare heap-buffer-overflow",
+        "controllo preventivo dei limiti con sottrazione (len_testo - inizio) per evitare overflow di indici",
+        "liberazione immediata dei blocchi temporanei (fetta) a ogni iterazione per evitare perdite di memoria",
+        "verifica sistematica con -fsanitize=address,undefined -g su casi normali, vuoti e al limite"
+      ],
+      "domande_guida": [
+        "Quale errore rileverebbe AddressSanitizer se nel ridimensionamento di risultato allocassi nuova_len byte invece di nuova_len + 1?",
+        "Perché nella condizione di validità conviene scrivere (size_t)lunghezza <= len_testo - (size_t)inizio anziché (size_t)inizio + (size_t)lunghezza <= len_testo?",
+        "Che cosa succederebbe dal punto di vista della memoria se dimenticassi di chiamare free(fetta) al termine di ogni iterazione del ciclo?",
+        "Come gestisci il caso limite in cui nessuna richiesta sia valida (risultato resta nullptr) al momento della stampa finale?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "programmazione_in_C23\n | \n0 4\n18 3\n15 50\n-1 2\n15 2\n",
+          "output": "Fetta 1: [prog]\nFetta 2: [C23]\nRichiesta (15, 50): fuori dai limiti\nRichiesta (-1, 2): fuori dai limiti\nFetta 3: [in]\nFette valide: 3, scartate: 2\nRisultato (len=15): [prog | C23 | in]\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "abcdef\n-\n6 1\n2 0\n0 7\n",
+          "output": "Richiesta (6, 1): fuori dai limiti\nRichiesta (2, 0): fuori dai limiti\nRichiesta (0, 7): fuori dai limiti\nFette valide: 0, scartate: 3\nRisultato (len=0): []\n"
+        },
+        {
+          "input": "hello\n\n0 5\n1 3\n",
+          "output": "Fetta 1: [hello]\nFetta 2: [ell]\nFette valide: 2, scartate: 0\nRisultato (len=8): [helloell]\n"
+        },
+        {
+          "input": "X\n:\n0 1\n",
+          "output": "Fetta 1: [X]\nFette valide: 1, scartate: 0\nRisultato (len=1): [X]\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint main(void) {\n    char testo[256], sep[16], riga[128];\n    if (fgets(testo, (int)sizeof(testo), stdin) == nullptr ||\n        fgets(sep, (int)sizeof(sep), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: testo o separatore mancante.\\n\");\n        return EXIT_FAILURE;\n    }\n    testo[strcspn(testo, \"\\n\")] = '\\0';\n    sep[strcspn(sep, \"\\n\")] = '\\0';\n    size_t len_testo = strlen(testo), len_sep = strlen(sep);\n    if (len_testo == 0) {\n        fprintf(stderr, \"Errore: testo vuoto.\\n\");\n        return EXIT_FAILURE;\n    }\n    char *risultato = nullptr;\n    size_t len_ris = 0;\n    int validi = 0, scartati = 0, inizio = 0, lunghezza = 0;\n    char extra = '\\0';\n\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%d %d %c\", &inizio, &lunghezza, &extra) != 2) {\n            free(risultato);\n            fprintf(stderr, \"Errore: richiesta non valida.\\n\");\n            return EXIT_FAILURE;\n        }\n        if (inizio < 0 || lunghezza <= 0 || (size_t)inizio >= len_testo ||\n            (size_t)lunghezza > len_testo - (size_t)inizio) {\n            ++scartati;\n            printf(\"Richiesta (%d, %d): fuori dai limiti\\n\", inizio, lunghezza);\n            continue;\n        }\n        char *fetta = strndup(testo + inizio, (size_t)lunghezza);\n        if (fetta == nullptr) {\n            free(risultato);\n            fprintf(stderr, \"Errore: allocazione fetta fallita.\\n\");\n            return EXIT_FAILURE;\n        }\n        size_t agg_sep = (validi > 0) ? len_sep : 0;\n        size_t nuova_len = len_ris + agg_sep + (size_t)lunghezza;\n        char *tmp = realloc(risultato, nuova_len + 1);\n        if (tmp == nullptr) {\n            free(fetta); free(risultato);\n            fprintf(stderr, \"Errore: riallocazione fallita.\\n\");\n            return EXIT_FAILURE;\n        }\n        risultato = tmp;\n        if (agg_sep > 0) { strcpy(risultato + len_ris, sep); }\n        strcpy(risultato + len_ris + agg_sep, fetta);\n        len_ris = nuova_len;\n        ++validi;\n        printf(\"Fetta %d: [%s]\\n\", validi, fetta);\n        free(fetta); fetta = nullptr;\n    }\n    printf(\"Fette valide: %d, scartate: %d\\n\", validi, scartati);\n    printf(\"Risultato (len=%zu): [%s]\\n\", len_ris, risultato != nullptr ? risultato : \"\");\n    free(risultato); risultato = nullptr;\n    return EXIT_SUCCESS;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Dimenticare di controllare che malloc, calloc, realloc, strdup o strndup abbiano restituito nullptr prima di dereferenziare il puntatore.",
+    "Scrivere p = realloc(p, nuova_dim) invece di usare un puntatore temporaneo: in caso di fallimento realloc restituisce nullptr e si perde l'unico riferimento al blocco originale, creando una perdita di memoria.",
+    "Allocare n byte invece di n * sizeof(*p) (per esempio malloc(n) per un array di int o double) oppure dimenticare il byte extra + 1 per '\\0' quando si alloca una stringa sullo heap.",
+    "Dimenticare di chiamare free sui blocchi allocati (soprattutto sui rami di errore o prima di riassegnare un puntatore), provocando una perdita di memoria.",
+    "Accedere a un blocco già liberato (uso dopo la liberazione), chiamare free due volte sullo stesso indirizzo (doppia liberazione) oppure passare a free un puntatore spostato con ++p o l'indirizzo di una variabile sullo stack.",
+    "Chiamare realloc(p, 0) per svuotare un array: in C23 provoca comportamento indefinito; per liberare un blocco bisogna chiamare sempre free(p)."
+  ],
+  "differenze_python": [
+    "In Python la memoria degli oggetti è gestita automaticamente dal garbage collector e dal conteggio dei riferimenti; in C ogni blocco allocato sullo heap con malloc, calloc, realloc, strdup o strndup deve essere liberato esplicitamente con free.",
+    "In Python una lista cresce automaticamente con append nascondendo le riallocazioni; in C un array dinamico si costruisce esplicitamente gestendo puntatore, lunghezza, capacità e crescita geometrica con realloc.",
+    "In Python gli accessi oltre i limiti di una lista sollevano IndexError; in C uno sforamento sullo heap o un uso dopo la liberazione sono comportamento indefinito silenzioso, che va intercettato compilando con i sanitizer."
+  ]
+}
