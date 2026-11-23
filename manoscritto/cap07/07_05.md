@@ -1,0 +1,131 @@
+## 7.5 Scomporre un problema in funzioni
+
+Conoscere la sintassi di funzioni, prototipi, passaggio per valore e ricorsione è solo metà del lavoro. L'altra metà, quella che fa davvero la differenza quando i programmi superano il centinaio di righe, è saper decidere *quali* funzioni scrivere e *come* suddividere tra loro le responsabilità.
+
+La strategia più efficace per affrontare un problema articolato è la **progettazione dall'alto verso il basso** (*top-down*). Invece di partire subito a scrivere cicli e formule dentro `main`, inizi descrivendo i passi principali del problema come chiamate a funzioni dal nome chiaro: per esempio leggere e validare i dati, calcolare il subtotale, applicare lo sconto, calcolare l'IVA e stampare il riepilogo. Poi realizzi ciascuna funzione come un piccolo problema indipendente, dotato di una sola responsabilità precisa.
+
+Per progettare bene ogni funzione conviene definirne prima il **contratto**, rispondendo a tre domande essenziali:
+
+1. **Che cosa fa esattamente?** Il nome della funzione deve dirlo subito: `calcola_sconto`, `e_bisestile`, `giorni_del_mese` sono nomi autoesplicativi; nomi vaghi come `elabora` o `fai_tutto` nascondono invece lo scopo del codice.
+2. **Che cosa richiede in ingresso (precondizioni)?** Quali tipi accetta e quali vincoli devono rispettare gli argomenti (per esempio `quantita >= 0` oppure `mese` compreso tra `1` e `12`)? Stabilire chiaramente chi controlla la validità evita controlli duplicati o mancanti.
+3. **Che cosa garantisce in uscita?** Quale valore restituisce nei casi normali e, se previsto, nei casi limite (per esempio `0` o `false` per un ingresso fuori dominio)?
+
+Un principio di progettazione particolarmente utile è **separare tre ruoli distinti**:
+
+- **Validazione dell'input**: leggere da `stdin`, verificare fine dell'input, formato e intervalli, e segnalare errori su `stderr`. In programmi di media grandezza questo lavoro sta in `main` o in funzioni dedicate alla lettura.
+- **Funzioni di calcolo pure**: ricevono dati già validati come parametri e restituiscono un risultato calcolato, *senza* leggere da `stdin`, *senza* stampare su `stdout` e *senza* dipendere da stato esterno nascosto. A parità di argomenti producono sempre lo stesso risultato.
+- **Presentazione dell'output**: funzioni `void` che ricevono i risultati già calcolati e li formattano con `printf`.
+
+Quando le funzioni di base sono piccole e pure, diventa immediato costruire funzioni di livello superiore per **composizione**: una funzione più complessa richiama funzioni elementari già scritte e verificate. Pensa a un calendario: una volta verificata `e_bisestile(anno)`, puoi usarla dentro `giorni_del_mese(mese, anno)`, che a sua volta semplifica `data_valida(g, m, a)` e `giorno_dell_anno(g, m, a)`. Ogni livello aggiunge un solo concetto nuovo, senza mai ripetere la logica dei livelli sottostanti.
+
+Come capisci, mentre scrivi o rileggi un programma, che una funzione andrebbe spezzata in due o più funzioni più piccole? Osserva questi tre segnali pratici:
+
+- **Lunghezza e annidamento eccessivi**: se una funzione non entra in una schermata o accumula molti livelli di `if` e cicli annidati, probabilmente sta facendo più cose insieme.
+- **Compiti mescolati**: se una funzione che dovrebbe calcolare un importo contiene anche `fgets` o `printf`, sta mescolando calcolo e I/O e non potrà essere riutilizzata altrove.
+- **Logica ripetuta**: se ti accorgi di aver copiato lo stesso blocco di cinque o dieci righe cambiando solo un paio di variabili, quel blocco merita di diventare una funzione con parametri.
+
+### Esempio guidato
+
+Il programma seguente calcola il conto di un ordine di cancelleria scomponendo il lavoro in quattro funzioni brevi e coordinate da `main`: `calcola_subtotale`, `calcola_sconto` (10% di sconto da 50 euro in su), `calcola_iva` (aliquota del 22%) e `stampa_riepilogo`, con tutti i prototipi raccolti in testa al file.
+
+<!-- cod: id=7.5-a tipo=programma -->
+```c
+#include <stdio.h>
+
+double calcola_subtotale(int quantita, double prezzo_unitario);
+double calcola_sconto(double subtotale);
+double calcola_iva(double imponibile);
+void stampa_riepilogo(double subtotale, double sconto, double iva, double totale);
+
+int main(void) {
+    int quaderni = 25;
+    double prezzo_unitario = 2.40;
+
+    double subtotale = calcola_subtotale(quaderni, prezzo_unitario);
+    double sconto = calcola_sconto(subtotale);
+    double imponibile = subtotale - sconto;
+    double iva = calcola_iva(imponibile);
+    double totale = imponibile + iva;
+
+    stampa_riepilogo(subtotale, sconto, iva, totale);
+    return 0;
+}
+
+double calcola_subtotale(int quantita, double prezzo_unitario) {
+    return quantita * prezzo_unitario;
+}
+
+double calcola_sconto(double subtotale) {
+    constexpr double SOGLIA_SCONTO = 50.0;
+    constexpr double ALIQUOTA_SCONTO = 0.10;
+    if (subtotale >= SOGLIA_SCONTO) {
+        return subtotale * ALIQUOTA_SCONTO;
+    }
+    return 0.0;
+}
+
+double calcola_iva(double imponibile) {
+    constexpr double ALIQUOTA_IVA = 0.22;
+    return imponibile * ALIQUOTA_IVA;
+}
+
+void stampa_riepilogo(double subtotale, double sconto, double iva, double totale) {
+    printf("Subtotale: %6.2f euro\n", subtotale);
+    printf("Sconto:    %6.2f euro\n", sconto);
+    printf("IVA (22%%): %6.2f euro\n", iva);
+    printf("Totale:    %6.2f euro\n", totale);
+}
+```
+
+```output
+Subtotale:  60.00 euro
+Sconto:      6.00 euro
+IVA (22%):  11.88 euro
+Totale:     65.88 euro
+```
+
+Osserva come appare `main`: si legge quasi come una frase in italiano. In sei righe vedi l'intero flusso del calcolo senza alcun dettaglio sulle aliquote, sulle soglie di sconto o sui formati di `printf`. Le tre funzioni di calcolo sono completamente pure (nessun `printf`, nessuna lettura da tastiera), mentre `stampa_riepilogo` si occupa soltanto della presentazione. Se domani cambiasse l'aliquota IVA o la soglia di sconto, sapresti immediatamente in quale funzione intervenire senza toccare il resto del programma.
+
+> **Approfondimento — Perché separare calcolo e input/output paga nel tempo**
+> Tenere le funzioni di calcolo prive di `fgets` e `printf` offre due vantaggi concreti. Il primo è la **riutilizzabilità**: la stessa funzione `calcola_iva` funziona identica sia che i dati arrivino da tastiera, sia che in futuro arrivino da un file o da un'altra funzione. Il secondo è la **verificabilità**: una funzione pura può essere messa alla prova su decine di casi limite (come `0.0`, `49.99` e `50.0` per lo sconto) confrontando semplicemente il valore restituito con quello atteso, senza dover simulare input da tastiera né analizzare testo stampato.
+
+### Esercizio 7.5 — Validatore di calendario e distanza tra due date
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` due righe, ciascuna contenente una data nel formato `giorno mese anno` (tre `int` separati da spazi, con `anno` compreso tra `1900` e `2100` inclusi). Scomponi il programma in cinque funzioni pure e coese con prototipi prima di `main`:
+
+- `bool e_bisestile(int anno)`: un anno è bisestile se è divisibile per `400`, oppure se è divisibile per `4` e non per `100`;
+- `int giorni_del_mese(int mese, int anno)`: usa `switch` ed `e_bisestile` per febbraio; restituisce `0` se il mese non è in `1..12`;
+- `bool data_valida(int g, int m, int a)`: controlla `anno` in `1900..2100`, `mese` in `1..12` e `giorno` in `1..giorni_del_mese(m, a)`;
+- `int giorno_dell_anno(int g, int m, int a)`: restituisce il numero d'ordine del giorno dall'inizio dell'anno, da `1` a `365` (o `366` negli anni bisestili);
+- `long giorni_dal_1900(int g, int m, int a)`: somma i giorni degli anni interi `1900..a-1` più `giorno_dell_anno`.
+
+In `main` verifica fine dell'input, formato esatto (`"%d %d %d %c"` == `3`) e validità di ciascuna data tramite `data_valida` (in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`). Altrimenti stampa per entrambe le date la data, il giorno dell'anno e l'indicazione di anno bisestile (`1` o `0`), seguiti dalla distanza assoluta in giorni calcolata con `labs`, esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- scomposizione top-down in funzioni piccole con una sola responsabilità
+- composizione di funzioni (`giorni_dal_1900` richiama `giorno_dell_anno` ed `e_bisestile`)
+- separazione tra validazione/calcolo puro e I/O in `main`
+- regola completa degli anni bisestili (multipli di 4, 100 e 400)
+
+**Domande guida**
+
+1. In quale ordine di dipendenza si richiamano le cinque funzioni del calendario, dalla più elementare alla più composta?
+2. Perché conviene mantenere `data_valida` e `giorni_del_mese` completamente prive di chiamate a `fgets` o `printf`?
+3. Come si comporta la regola degli anni bisestili sui casi secolari come `1900` e `2000`?
+4. In che modo convertire ogni data nel numero di giorni trascorsi dal 1900 semplifica il calcolo della distanza rispetto a confrontare direttamente giorni, mesi e anni?
+
+**Esempio di esecuzione**
+
+```input
+28 2 2024
+1 3 2024
+```
+
+```output
+Data 1: 28/2/2024 (giorno 59, bisestile=1)
+Data 2: 1/3/2024 (giorno 61, bisestile=1)
+Distanza: 2 giorni
+```
