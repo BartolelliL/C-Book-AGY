@@ -1,0 +1,475 @@
+{
+  "capitolo": 25,
+  "titolo": "Qualità e prestazioni",
+  "obiettivi": [
+    "Confrontare algoritmi contando le operazioni elementari e conoscere i limiti delle misure temporali con clock",
+    "Progettare disposizioni di dati favorevoli alla cache scegliendo tra array di struct e struct di array",
+    "Spiegare come le ottimizzazioni del compilatore interagiscono con il comportamento indefinito",
+    "Costruire un mini framework di test automatici con macro ed eseguire prove con input casuali a seme fisso"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "località dei dati",
+      "definizione": "Proprietà di un programma che accede a indirizzi di memoria vicini tra loro, sfruttando efficacemente la cache del processore."
+    },
+    {
+      "termine": "test automatico",
+      "definizione": "Verifica eseguibile in codice che controlla in modo ripetibile il comportamento di funzioni e moduli rispetto a risultati attesi e invarianti."
+    },
+    {
+      "termine": "fuzzing",
+      "definizione": "Tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti."
+    }
+  ],
+  "concetti_richiesti": [
+    "compilatore",
+    "overflow",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "array",
+    "puntatore",
+    "allocazione dinamica",
+    "sanitizer",
+    "struttura",
+    "allineamento",
+    "padding",
+    "asserzione statica",
+    "puntatore a funzione",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco",
+    "asserzione",
+    "debugger",
+    "strict aliasing",
+    "complessità asintotica",
+    "notazione O"
+  ],
+  "regole": [
+    {
+      "id": "25.R1",
+      "enunciato": "Per confrontare algoritmi in modo riproducibile e indipendente dalla macchina si contano le operazioni elementari (confronti, spostamenti, accessi in memoria, allocazioni). Quando occorre misurare il tempo reale di CPU, <time.h> fornisce il tipo clock_t, la funzione clock(void) e la costante CLOCKS_PER_SEC: se né t0 né t1 valgono (clock_t)-1, i secondi di CPU trascorsi sono (double)(t1 - t0) / (double)CLOCKS_PER_SEC. Le misure temporali risentono di risoluzione del timer, carico del sistema, frequenza della CPU ed eliminazione del codice morto da parte del compilatore, e non vanno mai usate come output atteso in verifiche deterministiche.",
+      "nota_standard": "dipendente dall'implementazione: clock, clock_t, CLOCKS_PER_SEC e il valore di errore (clock_t)-1 sono definiti dallo standard C23; il tipo aritmetico sottostante a clock_t, la risoluzione del timer e il valore di CLOCKS_PER_SEC dipendono dall'implementazione."
+    },
+    {
+      "id": "25.R2",
+      "enunciato": "I processori trasferiscono dati dalla RAM alla cache in blocchi contigui detti linee di cache (tipicamente 64 byte). In C gli array multidimensionali sono memorizzati per righe (row-major): scorrere prima l'indice più a destra massimizza la località spaziale. Quando un ciclo elabora solo pochi campi caldi di molti record, una disposizione Struct di Array (SoA) impacchetta i campi omogenei in array contigui riducendo i byte caricati in cache rispetto a un Array di Struct (AoS), che trascina in cache anche i campi freddi e il padding.",
+      "nota_standard": "definito: la disposizione contigua per righe (row-major) degli array in C e il layout sequenziale dei campi di una struct (salvo padding) sono definiti dallo standard C23; la dimensione e la gerarchia delle cache dipendono dall'architettura hardware."
+    },
+    {
+      "id": "25.R3",
+      "enunciato": "Per la regola \"as-if\" dello standard C23, un compilatore con ottimizzazioni attive (-O2, -O3) può riordinare, vettorizzare o eliminare codice purché il comportamento osservabile dei programmi privi di comportamento indefinito resti inalterato. Poiché lo standard autorizza il compilatore ad assumere che nessun comportamento indefinito si verifichi mai, un controllo scritto dopo un potenziale UB (come if (x + 1 < x) o if (p == nullptr) dopo *p) può essere eliminato silenziosamente. I controlli di overflow vanno espressi con <stdckdint.h> (ckd_add/ckd_sub/ckd_mul), la reinterpretazione dei bit con memcpy e i parametri restrict rispettando rigorosamente la disgiunzione delle aree.",
+      "nota_standard": "indefinito: il principio as-if, <stdckdint.h>, memcpy e il contratto di restrict sono definiti dallo standard C23; la presenza di qualsiasi comportamento indefinito (overflow con segno, dereferenziazione nulla, violazione di strict aliasing o restrict) annulla ogni garanzia del compilatore sull'intera esecuzione."
+    },
+    {
+      "id": "25.R4",
+      "enunciato": "Un mini framework di test automatici in C si costruisce con macro di asserzione protette da do { ... } while (0) (usando # per stringificare la condizione e __FILE__/__LINE__/__func__ per localizzare i fallimenti) e una struct di contesto che accumula test superati e falliti senza interrompere l'intera suite al primo fallimento. I test devono essere isolati, deterministici e coprire casi normali, casi limite (vuoto, singolo elemento, pieno, puntatori nulli) e percorsi d'errore.",
+      "nota_standard": "definito: le macro do-while(0), l'operatore #, __FILE__, __LINE__ e __func__ sono completamente definiti dallo standard C23."
+    },
+    {
+      "id": "25.R5",
+      "enunciato": "In <stdlib.h>, srand(unsigned int seed) inizializza il generatore pseudocasuale della libreria standard e rand(void) restituisce un intero in [0, RAND_MAX] (con RAND_MAX >= 32767 garantito dallo standard). Nel fuzzing a seme fisso si fissa il seme con srand(seme) per riprodurre qualsiasi difetto trovato sulla stessa piattaforma, verificando invarianti e coincidenza con un oracolo di riferimento (test differenziale). Poiché l'algoritmo interno di rand() dipende dall'implementazione, i programmi portabili non devono dipendere dalla sequenza numerica grezza di rand() ma dalle proprietà e dagli invarianti verificati; rand() non è adatto a usi crittografici.",
+      "nota_standard": "dipendente dall'implementazione: srand, rand e il limite inferiore RAND_MAX >= 32767 sono definiti dallo standard C23; l'algoritmo esatto e la sequenza prodotta da rand() per un dato seme dipendono dall'implementazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte restituendo il nuovo indirizzo oppure nullptr lasciando valido ptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "qsort",
+      "firma": "void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));",
+      "header": "stdlib.h",
+      "descrizione": "Ordina sul posto un array di nmemb elementi di size byte usando la funzione di confronto compar."
+    },
+    {
+      "nome": "srand",
+      "firma": "void srand(unsigned int seed);",
+      "header": "stdlib.h",
+      "descrizione": "Imposta il seme seed per la sequenza di numeri pseudocasuali generata da rand()."
+    },
+    {
+      "nome": "rand",
+      "firma": "int rand(void);",
+      "header": "stdlib.h",
+      "descrizione": "Restituisce un intero pseudocasuale nell'intervallo [0, RAND_MAX]."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memmove",
+      "firma": "void *memmove(void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 gestendo correttamente anche aree sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memcmp",
+      "firma": "int memcmp(const void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta i primi n byte di s1 e s2 come unsigned char restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    },
+    {
+      "nome": "ckd_add",
+      "firma": "bool ckd_add(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: somma controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "ckd_mul",
+      "firma": "bool ckd_mul(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: moltiplicazione controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "clock",
+      "firma": "clock_t clock(void);",
+      "header": "time.h",
+      "descrizione": "Restituisce il tempo di processore approssimato usato dal programma in unità di CLOCKS_PER_SEC oppure (clock_t)-1 se non disponibile."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "25.1",
+      "titolo": "Misurare il costo: contare le operazioni e usare clock",
+      "contenuti": [
+        "Perché contare le operazioni elementari (confronti, spostamenti, accessi in memoria) offre misure deterministiche e riproducibili su ogni computer, integrando la notazione O del capitolo 23",
+        "Misure di tempo di CPU con <time.h>: clock_t, clock() e CLOCKS_PER_SEC, controllo di (clock_t)-1 e conversione (double)(fine - inizio) / (double)CLOCKS_PER_SEC",
+        "Trappole del micro-benchmarking: eliminazione del codice morto (dead-code elimination) quando il risultato non è osservabile, risoluzione del clock, rumore del sistema operativo e differenza tra -O0 e -O2",
+        "Comportamento adattivo degli algoritmi su input ordinati, quasi ordinati e inversi: perché confrontare più metriche (confronti e spostamenti) chiarisce le prestazioni reali"
+      ],
+      "esempio_guidato": "Un programma che confronta ricerca lineare e ricerca binaria su un array ordinato di 10000 elementi: prima raccoglie contatori esatti di confronti e accessi (stampa deterministica) e poi esegue un ciclo ripetuto misurato con clock() e CLOCKS_PER_SEC accumulando un checksum per impedire l'eliminazione del codice morto, commentando i limiti della misura temporale.",
+      "approfondimento": "Perché un ciclo di benchmark che non usa il risultato calcolato può impiegare 0.000 secondi con -O2: il compilatore dimostra che il ciclo non ha effetti osservabili e lo rimuove interamente; accumulare un risultato in una variabile poi stampata (o assegnata a un pozzo volatile) impedisce questa eliminazione.",
+      "esercizio_id": "25.1"
+    },
+    {
+      "id": "25.2",
+      "titolo": "Località dei dati e cache: array di struct contro struct di array",
+      "contenuti": [
+        "Gerarchia di memoria (registri, cache L1/L2/L3, RAM), linee di cache (tipicamente 64 byte), località spaziale e località temporale (schema in blocco text)",
+        "Layout per righe (row-major) delle matrici in C: perché la scansione per righe sfrutta ogni linea di cache caricata mentre la scansione per colonne moltiplica i cache miss",
+        "Confronto tra Array di Struct (AoS) e Struct di Array (SoA): separare i campi caldi (letti spesso nei cicli interni) dai campi freddi (etichette, metadati) per ridurre il traffico di memoria",
+        "Analisi quantitativa tramite un modello deterministico di cache a linee da 64 byte (hit, miss e byte trasferiti) indipendente dall'hardware e dagli indirizzi fisici"
+      ],
+      "esempio_guidato": "Un programma che confronta le disposizioni AoS e SoA per una raccolta di punti 3D con metadati freddi, stampa sizeof e passo tra accessi consecutivi in byte per il solo aggiornamento di una coordinata e confronta la scansione per righe e per colonne di una matrice contigua.",
+      "approfondimento": "AoS non è sempre inferiore a SoA: quando quasi tutti i campi di un oggetto vengono letti insieme su un singolo record casuale (ad esempio la ricerca di un utente per chiave in una tabella hash), AoS mantiene tutti i campi dell'oggetto nella stessa linea di cache e risulta più favorevole.",
+      "esercizio_id": "25.2"
+    },
+    {
+      "id": "25.3",
+      "titolo": "Ottimizzazioni del compilatore e comportamento indefinito",
+      "contenuti": [
+        "Principali trasformazioni dei livelli di ottimizzazione (-O0, -O2, -O3, -Os): propagazione di costanti, inlining, spostamento di invarianti di ciclo, eliminazione di codice morto e vettorizzazione",
+        "La regola \"as-if\" e l'interazione pericolosa con il comportamento indefinito: perché il compilatore è autorizzato a rimuovere controlli come if (x + 1 < x) o if (p == nullptr) scritti dopo una dereferenziazione *p",
+        "Riscrivere codice veloce e ben definito in C23: controlli di overflow con ckd_add/ckd_mul (<stdckdint.h>), shift su tipi senza segno con controllo dell'intervallo, reinterpretazione dei bit con memcpy + static_assert",
+        "Sfruttare restrict in sicurezza: perché restrict abilita vettorizzazione e carico in registri su array disgiunti e come proteggere le chiamate verificando eventuali sovrapposizioni tramite uintptr_t"
+      ],
+      "esempio_guidato": "Un programma che affianca due brevi frammenti esplicitamente marcati come UB (controllo post-overflow su int con segno e test nullptr dopo dereferenziazione) alle corrispondenti versioni sicure con ckd_add e controllo preventivo, più un kernel vettoriale con restrict su array disgiunti.",
+      "approfondimento": "Perché un bug di comportamento indefinito può restare invisibile per mesi con -O0 e manifestarsi solo quando si abilita -O2: a -O0 il compilatore traduce quasi letteralmente ogni istruzione, mentre a -O2 sfrutta le ipotesi di assenza di UB per semplificare rami e riordinare letture e scritture.",
+      "esercizio_id": "25.3"
+    },
+    {
+      "id": "25.4",
+      "titolo": "Scrivere un mini framework di test automatici in C",
+      "contenuti": [
+        "Perché automatizzare i test in C fin dall'inizio di un modulo (in vista del progetto finale del capitolo 26): verifica rapida dopo ogni modifica e prevenzione delle regressioni",
+        "Progettare un header test_fw.h riutilizzabile: struct di contesto per contare test e asserzioni, macro do-while(0) (T_VERO, T_EQ_I32, T_EQ_ZU) con #cond e __func__/__FILE__/__LINE__",
+        "Differenza tra assert (<assert.h>, che abortisce l'intero programma al primo fallimento) e un runner di test (che registra il fallimento, prosegue sugli altri casi e stampa un riepilogo finale)",
+        "Strutturare una suite completa su un modulo opaco: casi nominali, casi limite (capacità zero/uno, pieno, wrap-around, puntatori nulli) e codice di uscita coerente per script automatici"
+      ],
+      "esempio_guidato": "Un programma su due file (mini_test.h e main.c) che definisce macro di asserzione do-while(0) con contatori di esito e testa due piccole funzioni (ricerca binaria e calcolo del massimo), mostrando l'output sia dei test superati sia della segnalazione pulita di un'asserzione fallita.",
+      "approfondimento": "Testare il proprio framework di test: includere un caso di verifica dedicato a un'asserzione volutamente falsa assicura che le macro registrino davvero il fallimento e non passino mai silenziosamente per errore di espansione.",
+      "esercizio_id": "25.4"
+    },
+    {
+      "id": "25.5",
+      "titolo": "Fuzzing a seme fisso e strumenti professionali di analisi",
+      "contenuti": [
+        "Generazione pseudocasuale standard in <stdlib.h>: srand(seme), rand() e RAND_MAX (>= 32767), importanza del seme fisso per la riproducibilità e dipendenza dall'implementazione della sequenza prodotta",
+        "Cos'è il fuzzing in C: sottoporre una struttura dati o un parser a migliaia di sequenze casuali di operazioni e input generati automaticamente",
+        "Test differenziale con oracolo (confrontare un'implementazione ottimizzata con un modello di riferimento banale) e verifica continua di invarianti strutturali a ogni passo",
+        "Cassetta degli attrezzi professionale: compilazione con -Wall -Wextra -Wpedantic, AddressSanitizer e UndefinedBehaviorSanitizer in abbinamento al fuzzing, debugger (gdb/lldb) per analizzare i fallimenti e profiler per misurare i veri colli di bottiglia prima di ottimizzare"
+      ],
+      "esempio_guidato": "Un programma che fissa srand(12345U), genera 200 array di lunghezza e contenuto casuali, li ordina con una propria funzione di ordinamento e verifica a ogni prova l'equivalenza con l'oracolo qsort tramite memcmp, stampando seme, prove eseguite ed errori rilevati (0).",
+      "approfondimento": "La regola d'oro delle prestazioni in C: prima fai funzionare il codice in modo chiaro e privo di UB con test automatici e sanitizer, poi usa un profiler per individuare il 10% di codice dove il programma spende il 90% del tempo, e solo lì ottimizza algoritmo e località dei dati.",
+      "esercizio_id": "25.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "25.1",
+      "tipo": "esercizio",
+      "titolo": "Profilatore deterministico di operazioni per algoritmi di ordinamento adattivi e verifica di clock",
+      "descrizione": "Scrivi un programma C che confronti in modo deterministico tre algoritmi di ordinamento su `int32_t` contando tre metriche esatte dentro `typedef struct metriche_op { uint64_t confronti; uint64_t spostamenti; uint64_t accessi; } metriche_op_t;`: (1) `ordina_inserzione(int32_t *a, size_t n, metriche_op_t *m)` (incrementa `confronti` a ogni verifica `a[j] > chiave`, `spostamenti` a ogni spostamento `a[j + 1] = a[j]`, e `accessi` per ogni lettura/scrittura di un elemento dell'array); (2) `ordina_shell(int32_t *a, size_t n, metriche_op_t *m)` con passi `gap = n / 2; gap > 0; gap /= 2` contando le stesse metriche; (3) `ordina_heap(int32_t *a, size_t n, metriche_op_t *m)` (max-heap sul posto con costruzione bottom-up ed estrazioni successive) contando confronti, scambi (contati come 3 spostamenti / 4 accessi per scambio) e letture di confronto. In `main` gestisci da `stdin` i comandi: `BENCH <modo> <n>` (`1 <= n <= 256`, `<modo>` tra `ORD` crescente `0..n-1`, `REV` decrescente `n-1..0`, `QUASI` crescente con scambio di ogni coppia `(8*k, 8*k+1)` valida) che esegue tutti e tre gli algoritmi su copie identiche, verifica con `memcmp` che i risultati ordinati coincidano esattamente e stampa i contatori di ciascun algoritmo; `CUSTOM <n> <v0> ... <v{n-1}>` (`0 <= n <= 64`) con la stessa verifica; `CLOCK_CHECK` che invoca `clock()` prima e dopo un breve ciclo accumulato in un pozzo `volatile uint64_t` verificando `CLOCKS_PER_SEC > 0`, `t0 != (clock_t)-1`, `t1 != (clock_t)-1` e `(double)(t1 - t0) / (double)CLOCKS_PER_SEC >= 0.0` (senza stampare i secondi fluttuanti), riproducendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "conteggio deterministico di confronti, spostamenti e accessi in memoria come base portabile di profilazione",
+        "comportamento adattivo di Insertion Sort su input ordinati e quasi ordinati rispetto a Shell Sort e Heap Sort",
+        "verifica di correttezza e coincidenza dei tre ordinamenti tramite memcmp",
+        "uso corretto di clock(), clock_t e CLOCKS_PER_SEC (<time.h>) con pozzo volatile contro l'eliminazione del codice morto"
+      ],
+      "domande_guida": [
+        "Perché Insertion Sort esegue molti meno confronti di Heap Sort su una sequenza già ordinata o quasi ordinata, ma esplode sulla sequenza inversa?",
+        "Come mai nel comando CLOCK_CHECK si verifica la validità di clock() e CLOCKS_PER_SEC senza stampare il numero esatto di millisecondi trascorsi?",
+        "A che cosa serve accumulare il risultato del ciclo di prova in una variabile qualificata volatile prima della seconda chiamata a clock()?",
+        "Quale vantaggio offre misurare sia i confronti sia gli spostamenti invece di osservare un solo contatore?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "BENCH ORD 32\nBENCH QUASI 8\nBENCH REV 8\nCUSTOM 5 9 1 4 1 7\nCLOCK_CHECK\n",
+          "output": "BENCH ORD(32) ok=1:\n  INS:   cmp=31 mov=0 acc=62\n  SHELL: cmp=129 mov=0 acc=258\n  HEAP:  cmp=231 mov=438 acc=1046\nBENCH QUASI(8) ok=1:\n  INS:   cmp=7 mov=1 acc=17\n  SHELL: cmp=17 mov=1 acc=37\n  HEAP:  cmp=27 mov=63 acc=138\nBENCH REV(8) ok=1:\n  INS:   cmp=28 mov=28 acc=98\n  SHELL: cmp=22 mov=12 acc=75\n  HEAP:  cmp=24 mov=48 acc=112\nCUSTOM(5) ok=1:\n  INS:   cmp=8 mov=5 acc=26\n  SHELL: cmp=10 mov=5 acc=31\n  HEAP:  cmp=10 mov=21 acc=48\nCLOCK_CHECK: valido=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "CUSTOM 0\nCUSTOM 1 42\nBENCH REV 8\n",
+          "output": "CUSTOM(0) ok=1:\n  INS:   cmp=0 mov=0 acc=0\n  SHELL: cmp=0 mov=0 acc=0\n  HEAP:  cmp=0 mov=0 acc=0\nCUSTOM(1) ok=1:\n  INS:   cmp=0 mov=0 acc=0\n  SHELL: cmp=0 mov=0 acc=0\n  HEAP:  cmp=0 mov=0 acc=0\nBENCH REV(8) ok=1:\n  INS:   cmp=28 mov=28 acc=98\n  SHELL: cmp=22 mov=12 acc=75\n  HEAP:  cmp=24 mov=48 acc=112\n"
+        },
+        {
+          "input": "BENCH ORD 64\nBENCH QUASI 8\n",
+          "output": "BENCH ORD(64) ok=1:\n  INS:   cmp=63 mov=0 acc=126\n  SHELL: cmp=321 mov=0 acc=642\n  HEAP:  cmp=593 mov=1086 acc=2634\nBENCH QUASI(8) ok=1:\n  INS:   cmp=7 mov=1 acc=17\n  SHELL: cmp=17 mov=1 acc=37\n  HEAP:  cmp=27 mov=63 acc=138\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <time.h>\n\ntypedef struct metriche_op { uint64_t cmp, mov, acc; } metriche_op_t;\n\nstatic void ordina_inserzione(int32_t *a, size_t n, metriche_op_t *m) {\n    *m = (metriche_op_t){};\n    for (size_t i = 1; i < n; ++i) {\n        int32_t chiave = a[i]; ++m->acc;\n        size_t j = i;\n        while (j > 0) {\n            ++m->cmp; ++m->acc;\n            if (a[j - 1] > chiave) { a[j] = a[j - 1]; ++m->mov; m->acc += 2; --j; }\n            else { break; }\n        }\n        if (j != i) { a[j] = chiave; ++m->acc; }\n    }\n}\n\nstatic void ordina_shell(int32_t *a, size_t n, metriche_op_t *m) {\n    *m = (metriche_op_t){};\n    for (size_t gap = n / 2; gap > 0; gap /= 2) {\n        for (size_t i = gap; i < n; ++i) {\n            int32_t chiave = a[i]; ++m->acc;\n            size_t j = i;\n            while (j >= gap) {\n                ++m->cmp; ++m->acc;\n                if (a[j - gap] > chiave) { a[j] = a[j - gap]; ++m->mov; m->acc += 2; j -= gap; }\n                else { break; }\n            }\n            if (j != i) { a[j] = chiave; ++m->acc; }\n        }\n    }\n}\n\nstatic void heap_scendi(int32_t *a, size_t n, size_t i, metriche_op_t *m) {\n    while (true) {\n        size_t sx = 2 * i + 1, dx = sx + 1, mag = i;\n        if (sx < n) { ++m->cmp; m->acc += 2; if (a[sx] > a[mag]) { mag = sx; } }\n        if (dx < n) { ++m->cmp; m->acc += 2; if (a[dx] > a[mag]) { mag = dx; } }\n        if (mag == i) { break; }\n        int32_t t = a[i]; a[i] = a[mag]; a[mag] = t;\n        m->mov += 3; m->acc += 4;\n        i = mag;\n    }\n}\n\nstatic void ordina_heap(int32_t *a, size_t n, metriche_op_t *m) {\n    *m = (metriche_op_t){};\n    if (n <= 1) { return; }\n    for (size_t i = n / 2; i > 0; --i) { heap_scendi(a, n, i - 1, m); }\n    for (size_t fine = n - 1; fine > 0; --fine) {\n        int32_t t = a[0]; a[0] = a[fine]; a[fine] = t;\n        m->mov += 3; m->acc += 4;\n        heap_scendi(a, fine, 0, m);\n    }\n}\n\nstatic void esegui_confronto(const char *etichetta, const int32_t *base, size_t n) {\n    int32_t a1[256] = {}, a2[256] = {}, a3[256] = {};\n    if (n > 0) {\n        memcpy(a1, base, n * sizeof(int32_t));\n        memcpy(a2, base, n * sizeof(int32_t));\n        memcpy(a3, base, n * sizeof(int32_t));\n    }\n    metriche_op_t m1 = {}, m2 = {}, m3 = {};\n    ordina_inserzione(a1, n, &m1);\n    ordina_shell(a2, n, &m2);\n    ordina_heap(a3, n, &m3);\n    bool ok = (n == 0) || (memcmp(a1, a2, n * sizeof(int32_t)) == 0 && memcmp(a1, a3, n * sizeof(int32_t)) == 0);\n    printf(\"%s(%zu) ok=%d:\\n\", etichetta, n, ok ? 1 : 0);\n    printf(\"  INS:   cmp=%\" PRIu64 \" mov=%\" PRIu64 \" acc=%\" PRIu64 \"\\n\", m1.cmp, m1.mov, m1.acc);\n    printf(\"  SHELL: cmp=%\" PRIu64 \" mov=%\" PRIu64 \" acc=%\" PRIu64 \"\\n\", m2.cmp, m2.mov, m2.acc);\n    printf(\"  HEAP:  cmp=%\" PRIu64 \" mov=%\" PRIu64 \" acc=%\" PRIu64 \"\\n\", m3.cmp, m3.mov, m3.acc);\n}\n\nint main(void) {\n    char riga[512], cmd[16], modo[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t n = 0;\n        int32_t dati[256] = {};\n        if (strcmp(cmd, \"BENCH\") == 0 && sscanf(riga, \"BENCH %15s %zu %c\", modo, &n, &extra) == 2 && n >= 1 && n <= 256) {\n            if (strcmp(modo, \"ORD\") == 0) {\n                for (size_t i = 0; i < n; ++i) { dati[i] = (int32_t)i; }\n                esegui_confronto(\"BENCH ORD\", dati, n);\n            } else if (strcmp(modo, \"REV\") == 0) {\n                for (size_t i = 0; i < n; ++i) { dati[i] = (int32_t)(n - 1 - i); }\n                esegui_confronto(\"BENCH REV\", dati, n);\n            } else if (strcmp(modo, \"QUASI\") == 0) {\n                for (size_t i = 0; i < n; ++i) { dati[i] = (int32_t)i; }\n                for (size_t i = 0; i + 1 < n; i += 8) { int32_t t = dati[i]; dati[i] = dati[i + 1]; dati[i + 1] = t; }\n                esegui_confronto(\"BENCH QUASI\", dati, n);\n            } else { return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"CUSTOM\") == 0) {\n            int pos = 0;\n            if (sscanf(riga, \"CUSTOM %zu%n\", &n, &pos) != 1 || n > 64) { return EXIT_FAILURE; }\n            const char *p = riga + pos;\n            for (size_t i = 0; i < n; ++i) {\n                long v = 0; int av = 0;\n                if (sscanf(p, \"%ld%n\", &v, &av) != 1 || v < INT32_MIN || v > INT32_MAX) { return EXIT_FAILURE; }\n                dati[i] = (int32_t)v; p += av;\n            }\n            esegui_confronto(\"CUSTOM\", dati, n);\n        } else if (strcmp(cmd, \"CLOCK_CHECK\") == 0 && sscanf(riga, \"CLOCK_CHECK %c\", &extra) != 1) {\n            clock_t t0 = clock();\n            volatile uint64_t pozzo = 0;\n            for (uint64_t k = 0; k < 10000; ++k) { pozzo += k; }\n            clock_t t1 = clock();\n            bool ok = (CLOCKS_PER_SEC > 0 && t0 != (clock_t)-1 && t1 != (clock_t)-1 &&\n                       (double)(t1 - t0) / (double)CLOCKS_PER_SEC >= 0.0 && pozzo > 0);\n            printf(\"CLOCK_CHECK: valido=%d\\n\", ok ? 1 : 0);\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "25.2",
+      "tipo": "esercizio",
+      "titolo": "Confronto quantitativo AoS contro SoA e scansione di matrici tramite simulatore deterministico di cache",
+      "descrizione": "Realizza su tre file (`cache_sim.h`, `cache_sim.c`, `main.c`) un simulatore deterministico di **cache** LRU a `16` linee da `64` byte (per operare su offset logici indipendenti dagli indirizzi fisici) e usalo per misurare la **località dei dati** tra **Array di Struct (AoS)**, **Struct di Array (SoA)** e scansione di matrici per righe contro per colonne. (1) In `cache_sim.h` (protetto da `CACHE_SIM_H`) definisci `constexpr size_t CACHE_LINEA = 64;` e `constexpr size_t CACHE_LINEE = 16;`, la struttura `cache_sim_t` con `hits`, `misses` e `byte_trasferiti` (`misses * 64`), e dichiara `void cache_reset(cache_sim_t *c);` e `void cache_accedi(cache_sim_t *c, uint64_t offset_byte);` (aggiorna la linea LRU per il blocco `offset_byte / 64`). (2) In `main.c` definisci `typedef struct particella_aos { double x, y, vx, vy; uint64_t id; uint32_t stato, gruppo; char etichetta[16]; } particella_aos_t;` verificando con `static_assert(sizeof(particella_aos_t) == 64)` che ogni particella occupi esattamente una linea di cache, e `particelle_soa_t` con array separati allocati dinamicamente (`x, y, vx, vy, id, stato, gruppo`). Gestisci da `stdin` i comandi: `STEP <n> <dt>` (`1 <= n <= 512`, inizializza le particelle deterministicamente `x=i, y=2*i, vx=1.5, vy=-0.5, stato=i%4`, esegue `x += vx*dt; y += vy*dt;` sia in AoS sia in SoA registrando gli offset logici in `cache_sim_t`, verifica che le somme finali coincidano e stampa hits, misses e byte trasferiti per AoS e SoA); `FILTRA <n> <stato_req>` (conta le particelle con `stato == stato_req` confrontando AoS e SoA nella cache); `MATRICE <r> <c>` (`1 <= r, c <= 64`, confronta la somma di una matrice `r x c` di `double` per righe contro per colonne tramite `cache_sim_t`). Riproduci esattamente l'output dell'esempio senza perdite di memoria.",
+      "concetti_da_tenere_a_mente": [
+        "linee di cache da 64 byte e trasferimento di interi blocchi contigui dalla RAM",
+        "differenza di località spaziale tra AoS (campi caldi mescolati a campi freddi) e SoA (array contigui omogenei)",
+        "scansione row-major (per righe) contro col-major (per colonne) sulle matrici in C",
+        "uso di offsetof e offset logici per simulare la cache in modo deterministico e indipendente dagli indirizzi fisici"
+      ],
+      "domande_guida": [
+        "Perché nel comando FILTRA su 64 particelle la versione AoS causa 64 cache miss mentre la versione SoA ne causa soltanto 4?",
+        "Quale differenza osservi nel rapporto tra i byte trasferiti di AoS e SoA passando da STEP (che legge 32 byte utili per particella) a FILTRA (che legge solo 4 byte utili)?",
+        "Perché nella scansione di una matrice 32x32 di double il percorso per colonne provoca un cache miss a ogni elemento quando la cache contiene solo 16 linee da 64 byte?",
+        "In quale caso d'uso reale il layout AoS risulterebbe invece più conveniente del layout SoA?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "STEP 64 0.5\nFILTRA 64 2\nMATRICE 32 32\n",
+          "output": "STEP(64) ok=1:\n  AoS: hits=192 misses=64 byte=4096\n  SoA: hits=224 misses=32 byte=2048\nFILTRA(64, 2) cnt=16 ok=1:\n  AoS: hits=0 misses=64 byte=4096\n  SoA: hits=60 misses=4 byte=256\nMATRICE(32x32) ok=1:\n  RIGHE:   hits=896 misses=128 byte=8192\n  COLONNE: hits=0 misses=1024 byte=65536\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "STEP 8 1.0\nFILTRA 16 0\nMATRICE 4 4\n",
+          "output": "STEP(8) ok=1:\n  AoS: hits=24 misses=8 byte=512\n  SoA: hits=28 misses=4 byte=256\nFILTRA(16, 0) cnt=4 ok=1:\n  AoS: hits=0 misses=16 byte=1024\n  SoA: hits=15 misses=1 byte=64\nMATRICE(4x4) ok=1:\n  RIGHE:   hits=14 misses=2 byte=128\n  COLONNE: hits=14 misses=2 byte=128\n"
+        },
+        {
+          "input": "STEP 128 0.25\nFILTRA 128 3\n",
+          "output": "STEP(128) ok=1:\n  AoS: hits=384 misses=128 byte=8192\n  SoA: hits=448 misses=64 byte=4096\nFILTRA(128, 3) cnt=32 ok=1:\n  AoS: hits=0 misses=128 byte=8192\n  SoA: hits=120 misses=8 byte=512\n"
+        }
+      ],
+      "soluzione_file": {
+        "cache_sim.h": "#ifndef CACHE_SIM_H\n#define CACHE_SIM_H\n\n#include <stddef.h>\n#include <stdint.h>\n\nconstexpr size_t CACHE_LINEA = 64;\nconstexpr size_t CACHE_LINEE = 16;\n\ntypedef struct cache_sim {\n    uint64_t tag[CACHE_LINEE];\n    uint64_t ultimo[CACHE_LINEE];\n    bool valida[CACHE_LINEE];\n    uint64_t tick;\n    uint64_t hits;\n    uint64_t misses;\n} cache_sim_t;\n\nvoid cache_reset(cache_sim_t *c);\nvoid cache_accedi(cache_sim_t *c, uint64_t offset_byte);\n\n#endif\n",
+        "cache_sim.c": "#include \"cache_sim.h\"\n#include <string.h>\n\nvoid cache_reset(cache_sim_t *c) {\n    if (c != nullptr) { memset(c, 0, sizeof(*c)); }\n}\n\nvoid cache_accedi(cache_sim_t *c, uint64_t offset_byte) {\n    uint64_t blocco = offset_byte / CACHE_LINEA;\n    ++c->tick;\n    size_t vittima = 0;\n    uint64_t min_tick = UINT64_MAX;\n    for (size_t i = 0; i < CACHE_LINEE; ++i) {\n        if (c->valida[i] && c->tag[i] == blocco) {\n            ++c->hits;\n            c->ultimo[i] = c->tick;\n            return;\n        }\n        if (!c->valida[i]) { vittima = i; min_tick = 0; }\n        else if (c->ultimo[i] < min_tick) { min_tick = c->ultimo[i]; vittima = i; }\n    }\n    ++c->misses;\n    c->valida[vittima] = true;\n    c->tag[vittima] = blocco;\n    c->ultimo[vittima] = c->tick;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <math.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"cache_sim.h\"\n\ntypedef struct particella_aos {\n    double x, y, vx, vy;\n    uint64_t id;\n    uint32_t stato, gruppo;\n    char etichetta[16];\n} particella_aos_t;\n\nstatic_assert(sizeof(particella_aos_t) == 64);\n\ntypedef struct particelle_soa {\n    double *x, *y, *vx, *vy;\n    uint32_t *stato;\n    size_t n;\n} particelle_soa_t;\n\nstatic uint64_t allinea64(uint64_t v) { return (v + 63U) & ~(uint64_t)63; }\n\nstatic bool run_step(size_t n, double dt) {\n    particella_aos_t *aos = calloc(n, sizeof(*aos));\n    particelle_soa_t soa = {.x = calloc(n, sizeof(double)), .y = calloc(n, sizeof(double)),\n                            .vx = calloc(n, sizeof(double)), .vy = calloc(n, sizeof(double)), .n = n};\n    if (!aos || !soa.x || !soa.y || !soa.vx || !soa.vy) {\n        free(aos); free(soa.x); free(soa.y); free(soa.vx); free(soa.vy); return false;\n    }\n    for (size_t i = 0; i < n; ++i) {\n        aos[i] = (particella_aos_t){.x = (double)i, .y = 2.0 * (double)i, .vx = 1.5, .vy = -0.5, .id = i, .stato = (uint32_t)(i % 4)};\n        soa.x[i] = aos[i].x; soa.y[i] = aos[i].y; soa.vx[i] = aos[i].vx; soa.vy[i] = aos[i].vy;\n    }\n    cache_sim_t ca = {}, cs = {};\n    double sa = 0.0, ss = 0.0;\n    for (size_t i = 0; i < n; ++i) {\n        uint64_t b = (uint64_t)i * sizeof(particella_aos_t);\n        cache_accedi(&ca, b + offsetof(particella_aos_t, x));\n        cache_accedi(&ca, b + offsetof(particella_aos_t, vx));\n        cache_accedi(&ca, b + offsetof(particella_aos_t, y));\n        cache_accedi(&ca, b + offsetof(particella_aos_t, vy));\n        aos[i].x += aos[i].vx * dt; aos[i].y += aos[i].vy * dt;\n        sa += aos[i].x + aos[i].y;\n    }\n    uint64_t stride = allinea64((uint64_t)n * sizeof(double));\n    for (size_t i = 0; i < n; ++i) {\n        cache_accedi(&cs, 0 * stride + (uint64_t)i * sizeof(double));\n        cache_accedi(&cs, 2 * stride + (uint64_t)i * sizeof(double));\n        cache_accedi(&cs, 1 * stride + (uint64_t)i * sizeof(double));\n        cache_accedi(&cs, 3 * stride + (uint64_t)i * sizeof(double));\n        soa.x[i] += soa.vx[i] * dt; soa.y[i] += soa.vy[i] * dt;\n        ss += soa.x[i] + soa.y[i];\n    }\n    printf(\"STEP(%zu) ok=%d:\\n\", n, (fabs(sa - ss) < 1e-9) ? 1 : 0);\n    printf(\"  AoS: hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", ca.hits, ca.misses, ca.misses * CACHE_LINEA);\n    printf(\"  SoA: hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", cs.hits, cs.misses, cs.misses * CACHE_LINEA);\n    free(aos); free(soa.x); free(soa.y); free(soa.vx); free(soa.vy);\n    return true;\n}\n\nstatic void run_filtra(size_t n, uint32_t req) {\n    cache_sim_t ca = {}, cs = {};\n    size_t c1 = 0, c2 = 0;\n    for (size_t i = 0; i < n; ++i) {\n        cache_accedi(&ca, (uint64_t)i * sizeof(particella_aos_t) + offsetof(particella_aos_t, stato));\n        if ((uint32_t)(i % 4) == req) { ++c1; }\n    }\n    for (size_t i = 0; i < n; ++i) {\n        cache_accedi(&cs, (uint64_t)i * sizeof(uint32_t));\n        if ((uint32_t)(i % 4) == req) { ++c2; }\n    }\n    printf(\"FILTRA(%zu, %\" PRIu32 \") cnt=%zu ok=%d:\\n\", n, req, c1, (c1 == c2) ? 1 : 0);\n    printf(\"  AoS: hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", ca.hits, ca.misses, ca.misses * CACHE_LINEA);\n    printf(\"  SoA: hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", cs.hits, cs.misses, cs.misses * CACHE_LINEA);\n}\n\nstatic void run_matrice(size_t r, size_t c) {\n    cache_sim_t cr = {}, cc = {};\n    uint64_t s1 = 0, s2 = 0;\n    for (size_t i = 0; i < r; ++i) {\n        for (size_t j = 0; j < c; ++j) {\n            cache_accedi(&cr, ((uint64_t)i * c + j) * sizeof(double)); s1 += i + j;\n        }\n    }\n    for (size_t j = 0; j < c; ++j) {\n        for (size_t i = 0; i < r; ++i) {\n            cache_accedi(&cc, ((uint64_t)i * c + j) * sizeof(double)); s2 += i + j;\n        }\n    }\n    printf(\"MATRICE(%zux%zu) ok=%d:\\n\", r, c, (s1 == s2) ? 1 : 0);\n    printf(\"  RIGHE:   hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", cr.hits, cr.misses, cr.misses * CACHE_LINEA);\n    printf(\"  COLONNE: hits=%\" PRIu64 \" misses=%\" PRIu64 \" byte=%\" PRIu64 \"\\n\", cc.hits, cc.misses, cc.misses * CACHE_LINEA);\n}\n\nint main(void) {\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t n = 0, r = 0, c = 0; double dt = 0.0; unsigned int st = 0;\n        if (strcmp(cmd, \"STEP\") == 0 && sscanf(riga, \"STEP %zu %lf %c\", &n, &dt, &extra) == 2 && n >= 1 && n <= 512) {\n            if (!run_step(n, dt)) { return EXIT_FAILURE; }\n        } else if (strcmp(cmd, \"FILTRA\") == 0 && sscanf(riga, \"FILTRA %zu %u %c\", &n, &st, &extra) == 2 && n >= 1 && n <= 512) {\n            run_filtra(n, (uint32_t)st);\n        } else if (strcmp(cmd, \"MATRICE\") == 0 && sscanf(riga, \"MATRICE %zu %zu %c\", &r, &c, &extra) == 2 && r >= 1 && r <= 64 && c >= 1 && c <= 64) {\n            run_matrice(r, c);\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "25.3",
+      "tipo": "esercizio",
+      "titolo": "Primitive numeriche e vettoriali sicure contro overflow, shift, strict aliasing e violazioni di restrict",
+      "descrizione": "Scrivi un programma C che implementi cinque primitive completamente prive di **comportamento indefinito** (sicure anche con `-O3` e `-fsanitize=address,undefined`) per sostituire i classici idiomi vulnerabili alle ottimizzazioni del compilatore: (1) `bool somma_sicura_i32(int32_t a, int32_t b, int32_t *out)` con `ckd_add` (rifiuta overflow invece di eseguire `a + b < a`); (2) `bool prod_sicuro_i64(int64_t a, int64_t b, int64_t *out)` con `ckd_mul`; (3) `bool shift_sicuro_u32(uint32_t x, int k, bool sinistra, uint32_t *out)` che valida `0 <= k && k < 32` prima di applicare `<<` o `>>`; (4) `uint32_t float_a_bit(float f)` e `float bit_a_float(uint32_t u)` che reinterpretano i bit tramite `memcpy` con `static_assert(sizeof(float) == sizeof(uint32_t))` (senza violare **strict aliasing**); (5) `void combina_restrict(size_t n, double *restrict dst, const double *restrict a, const double *restrict b, double alpha)` (`dst[i] = alpha * a[i] + b[i]`) protetta dal wrapper `bool combina_sicura(size_t n, double *dst, const double *a, const double *b, double alpha, bool *usato_restrict)` che verifica tramite `uintptr_t` se l'intervallo di `dst` si sovrappone ad `a` o `b`: se disgiunti chiama `combina_restrict` (`*usato_restrict = true`), se sovrapposti usa un buffer temporaneo dinamico evitando la violazione di `restrict` (`*usato_restrict = false`). In `main` leggi da `stdin` i comandi `ADD32 <a> <b>`, `MUL64 <a> <b>`, `SHL32 <u32> <k>`, `SHR32 <u32> <k>`, `FBITS <val_f>` (stampa esadecimale IEEE-754 e round-trip `bit_a_float`), `VEC_DISJ <alpha>` e `VEC_OVERLAP <alpha>` (entrambi su un vettore base `{1.0, 2.0, 3.0, 4.0}` con `b = {10.0, 20.0, 30.0, 40.0}`, nel secondo caso scrivendo `dst = a` con sovrapposizione totale), riproducendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "uso di ckd_add e ckd_mul (<stdckdint.h>) al posto di controlli post-overflow eliminabili dal compilatore",
+        "validazione dell'intervallo 0 <= k < 32 prima di spostare un uint32_t",
+        "reinterpretazione dei bit di float tramite memcpy e static_assert nel rispetto di strict aliasing",
+        "verifica preventiva della sovrapposizione tramite uintptr_t prima di invocare un kernel con parametri restrict"
+      ],
+      "domande_guida": [
+        "Perché un compilatore ottimizzante può eliminare interamente il ramo if (a > 0 && b > 0 && a + b < 0) su variabili int32_t?",
+        "Come mai float_a_bit usa memcpy invece di *(const uint32_t *)&f e che cosa genera di solito il compilatore con -O2 per quella memcpy di 4 byte?",
+        "Che cosa succederebbe se invocassi direttamente combina_restrict passando dst == a sullo stesso array?",
+        "Perché shift_sicuro_u32 deve rifiutare k == 32 anche se x è di tipo uint32_t senza segno?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD32 2147483640 7\nADD32 2147483640 10\nMUL64 -9223372036854775808 -1\nSHL32 1 31\nSHL32 1 32\nSHR32 16 -1\nFBITS -2.5\nVEC_DISJ 2.0\nVEC_OVERLAP 2.0\n",
+          "output": "ADD32: OK 2147483647\nADD32: OVERFLOW\nMUL64: OVERFLOW\nSHL32: OK 0x80000000\nSHL32: ERR_SHIFT\nSHR32: ERR_SHIFT\nFBITS: hex=0xc0200000 rt=-2.50\nVEC_DISJ: restrict=1 [12.00 24.00 36.00 48.00]\nVEC_OVERLAP: restrict=0 [12.00 24.00 36.00 48.00]\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "ADD32 -2147483648 -1\nMUL64 1000000 -2000000\nSHR32 255 4\nFBITS 1.0\n",
+          "output": "ADD32: OVERFLOW\nMUL64: OK -2000000000000\nSHR32: OK 0x0000000f\nFBITS: hex=0x3f800000 rt=1.00\n"
+        },
+        {
+          "input": "VEC_DISJ 0.5\nVEC_OVERLAP 0.5\n",
+          "output": "VEC_DISJ: restrict=1 [10.50 21.00 31.50 42.00]\nVEC_OVERLAP: restrict=0 [10.50 21.00 31.50 42.00]\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stdckdint.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nstatic_assert(sizeof(float) == sizeof(uint32_t));\n\nstatic bool somma_sicura_i32(int32_t a, int32_t b, int32_t *out) {\n    return !ckd_add(out, a, b);\n}\n\nstatic bool prod_sicuro_i64(int64_t a, int64_t b, int64_t *out) {\n    return !ckd_mul(out, a, b);\n}\n\nstatic bool shift_sicuro_u32(uint32_t x, int k, bool sinistra, uint32_t *out) {\n    if (k < 0 || k >= 32 || out == nullptr) { return false; }\n    *out = sinistra ? (x << k) : (x >> k);\n    return true;\n}\n\nstatic uint32_t float_a_bit(float f) {\n    uint32_t u = 0;\n    memcpy(&u, &f, sizeof(u));\n    return u;\n}\n\nstatic float bit_a_float(uint32_t u) {\n    float f = 0.0f;\n    memcpy(&f, &u, sizeof(f));\n    return f;\n}\n\nstatic void combina_restrict(size_t n, double *restrict dst, const double *restrict a,\n                             const double *restrict b, double alpha) {\n    for (size_t i = 0; i < n; ++i) { dst[i] = alpha * a[i] + b[i]; }\n}\n\nstatic bool sovrapposti(const void *p1, const void *p2, size_t n_byte) {\n    if (n_byte == 0) { return false; }\n    uintptr_t a1 = (uintptr_t)p1, a2 = (uintptr_t)p2;\n    return (a1 < a2 + n_byte) && (a2 < a1 + n_byte);\n}\n\nstatic bool combina_sicura(size_t n, double *dst, const double *a, const double *b,\n                           double alpha, bool *usato_restrict) {\n    if (n == 0) { *usato_restrict = true; return true; }\n    size_t nb = n * sizeof(double);\n    if (!sovrapposti(dst, a, nb) && !sovrapposti(dst, b, nb)) {\n        *usato_restrict = true;\n        combina_restrict(n, dst, a, b, alpha);\n        return true;\n    }\n    *usato_restrict = false;\n    double *tmp = malloc(nb);\n    if (tmp == nullptr) { return false; }\n    for (size_t i = 0; i < n; ++i) { tmp[i] = alpha * a[i] + b[i]; }\n    memcpy(dst, tmp, nb);\n    free(tmp);\n    return true;\n}\n\nint main(void) {\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long a64 = 0, b64 = 0;\n        unsigned int u = 0; int k = 0; double d = 0.0;\n        if (strcmp(cmd, \"ADD32\") == 0 && sscanf(riga, \"ADD32 %lld %lld %c\", &a64, &b64, &extra) == 2 &&\n            a64 >= INT32_MIN && a64 <= INT32_MAX && b64 >= INT32_MIN && b64 <= INT32_MAX) {\n            int32_t r = 0;\n            if (somma_sicura_i32((int32_t)a64, (int32_t)b64, &r)) { printf(\"ADD32: OK %\" PRId32 \"\\n\", r); }\n            else { printf(\"ADD32: OVERFLOW\\n\"); }\n        } else if (strcmp(cmd, \"MUL64\") == 0 && sscanf(riga, \"MUL64 %lld %lld %c\", &a64, &b64, &extra) == 2) {\n            int64_t r = 0;\n            if (prod_sicuro_i64((int64_t)a64, (int64_t)b64, &r)) { printf(\"MUL64: OK %\" PRId64 \"\\n\", r); }\n            else { printf(\"MUL64: OVERFLOW\\n\"); }\n        } else if ((strcmp(cmd, \"SHL32\") == 0 || strcmp(cmd, \"SHR32\") == 0) &&\n                   sscanf(riga, \"%*15s %u %d %c\", &u, &k, &extra) == 2) {\n            uint32_t r = 0;\n            bool sx = (strcmp(cmd, \"SHL32\") == 0);\n            if (shift_sicuro_u32((uint32_t)u, k, sx, &r)) { printf(\"%s: OK 0x%08\" PRIx32 \"\\n\", cmd, r); }\n            else { printf(\"%s: ERR_SHIFT\\n\", cmd); }\n        } else if (strcmp(cmd, \"FBITS\") == 0 && sscanf(riga, \"FBITS %lf %c\", &d, &extra) == 1) {\n            uint32_t bits = float_a_bit((float)d);\n            printf(\"FBITS: hex=0x%08\" PRIx32 \" rt=%.2f\\n\", bits, (double)bit_a_float(bits));\n        } else if ((strcmp(cmd, \"VEC_DISJ\") == 0 || strcmp(cmd, \"VEC_OVERLAP\") == 0) &&\n                   sscanf(riga, \"%*15s %lf %c\", &d, &extra) == 1) {\n            double va[4] = {1.0, 2.0, 3.0, 4.0}, vb[4] = {10.0, 20.0, 30.0, 40.0}, vd[4] = {};\n            double *dst = (strcmp(cmd, \"VEC_DISJ\") == 0) ? vd : va;\n            bool ur = false;\n            if (!combina_sicura(4, dst, va, vb, d, &ur)) { return EXIT_FAILURE; }\n            printf(\"%s: restrict=%d [%.2f %.2f %.2f %.2f]\\n\", cmd, ur ? 1 : 0, dst[0], dst[1], dst[2], dst[3]);\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "25.4",
+      "tipo": "esercizio",
+      "titolo": "Mini framework di test automatici su più file applicato a un buffer circolare opaco",
+      "descrizione": "Realizza su quattro file (`test_fw.h`, `ring_buf.h`, `ring_buf.c`, `main.c`) un mini framework di **test automatici** con macro `do-while(0)` e usalo per verificare una libreria opaca di buffer circolare. (1) In `test_fw.h` (protetto da `TEST_FW_H`) definisci `typedef struct test_ctx { size_t eseguiti, superati, falliti, ass_ok, ass_ko; bool corrente_ko; } test_ctx_t;`, `typedef void (*test_fn)(test_ctx_t *ctx);`, `typedef struct caso_test { const char *nome; test_fn fn; } caso_test_t;`, le macro protette da `do { ... } while (0)`: `T_VERO(ctx, cond)`, `T_EQ_I32(ctx, att, ott)` e `T_EQ_ZU(ctx, att, ott)` (che incrementano `ass_ok` se vere oppure impostano `corrente_ko = true`, incrementano `ass_ko` e stampano `[FAIL] <__func__>: ...` usando `#cond` e i valori), e la funzione `static inline void test_esegui(test_ctx_t *ctx, const caso_test_t *c)` che resetta `corrente_ko`, esegue `c->fn(ctx)`, aggiorna `eseguiti`/`superati`/`falliti` e stampa `[PASS] <nome>` oppure `[FAIL] <nome>`. (2) In `ring_buf.h` e `ring_buf.c` implementa il **tipo opaco** `ring_t` (`ring_crea(size_t cap)`, `ring_distruggi`, `ring_push`, `ring_pop`, `ring_len`, `ring_cap`, `ring_vuoto`, `ring_pieno`) con allocazione dinamica sicura e avanzamento circolare `(idx + 1) % cap`. (3) In `main.c` definisci cinque test unitari nella tabella `SUITE[]`: `crea_invalida`, `vuoto_e_pop`, `fifo_base`, `wrap_around` e `pieno_e_svuota`, più un test diagnostico `demo_fallimento` che fallisce intenzionalmente un'asserzione per dimostrare il rilevamento dei guasti. Leggi da `stdin` i comandi `RUN ALL`, `RUN <nome>` e `RUN_DEMO_FAIL` stampando i singoli esiti e il riepilogo `RIEPILOGO: test=<ok>/<tot> falliti=<ko> ass_ok=<aok> ass_ko=<ako>` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "macro di asserzione di test protette da do-while(0) con stringificazione # e __func__",
+        "esecuzione continuativa della suite di test con contabilizzazione di test e asserzioni superate/fallite",
+        "progettazione di test unitari su casi nominali, limiti (cap=0, vuoto, pieno) e avvolgimento circolare (wrap-around)",
+        "verifica che il framework rilevi e segnali correttamente i fallimenti senza interrompere il runner"
+      ],
+      "domande_guida": [
+        "Perché un framework di test automatici usa macro come T_EQ_I32 invece della macro standard assert() di <assert.h>?",
+        "Come mai T_EQ_I32 valuta att e ott una sola volta in variabili locali dentro do { ... } while (0) prima di confrontarle e stamparle?",
+        "Quali casi limite del buffer circolare verifica il test wrap_around rispetto al semplice test fifo_base?",
+        "Perché conviene mantenere un test diagnostico come demo_fallimento per verificare il comportamento del framework stesso?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "RUN ALL\nRUN wrap_around\nRUN_DEMO_FAIL\n",
+          "output": "[PASS] crea_invalida\n[PASS] vuoto_e_pop\n[PASS] fifo_base\n[PASS] wrap_around\n[PASS] pieno_e_svuota\nRIEPILOGO: test=5/5 falliti=0 ass_ok=22 ass_ko=0\n[PASS] wrap_around\nRIEPILOGO: test=1/1 falliti=0 ass_ok=6 ass_ko=0\n  [ASS_FAIL] test_demo_fail: 1 + 1 == 3 (att=3 ott=2)\n[FAIL] demo_fallimento\nRIEPILOGO: test=0/1 falliti=1 ass_ok=1 ass_ko=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "RUN crea_invalida\nRUN ignoto\n",
+          "output": "[PASS] crea_invalida\nRIEPILOGO: test=1/1 falliti=0 ass_ok=2 ass_ko=0\nTEST IGNOTO: ignoto\n"
+        },
+        {
+          "input": "RUN fifo_base\nRUN pieno_e_svuota\n",
+          "output": "[PASS] fifo_base\nRIEPILOGO: test=1/1 falliti=0 ass_ok=5 ass_ko=0\n[PASS] pieno_e_svuota\nRIEPILOGO: test=1/1 falliti=0 ass_ok=6 ass_ko=0\n"
+        }
+      ],
+      "soluzione_file": {
+        "test_fw.h": "#ifndef TEST_FW_H\n#define TEST_FW_H\n\n#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n\ntypedef struct test_ctx {\n    size_t eseguiti, superati, falliti, ass_ok, ass_ko;\n    bool corrente_ko;\n} test_ctx_t;\n\ntypedef void (*test_fn)(test_ctx_t *ctx);\ntypedef struct caso_test { const char *nome; test_fn fn; } caso_test_t;\n\n#define T_VERO(ctx, cond) do { \\\n    if (cond) { ++(ctx)->ass_ok; } \\\n    else { ++(ctx)->ass_ko; (ctx)->corrente_ko = true; printf(\"  [ASS_FAIL] %s: %s\\n\", __func__, #cond); } \\\n} while (0)\n\n#define T_EQ_I32(ctx, att, ott, expr_txt) do { \\\n    int32_t _a = (att), _o = (ott); \\\n    if (_a == _o) { ++(ctx)->ass_ok; } \\\n    else { ++(ctx)->ass_ko; (ctx)->corrente_ko = true; \\\n           printf(\"  [ASS_FAIL] %s: %s (att=%\" PRId32 \" ott=%\" PRId32 \")\\n\", __func__, (expr_txt), _a, _o); } \\\n} while (0)\n\n#define T_EQ_ZU(ctx, att, ott) do { \\\n    size_t _a = (att), _o = (ott); \\\n    if (_a == _o) { ++(ctx)->ass_ok; } \\\n    else { ++(ctx)->ass_ko; (ctx)->corrente_ko = true; \\\n           printf(\"  [ASS_FAIL] %s: %s == %s (att=%zu ott=%zu)\\n\", __func__, #att, #ott, _a, _o); } \\\n} while (0)\n\nstatic inline void test_esegui(test_ctx_t *ctx, const caso_test_t *c) {\n    ctx->corrente_ko = false;\n    c->fn(ctx);\n    ++ctx->eseguiti;\n    if (ctx->corrente_ko) { ++ctx->falliti; printf(\"[FAIL] %s\\n\", c->nome); }\n    else { ++ctx->superati; printf(\"[PASS] %s\\n\", c->nome); }\n}\n\n#endif\n",
+        "ring_buf.h": "#ifndef RING_BUF_H\n#define RING_BUF_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct ring ring_t;\n\nring_t *ring_crea(size_t cap);\nvoid ring_distruggi(ring_t *r);\nbool ring_push(ring_t *r, int32_t val);\nbool ring_pop(ring_t *r, int32_t *out);\nsize_t ring_len(const ring_t *r);\nsize_t ring_cap(const ring_t *r);\nbool ring_vuoto(const ring_t *r);\nbool ring_pieno(const ring_t *r);\n\n#endif\n",
+        "ring_buf.c": "#include \"ring_buf.h\"\n#include <stdlib.h>\n\nstruct ring { int32_t *dati; size_t cap, testa, coda, len; };\n\nring_t *ring_crea(size_t cap) {\n    if (cap == 0) { return nullptr; }\n    ring_t *r = calloc(1, sizeof(*r));\n    if (r == nullptr) { return nullptr; }\n    r->dati = calloc(cap, sizeof(*r->dati));\n    if (r->dati == nullptr) { free(r); return nullptr; }\n    r->cap = cap;\n    return r;\n}\n\nvoid ring_distruggi(ring_t *r) { if (r != nullptr) { free(r->dati); free(r); } }\n\nbool ring_push(ring_t *r, int32_t val) {\n    if (r == nullptr || r->len == r->cap) { return false; }\n    r->dati[r->coda] = val;\n    r->coda = (r->coda + 1) % r->cap;\n    ++r->len;\n    return true;\n}\n\nbool ring_pop(ring_t *r, int32_t *out) {\n    if (r == nullptr || r->len == 0) { return false; }\n    if (out != nullptr) { *out = r->dati[r->testa]; }\n    r->testa = (r->testa + 1) % r->cap;\n    --r->len;\n    return true;\n}\n\nsize_t ring_len(const ring_t *r) { return (r != nullptr) ? r->len : 0; }\nsize_t ring_cap(const ring_t *r) { return (r != nullptr) ? r->cap : 0; }\nbool ring_vuoto(const ring_t *r) { return ring_len(r) == 0; }\nbool ring_pieno(const ring_t *r) { return (r != nullptr) && (r->len == r->cap); }\n",
+        "main.c": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"ring_buf.h\"\n#include \"test_fw.h\"\n\nstatic void test_crea_inv(test_ctx_t *c) {\n    T_VERO(c, ring_crea(0) == nullptr);\n    T_VERO(c, !ring_push(nullptr, 1));\n}\nstatic void test_vuoto(test_ctx_t *c) {\n    ring_t *r = ring_crea(3); int32_t v = 0;\n    T_VERO(c, r != nullptr && ring_vuoto(r));\n    T_EQ_ZU(c, 3, ring_cap(r));\n    T_VERO(c, !ring_pop(r, &v));\n    ring_distruggi(r);\n}\nstatic void test_fifo(test_ctx_t *c) {\n    ring_t *r = ring_crea(3); int32_t v = 0;\n    T_VERO(c, ring_push(r, 10) && ring_push(r, 20));\n    T_EQ_ZU(c, 2, ring_len(r));\n    T_VERO(c, ring_pop(r, &v)); T_EQ_I32(c, 10, v, \"pop1\");\n    T_VERO(c, ring_pop(r, &v) && v == 20);\n    ring_distruggi(r);\n}\nstatic void test_wrap(test_ctx_t *c) {\n    ring_t *r = ring_crea(3); int32_t v = 0;\n    ring_push(r, 1); ring_push(r, 2); ring_pop(r, &v);\n    T_VERO(c, ring_push(r, 3) && ring_push(r, 4));\n    T_VERO(c, ring_pieno(r));\n    T_VERO(c, ring_pop(r, &v)); T_EQ_I32(c, 2, v, \"wrap1\");\n    T_VERO(c, ring_pop(r, &v)); T_EQ_I32(c, 3, v, \"wrap2\");\n    ring_distruggi(r);\n}\nstatic void test_pieno(test_ctx_t *c) {\n    ring_t *r = ring_crea(2); int32_t v = 0;\n    T_VERO(c, ring_push(r, 7) && ring_push(r, 8));\n    T_VERO(c, !ring_push(r, 9));\n    T_EQ_ZU(c, 2, ring_len(r));\n    T_VERO(c, ring_pop(r, &v)); T_EQ_I32(c, 7, v, \"p1\");\n    T_VERO(c, ring_pop(r, &v) && ring_vuoto(r));\n    ring_distruggi(r);\n}\nstatic void test_demo_fail(test_ctx_t *c) {\n    T_VERO(c, 2 + 2 == 4);\n    T_EQ_I32(c, 3, 1 + 1, \"1 + 1 == 3\");\n}\n\nstatic void stampa_riepilogo(const test_ctx_t *c) {\n    printf(\"RIEPILOGO: test=%zu/%zu falliti=%zu ass_ok=%zu ass_ko=%zu\\n\",\n           c->superati, c->eseguiti, c->falliti, c->ass_ok, c->ass_ko);\n}\n\nint main(void) {\n    static const caso_test_t SUITE[] = {\n        {\"crea_invalida\", test_crea_inv}, {\"vuoto_e_pop\", test_vuoto},\n        {\"fifo_base\", test_fifo}, {\"wrap_around\", test_wrap}, {\"pieno_e_svuota\", test_pieno}\n    };\n    constexpr size_t NS = sizeof(SUITE) / sizeof(SUITE[0]);\n    char riga[128], cmd[24], nome[32], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%23s\", cmd) != 1) { continue; }\n        test_ctx_t ctx = {};\n        if (strcmp(cmd, \"RUN\") == 0 && sscanf(riga, \"RUN %31s %c\", nome, &extra) == 1) {\n            if (strcmp(nome, \"ALL\") == 0) {\n                for (size_t i = 0; i < NS; ++i) { test_esegui(&ctx, &SUITE[i]); }\n                stampa_riepilogo(&ctx);\n            } else {\n                bool trov = false;\n                for (size_t i = 0; i < NS; ++i) {\n                    if (strcmp(SUITE[i].nome, nome) == 0) { test_esegui(&ctx, &SUITE[i]); stampa_riepilogo(&ctx); trov = true; break; }\n                }\n                if (!trov) { printf(\"TEST IGNOTO: %s\\n\", nome); }\n            }\n        } else if (strcmp(cmd, \"RUN_DEMO_FAIL\") == 0 && sscanf(riga, \"RUN_DEMO_FAIL %c\", &extra) != 1) {\n            caso_test_t demo = {\"demo_fallimento\", test_demo_fail};\n            test_esegui(&ctx, &demo); stampa_riepilogo(&ctx);\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "25.5",
+      "tipo": "esercizio",
+      "titolo": "Fuzzer differenziale a seme fisso (srand/rand) con oracolo e verifica di invarianti per una mappa ordinata",
+      "descrizione": "Realizza su tre file (`mappa_ord.h`, `mappa_ord.c`, `main.c`) un motore di **fuzzing** differenziale a seme fisso (`srand`/`rand` di `<stdlib.h>`) che mette alla prova una mappa ordinata dinamica contro un oracolo di riferimento elementare. (1) In `mappa_ord.h` (protetto da `MAPPA_ORD_H`) dichiara il **tipo opaco** `mappa_ord_t` con `mappa_ord_t *mappa_crea(void);`, `void mappa_distruggi(mappa_ord_t *m);`, `bool mappa_put(mappa_ord_t *m, int32_t chiave, int32_t valore, bool *aggiornato);` (usa ricerca binaria `O(log n)`, sposta con `memmove` e cresce raddoppiando con `ckd_mul` e `realloc`), `bool mappa_get(const mappa_ord_t *m, int32_t chiave, int32_t *val_out);`, `bool mappa_del(mappa_ord_t *m, int32_t chiave);`, `size_t mappa_len(const mappa_ord_t *m);` e `bool mappa_invariante_ok(const mappa_ord_t *m);` (verifica `len <= cap` e ordine strettamente crescente delle chiavi). (2) In `main.c` verifica `static_assert(RAND_MAX >= 32767)` e implementa un oracolo diretto su array di `64` posizioni (`bool pres[64]`, `int32_t val[64]`). Leggi da `stdin` i comandi `FUZZ <seme> <passi> <max_k>` (`1 <= passi <= 5000`, `1 <= max_k <= 64`): fissa `srand((unsigned int)seme)`, genera `<passi>` operazioni pseudocasuali con `rand()` (`PUT`, `DEL`, `GET` su chiavi in `[0, max_k)` e valori con segno), confronta a ogni passo il risultato e la lunghezza di `mappa_ord` con l'oracolo e controlla `mappa_invariante_ok(m)`. Al termine esegue una scansione completa di tutte le `max_k` chiavi verificando la coincidenza finale con l'oracolo, libera la mappa e stampa `FUZZ(seme=<seme>, passi=<passi>, k=<max_k>): ok=<passi>/<passi> errori=0 inv_ok=1` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "inizializzazione del generatore pseudocasuale con srand(seme) e uso di rand() con static_assert(RAND_MAX >= 32767)",
+        "test differenziale contro un oracolo elementare per individuare discrepanze su migliaia di sequenze casuali",
+        "verifica continua degli invarianti strutturali (ordine stretto delle chiavi e coerenza della lunghezza) a ogni passo",
+        "portabilità dell'esito del fuzzing indipendente dall'implementazione specifica di rand()"
+      ],
+      "domande_guida": [
+        "Perché l'esito del fuzzer differenziale (errori=0 e inv_ok=1) resta identico su sistemi operativi diversi anche se l'algoritmo interno di rand() dipende dall'implementazione?",
+        "Qual è il vantaggio di confrontare mappa_ord con un oracolo banale indicizzato direttamente per chiave rispetto a scrivere a mano dieci test statici?",
+        "Perché conviene chiamare mappa_invariante_ok(m) a ogni singolo passo del fuzzing invece che soltanto alla fine dei 5000 passi?",
+        "Come mai nel fuzzing professionale si combina l'esecuzione con AddressSanitizer e UndefinedBehaviorSanitizer?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "FUZZ 42 500 16\nFUZZ 1337 2000 64\nFUZZ 7 300 1\n",
+          "output": "FUZZ(seme=42, passi=500, k=16): ok=500/500 errori=0 inv_ok=1\nFUZZ(seme=1337, passi=2000, k=64): ok=2000/2000 errori=0 inv_ok=1\nFUZZ(seme=7, passi=300, k=1): ok=300/300 errori=0 inv_ok=1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "FUZZ 0 1 1\nFUZZ 9999 5000 32\n",
+          "output": "FUZZ(seme=0, passi=1, k=1): ok=1/1 errori=0 inv_ok=1\nFUZZ(seme=9999, passi=5000, k=32): ok=5000/5000 errori=0 inv_ok=1\n"
+        },
+        {
+          "input": "FUZZ 2026 1000 4\n",
+          "output": "FUZZ(seme=2026, passi=1000, k=4): ok=1000/1000 errori=0 inv_ok=1\n"
+        }
+      ],
+      "soluzione_file": {
+        "mappa_ord.h": "#ifndef MAPPA_ORD_H\n#define MAPPA_ORD_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef struct mappa_ord mappa_ord_t;\n\nmappa_ord_t *mappa_crea(void);\nvoid mappa_distruggi(mappa_ord_t *m);\nbool mappa_put(mappa_ord_t *m, int32_t chiave, int32_t valore, bool *aggiornato);\nbool mappa_get(const mappa_ord_t *m, int32_t chiave, int32_t *val_out);\nbool mappa_del(mappa_ord_t *m, int32_t chiave);\nsize_t mappa_len(const mappa_ord_t *m);\nbool mappa_invariante_ok(const mappa_ord_t *m);\n\n#endif\n",
+        "mappa_ord.c": "#include \"mappa_ord.h\"\n#include <stdckdint.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct coppia { int32_t k, v; } coppia_t;\nstruct mappa_ord { coppia_t *voci; size_t len, cap; };\n\nstatic size_t lower_bound(const mappa_ord_t *m, int32_t k) {\n    size_t sx = 0, dx = m->len;\n    while (sx < dx) {\n        size_t mid = sx + (dx - sx) / 2;\n        if (m->voci[mid].k < k) { sx = mid + 1; } else { dx = mid; }\n    }\n    return sx;\n}\n\nmappa_ord_t *mappa_crea(void) { return calloc(1, sizeof(mappa_ord_t)); }\nvoid mappa_distruggi(mappa_ord_t *m) { if (m != nullptr) { free(m->voci); free(m); } }\n\nbool mappa_put(mappa_ord_t *m, int32_t k, int32_t v, bool *agg) {\n    if (m == nullptr) { return false; }\n    size_t pos = lower_bound(m, k);\n    if (pos < m->len && m->voci[pos].k == k) {\n        m->voci[pos].v = v;\n        if (agg != nullptr) { *agg = true; }\n        return true;\n    }\n    if (m->len == m->cap) {\n        size_t ncap = (m->cap == 0) ? 4 : 0;\n        if (ncap == 0 && ckd_mul(&ncap, m->cap, 2)) { return false; }\n        size_t nb = 0;\n        if (ckd_mul(&nb, ncap, sizeof(*m->voci))) { return false; }\n        coppia_t *nv = realloc(m->voci, nb);\n        if (nv == nullptr) { return false; }\n        m->voci = nv; m->cap = ncap;\n    }\n    if (pos < m->len) {\n        memmove(&m->voci[pos + 1], &m->voci[pos], (m->len - pos) * sizeof(*m->voci));\n    }\n    m->voci[pos] = (coppia_t){.k = k, .v = v};\n    ++m->len;\n    if (agg != nullptr) { *agg = false; }\n    return true;\n}\n\nbool mappa_get(const mappa_ord_t *m, int32_t k, int32_t *out) {\n    if (m == nullptr) { return false; }\n    size_t pos = lower_bound(m, k);\n    if (pos >= m->len || m->voci[pos].k != k) { return false; }\n    if (out != nullptr) { *out = m->voci[pos].v; }\n    return true;\n}\n\nbool mappa_del(mappa_ord_t *m, int32_t k) {\n    if (m == nullptr) { return false; }\n    size_t pos = lower_bound(m, k);\n    if (pos >= m->len || m->voci[pos].k != k) { return false; }\n    if (pos + 1 < m->len) {\n        memmove(&m->voci[pos], &m->voci[pos + 1], (m->len - pos - 1) * sizeof(*m->voci));\n    }\n    --m->len;\n    return true;\n}\n\nsize_t mappa_len(const mappa_ord_t *m) { return (m != nullptr) ? m->len : 0; }\n\nbool mappa_invariante_ok(const mappa_ord_t *m) {\n    if (m == nullptr || m->len > m->cap) { return false; }\n    for (size_t i = 1; i < m->len; ++i) {\n        if (m->voci[i - 1].k >= m->voci[i].k) { return false; }\n    }\n    return true;\n}\n",
+        "main.c": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"mappa_ord.h\"\n\nstatic_assert(RAND_MAX >= 32767);\n\nstatic bool esegui_fuzz(unsigned int seme, size_t passi, size_t max_k) {\n    mappa_ord_t *m = mappa_crea();\n    if (m == nullptr) { return false; }\n    bool pres[64] = {};\n    int32_t val_or[64] = {};\n    size_t len_or = 0, ok_passi = 0, errori = 0;\n    bool inv_tutto = true;\n    srand(seme);\n    for (size_t p = 0; p < passi; ++p) {\n        int op = rand() % 3;\n        size_t k = (size_t)(rand() % (int)max_k);\n        int32_t v = (int32_t)(rand() % 2001) - 1000;\n        bool passo_ok = true;\n        if (op == 0) {\n            bool agg = false;\n            if (!mappa_put(m, (int32_t)k, v, &agg) || agg != pres[k]) { passo_ok = false; }\n            if (!pres[k]) { pres[k] = true; ++len_or; }\n            val_or[k] = v;\n        } else if (op == 1) {\n            bool rim = mappa_del(m, (int32_t)k);\n            if (rim != pres[k]) { passo_ok = false; }\n            if (pres[k]) { pres[k] = false; --len_or; }\n        } else {\n            int32_t letto = 0;\n            bool trov = mappa_get(m, (int32_t)k, &letto);\n            if (trov != pres[k] || (trov && letto != val_or[k])) { passo_ok = false; }\n        }\n        bool inv = mappa_invariante_ok(m);\n        if (!inv) { inv_tutto = false; }\n        if (passo_ok && inv && mappa_len(m) == len_or) { ++ok_passi; } else { ++errori; }\n    }\n    for (size_t k = 0; k < max_k; ++k) {\n        int32_t letto = 0;\n        bool trov = mappa_get(m, (int32_t)k, &letto);\n        if (trov != pres[k] || (trov && letto != val_or[k])) { ++errori; }\n    }\n    printf(\"FUZZ(seme=%u, passi=%zu, k=%zu): ok=%zu/%zu errori=%zu inv_ok=%d\\n\",\n           seme, passi, max_k, ok_passi, passi, errori, inv_tutto ? 1 : 0);\n    mappa_distruggi(m);\n    return true;\n}\n\nint main(void) {\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned int seme = 0; size_t passi = 0, max_k = 0;\n        if (strcmp(cmd, \"FUZZ\") == 0 &&\n            sscanf(riga, \"FUZZ %u %zu %zu %c\", &seme, &passi, &max_k, &extra) == 3 &&\n            passi >= 1 && passi <= 5000 && max_k >= 1 && max_k <= 64) {\n            if (!esegui_fuzz(seme, passi, max_k)) { return EXIT_FAILURE; }\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Misurare con clock() un ciclo il cui risultato non viene mai usato né stampato: con -O2 il compilatore elimina il ciclo producendo un tempo prossimo a zero e del tutto fuorviante.",
+    "Scorrere una matrice bidimensionale per colonne (m[i][j] con i nel ciclo interno) invece che per righe, causando continui cache miss su matrici grandi.",
+    "Scrivere controlli di overflow dopo aver già provocato un overflow con segno (come if (a + b < a)) o testare p == nullptr dopo aver già dereferenziato *p, lasciando che il compilatore ottimizzi via il controllo.",
+    "Usare assert() di <assert.h> come unico strumento di test: al primo fallimento il programma termina con abort() nascondendo tutti i casi successivi e non produce un riepilogo della suite.",
+    "Chiamare rand() senza srand con seme fisso durante il fuzzing (rendendo irriproducibili gli errori trovati) oppure fare affidamento su una sequenza specifica di rand() che varia da una libreria C all'altra."
+  ],
+  "differenze_python": [
+    "In Python ogni numero e ogni oggetto vive sullo heap dietro un riferimento con informazioni di tipo, rendendo l'accesso sparso in memoria; in C scegliere tra AoS e SoA controlla direttamente la disposizione dei byte nelle linee di cache del processore.",
+    "In Python l'aritmetica intera ha precisione arbitraria e non va in overflow, mentre un accesso fuori dai limiti solleva sempre IndexError; in C l'overflow con segno e i puntatori invalidi sono comportamento indefinito che il compilatore può sfruttare in modo aggressivo durante l'ottimizzazione.",
+    "In Python strumenti come unittest o pytest sono inclusi o installabili con scoperta automatica dei test; in C un mini framework di test si costruisce in poche decine di righe usando macro do-while(0), puntatori a funzione e __FILE__/__LINE__."
+  ]
+}

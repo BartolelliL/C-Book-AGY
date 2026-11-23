@@ -1,0 +1,559 @@
+{
+  "capitolo": 24,
+  "titolo": "Tecniche avanzate del linguaggio",
+  "obiettivi": [
+    "Scrivere macro robuste con do-while(0), macro variadiche (__VA_ARGS__, __VA_OPT__) e X-macro",
+    "Simulare il sovraccarico di funzioni combinando _Generic e funzioni inline",
+    "Gestire uscite non locali in sicurezza con setjmp e longjmp conoscendo i vincoli su volatile",
+    "Implementare liste intrusive con offsetof, macchine a stati con tabelle di funzioni e formati binari con campi di bit"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "X-macro",
+      "definizione": "Tecnica del preprocessore che definisce una sola volta una lista tabellare di voci come macro parametrica e la espande più volte con definizioni diverse per generare in modo sincronizzato enum, tabelle e funzioni."
+    },
+    {
+      "termine": "salto non locale",
+      "definizione": "Trasferimento del controllo eseguito con longjmp verso un punto salvato in precedenza da setjmp attraversando più chiamate di funzione."
+    },
+    {
+      "termine": "lista intrusiva",
+      "definizione": "Lista concatenata i cui puntatori di collegamento sono incorporati direttamente dentro le strutture ospitanti e recuperati con offsetof."
+    },
+    {
+      "termine": "macchina a stati finiti",
+      "definizione": "Modello di calcolo che si trova in uno stato alla volta e cambia stato in base agli eventi in ingresso."
+    }
+  ],
+  "concetti_richiesti": [
+    "preprocessore",
+    "espressione",
+    "comportamento indefinito",
+    "comportamento dipendente dall'implementazione",
+    "flusso di controllo",
+    "funzione",
+    "puntatore",
+    "aritmetica dei puntatori",
+    "stack",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "struttura",
+    "campo",
+    "enumerazione",
+    "maschera di bit",
+    "unione",
+    "unione etichettata",
+    "ordine dei byte",
+    "allineamento",
+    "padding",
+    "asserzione statica",
+    "puntatore a funzione",
+    "callback",
+    "lista concatenata",
+    "file di intestazione",
+    "compilazione separata",
+    "protezione di inclusione",
+    "tipo opaco"
+  ],
+  "regole": [
+    {
+      "id": "24.R1",
+      "enunciato": "Una macro che espande più istruzioni va racchiusa nel costrutto idiomatico do { ... } while (0) senza punto e virgola finale, così da comportarsi come una singola istruzione sintattica anche dentro if (...) MACRO(); else .... L'operatore # converte un argomento di macro in letterale stringa (stringificazione) e ## concatena due token in un solo identificatore; per espandere eventuali macro passate come argomenti prima di applicare # o ## serve un doppio livello di espansione. Una macro variadica usa ... e __VA_ARGS__; in C23 l'operatore __VA_OPT__(contenuto) emette contenuto solo se gli argomenti variadici non sono vuoti, risolvendo in modo standard il problema della virgola finale. Con le X-macro una singola macro elenco LISTA(X) viene espansa più volte ridefinendo e poi rimuovendo X con #undef per mantenere allineati enum, tabelle e codice generato.",
+      "nota_standard": "definito: do-while(0), #, ##, __VA_ARGS__ e l'operatore C23 __VA_OPT__ sono completamente definiti dallo standard C23; produrre un token non valido con ## provoca comportamento indefinito."
+    },
+    {
+      "id": "24.R2",
+      "enunciato": "Combinando macro con argomenti, _Generic e funzioni static inline (o inline con una definizione extern inline in esattamente un file .c) si realizza in C un sovraccarico statico basato sul tipo a costo zero a tempo di esecuzione. Selezionando il nome della funzione dentro _Generic((x), T1: f1, T2: f2)(x, ...) l'argomento x non viene valutato nell'espressione di controllo di _Generic e viene valutato una sola volta come parametro della funzione selezionata. Con rami distinti per T * e const T * la stessa tecnica consente macro che preservano la qualificazione const del puntatore di ingresso.",
+      "nota_standard": "definito: l'espansione di _Generic con funzioni inline e il modello inline/extern inline sono definiti dallo standard C23; omettere la definizione esterna di una funzione inline non-static usata con collegamento esterno provoca un errore del collegatore, mentre passare un tipo privo di associazione corrispondente senza default: è un errore di compilazione."
+    },
+    {
+      "id": "24.R3",
+      "enunciato": "In <setjmp.h>, la macro setjmp(env) salva il contesto di esecuzione corrente in un oggetto jmp_buf e restituisce 0 alla chiamata diretta; una successiva chiamata [[noreturn]] void longjmp(jmp_buf env, int val) ripristina quel contesto attraversando i frame dello stack e fa ritornare setjmp con valore val (oppure 1 se val == 0). Per lo standard C23, setjmp può comparire solo in contesti sintattici ristretti (intera espressione di controllo di if/switch/while, confronto con una costante intera, operando di ! o espressione scartata), mai a destra di un assegnamento. Qualunque variabile locale non-volatile nella funzione che ha invocato setjmp modificata tra setjmp e longjmp assume valore indeterminato dopo il salto: le variabili locali modificate e lette nel blocco di recupero vanno qualificate volatile. longjmp non libera automaticamente risorse allocate sullo heap né chiude file aperti nei frame attraversati.",
+      "nota_standard": "indefinito: setjmp, longjmp e jmp_buf sono definiti dallo standard C23; invocare setjmp fuori dai contesti ammessi, chiamare longjmp dopo che la funzione chiamante setjmp è già ritornata, o leggere una variabile automatica non-volatile modificata tra setjmp e longjmp provoca comportamento indefinito."
+    },
+    {
+      "id": "24.R4",
+      "enunciato": "In una lista intrusiva ogni struttura ospitante incorpora uno o più campi nodo_intrusivo_t (puntatori prev e next) evitando allocazioni dinamiche separate per i nodi e permettendo la rimozione in O(1) e l'appartenenza simultanea dello stesso oggetto a più liste indipendenti. Noto il puntatore ptr al campo nodo_intrusivo_t, l'indirizzo della struttura ospitante si recupera sottraendo offsetof(tipo, campo) a (unsigned char *)ptr (o (const unsigned char *)ptr per puntatori const). Quando si rimuovono o liberano elementi durante l'attraversamento di una lista intrusiva occorre salvare in anticipo il puntatore al nodo successivo (iterazione sicura).",
+      "nota_standard": "indefinito: offsetof (<stddef.h>) e la conversione tramite unsigned char * all'interno dello stesso oggetto struct sono definiti dallo standard C23; applicare CONTENITORE_DI a un puntatore che non punta al campo indicato di una reale istanza di tipo (ad esempio alla sentinella di testa) o leggere pos->next dopo aver liberato l'oggetto provoca comportamento indefinito."
+    },
+    {
+      "id": "24.R5",
+      "enunciato": "Una macchina a stati finiti in C si implementa in modo strutturato con due enum per stati ed eventi (chiusi da valori sentinella di conteggio) e una tabella bidimensionale static const transizione_t TABELLA[STATO_CONTEGGIO][EVENTO_CONTEGGIO] (o una tabella di funzioni per stato), verificando la coerenza delle dimensioni con static_assert. Il motore controlla sempre che stato < STATO_CONTEGGIO ed evento < EVENTO_CONTEGGIO, rifiuta esplicitamente le celle non valide senza comportamento indefinito, invoca l'eventuale funzione di azione con il contesto della macchina e applica eventuali hook di ingresso nello stato.",
+      "nota_standard": "indefinito: gli array bidimensionali costanti di struct con puntatori a funzione e gli inizializzatori designati sono definiti dallo standard C23; indicizzare la tabella con uno stato o un evento fuori dai limiti o invocare un puntatore a funzione nullo provoca comportamento indefinito."
+    },
+    {
+      "id": "24.R6",
+      "enunciato": "I campi di bit dentro una struct (dichiarati esplicitamente unsigned int, signed int o bool, mai int semplice il cui segno è dipendente dall'implementazione) affiancati da unioni etichettate permettono rappresentazioni in memoria molto compatte, verificabili con static_assert su sizeof. Tuttavia l'ordine dei bit dentro l'unità di memoria, l'allineamento tra unità e l'ordine dei byte dipendono dall'implementazione: non si deve mai serializzare o deserializzare un formato binario copiando i byte grezzi di una struct a campi di bit o rileggendola tramite una union su uint32_t. La conversione verso e da buffer di byte (rete o file) va eseguita esplicitamente con spostamenti, maschere di bit in ordine dei byte fissato (ad esempio big-endian) e controllo di integrità (come CRC-8).",
+      "nota_standard": "dipendente dall'implementazione: la semantica dei campi di bit senza segno, delle unioni etichettate e degli spostamenti su tipi senza segno è definita dallo standard C23; l'ordine di impacchettamento dei bit, il padding tra unità e il segno di int semplice nei campi di bit sono dipendenti dall'implementazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Scrive testo e valori formattati sullo stream indicato e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "snprintf",
+      "firma": "int snprintf(char *restrict s, size_t n, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Formatta al più n - 1 caratteri in s terminando con '\\0' e restituisce i caratteri che sarebbero stati scritti."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "abort",
+      "firma": "[[noreturn]] void abort(void);",
+      "header": "stdlib.h",
+      "descrizione": "Termina in modo anomalo il programma generando il segnale SIGABRT senza ritornare al chiamante."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strncmp",
+      "firma": "int strncmp(const char *s1, const char *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta al più i primi n caratteri di s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strchr",
+      "firma": "char *strchr(const char *s, int c);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza di (char)c in s e ne restituisce il puntatore (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza della stringa s escluso il terminatore nullo."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 assumendo aree non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    },
+    {
+      "nome": "isdigit",
+      "firma": "int isdigit(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce diverso da zero se c (passato come unsigned char o EOF) è una cifra decimale '0'..'9'."
+    },
+    {
+      "nome": "ckd_add",
+      "firma": "bool ckd_add(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: somma controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "ckd_sub",
+      "firma": "bool ckd_sub(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: sottrazione controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "ckd_mul",
+      "firma": "bool ckd_mul(type1 *result, type2 a, type3 b);",
+      "header": "stdckdint.h",
+      "descrizione": "Macro C23: moltiplicazione controllata di a e b in *result; restituisce false se esatta, true in caso di overflow."
+    },
+    {
+      "nome": "setjmp",
+      "firma": "int setjmp(jmp_buf env);",
+      "header": "setjmp.h",
+      "descrizione": "Macro che salva l'ambiente di chiamata in env restituendo 0 alla prima chiamata o il codice passato a longjmp al ripristino."
+    },
+    {
+      "nome": "longjmp",
+      "firma": "[[noreturn]] void longjmp(jmp_buf env, int val);",
+      "header": "setjmp.h",
+      "descrizione": "Ripristina l'ambiente salvato in env facendo ritornare setjmp con val (o 1 se val == 0), senza mai ritornare al punto di chiamata."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "24.1",
+      "titolo": "Macro avanzate: do-while(0), macro variadiche e X-macro",
+      "contenuti": [
+        "Macro multi-istruzione sicure con do { ... } while (0) (senza punto e virgola finale): perché un semplice blocco { ... } rompe if (...) MACRO(); else ...",
+        "Operatori del preprocessore # (stringificazione) e ## (concatenazione di token) e tecnica del doppio livello di espansione (STR / STR_IMPL, UNISCI / UNISCI_IMPL)",
+        "Macro variadiche con ... e __VA_ARGS__ e il nuovo operatore C23 __VA_OPT__(...) (con box C23 rispetto all'estensione non standard ##__VA_ARGS__) per gestire in modo portabile zero o più argomenti",
+        "Il modello X-macro: definire un solo elenco parametrico LISTA(X) per generare in modo sincronizzato enum, array di metadati e funzioni senza mai disallineare nomi e valori"
+      ],
+      "esempio_guidato": "Un programma che usa una X-macro LISTA_COLORI(X) per generare contemporaneamente un enum di colori, una tabella static const con nomi (via #) e componenti RGB e predicati generati con ##, affiancata da una macro do-while(0) che aggiorna min/max e da una macro variadica STAMPA_LOG con __VA_OPT__ invocata sia con 0 sia con 2 argomenti extra.",
+      "approfondimento": "Perché l'operatore # e l'operatore ## bloccano l'espansione dei loro operandi diretti: se passi una macro VERSIONE a #define STR_DIRETTA(x) #x ottieni \"VERSIONE\" invece del suo valore; interporre #define STR(x) STR_DIRETTA(x) forza prima l'espansione di x e poi la stringificazione.",
+      "esercizio_id": "24.1"
+    },
+    {
+      "id": "24.2",
+      "titolo": "Funzioni sovraccaricate con _Generic e inline",
+      "contenuti": [
+        "Ripresa di _Generic (capitolo 15) e di inline/static inline/extern inline (capitolo 19) per costruire un'interfaccia sovraccaricata sul tipo a costo zero in un modulo su più file",
+        "Selezione sicura del puntatore a funzione dentro _Generic((x), T1: f1, T2: f2)(x, ...): valutazione unica degli argomenti con effetti collaterali e controllo di tipo a tempo di compilazione",
+        "Quando scegliere static inline nell'header (collegamento interno, semplice per helper brevi) rispetto a inline nell'header + extern inline in un solo .c (una sola definizione esterna condivisa per indirizzi e compilazioni senza inlining)",
+        "Macro _Generic che preservano la qualificazione const (come le versioni C23 di memchr e bsearch) distinguendo rami T * e const T *"
+      ],
+      "esempio_guidato": "Un piccolo modulo (stampa_gen.h, stampa_gen.c, main.c) che definisce funzioni inline (con extern inline nel .c) per valore assoluto e stampa formattata di int, long, double e const char *, collegate alle macro ABS_GEN(x) e MOSTRA(x) via _Generic, verificando la valutazione unica su un'espressione con contatore.",
+      "approfondimento": "Perché in _Generic((x), ...) il tipo di un letterale carattere come 'a' è int (non char) e un array int a[4] decade a int *: progettare una macro sovraccaricata richiede sempre di verificare i tipi effettivi dopo la conversione lvalue.",
+      "esercizio_id": "24.2"
+    },
+    {
+      "id": "24.3",
+      "titolo": "Salti non locali con setjmp e longjmp",
+      "contenuti": [
+        "Meccanismo di <setjmp.h>: jmp_buf, setjmp(env) (ritorna 0 alla chiamata iniziale) e [[noreturn]] longjmp(env, val) per risalire istantaneamente più livelli di chiamate ricorsive",
+        "Vincoli rigorosi dello standard C23: contesti sintattici ammessi per setjmp (mai int r = setjmp(env);), divieto assoluto di invocare longjmp verso un jmp_buf di una funzione già terminata",
+        "La regola di volatile con setjmp/longjmp: perché ogni variabile automatica locale modificata tra setjmp e longjmp e riletta dopo il salto deve essere qualificata volatile",
+        "Gestione delle risorse e frame annidati: poiché longjmp non esegue codice di pulizia nei frame saltati, occorre registrare le allocazioni nel contesto di errore (o usare un'arena) per liberarle nel gestore senza perdite di memoria"
+      ],
+      "esempio_guidato": "Un programma che simula un parser di configurazione su tre livelli di funzioni ricorsive usando un jmp_buf condiviso per segnalare un errore profondo direttamente al chiamante tramite if (setjmp(env) == 0), mostrando il ruolo di una variabile locale volatile e la liberazione sicura di un buffer tracciato nel contesto di errore.",
+      "approfondimento": "Quando usare codici di ritorno/goto cleanup (capitolo 21) e quando considerare setjmp/longjmp: nella quasi totalità del codice C i codici di ritorno espliciti sono più sicuri e trasparenti; setjmp/longjmp ha senso soprattutto in parser ricorsivi profondi o motori di interpretazione in cui l'intera memoria temporanea è gestita da un'arena o da un registro di risorse.",
+      "esercizio_id": "24.3"
+    },
+    {
+      "id": "24.4",
+      "titolo": "Liste intrusive con offsetof",
+      "contenuti": [
+        "Confronto tra lista concatenata non intrusiva (capitolo 17, un nodo wrapper per elemento con malloc separata) e lista intrusiva (puntatori prev/next incorporati nella struct ospitante, schema di memoria in blocco text)",
+        "Lista circolare doppiamente concatenata con testa sentinella: inizializzazione, inserimento in testa/coda e rimozione in O(1) conoscendo solo il puntatore al nodo",
+        "La macro CONTENITORE_DI(ptr, tipo, campo) (e la variante const CONTENITORE_DI_CONST) basata su offsetof (<stddef.h>) e aritmetica su unsigned char *, chiarendo i requisiti di validità rispetto allo standard C23",
+        "Appartenenza simultanea di un singolo oggetto a più liste intrusive distinte e attraversamento sicuro con rimozione (LISTA_PER_OGNI_SICURO)"
+      ],
+      "esempio_guidato": "Un programma che gestisce una lista intrusiva circolare di sensori allocati interamente sullo stack (zero chiamate a malloc), li inserisce e rimuove in O(1) recuperando la struct ospitante con CONTENITORE_DI e offsetof e rimuove selettivamente i sensori inattivi durante l'attraversamento con LISTA_PER_OGNI_SICURO.",
+      "approfondimento": "Perché il kernel Linux e molti sistemi embedded usano liste intrusive: un solo blocco di memoria per oggetto elimina la frammentazione, migliora la località di cache (che approfondiremo nel capitolo 25) e permette a un processo di comparire contemporaneamente nella lista globale dei task e nella coda di attesa di un dispositivo.",
+      "esercizio_id": "24.4"
+    },
+    {
+      "id": "24.5",
+      "titolo": "Macchine a stati con tabelle di puntatori a funzione",
+      "contenuti": [
+        "Modellare un sistema reattivo come macchina a stati finiti: stati, eventi, transizioni, azioni di transizione, guardie e hook di ingresso/uscita (diagramma tabellare in blocco text)",
+        "Rappresentazione tramite tabella bidimensionale static const transizione_t TABELLA[STATO_CONTEGGIO][EVENTO_CONTEGGIO] con inizializzatori designati e static_assert sulle dimensioni (estendendo le tabelle di dispatch del capitolo 16)",
+        "Progettazione di un motore di transizione privo di switch: controllo dei limiti di stato ed evento, gestione esplicita delle transizioni non valide e aggiornamento atomico dello stato con hook on_enter",
+        "Gestione delle guardie dinamiche: far restituire alla funzione di azione lo stato effettivo di destinazione quando una condizione di contesto (come il superamento dei tentativi massimi) devia la transizione predefinita"
+      ],
+      "esempio_guidato": "Un tornello automatico a 3 stati (BLOCCATO, SBLOCCATO, GUASTO) e 4 eventi (MONETA, PASSAGGIO, ALLARME, RIPARA) implementato con una tabella 2D di struct { bool valida; stato_t prossimo; azione_fn azione; } e static_assert sulle dimensioni, che elabora una sequenza di eventi stampando stato precedente, azione e nuovo stato.",
+      "approfondimento": "Tabella 2D contro tabella di funzioni per stato: una matrice Stati x Eventi rende immediatamente leggibile ogni coppia (stato, evento) quando entrambi i numeri sono contenuti (fino a una decina); per macchine con moltissimi eventi sparsi conviene invece una tabella di funzioni indicizzata per stato o liste di transizioni per stato.",
+      "esercizio_id": "24.5"
+    },
+    {
+      "id": "24.6",
+      "titolo": "Formati binari compatti con campi di bit",
+      "contenuti": [
+        "Uso avanzato dei campi di bit (ripresa del capitolo 13): campi esplicitamente unsigned int/signed int/bool, campi anonimi di riserva, campi a larghezza zero (: 0) per forzare il confine dell'unità di memorizzazione e verifica della compattezza con static_assert",
+        "Abbinare un'intestazione a campi di bit a un'unione etichettata per rappresentare in poca RAM pacchetti binari con payload di tipo variabile",
+        "Perché non si deve mai serializzare un pacchetto copiando i byte grezzi di una struct a campi di bit né tramite type punning in una union (ordine dei bit, padding ed endianness dipendenti dall'implementazione, oltre a strict aliasing)",
+        "Separazione pulita tra modello in memoria (struct a campi di bit + union) e codec su cavo/file (codifica e decodifica big-endian con spostamenti, maschere e controllo di integrità CRC-8)"
+      ],
+      "esempio_guidato": "Un programma che rappresenta una data e ora compatta con campi di bit (verificando sizeof con static_assert), affianca un breve frammento commentato che mostra l'errore di esportare i byte grezzi della struct, e implementa codifica/decodifica portabile big-endian in un buffer uint8_t[4] con verifica di consistenza.",
+      "approfondimento": "Dove i campi di bit brillano davvero: nelle strutture interne di interpreti, compilatori, simulatori e tabelle di pagina dove milioni di oggetti convivono in RAM; ogni volta che i dati escono dalla memoria del processo (su disco o in rete), un codec esplicito a spostamenti e maschere garantisce compatibilità identica su tutte le architetture.",
+      "esercizio_id": "24.6"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "24.1",
+      "tipo": "esercizio",
+      "titolo": "Registro diagnostico generato con X-macro, do-while(0), #/## e __VA_OPT__",
+      "descrizione": "Realizza su due file (`codici_x.h` e `main.c`) un registro di diagnostica interamente pilotato da una **X-macro** senza duplicare mai nomi o codici. (1) In `codici_x.h` (protetto da `CODICI_X_H`) definisci la X-macro `LISTA_CODICI(X)` con cinque voci `(nome, num, liv, peso)`: `(OK, 0, \"INFO\", 0)`, `(DISCO_PIENO, 101, \"ERR\", 5)`, `(IO_TIMEOUT, 102, \"WARN\", 3)`, `(CHECKSUM_KO, 201, \"CRIT\", 10)` e `(PERM_NEGATO, 202, \"ERR\", 4)`. Da `LISTA_CODICI(X)` genera l'enumerazione `codice_diag_t` (`COD_OK`, ..., `COD_PERM_NEGATO`, `COD_CONTEGGIO`), le macro a doppio livello `STR(x)` (`#`) e `UNISCI(a, b)` (`##`), la macro `DEF_PRED_CODICE(nome, num, liv, peso)` che usa `##` per generare le cinque funzioni `static bool e_codice_<nome>(codice_diag_t c)`, la macro multi-istruzione `AGGIORNA_STAT(st, idx, molt)` protetta con `do { ... } while (0)` (aggiorna `conteggi[idx]`, `totale` e `gravita_tot += TABELLA_CODICI[idx].peso * molt`), e la macro variadica C23 `FORMATTA_DIAG(buf, cap, tag, fmt, ...)` basata su `snprintf` e `__VA_OPT__(,)` che accetta sia zero sia più argomenti variadici. (2) In `main.c` genera `static const info_codice_t TABELLA_CODICI[]` da `LISTA_CODICI` (usando `#nome` per il simbolo testuale) e verifica con `static_assert` che la sua lunghezza coincida con `COD_CONTEGGIO`. Leggi da `stdin` comandi fino a fine input: `REG <num> <molt>` (`1 <= molt <= 10`, aggiorna le statistiche con `AGGIORNA_STAT` e stampa il messaggio creato con `FORMATTA_DIAG` con argomenti variadici, oppure `CODICE_IGNOTO: <num>`), `PING <tag>` (invoca `FORMATTA_DIAG` con zero argomenti variadici per verificare `__VA_OPT__`), `IS_CRIT <num>` (verifica se il codice corrisponde a `CHECKSUM_KO` tramite la funzione generata `e_codice_CHECKSUM_KO`), `TAB` e `STATS`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "espansione multipla della stessa X-macro LISTA_CODICI(X) per enum, tabella di metadati e funzioni predicato",
+        "operatori # (stringificazione) e ## (concatenazione di token) con macro di appoggio per l'espansione",
+        "protezione di macro multi-istruzione tramite do { ... } while (0) senza punto e virgola finale",
+        "macro variadiche C23 con __VA_ARGS__ e __VA_OPT__(,) per gestire sia 0 sia N argomenti"
+      ],
+      "domande_guida": [
+        "Quale errore di sintassi o di flusso di controllo si verifica se una macro multi-istruzione viene racchiusa tra semplici graffe { ... } anziché in do { ... } while (0) e viene usata nel ramo if di un if-else?",
+        "In che modo la X-macro LISTA_CODICI(X) elimina il rischio che l'enum codice_diag_t e l'array TABELLA_CODICI vadano fuori sincronia?",
+        "Quale problema della macro variadica snprintf(buf, cap, fmt, __VA_ARGS__) risolve in modo standard l'operatore C23 __VA_OPT__(,) quando non viene passato alcun argomento dopo fmt?",
+        "Perché per generare il nome e_codice_CHECKSUM_KO da una voce della X-macro occorre usare l'operatore ##?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "TAB\nREG 101 2\nREG 201 1\nREG 999 1\nPING SYS\nIS_CRIT 201\nIS_CRIT 102\nSTATS\n",
+          "output": "0: OK num=0 liv=INFO peso=0\n1: DISCO_PIENO num=101 liv=ERR peso=5\n2: IO_TIMEOUT num=102 liv=WARN peso=3\n3: CHECKSUM_KO num=201 liv=CRIT peso=10\n4: PERM_NEGATO num=202 liv=ERR peso=4\n[ERR] DISCO_PIENO(#101) x2\n[CRIT] CHECKSUM_KO(#201) x1\nCODICE_IGNOTO: 999\n[SYS] battito regolare\nIS_CRIT(201): 1\nIS_CRIT(102): 0\nSTATS: tot=2 gravita=20 [OK=0 DISCO_PIENO=1 IO_TIMEOUT=0 CHECKSUM_KO=1 PERM_NEGATO=0]\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "STATS\nPING CORE\nIS_CRIT 0\nIS_CRIT 555\n",
+          "output": "STATS: tot=0 gravita=0 [OK=0 DISCO_PIENO=0 IO_TIMEOUT=0 CHECKSUM_KO=0 PERM_NEGATO=0]\n[CORE] battito regolare\nIS_CRIT(0): 0\nIS_CRIT(555): IGNOTO\n"
+        },
+        {
+          "input": "REG 0 5\nREG 102 3\nREG 202 2\nSTATS\n",
+          "output": "[INFO] OK(#0) x5\n[WARN] IO_TIMEOUT(#102) x3\n[ERR] PERM_NEGATO(#202) x2\nSTATS: tot=3 gravita=17 [OK=1 DISCO_PIENO=0 IO_TIMEOUT=1 CHECKSUM_KO=0 PERM_NEGATO=1]\n"
+        }
+      ],
+      "soluzione_file": {
+        "codici_x.h": "#ifndef CODICI_X_H\n#define CODICI_X_H\n\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n\n#define LISTA_CODICI(X) \\\n    X(OK, 0, \"INFO\", 0) \\\n    X(DISCO_PIENO, 101, \"ERR\", 5) \\\n    X(IO_TIMEOUT, 102, \"WARN\", 3) \\\n    X(CHECKSUM_KO, 201, \"CRIT\", 10) \\\n    X(PERM_NEGATO, 202, \"ERR\", 4)\n\n#define GEN_ENUM(nome, num, liv, peso) COD_##nome,\ntypedef enum codice_diag {\n    LISTA_CODICI(GEN_ENUM)\n    COD_CONTEGGIO\n} codice_diag_t;\n#undef GEN_ENUM\n\ntypedef struct info_codice {\n    const char *simbolo;\n    uint32_t numero;\n    const char *livello;\n    uint32_t peso;\n} info_codice_t;\n\ntypedef struct stats_diag {\n    uint32_t conteggi[COD_CONTEGGIO];\n    uint32_t totale;\n    uint32_t gravita_tot;\n} stats_diag_t;\n\n#define STR_IMPL(x) #x\n#define STR(x) STR_IMPL(x)\n\n#define DEF_PRED_CODICE(nome, num, liv, peso) \\\n    [[maybe_unused]] static bool e_codice_##nome(codice_diag_t c) { return c == COD_##nome; }\n\n#define AGGIORNA_STAT(st, idx, molt) \\\n    do { \\\n        size_t _i = (idx); \\\n        uint32_t _m = (molt); \\\n        ++((st)->conteggi[_i]); \\\n        ++((st)->totale); \\\n        (st)->gravita_tot += TABELLA_CODICI[_i].peso * _m; \\\n    } while (0)\n\n#define FORMATTA_DIAG(buf, cap, tag, fmt, ...) \\\n    snprintf((buf), (cap), \"[%s] \" fmt, (tag) __VA_OPT__(,) __VA_ARGS__)\n\n#endif\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"codici_x.h\"\n\n#define GEN_RIGA(nome, num, liv, peso) {STR(nome), (num), (liv), (peso)},\nstatic const info_codice_t TABELLA_CODICI[] = {\n    LISTA_CODICI(GEN_RIGA)\n};\n#undef GEN_RIGA\n\nstatic_assert(sizeof(TABELLA_CODICI) / sizeof(TABELLA_CODICI[0]) == COD_CONTEGGIO);\n\nLISTA_CODICI(DEF_PRED_CODICE)\n\nstatic bool trova_per_numero(uint32_t num, size_t *idx_out) {\n    for (size_t i = 0; i < COD_CONTEGGIO; ++i) {\n        if (TABELLA_CODICI[i].numero == num) {\n            *idx_out = i;\n            return true;\n        }\n    }\n    return false;\n}\n\nint main(void) {\n    stats_diag_t st = {};\n    char riga[128], cmd[16], tag[24], msg[128], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned int num = 0, molt = 0;\n        if (strcmp(cmd, \"REG\") == 0 && sscanf(riga, \"REG %u %u %c\", &num, &molt, &extra) == 2 &&\n            molt >= 1 && molt <= 10) {\n            size_t idx = 0;\n            if (!trova_per_numero((uint32_t)num, &idx)) {\n                printf(\"CODICE_IGNOTO: %u\\n\", num);\n            } else {\n                AGGIORNA_STAT(&st, idx, (uint32_t)molt);\n                FORMATTA_DIAG(msg, sizeof(msg), TABELLA_CODICI[idx].livello,\n                              \"%s(#%\" PRIu32 \") x%u\", TABELLA_CODICI[idx].simbolo,\n                              TABELLA_CODICI[idx].numero, molt);\n                printf(\"%s\\n\", msg);\n            }\n        } else if (strcmp(cmd, \"PING\") == 0 && sscanf(riga, \"PING %23s %c\", tag, &extra) == 1) {\n            FORMATTA_DIAG(msg, sizeof(msg), tag, \"battito regolare\");\n            printf(\"%s\\n\", msg);\n        } else if (strcmp(cmd, \"IS_CRIT\") == 0 && sscanf(riga, \"IS_CRIT %u %c\", &num, &extra) == 1) {\n            size_t idx = 0;\n            if (!trova_per_numero((uint32_t)num, &idx)) {\n                printf(\"IS_CRIT(%u): IGNOTO\\n\", num);\n            } else {\n                bool crit = e_codice_CHECKSUM_KO((codice_diag_t)idx);\n                printf(\"IS_CRIT(%u): %d\\n\", num, crit ? 1 : 0);\n            }\n        } else if (strcmp(cmd, \"TAB\") == 0 && sscanf(riga, \"TAB %c\", &extra) != 1) {\n            for (size_t i = 0; i < COD_CONTEGGIO; ++i) {\n                printf(\"%zu: %s num=%\" PRIu32 \" liv=%s peso=%\" PRIu32 \"\\n\",\n                       i, TABELLA_CODICI[i].simbolo, TABELLA_CODICI[i].numero,\n                       TABELLA_CODICI[i].livello, TABELLA_CODICI[i].peso);\n            }\n        } else if (strcmp(cmd, \"STATS\") == 0 && sscanf(riga, \"STATS %c\", &extra) != 1) {\n            printf(\"STATS: tot=%\" PRIu32 \" gravita=%\" PRIu32 \" [\", st.totale, st.gravita_tot);\n            for (size_t i = 0; i < COD_CONTEGGIO; ++i) {\n                printf(\"%s%s=%\" PRIu32, (i > 0) ? \" \" : \"\", TABELLA_CODICI[i].simbolo, st.conteggi[i]);\n            }\n            printf(\"]\\n\");\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "24.2",
+      "tipo": "esercizio",
+      "titolo": "Libreria numerica sovraccaricata su più file con _Generic, inline/extern inline e const-preservation",
+      "descrizione": "Realizza su tre file (`num_gen.h`, `num_gen.c`, `main.c`) una mini-libreria numerica con funzioni sovraccaricate tramite `_Generic` e `inline`. (1) In `num_gen.h` (protetto da `NUM_GEN_H`) definisci `typedef struct vec2 { double x; double y; } vec2_t;` e fornisci otto funzioni `inline` (senza `static`) per i quattro tipi `int32_t`, `int64_t`, `double` e `vec2_t`: `limita_i32`, `limita_i64`, `limita_dbl`, `limita_vec2` (limita ciascuna componente in `[lo, hi]`) e `somma_sat_i32`, `somma_sat_i64` (somma con `ckd_add` che satura a `INT32_MAX`/`INT32_MIN` o `INT64_MAX`/`INT64_MIN` senza overflow indefinito), `somma_dbl` e `somma_vec2`. Definisci inoltre quattro helper `static inline` di formattazione (`fmt_i32`, `fmt_i64`, `fmt_dbl` con `%.2f`, `fmt_vec2` con `(%.2f,%.2f)`) e due helper `static inline` di ricerca (`cerca_i32_const` su `const int32_t *` e `cerca_i32_mut` su `int32_t *`). Esponi le quattro macro `_Generic`: `SOMMA(a, b)`, `LIMITA(x, lo, hi)`, `FORMATTA(x, buf, cap)` e `CERCA_I32(arr, n, val)` (che preserva `const` restituendo `const int32_t *` o `int32_t *` in base al puntatore di ingresso). (2) In `num_gen.c` emetti le definizioni esterne `extern inline` per tutte e otto le funzioni `inline` dell'header. (3) In `main.c` usa un helper `int32_t traccia_eval(int *c, int32_t v)` per dimostrare che `LIMITA(traccia_eval(&evals, s), lo, hi)` valuta il primo argomento una sola volta (`evals == 1`), gestisci da `stdin` i comandi `I32 <a> <b> <lo> <hi>`, `I64 <a> <b> <lo> <hi>`, `DBL <a> <b> <lo> <hi>`, `VEC <ax> <ay> <bx> <by> <lox> <loy> <hix> <hiy>` e `FIND <val>` (cercando in `{10, 20, 30, 40, 50}` sia su puntatore mutabile sia su `const int32_t *` e verificando il tipo del puntatore restituito con `_Generic`), riproducendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "selezione statica del nome della funzione dentro _Generic con applicazione degli argomenti all'esterno",
+        "valutazione unica degli argomenti con effetti collaterali grazie al passaggio alla funzione inline selezionata",
+        "modello di collegamento inline nell'header affiancato da extern inline in un solo file .c",
+        "preservazione della qualificazione const tramite associazioni separate T * e const T * in _Generic"
+      ],
+      "domande_guida": [
+        "Perché chiamare LIMITA(traccia_eval(&evals, s), lo, hi) incrementa evals una sola volta invece di due, nonostante s compaia sia in _Generic sia nella chiamata?",
+        "Che errore rischia il collegatore se dichiari inline int32_t limita_i32(...) in num_gen.h senza fornire extern inline int32_t limita_i32(...) in num_gen.c?",
+        "Come fa CERCA_I32(arr, n, val) a restituire int32_t * quando riceve un array mutabile e const int32_t * quando riceve un puntatore a dati costanti senza mai rimuovere const?",
+        "Perché nelle funzioni somma_sat_i32 e somma_sat_i64 conviene rilevare l'overflow con ckd_add prima di saturare al massimo o al minimo?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "I32 2000000000 500000000 -100 1000\nI64 -9223372036854775800 -100 -500 500\nDBL 1.25 2.50 0.0 3.0\nVEC 1.5 -2.0 2.0 0.5 0.0 -1.0 3.0 1.0\nFIND 30\nFIND 99\n",
+          "output": "I32: somma=2147483647 clamp=1000 evals=1\nI64: somma=-9223372036854775808 clamp=-500\nDBL: somma=3.75 clamp=3.00\nVEC: somma=(3.50,-1.50) clamp=(3.00,-1.00)\nFIND(30): idx=2 mut=int32_t* cst=const int32_t*\nFIND(99): ASSENTE mut=int32_t* cst=const int32_t*\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "I32 -10 25 0 100\nDBL -5.5 2.0 -2.0 2.0\nFIND 10\n",
+          "output": "I32: somma=15 clamp=15 evals=1\nDBL: somma=-3.50 clamp=-2.00\nFIND(10): idx=0 mut=int32_t* cst=const int32_t*\n"
+        },
+        {
+          "input": "I32 -2000000000 -2000000000 -10 10\nVEC -1.0 5.0 0.5 -2.0 -1.0 0.0 1.0 2.0\nFIND 50\n",
+          "output": "I32: somma=-2147483648 clamp=-10 evals=1\nVEC: somma=(-0.50,3.00) clamp=(-0.50,2.00)\nFIND(50): idx=4 mut=int32_t* cst=const int32_t*\n"
+        }
+      ],
+      "soluzione_file": {
+        "num_gen.h": "#ifndef NUM_GEN_H\n#define NUM_GEN_H\n\n#include <inttypes.h>\n#include <stdckdint.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n\ntypedef struct vec2 { double x; double y; } vec2_t;\n\ninline int32_t limita_i32(int32_t x, int32_t lo, int32_t hi) {\n    return (x < lo) ? lo : ((x > hi) ? hi : x);\n}\ninline int64_t limita_i64(int64_t x, int64_t lo, int64_t hi) {\n    return (x < lo) ? lo : ((x > hi) ? hi : x);\n}\ninline double limita_dbl(double x, double lo, double hi) {\n    return (x < lo) ? lo : ((x > hi) ? hi : x);\n}\ninline vec2_t limita_vec2(vec2_t v, vec2_t lo, vec2_t hi) {\n    return (vec2_t){limita_dbl(v.x, lo.x, hi.x), limita_dbl(v.y, lo.y, hi.y)};\n}\ninline int32_t somma_sat_i32(int32_t a, int32_t b) {\n    int32_t r = 0;\n    if (ckd_add(&r, a, b)) { return (b > 0) ? INT32_MAX : INT32_MIN; }\n    return r;\n}\ninline int64_t somma_sat_i64(int64_t a, int64_t b) {\n    int64_t r = 0;\n    if (ckd_add(&r, a, b)) { return (b > 0) ? INT64_MAX : INT64_MIN; }\n    return r;\n}\ninline double somma_dbl(double a, double b) { return a + b; }\ninline vec2_t somma_vec2(vec2_t a, vec2_t b) { return (vec2_t){a.x + b.x, a.y + b.y}; }\n\nstatic inline int fmt_i32(int32_t x, char *b, size_t n) { return snprintf(b, n, \"%\" PRId32, x); }\nstatic inline int fmt_i64(int64_t x, char *b, size_t n) { return snprintf(b, n, \"%\" PRId64, x); }\nstatic inline int fmt_dbl(double x, char *b, size_t n) { return snprintf(b, n, \"%.2f\", x); }\nstatic inline int fmt_vec2(vec2_t v, char *b, size_t n) { return snprintf(b, n, \"(%.2f,%.2f)\", v.x, v.y); }\n\nstatic inline const int32_t *cerca_i32_const(const int32_t *a, size_t n, int32_t v) {\n    for (size_t i = 0; i < n; ++i) { if (a[i] == v) { return &a[i]; } }\n    return nullptr;\n}\nstatic inline int32_t *cerca_i32_mut(int32_t *a, size_t n, int32_t v) {\n    for (size_t i = 0; i < n; ++i) { if (a[i] == v) { return &a[i]; } }\n    return nullptr;\n}\n\n#define LIMITA(x, lo, hi) \\\n    _Generic((x), int32_t: limita_i32, int64_t: limita_i64, double: limita_dbl, vec2_t: limita_vec2)((x), (lo), (hi))\n#define SOMMA(a, b) \\\n    _Generic((a), int32_t: somma_sat_i32, int64_t: somma_sat_i64, double: somma_dbl, vec2_t: somma_vec2)((a), (b))\n#define FORMATTA(x, b, n) \\\n    _Generic((x), int32_t: fmt_i32, int64_t: fmt_i64, double: fmt_dbl, vec2_t: fmt_vec2)((x), (b), (n))\n#define CERCA_I32(arr, n, v) \\\n    _Generic((arr), const int32_t *: cerca_i32_const, int32_t *: cerca_i32_mut)((arr), (n), (v))\n\n#endif\n",
+        "num_gen.c": "#include \"num_gen.h\"\n\nextern inline int32_t limita_i32(int32_t x, int32_t lo, int32_t hi);\nextern inline int64_t limita_i64(int64_t x, int64_t lo, int64_t hi);\nextern inline double limita_dbl(double x, double lo, double hi);\nextern inline vec2_t limita_vec2(vec2_t v, vec2_t lo, vec2_t hi);\nextern inline int32_t somma_sat_i32(int32_t a, int32_t b);\nextern inline int64_t somma_sat_i64(int64_t a, int64_t b);\nextern inline double somma_dbl(double a, double b);\nextern inline vec2_t somma_vec2(vec2_t a, vec2_t b);\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"num_gen.h\"\n\nstatic int32_t traccia_eval(int *c, int32_t v) {\n    ++(*c);\n    return v;\n}\n\n#define NOME_PTR(p) _Generic((p), int32_t *: \"int32_t*\", const int32_t *: \"const int32_t*\", default: \"altro\")\n\nint main(void) {\n    int32_t dati[5] = {10, 20, 30, 40, 50};\n    const int32_t *vista = dati;\n    char riga[256], cmd[16], b1[48], b2[48], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        long long a64 = 0, b64 = 0, lo64 = 0, hi64 = 0;\n        double ad = 0.0, bd = 0.0, lod = 0.0, hid = 0.0;\n        vec2_t va = {}, vb = {}, vlo = {}, vhi = {};\n        if (strcmp(cmd, \"I32\") == 0 && sscanf(riga, \"I32 %lld %lld %lld %lld %c\", &a64, &b64, &lo64, &hi64, &extra) == 4 &&\n            a64 >= INT32_MIN && a64 <= INT32_MAX && b64 >= INT32_MIN && b64 <= INT32_MAX &&\n            lo64 >= INT32_MIN && hi64 <= INT32_MAX && lo64 <= hi64) {\n            int32_t s = SOMMA((int32_t)a64, (int32_t)b64);\n            int evals = 0;\n            int32_t c = LIMITA(traccia_eval(&evals, s), (int32_t)lo64, (int32_t)hi64);\n            FORMATTA(s, b1, sizeof(b1));\n            FORMATTA(c, b2, sizeof(b2));\n            printf(\"I32: somma=%s clamp=%s evals=%d\\n\", b1, b2, evals);\n        } else if (strcmp(cmd, \"I64\") == 0 && sscanf(riga, \"I64 %lld %lld %lld %lld %c\", &a64, &b64, &lo64, &hi64, &extra) == 4 &&\n                   lo64 <= hi64) {\n            int64_t s = SOMMA((int64_t)a64, (int64_t)b64);\n            int64_t c = LIMITA(s, (int64_t)lo64, (int64_t)hi64);\n            FORMATTA(s, b1, sizeof(b1));\n            FORMATTA(c, b2, sizeof(b2));\n            printf(\"I64: somma=%s clamp=%s\\n\", b1, b2);\n        } else if (strcmp(cmd, \"DBL\") == 0 && sscanf(riga, \"DBL %lf %lf %lf %lf %c\", &ad, &bd, &lod, &hid, &extra) == 4 &&\n                   lod <= hid) {\n            double s = SOMMA(ad, bd);\n            double c = LIMITA(s, lod, hid);\n            FORMATTA(s, b1, sizeof(b1));\n            FORMATTA(c, b2, sizeof(b2));\n            printf(\"DBL: somma=%s clamp=%s\\n\", b1, b2);\n        } else if (strcmp(cmd, \"VEC\") == 0 &&\n                   sscanf(riga, \"VEC %lf %lf %lf %lf %lf %lf %lf %lf %c\",\n                          &va.x, &va.y, &vb.x, &vb.y, &vlo.x, &vlo.y, &vhi.x, &vhi.y, &extra) == 8 &&\n                   vlo.x <= vhi.x && vlo.y <= vhi.y) {\n            vec2_t s = SOMMA(va, vb);\n            vec2_t c = LIMITA(s, vlo, vhi);\n            FORMATTA(s, b1, sizeof(b1));\n            FORMATTA(c, b2, sizeof(b2));\n            printf(\"VEC: somma=%s clamp=%s\\n\", b1, b2);\n        } else if (strcmp(cmd, \"FIND\") == 0 && sscanf(riga, \"FIND %lld %c\", &a64, &extra) == 1 &&\n                   a64 >= INT32_MIN && a64 <= INT32_MAX) {\n            int32_t *pm = CERCA_I32(dati, 5, (int32_t)a64);\n            const int32_t *pc = CERCA_I32(vista, 5, (int32_t)a64);\n            if (pm != nullptr && pc != nullptr) {\n                printf(\"FIND(%\" PRId32 \"): idx=%td mut=%s cst=%s\\n\",\n                       (int32_t)a64, pm - dati, NOME_PTR(pm), NOME_PTR(pc));\n            } else {\n                printf(\"FIND(%\" PRId32 \"): ASSENTE mut=%s cst=%s\\n\",\n                       (int32_t)a64, NOME_PTR(pm), NOME_PTR(pc));\n            }\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "24.3",
+      "tipo": "esercizio",
+      "titolo": "Valutatore ricorsivo di espressioni con frame annidati setjmp/longjmp, volatile e pulizia risorse",
+      "descrizione": "Realizza su tre file (`errore_jmp.h`, `errore_jmp.c`, `main.c`) un meccanismo di recupero da errori profondi basato su **salti non locali** (`setjmp`/`longjmp`) annidati con tracciamento delle risorse dinamiche, applicato a un valutatore ricorsivo di espressioni intere a 64 bit (`+`, `-`, `*`, `/`, `-` unario e parentesi `(...)`, profondità massima di parentesi `8`). (1) In `errore_jmp.h` (protetto da `ERRORE_JMP_H`) definisci `cod_errore_t` (`ERR_NESSUNO`, `ERR_SINTASSI`, `ERR_PARENTESI`, `ERR_DIV_ZERO`, `ERR_OVERFLOW`, `ERR_PROFONDITA`, `ERR_MEMORIA`) e `typedef struct frame_err { jmp_buf env; struct frame_err *prec; cod_errore_t codice; size_t pos; void *risorse[8]; size_t n_risorse; } frame_err_t;`, e dichiara `void err_push(frame_err_t *f);`, `void err_pop(frame_err_t *f);`, `bool err_traccia(void *ptr);`, `void err_rilascia_risorse(frame_err_t *f);`, `[[noreturn]] void err_lancia(cod_errore_t cod, size_t pos);` e `const char *err_nome(cod_errore_t cod);`. (2) In `errore_jmp.c` gestisci una pila collegata di `frame_err_t`: `err_lancia` registra `cod` e `pos` nel frame corrente ed esegue `longjmp(top->env, 1)` (chiamando `abort()` se la pila è vuota). (3) In `main.c` usa sempre `setjmp` nei soli contesti ammessi dallo standard C23 (`if (setjmp(f.env) == 0)`), alloca dinamicamente una copia di lavoro dell'espressione registrandola con `err_traccia` così che venga sempre liberata anche dopo un `longjmp`, e usa variabili locali qualificate `volatile` quando modificate tra `setjmp` e `longjmp`. Gestisci da `stdin` i comandi `EVAL <expr>` e `TRY <expr1> | <expr2>` (in `TRY`, un frame interno intercetta `ERR_DIV_ZERO` ed `ERR_OVERFLOW` di `<expr1>` ripiegando su `<expr2>`, mentre rilancia al frame esterno gli errori di sintassi, parentesi o profondità), stampando al termine il riepilogo `RIEPILOGO: ok=<ok> fallback=<fb> err=<err>` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "uso rigoroso di setjmp solo nei contesti consentiti dallo standard C23 (if (setjmp(env) == 0))",
+        "qualificazione volatile delle variabili automatiche locali modificate tra setjmp e longjmp",
+        "pila di frame jmp_buf annidati per intercettare errori specifici e rilanciare gli altri al frame esterno",
+        "tracciamento e rilascio delle risorse allocate sullo heap per evitare perdite di memoria dopo longjmp"
+      ],
+      "domande_guida": [
+        "Perché in C23 scrivere int rc = setjmp(f.env); è comportamento indefinito e come si aggira il limite salvando il codice d'errore dentro frame_err_t?",
+        "Quale rischio si corre se dentro la funzione che chiama setjmp modifichi una variabile locale non-volatile fase prima di un longjmp e poi la leggi nel ramo else?",
+        "Che cosa succederebbe alla memoria allocata con malloc dentro valuta_stringa se longjmp saltasse fuori dalla ricorsione senza il registro risorse di frame_err_t?",
+        "Perché err_pop deve essere chiamato sia sul percorso normale sia prima di rilanciare un errore al frame esterno?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "EVAL (2 + 3) * 4 - 6 / 2\nEVAL 10 / (5 - 5)\nEVAL 9223372036854775807 + 1\nTRY 100 / 0 | 40 + 2\nTRY (1 + 2 | 99\nEVAL (((((((((1)))))))))\n",
+          "output": "EVAL -> OK 17\nEVAL -> ERRORE DIV_ZERO pos=3\nEVAL -> ERRORE OVERFLOW pos=20\nTRY -> FALLBACK(DIV_ZERO) OK 42\nTRY -> ERRORE PARENTESI pos=6\nEVAL -> ERRORE PROFONDITA pos=8\nRIEPILOGO: ok=1 fallback=1 err=4\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "EVAL -(-7 + 2) * 3\nTRY 5 * 6 | 0\nTRY 1 / 0 | 2 / 0\n",
+          "output": "EVAL -> OK 15\nTRY -> OK 30\nTRY -> ERRORE_FALLBACK DIV_ZERO pos=2\nRIEPILOGO: ok=2 fallback=0 err=1\n"
+        },
+        {
+          "input": "EVAL 12 + * 3\nEVAL 42 extra\n",
+          "output": "EVAL -> ERRORE SINTASSI pos=5\nEVAL -> ERRORE SINTASSI pos=3\nRIEPILOGO: ok=0 fallback=0 err=2\n"
+        }
+      ],
+      "soluzione_file": {
+        "errore_jmp.h": "#ifndef ERRORE_JMP_H\n#define ERRORE_JMP_H\n\n#include <setjmp.h>\n#include <stddef.h>\n\ntypedef enum cod_errore {\n    ERR_NESSUNO = 0, ERR_SINTASSI, ERR_PARENTESI,\n    ERR_DIV_ZERO, ERR_OVERFLOW, ERR_PROFONDITA, ERR_MEMORIA\n} cod_errore_t;\n\ntypedef struct frame_err {\n    jmp_buf env;\n    struct frame_err *prec;\n    cod_errore_t codice;\n    size_t pos;\n    void *risorse[8];\n    size_t n_risorse;\n} frame_err_t;\n\nvoid err_push(frame_err_t *f);\nvoid err_pop(frame_err_t *f);\nbool err_traccia(void *ptr);\nvoid err_rilascia_risorse(frame_err_t *f);\n[[noreturn]] void err_lancia(cod_errore_t cod, size_t pos);\nconst char *err_nome(cod_errore_t cod);\n\n#endif\n",
+        "errore_jmp.c": "#include \"errore_jmp.h\"\n#include <stdlib.h>\n\nstatic frame_err_t *corrente = nullptr;\n\nvoid err_push(frame_err_t *f) {\n    f->prec = corrente;\n    f->codice = ERR_NESSUNO;\n    f->pos = 0;\n    f->n_risorse = 0;\n    corrente = f;\n}\n\nvoid err_pop(frame_err_t *f) {\n    if (corrente == f) { corrente = f->prec; }\n}\n\nbool err_traccia(void *ptr) {\n    if (ptr == nullptr || corrente == nullptr || corrente->n_risorse >= 8) { return false; }\n    corrente->risorse[corrente->n_risorse++] = ptr;\n    return true;\n}\n\nvoid err_rilascia_risorse(frame_err_t *f) {\n    if (f == nullptr) { return; }\n    for (size_t i = f->n_risorse; i > 0; --i) { free(f->risorse[i - 1]); }\n    f->n_risorse = 0;\n}\n\n[[noreturn]] void err_lancia(cod_errore_t cod, size_t pos) {\n    if (corrente == nullptr) { abort(); }\n    corrente->codice = cod;\n    corrente->pos = pos;\n    longjmp(corrente->env, 1);\n}\n\nconst char *err_nome(cod_errore_t cod) {\n    switch (cod) {\n        case ERR_SINTASSI: return \"SINTASSI\";\n        case ERR_PARENTESI: return \"PARENTESI\";\n        case ERR_DIV_ZERO: return \"DIV_ZERO\";\n        case ERR_OVERFLOW: return \"OVERFLOW\";\n        case ERR_PROFONDITA: return \"PROFONDITA\";\n        case ERR_MEMORIA: return \"MEMORIA\";\n        default: return \"NESSUNO\";\n    }\n}\n",
+        "main.c": "#include <ctype.h>\n#include <inttypes.h>\n#include <stdckdint.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"errore_jmp.h\"\n\ntypedef struct parser { const char *s; size_t pos; int prof; } parser_t;\n\nstatic void salta_spazi(parser_t *p) {\n    while (isspace((unsigned char)p->s[p->pos])) { ++p->pos; }\n}\nstatic int64_t parse_expr(parser_t *p);\n\nstatic int64_t parse_fattore(parser_t *p) {\n    salta_spazi(p);\n    if (p->s[p->pos] == '-') {\n        size_t pos_m = p->pos++;\n        int64_t v = parse_fattore(p), r = 0;\n        if (ckd_sub(&r, (int64_t)0, v)) { err_lancia(ERR_OVERFLOW, pos_m); }\n        return r;\n    }\n    if (p->s[p->pos] == '(') {\n        if (p->prof >= 8) { err_lancia(ERR_PROFONDITA, p->pos); }\n        ++p->pos; ++p->prof;\n        int64_t v = parse_expr(p);\n        salta_spazi(p);\n        if (p->s[p->pos] != ')') { err_lancia(ERR_PARENTESI, p->pos); }\n        ++p->pos; --p->prof;\n        return v;\n    }\n    if (!isdigit((unsigned char)p->s[p->pos])) { err_lancia(ERR_SINTASSI, p->pos); }\n    int64_t acc = 0;\n    while (isdigit((unsigned char)p->s[p->pos])) {\n        int64_t d = p->s[p->pos] - '0';\n        if (ckd_mul(&acc, acc, (int64_t)10) || ckd_add(&acc, acc, d)) { err_lancia(ERR_OVERFLOW, p->pos); }\n        ++p->pos;\n    }\n    return acc;\n}\n\nstatic int64_t parse_termine(parser_t *p) {\n    int64_t sx = parse_fattore(p);\n    while (true) {\n        salta_spazi(p);\n        char op = p->s[p->pos];\n        if (op != '*' && op != '/') { break; }\n        size_t pos_op = p->pos++;\n        int64_t dx = parse_fattore(p), r = 0;\n        if (op == '*') {\n            if (ckd_mul(&r, sx, dx)) { err_lancia(ERR_OVERFLOW, pos_op); }\n        } else {\n            if (dx == 0) { err_lancia(ERR_DIV_ZERO, pos_op); }\n            if (sx == INT64_MIN && dx == -1) { err_lancia(ERR_OVERFLOW, pos_op); }\n            r = sx / dx;\n        }\n        sx = r;\n    }\n    return sx;\n}\n\nstatic int64_t parse_expr(parser_t *p) {\n    int64_t sx = parse_termine(p);\n    while (true) {\n        salta_spazi(p);\n        char op = p->s[p->pos];\n        if (op != '+' && op != '-') { break; }\n        size_t pos_op = p->pos++;\n        int64_t dx = parse_termine(p), r = 0;\n        if ((op == '+' && ckd_add(&r, sx, dx)) || (op == '-' && ckd_sub(&r, sx, dx))) {\n            err_lancia(ERR_OVERFLOW, pos_op);\n        }\n        sx = r;\n    }\n    return sx;\n}\n\nstatic int64_t valuta_copia(const char *testo, size_t len) {\n    char *copia = malloc(len + 1);\n    if (copia == nullptr || !err_traccia(copia)) { free(copia); err_lancia(ERR_MEMORIA, 0); }\n    memcpy(copia, testo, len);\n    copia[len] = '\\0';\n    parser_t p = {.s = copia, .pos = 0, .prof = 0};\n    int64_t ris = parse_expr(&p);\n    salta_spazi(&p);\n    if (p.s[p.pos] != '\\0') { err_lancia(ERR_SINTASSI, p.pos); }\n    return ris;\n}\n\nstatic void gestisci_try(const char *e1, size_t l1, const char *e2, size_t l2,\n                         size_t *ok, size_t *fb, size_t *err) {\n    frame_err_t ext = {};\n    volatile int fase = 0;\n    volatile cod_errore_t causa_fb = ERR_NESSUNO;\n    err_push(&ext);\n    if (setjmp(ext.env) == 0) {\n        frame_err_t inn = {};\n        err_push(&inn);\n        if (setjmp(inn.env) == 0) {\n            fase = 1;\n            int64_t v = valuta_copia(e1, l1);\n            err_rilascia_risorse(&inn); err_pop(&inn);\n            err_rilascia_risorse(&ext); err_pop(&ext);\n            printf(\"TRY -> OK %\" PRId64 \"\\n\", v);\n            ++(*ok);\n        } else {\n            cod_errore_t c = inn.codice; size_t pos = inn.pos;\n            err_rilascia_risorse(&inn); err_pop(&inn);\n            if (c != ERR_DIV_ZERO && c != ERR_OVERFLOW) { err_lancia(c, pos); }\n            causa_fb = c;\n            fase = 2;\n            int64_t v2 = valuta_copia(e2, l2);\n            err_rilascia_risorse(&ext); err_pop(&ext);\n            printf(\"TRY -> FALLBACK(%s) OK %\" PRId64 \"\\n\", err_nome(causa_fb), v2);\n            ++(*fb);\n        }\n    } else {\n        cod_errore_t c = ext.codice; size_t pos = ext.pos;\n        err_rilascia_risorse(&ext); err_pop(&ext);\n        printf(\"TRY -> %s %s pos=%zu\\n\", (fase == 2) ? \"ERRORE_FALLBACK\" : \"ERRORE\", err_nome(c), pos);\n        ++(*err);\n    }\n}\n\nint main(void) {\n    char riga[256];\n    size_t tot_ok = 0, tot_fb = 0, tot_err = 0;\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        size_t len = strlen(riga);\n        while (len > 0 && (riga[len - 1] == '\\n' || riga[len - 1] == '\\r')) { riga[--len] = '\\0'; }\n        if (len == 0) { continue; }\n        if (strncmp(riga, \"EVAL \", 5) == 0) {\n            frame_err_t f = {};\n            err_push(&f);\n            if (setjmp(f.env) == 0) {\n                int64_t v = valuta_copia(riga + 5, len - 5);\n                err_rilascia_risorse(&f); err_pop(&f);\n                printf(\"EVAL -> OK %\" PRId64 \"\\n\", v); ++tot_ok;\n            } else {\n                cod_errore_t c = f.codice; size_t pos = f.pos;\n                err_rilascia_risorse(&f); err_pop(&f);\n                printf(\"EVAL -> ERRORE %s pos=%zu\\n\", err_nome(c), pos); ++tot_err;\n            }\n        } else if (strncmp(riga, \"TRY \", 4) == 0) {\n            const char *sep = strchr(riga + 4, '|');\n            if (sep == nullptr) { return EXIT_FAILURE; }\n            const char *e1 = riga + 4, *e2 = sep + 1;\n            size_t l1 = (size_t)(sep - e1), l2 = strlen(e2);\n            while (l1 > 0 && isspace((unsigned char)e1[l1 - 1])) { --l1; }\n            while (l2 > 0 && isspace((unsigned char)*e2)) { ++e2; --l2; }\n            gestisci_try(e1, l1, e2, l2, &tot_ok, &tot_fb, &tot_err);\n        } else {\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"RIEPILOGO: ok=%zu fallback=%zu err=%zu\\n\", tot_ok, tot_fb, tot_err);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "24.4",
+      "tipo": "esercizio",
+      "titolo": "Schedulatore di lavori con doppia lista intrusiva circolare basata su offsetof",
+      "descrizione": "Realizza su tre file (`lista_intr.h`, `lista_intr.c`, `main.c`) una **lista intrusiva** circolare doppiamente concatenata e applicala a uno schedulatore in cui ogni lavoro appartiene contemporaneamente a due liste distinte senza allocare nodi wrapper separati. (1) In `lista_intr.h` (protetto da `LISTA_INTR_H`) definisci `typedef struct nodo_intrusivo { struct nodo_intrusivo *prev; struct nodo_intrusivo *next; } nodo_intrusivo_t;`, le macro `CONTENITORE_DI(ptr, tipo, campo)` e `CONTENITORE_DI_CONST(ptr, tipo, campo)` (tramite `offsetof` e `unsigned char *`/`const unsigned char *`), le macro di attraversamento `LISTA_PER_OGNI(pos, testa)`, `LISTA_PER_OGNI_CONST(pos, testa)` e `LISTA_PER_OGNI_SICURO(pos, tmp, testa)`, e dichiara `void lista_init(nodo_intrusivo_t *n);`, `bool lista_vuota(const nodo_intrusivo_t *testa);`, `bool lista_collegato(const nodo_intrusivo_t *n);`, `void lista_inserisci_testa(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);`, `void lista_inserisci_coda(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);`, `void lista_rimuovi(nodo_intrusivo_t *n);` e `size_t lista_conta(const nodo_intrusivo_t *testa);`. (2) In `lista_intr.c` implementa le operazioni in tempo `O(1)` (`lista_rimuovi` scollega il nodo e lo riporta allo stato isolato `prev = next = n`). (3) In `main.c` definisci `typedef struct lavoro { uint32_t id; char nome[16]; int prio; bool pronto; nodo_intrusivo_t link_tutti; nodo_intrusivo_t link_pronti; } lavoro_t;` e mantieni le due liste `lista_tutti` e `coda_pronti`. Gestisci da `stdin` i comandi `ADD <id> <nome> <prio>` (inserisce sempre in coda a `lista_tutti` e in `coda_pronti` in testa se `prio >= 10` o in coda altrimenti), `PAUSE <id>` (rimuove in `O(1)` da `coda_pronti`), `RESUME <id>` (reinserisce in `coda_pronti` con la stessa regola di priorità), `DEL <id>` (rimuove da entrambe le liste e libera), `PURGE_PAUSED` (rimuove e libera in un solo passaggio tutti i lavori in pausa usando `LISTA_PER_OGNI_SICURO`) e `SHOW`, liberando tutti i lavori residui prima di terminare.",
+      "concetti_da_tenere_a_mente": [
+        "incorporamento di due campi nodo_intrusivo_t nella stessa struct lavoro_t per appartenere a due liste con una sola allocazione",
+        "recupero del puntatore alla struct ospitante tramite offsetof in CONTENITORE_DI e CONTENITORE_DI_CONST",
+        "rimozione O(1) con lista_rimuovi senza conoscere la testa della lista",
+        "iterazione sicura con LISTA_PER_OGNI_SICURO quando il corpo del ciclo rimuove e libera nodi"
+      ],
+      "domande_guida": [
+        "Perché un oggetto lavoro_t può essere inserito contemporaneamente in lista_tutti e in coda_pronti senza interferenze tra i puntatori prev e next?",
+        "Come fa CONTENITORE_DI(pos, lavoro_t, link_pronti) a risalire all'inizio di lavoro_t anche se link_pronti non è il primo campo della struct?",
+        "Che cosa succederebbe in PURGE_PAUSED se usassi LISTA_PER_OGNI anziché LISTA_PER_OGNI_SICURO per scollegare e liberare con free i lavori in pausa?",
+        "Perché in una lista circolare con sentinella un nodo scollegato viene riportato a n->prev = n; n->next = n;?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD 1 Backup 5\nADD 2 Rete 12\nADD 3 Log 3\nSHOW\nPAUSE 2\nSHOW\nRESUME 2\nPAUSE 3\nPURGE_PAUSED\nDEL 1\nSHOW\n",
+          "output": "TUTTI(3): #1:Backup(P) #2:Rete(P) #3:Log(P)\nPRONTI(3): #2:Rete #1:Backup #3:Log\nTUTTI(3): #1:Backup(P) #2:Rete(S) #3:Log(P)\nPRONTI(2): #1:Backup #3:Log\nPURGE_PAUSED: rimossi=1\nDEL #1: OK\nTUTTI(1): #2:Rete(P)\nPRONTI(1): #2:Rete\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "SHOW\nPAUSE 99\nDEL 99\nPURGE_PAUSED\n",
+          "output": "TUTTI(0): (vuota)\nPRONTI(0): (vuota)\nPAUSE #99: ASSENTE\nDEL #99: ASSENTE\nPURGE_PAUSED: rimossi=0\n"
+        },
+        {
+          "input": "ADD 10 A 10\nADD 20 B 15\nPAUSE 10\nPAUSE 10\nSHOW\nPURGE_PAUSED\nSHOW\n",
+          "output": "TUTTI(2): #10:A(S) #20:B(P)\nPRONTI(1): #20:B\nPURGE_PAUSED: rimossi=1\nTUTTI(1): #20:B(P)\nPRONTI(1): #20:B\n"
+        }
+      ],
+      "soluzione_file": {
+        "lista_intr.h": "#ifndef LISTA_INTR_H\n#define LISTA_INTR_H\n\n#include <stddef.h>\n\ntypedef struct nodo_intrusivo {\n    struct nodo_intrusivo *prev;\n    struct nodo_intrusivo *next;\n} nodo_intrusivo_t;\n\n#define CONTENITORE_DI(ptr, tipo, campo) \\\n    ((tipo *)((unsigned char *)(ptr) - offsetof(tipo, campo)))\n#define CONTENITORE_DI_CONST(ptr, tipo, campo) \\\n    ((const tipo *)((const unsigned char *)(ptr) - offsetof(tipo, campo)))\n\n#define LISTA_PER_OGNI(pos, testa) \\\n    for (nodo_intrusivo_t *(pos) = (testa)->next; (pos) != (testa); (pos) = (pos)->next)\n#define LISTA_PER_OGNI_CONST(pos, testa) \\\n    for (const nodo_intrusivo_t *(pos) = (testa)->next; (pos) != (testa); (pos) = (pos)->next)\n#define LISTA_PER_OGNI_SICURO(pos, tmp, testa) \\\n    for (nodo_intrusivo_t *(pos) = (testa)->next, *(tmp) = (pos)->next; \\\n         (pos) != (testa); (pos) = (tmp), (tmp) = (pos)->next)\n\nvoid lista_init(nodo_intrusivo_t *n);\nbool lista_vuota(const nodo_intrusivo_t *testa);\nbool lista_collegato(const nodo_intrusivo_t *n);\nvoid lista_inserisci_testa(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);\nvoid lista_inserisci_coda(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);\nvoid lista_rimuovi(nodo_intrusivo_t *n);\nsize_t lista_conta(const nodo_intrusivo_t *testa);\n\n#endif\n",
+        "lista_intr.c": "#include \"lista_intr.h\"\n\nvoid lista_init(nodo_intrusivo_t *n) {\n    n->prev = n;\n    n->next = n;\n}\n\nbool lista_vuota(const nodo_intrusivo_t *testa) { return testa->next == testa; }\nbool lista_collegato(const nodo_intrusivo_t *n) { return n->next != n; }\n\nstatic void inserisci_tra(nodo_intrusivo_t *a, nodo_intrusivo_t *b, nodo_intrusivo_t *n) {\n    n->prev = a; n->next = b;\n    a->next = n; b->prev = n;\n}\n\nvoid lista_inserisci_testa(nodo_intrusivo_t *testa, nodo_intrusivo_t *n) {\n    inserisci_tra(testa, testa->next, n);\n}\n\nvoid lista_inserisci_coda(nodo_intrusivo_t *testa, nodo_intrusivo_t *n) {\n    inserisci_tra(testa->prev, testa, n);\n}\n\nvoid lista_rimuovi(nodo_intrusivo_t *n) {\n    if (!lista_collegato(n)) { return; }\n    n->prev->next = n->next;\n    n->next->prev = n->prev;\n    lista_init(n);\n}\n\nsize_t lista_conta(const nodo_intrusivo_t *testa) {\n    size_t c = 0;\n    LISTA_PER_OGNI_CONST(pos, testa) { (void)pos; ++c; }\n    return c;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"lista_intr.h\"\n\ntypedef struct lavoro {\n    uint32_t id;\n    char nome[16];\n    int prio;\n    bool pronto;\n    nodo_intrusivo_t link_tutti;\n    nodo_intrusivo_t link_pronti;\n} lavoro_t;\n\nstatic lavoro_t *cerca_lavoro(nodo_intrusivo_t *tutti, uint32_t id) {\n    LISTA_PER_OGNI(pos, tutti) {\n        lavoro_t *l = CONTENITORE_DI(pos, lavoro_t, link_tutti);\n        if (l->id == id) { return l; }\n    }\n    return nullptr;\n}\n\nstatic void accoda_pronto(nodo_intrusivo_t *pronti, lavoro_t *l) {\n    if (l->prio >= 10) { lista_inserisci_testa(pronti, &l->link_pronti); }\n    else { lista_inserisci_coda(pronti, &l->link_pronti); }\n    l->pronto = true;\n}\n\nstatic void stampa_liste(const nodo_intrusivo_t *tutti, const nodo_intrusivo_t *pronti) {\n    printf(\"TUTTI(%zu):\", lista_conta(tutti));\n    if (lista_vuota(tutti)) { printf(\" (vuota)\\n\"); }\n    else {\n        LISTA_PER_OGNI_CONST(pos, tutti) {\n            const lavoro_t *l = CONTENITORE_DI_CONST(pos, lavoro_t, link_tutti);\n            printf(\" #%\" PRIu32 \":%s(%c)\", l->id, l->nome, l->pronto ? 'P' : 'S');\n        }\n        printf(\"\\n\");\n    }\n    printf(\"PRONTI(%zu):\", lista_conta(pronti));\n    if (lista_vuota(pronti)) { printf(\" (vuota)\\n\"); }\n    else {\n        LISTA_PER_OGNI_CONST(pos, pronti) {\n            const lavoro_t *l = CONTENITORE_DI_CONST(pos, lavoro_t, link_pronti);\n            printf(\" #%\" PRIu32 \":%s\", l->id, l->nome);\n        }\n        printf(\"\\n\");\n    }\n}\n\nint main(void) {\n    nodo_intrusivo_t tutti, pronti;\n    lista_init(&tutti); lista_init(&pronti);\n    char riga[128], cmd[16], nome[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned int id = 0; int prio = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %u %15s %d %c\", &id, nome, &prio, &extra) == 3) {\n            lavoro_t *l = calloc(1, sizeof(*l));\n            if (l == nullptr) { return EXIT_FAILURE; }\n            l->id = (uint32_t)id; l->prio = prio;\n            snprintf(l->nome, sizeof(l->nome), \"%s\", nome);\n            lista_init(&l->link_tutti); lista_init(&l->link_pronti);\n            lista_inserisci_coda(&tutti, &l->link_tutti);\n            accoda_pronto(&pronti, l);\n        } else if (strcmp(cmd, \"PAUSE\") == 0 && sscanf(riga, \"PAUSE %u %c\", &id, &extra) == 1) {\n            lavoro_t *l = cerca_lavoro(&tutti, (uint32_t)id);\n            if (l == nullptr) { printf(\"PAUSE #%u: ASSENTE\\n\", id); }\n            else { lista_rimuovi(&l->link_pronti); l->pronto = false; }\n        } else if (strcmp(cmd, \"RESUME\") == 0 && sscanf(riga, \"RESUME %u %c\", &id, &extra) == 1) {\n            lavoro_t *l = cerca_lavoro(&tutti, (uint32_t)id);\n            if (l == nullptr) { printf(\"RESUME #%u: ASSENTE\\n\", id); }\n            else if (!l->pronto) { accoda_pronto(&pronti, l); }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %u %c\", &id, &extra) == 1) {\n            lavoro_t *l = cerca_lavoro(&tutti, (uint32_t)id);\n            if (l == nullptr) { printf(\"DEL #%u: ASSENTE\\n\", id); }\n            else { lista_rimuovi(&l->link_pronti); lista_rimuovi(&l->link_tutti); free(l); printf(\"DEL #%u: OK\\n\", id); }\n        } else if (strcmp(cmd, \"PURGE_PAUSED\") == 0 && sscanf(riga, \"PURGE_PAUSED %c\", &extra) != 1) {\n            size_t rim = 0;\n            LISTA_PER_OGNI_SICURO(pos, tmp, &tutti) {\n                lavoro_t *l = CONTENITORE_DI(pos, lavoro_t, link_tutti);\n                if (!l->pronto) { lista_rimuovi(&l->link_tutti); free(l); ++rim; }\n            }\n            printf(\"PURGE_PAUSED: rimossi=%zu\\n\", rim);\n        } else if (strcmp(cmd, \"SHOW\") == 0 && sscanf(riga, \"SHOW %c\", &extra) != 1) {\n            stampa_liste(&tutti, &pronti);\n        } else { return EXIT_FAILURE; }\n    }\n    LISTA_PER_OGNI_SICURO(pos, tmp, &tutti) {\n        lavoro_t *l = CONTENITORE_DI(pos, lavoro_t, link_tutti);\n        lista_rimuovi(&l->link_pronti); lista_rimuovi(&l->link_tutti); free(l);\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "24.5",
+      "tipo": "esercizio",
+      "titolo": "Macchina a stati finiti opaca per sessioni di rete con tabella 2D di puntatori a funzione e guardie",
+      "descrizione": "Realizza su tre file (`fsm_sess.h`, `fsm_sess.c`, `main.c`) una **macchina a stati finiti** come **tipo opaco** `fsm_sess_t` che gestisce il ciclo di vita di una sessione autenticata mediante una tabella bidimensionale `static const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO]` priva di qualsiasi `switch` nel motore di transizione. (1) In `fsm_sess.h` (protetto da `FSM_SESS_H`) definisci `stato_sess_t` (`ST_CHIUSA`, `ST_HANDSHAKE`, `ST_AUTH`, `ST_ATTIVA`, `ST_BLOCCATA`, `ST_CONTEGGIO`), `evento_sess_t` (`EV_APRI`, `EV_ACK`, `EV_AUTH_OK`, `EV_AUTH_KO`, `EV_DATO`, `EV_CHIUDI`, `EV_RESET`, `EV_CONTEGGIO`) e `typedef struct fsm_sess fsm_sess_t;`, dichiarando `fsm_sess_t *fsm_crea(void);`, `void fsm_distruggi(fsm_sess_t *f);`, `bool fsm_invia(fsm_sess_t *f, evento_sess_t ev, int32_t payload);`, `stato_sess_t fsm_stato(const fsm_sess_t *f);`, `const char *fsm_nome_stato(stato_sess_t s);` e `void fsm_stampa_stats(const fsm_sess_t *f);`. (2) In `fsm_sess.c` verifica con `static_assert` le dimensioni delle tabelle `NOMI_STATO` e `ON_ENTER`. Le transizioni valide sono: `CHIUSA + APRI -> HANDSHAKE`; `HANDSHAKE + ACK -> AUTH` (azzera `err_auth`), `HANDSHAKE + CHIUDI -> CHIUSA`; `AUTH + AUTH_OK -> ATTIVA`, `AUTH + AUTH_KO -> AUTH` (con guardia nell'azione: al 3° errore consecutivo devia verso `ST_BLOCCATA`), `AUTH + CHIUDI -> CHIUSA`; `ATTIVA + DATO -> ATTIVA` (accetta `payload > 0` sommandolo a `byte_tx` e incrementando `pacchetti`; se `payload <= 0` rifiuta il pacchetto senza cambiare stato), `ATTIVA + CHIUDI -> CHIUSA`; `BLOCCATA + RESET -> CHIUSA` (azzera `err_auth`). Quando lo stato cambia invoca l'hook `ON_ENTER[nuovo_stato]` (`ATTIVA` incrementa `sessioni_ok`, `BLOCCATA` incrementa `blocchi`). (3) In `main.c` leggi da `stdin` i comandi `EV <nome> [payload]` (`payload` predefinito `0`), `STATO` e `STATS`, producendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "tabella bidimensionale static const transizione_t[STATO_CONTEGGIO][EVENTO_CONTEGGIO] con inizializzatori designati",
+        "motore di transizione privo di switch con validazione rigorosa degli indici di stato ed evento",
+        "azioni di transizione capaci di deviare lo stato di destinazione tramite guardie sul contesto",
+        "hook ON_ENTER invocati al cambio di stato e controlli a tempo di compilazione con static_assert"
+      ],
+      "domande_guida": [
+        "In che modo la tabella 2D TABELLA[stato][evento] gestisce le coppie (stato, evento) non ammesse senza causare comportamento indefinito?",
+        "Come riesce l'azione di EV_AUTH_KO nello stato ST_AUTH a mantenere la transizione dentro la tabella 2D pur portando la macchina in ST_BLOCCATA solo al terzo fallimento?",
+        "Perché l'hook ON_ENTER[nuovo_stato] va invocato solo quando nuovo_stato != vecchio_stato?",
+        "Che cosa garantiscono le static_assert sugli array NOMI_STATO e ON_ENTER se in futuro aggiungi un nuovo stato all'enum stato_sess_t?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "STATO\nEV DATO 50\nEV APRI\nEV ACK\nEV AUTH_KO\nEV AUTH_OK\nEV DATO 120\nEV DATO 0\nEV DATO 80\nEV CHIUDI\nEV APRI\nEV ACK\nEV AUTH_KO\nEV AUTH_KO\nEV AUTH_KO\nEV APRI\nEV RESET\nSTATS\n",
+          "output": "STATO: CHIUSA\nEV DATO: RIFIUTATO (stato=CHIUSA)\nEV APRI: CHIUSA -> HANDSHAKE\nEV ACK: HANDSHAKE -> AUTH\nEV AUTH_KO: AUTH -> AUTH\nEV AUTH_OK: AUTH -> ATTIVA\nEV DATO: ATTIVA -> ATTIVA\nEV DATO: RIFIUTATO (stato=ATTIVA)\nEV DATO: ATTIVA -> ATTIVA\nEV CHIUDI: ATTIVA -> CHIUSA\nEV APRI: CHIUSA -> HANDSHAKE\nEV ACK: HANDSHAKE -> AUTH\nEV AUTH_KO: AUTH -> AUTH\nEV AUTH_KO: AUTH -> AUTH\nEV AUTH_KO: AUTH -> BLOCCATA\nEV APRI: RIFIUTATO (stato=BLOCCATA)\nEV RESET: BLOCCATA -> CHIUSA\nSTATS: stato=CHIUSA sess_ok=1 blocchi=1 pkt=2 byte=200 rifiutati=3\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "EV CHIUDI\nEV RESET\nSTATS\n",
+          "output": "EV CHIUDI: RIFIUTATO (stato=CHIUSA)\nEV RESET: RIFIUTATO (stato=CHIUSA)\nSTATS: stato=CHIUSA sess_ok=0 blocchi=0 pkt=0 byte=0 rifiutati=2\n"
+        },
+        {
+          "input": "EV APRI\nEV CHIUDI\nEV APRI\nEV ACK\nEV CHIUDI\nSTATS\n",
+          "output": "EV APRI: CHIUSA -> HANDSHAKE\nEV CHIUDI: HANDSHAKE -> CHIUSA\nEV APRI: CHIUSA -> HANDSHAKE\nEV ACK: HANDSHAKE -> AUTH\nEV CHIUDI: AUTH -> CHIUSA\nSTATS: stato=CHIUSA sess_ok=0 blocchi=0 pkt=0 byte=0 rifiutati=0\n"
+        }
+      ],
+      "soluzione_file": {
+        "fsm_sess.h": "#ifndef FSM_SESS_H\n#define FSM_SESS_H\n\n#include <stdint.h>\n\ntypedef enum stato_sess {\n    ST_CHIUSA = 0, ST_HANDSHAKE, ST_AUTH, ST_ATTIVA, ST_BLOCCATA, ST_CONTEGGIO\n} stato_sess_t;\n\ntypedef enum evento_sess {\n    EV_APRI = 0, EV_ACK, EV_AUTH_OK, EV_AUTH_KO, EV_DATO, EV_CHIUDI, EV_RESET, EV_CONTEGGIO\n} evento_sess_t;\n\ntypedef struct fsm_sess fsm_sess_t;\n\nfsm_sess_t *fsm_crea(void);\nvoid fsm_distruggi(fsm_sess_t *f);\nbool fsm_invia(fsm_sess_t *f, evento_sess_t ev, int32_t payload);\nstato_sess_t fsm_stato(const fsm_sess_t *f);\nconst char *fsm_nome_stato(stato_sess_t s);\nvoid fsm_stampa_stats(const fsm_sess_t *f);\n\n#endif\n",
+        "fsm_sess.c": "#include \"fsm_sess.h\"\n#include <inttypes.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\nstruct fsm_sess {\n    stato_sess_t stato;\n    uint32_t err_auth, sessioni_ok, blocchi, pacchetti, rifiutati;\n    uint64_t byte_tx;\n};\n\ntypedef stato_sess_t (*azione_fn)(fsm_sess_t *f, int32_t payload, stato_sess_t def_st, bool *ok);\ntypedef void (*enter_fn)(fsm_sess_t *f);\ntypedef struct transizione { bool valida; stato_sess_t prossimo; azione_fn azione; } transizione_t;\n\nstatic const char *const NOMI_STATO[] = {\"CHIUSA\", \"HANDSHAKE\", \"AUTH\", \"ATTIVA\", \"BLOCCATA\"};\nstatic_assert(sizeof(NOMI_STATO) / sizeof(NOMI_STATO[0]) == ST_CONTEGGIO);\n\nstatic void enter_attiva(fsm_sess_t *f) { ++f->sessioni_ok; }\nstatic void enter_bloccata(fsm_sess_t *f) { ++f->blocchi; }\nstatic const enter_fn ON_ENTER[] = {nullptr, nullptr, nullptr, enter_attiva, enter_bloccata};\nstatic_assert(sizeof(ON_ENTER) / sizeof(ON_ENTER[0]) == ST_CONTEGGIO);\n\nstatic stato_sess_t az_azzera_err(fsm_sess_t *f, int32_t p, stato_sess_t d, bool *ok) {\n    (void)p; (void)ok; f->err_auth = 0; return d;\n}\nstatic stato_sess_t az_auth_ko(fsm_sess_t *f, int32_t p, stato_sess_t d, bool *ok) {\n    (void)p; (void)ok; ++f->err_auth;\n    return (f->err_auth >= 3) ? ST_BLOCCATA : d;\n}\nstatic stato_sess_t az_dato(fsm_sess_t *f, int32_t p, stato_sess_t d, bool *ok) {\n    if (p <= 0) { *ok = false; ++f->rifiutati; return f->stato; }\n    ++f->pacchetti; f->byte_tx += (uint64_t)p; return d;\n}\n\nstatic const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO] = {\n    [ST_CHIUSA]    = { [EV_APRI]    = {true, ST_HANDSHAKE, nullptr} },\n    [ST_HANDSHAKE] = { [EV_ACK]     = {true, ST_AUTH, az_azzera_err},\n                       [EV_CHIUDI]  = {true, ST_CHIUSA, nullptr} },\n    [ST_AUTH]      = { [EV_AUTH_OK] = {true, ST_ATTIVA, az_azzera_err},\n                       [EV_AUTH_KO] = {true, ST_AUTH, az_auth_ko},\n                       [EV_CHIUDI]  = {true, ST_CHIUSA, nullptr} },\n    [ST_ATTIVA]    = { [EV_DATO]    = {true, ST_ATTIVA, az_dato},\n                       [EV_CHIUDI]  = {true, ST_CHIUSA, nullptr} },\n    [ST_BLOCCATA]  = { [EV_RESET]   = {true, ST_CHIUSA, az_azzera_err} }\n};\n\nfsm_sess_t *fsm_crea(void) { return calloc(1, sizeof(fsm_sess_t)); }\nvoid fsm_distruggi(fsm_sess_t *f) { free(f); }\nstato_sess_t fsm_stato(const fsm_sess_t *f) { return (f != nullptr) ? f->stato : ST_CHIUSA; }\nconst char *fsm_nome_stato(stato_sess_t s) { return (s < ST_CONTEGGIO) ? NOMI_STATO[s] : \"IGNOTO\"; }\n\nbool fsm_invia(fsm_sess_t *f, evento_sess_t ev, int32_t payload) {\n    if (f == nullptr || f->stato >= ST_CONTEGGIO || ev >= EV_CONTEGGIO) { return false; }\n    const transizione_t *t = &TABELLA[f->stato][ev];\n    if (!t->valida) { ++f->rifiutati; return false; }\n    stato_sess_t vecchio = f->stato;\n    bool ok = true;\n    stato_sess_t nuovo = (t->azione != nullptr) ? t->azione(f, payload, t->prossimo, &ok) : t->prossimo;\n    if (!ok) { return false; }\n    f->stato = nuovo;\n    if (nuovo != vecchio && ON_ENTER[nuovo] != nullptr) { ON_ENTER[nuovo](f); }\n    return true;\n}\n\nvoid fsm_stampa_stats(const fsm_sess_t *f) {\n    printf(\"STATS: stato=%s sess_ok=%\" PRIu32 \" blocchi=%\" PRIu32 \" pkt=%\" PRIu32 \" byte=%\" PRIu64 \" rifiutati=%\" PRIu32 \"\\n\",\n           fsm_nome_stato(f->stato), f->sessioni_ok, f->blocchi, f->pacchetti, f->byte_tx, f->rifiutati);\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"fsm_sess.h\"\n\nstatic const char *const NOMI_EV[] = {\"APRI\", \"ACK\", \"AUTH_OK\", \"AUTH_KO\", \"DATO\", \"CHIUDI\", \"RESET\"};\nstatic_assert(sizeof(NOMI_EV) / sizeof(NOMI_EV[0]) == EV_CONTEGGIO);\n\nstatic bool risolvi_ev(const char *s, evento_sess_t *out) {\n    for (size_t i = 0; i < EV_CONTEGGIO; ++i) {\n        if (strcmp(s, NOMI_EV[i]) == 0) { *out = (evento_sess_t)i; return true; }\n    }\n    return false;\n}\n\nint main(void) {\n    fsm_sess_t *f = fsm_crea();\n    if (f == nullptr) { return EXIT_FAILURE; }\n    char riga[128], cmd[16], ev_s[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"EV\") == 0) {\n            long long p = 0;\n            int n = sscanf(riga, \"EV %15s %lld %c\", ev_s, &p, &extra);\n            evento_sess_t ev = EV_CONTEGGIO;\n            if ((n != 1 && n != 2) || !risolvi_ev(ev_s, &ev) || p < INT32_MIN || p > INT32_MAX) {\n                fsm_distruggi(f); return EXIT_FAILURE;\n            }\n            stato_sess_t prima = fsm_stato(f);\n            if (fsm_invia(f, ev, (n == 2) ? (int32_t)p : 0)) {\n                printf(\"EV %s: %s -> %s\\n\", ev_s, fsm_nome_stato(prima), fsm_nome_stato(fsm_stato(f)));\n            } else {\n                printf(\"EV %s: RIFIUTATO (stato=%s)\\n\", ev_s, fsm_nome_stato(fsm_stato(f)));\n            }\n        } else if (strcmp(cmd, \"STATO\") == 0 && sscanf(riga, \"STATO %c\", &extra) != 1) {\n            printf(\"STATO: %s\\n\", fsm_nome_stato(fsm_stato(f)));\n        } else if (strcmp(cmd, \"STATS\") == 0 && sscanf(riga, \"STATS %c\", &extra) != 1) {\n            fsm_stampa_stats(f);\n        } else { fsm_distruggi(f); return EXIT_FAILURE; }\n    }\n    fsm_distruggi(f);\n    return EXIT_SUCCESS;\n}\n"
+      }
+    },
+    {
+      "id": "24.6",
+      "tipo": "esercizio",
+      "titolo": "Codec binario portabile per frame di telemetria con intestazione a campi di bit, unione etichettata e CRC-8",
+      "descrizione": "Realizza su tre file (`frame_bin.h`, `frame_bin.c`, `main.c`) un codec binario compatto che separa rigorosamente la rappresentazione in memoria (campi di bit + unione etichettata) dalla serializzazione portabile big-endian su buffer di byte con verifica CRC-8. (1) In `frame_bin.h` (protetto da `FRAME_BIN_H`) definisci `tipo_frame_t` (`FRM_PING = 0`, `FRM_SENSORE = 1`, `FRM_COMANDO = 2`, `FRM_ERRORE = 3`), `esito_frame_t` (`FRM_OK`, `FRM_ERR_LEN`, `FRM_ERR_CRC`, `FRM_ERR_VER`, `FRM_ERR_PAYLOAD`), la struct a campi di bit `intestazione_bf_t` con esattamente 32 bit (`unsigned int versione : 2; tipo : 2; priorita : 2; cifrato : 1; ack : 1; src : 6; dst : 6; len : 4; seq : 8;`, verificata con `static_assert(sizeof(intestazione_bf_t) == sizeof(unsigned int))`), l'unione `payload_frame_t` (`sensore { int16_t temp_d; uint16_t umid_d; }`, `comando { uint8_t op; uint8_t arg; }`, `errore { uint16_t cod; }`) e `frame_t { intestazione_bf_t hdr; payload_frame_t dati; }`. Dichiara `uint8_t frame_crc8(const uint8_t *buf, size_t n);` (polinomio `0x07`, stato iniziale `0x00`), `size_t frame_codifica(const frame_t *f, uint8_t *out, size_t cap);` e `esito_frame_t frame_decodifica(const uint8_t *buf, size_t n, frame_t *out);`. (2) In `frame_bin.c` serializza i 32 bit dell'intestazione in big-endian (`bit 31..30 = versione`, `29..28 = tipo`, `27..26 = priorita`, `25 = cifrato`, `24 = ack`, `23..18 = src`, `17..12 = dst`, `11..8 = len`, `7..0 = seq`), seguiti dal payload big-endian (`PING`: 0 byte, `SENSORE`: 4 byte, `COMANDO`: 2 byte, `ERRORE`: 2 byte) e dal byte finale `CRC-8` calcolato su tutti i byte precedenti. `frame_decodifica` rifiuta lunghezze `< 5` o `> 9` (`FRM_ERR_LEN`), CRC errato (`FRM_ERR_CRC`), `versione != 1` (`FRM_ERR_VER`), lunghezza dichiarata incoerente col tipo (`FRM_ERR_PAYLOAD`) o buffer di dimensione diversa da `5 + hdr.len` (`FRM_ERR_LEN`), ricostruendo `temp_d` in complemento a due senza UB. (3) In `main.c` gestisci da `stdin` i comandi `ENC_PING`, `ENC_SENS`, `ENC_CMD`, `ENC_ERR` (con `versione = 1`) e `DEC <n> <hex0> ... <hex{n-1}>`, riproducendo esattamente l'output dell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "rappresentazione in memoria compatta tramite campi di bit unsigned int e unione etichettata",
+        "verifica a tempo di compilazione della compattezza della struct con static_assert",
+        "serializzazione e deserializzazione big-endian portabile con spostamenti e maschere senza copiare byte grezzi della struct",
+        "calcolo e verifica del codice di integrità CRC-8 e controllo di versione e lunghezza del payload"
+      ],
+      "domande_guida": [
+        "Perché non puoi serializzare frame_t con una semplice memcpy(out, &f->hdr, 4) anche se sizeof(intestazione_bf_t) vale 4 sulla tua macchina?",
+        "Come ricostruisci in modo portabile il valore con segno int16_t temp_d dai due byte big-endian del payload senza incorrere in comportamento indefinito?",
+        "Perché nella decodifica conviene verificare il byte CRC-8 prima di fidarsi dei campi versione, tipo e len estratti dall'intestazione?",
+        "Quale vantaggio offre combinare intestazione_bf_t con l'unione etichettata payload_frame_t rispetto a una struct che contenga separatamente tutti i possibili campi di tutti i tipi di frame?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ENC_PING 2 0 1 5 12 7\nENC_SENS 3 1 0 10 20 42 -125 645\nENC_CMD 1 0 1 1 2 9 16 250\nDEC 5 49 14 c0 07 cc\nDEC 9 5e 29 44 2a ff 83 02 85 39\nDEC 5 49 14 c0 07 00\nDEC 5 89 14 c0 07 66\n",
+          "output": "ENC(5): 49 14 c0 07 cc\nENC(9): 5e 29 44 2a ff 83 02 85 39\nENC(7): 65 04 22 09 10 fa 28\nDEC OK: v=1 PING prio=2 cif=0 ack=1 5->12 seq=7\nDEC OK: v=1 SENS prio=3 cif=1 ack=0 10->20 seq=42 temp=-125 umid=645\nDEC ERR: CRC\nDEC ERR: VER\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "ENC_ERR 0 0 0 63 0 255 404\nDEC 7 70 fc 02 ff 01 94 bb\nDEC 4 49 14 c0 07\n",
+          "output": "ENC(7): 70 fc 02 ff 01 94 bb\nDEC OK: v=1 ERR prio=0 cif=0 ack=0 63->0 seq=255 cod=404\nDEC ERR: LEN\n"
+        },
+        {
+          "input": "ENC_SENS 0 0 0 0 0 0 -32768 65535\nDEC 9 50 00 04 00 80 00 ff ff 5a\n",
+          "output": "ENC(9): 50 00 04 00 80 00 ff ff 5a\nDEC OK: v=1 SENS prio=0 cif=0 ack=0 0->0 seq=0 temp=-32768 umid=65535\n"
+        }
+      ],
+      "soluzione_file": {
+        "frame_bin.h": "#ifndef FRAME_BIN_H\n#define FRAME_BIN_H\n\n#include <stddef.h>\n#include <stdint.h>\n\ntypedef enum tipo_frame { FRM_PING = 0, FRM_SENSORE = 1, FRM_COMANDO = 2, FRM_ERRORE = 3 } tipo_frame_t;\ntypedef enum esito_frame { FRM_OK = 0, FRM_ERR_LEN, FRM_ERR_CRC, FRM_ERR_VER, FRM_ERR_PAYLOAD } esito_frame_t;\n\ntypedef struct intestazione_bf {\n    unsigned int versione : 2;\n    unsigned int tipo : 2;\n    unsigned int priorita : 2;\n    unsigned int cifrato : 1;\n    unsigned int ack : 1;\n    unsigned int src : 6;\n    unsigned int dst : 6;\n    unsigned int len : 4;\n    unsigned int seq : 8;\n} intestazione_bf_t;\n\nstatic_assert(sizeof(intestazione_bf_t) == sizeof(unsigned int));\n\ntypedef union payload_frame {\n    struct { int16_t temp_d; uint16_t umid_d; } sensore;\n    struct { uint8_t op; uint8_t arg; } comando;\n    struct { uint16_t cod; } errore;\n} payload_frame_t;\n\ntypedef struct frame { intestazione_bf_t hdr; payload_frame_t dati; } frame_t;\n\nuint8_t frame_crc8(const uint8_t *buf, size_t n);\nsize_t frame_codifica(const frame_t *f, uint8_t *out, size_t cap);\nesito_frame_t frame_decodifica(const uint8_t *buf, size_t n, frame_t *out);\n\n#endif\n",
+        "frame_bin.c": "#include \"frame_bin.h\"\n\nstatic size_t len_attesa(unsigned int tipo) {\n    if (tipo == FRM_PING) { return 0; }\n    if (tipo == FRM_SENSORE) { return 4; }\n    return 2;\n}\n\nstatic int16_t u16_a_i16(uint16_t u) {\n    if ((u & 0x8000U) == 0U) { return (int16_t)u; }\n    return (u == 0x8000U) ? INT16_MIN : (int16_t)(-(int32_t)(uint16_t)((uint16_t)(~u) + 1U));\n}\n\nuint8_t frame_crc8(const uint8_t *buf, size_t n) {\n    uint8_t crc = 0;\n    for (size_t i = 0; i < n; ++i) {\n        crc ^= buf[i];\n        for (int b = 0; b < 8; ++b) {\n            crc = ((crc & 0x80U) != 0U) ? (uint8_t)((crc << 1) ^ 0x07U) : (uint8_t)(crc << 1);\n        }\n    }\n    return crc;\n}\n\nsize_t frame_codifica(const frame_t *f, uint8_t *out, size_t cap) {\n    if (f == nullptr || out == nullptr) { return 0; }\n    size_t plen = len_attesa(f->hdr.tipo);\n    if (f->hdr.len != plen || cap < 5 + plen) { return 0; }\n    uint32_t w = ((uint32_t)f->hdr.versione << 30) | ((uint32_t)f->hdr.tipo << 28) |\n                 ((uint32_t)f->hdr.priorita << 26) | ((uint32_t)f->hdr.cifrato << 25) |\n                 ((uint32_t)f->hdr.ack << 24) | ((uint32_t)f->hdr.src << 18) |\n                 ((uint32_t)f->hdr.dst << 12) | ((uint32_t)f->hdr.len << 8) | (uint32_t)f->hdr.seq;\n    out[0] = (uint8_t)(w >> 24); out[1] = (uint8_t)(w >> 16);\n    out[2] = (uint8_t)(w >> 8);  out[3] = (uint8_t)w;\n    if (f->hdr.tipo == FRM_SENSORE) {\n        uint16_t tu = (uint16_t)f->dati.sensore.temp_d;\n        out[4] = (uint8_t)(tu >> 8); out[5] = (uint8_t)tu;\n        out[6] = (uint8_t)(f->dati.sensore.umid_d >> 8); out[7] = (uint8_t)f->dati.sensore.umid_d;\n    } else if (f->hdr.tipo == FRM_COMANDO) {\n        out[4] = f->dati.comando.op; out[5] = f->dati.comando.arg;\n    } else if (f->hdr.tipo == FRM_ERRORE) {\n        out[4] = (uint8_t)(f->dati.errore.cod >> 8); out[5] = (uint8_t)f->dati.errore.cod;\n    }\n    out[4 + plen] = frame_crc8(out, 4 + plen);\n    return 5 + plen;\n}\n\nesito_frame_t frame_decodifica(const uint8_t *buf, size_t n, frame_t *out) {\n    if (buf == nullptr || out == nullptr || n < 5 || n > 9) { return FRM_ERR_LEN; }\n    if (frame_crc8(buf, n - 1) != buf[n - 1]) { return FRM_ERR_CRC; }\n    uint32_t w = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) |\n                 ((uint32_t)buf[2] << 8) | (uint32_t)buf[3];\n    *out = (frame_t){ .hdr = {\n        .versione = (w >> 30) & 3U, .tipo = (w >> 28) & 3U, .priorita = (w >> 26) & 3U,\n        .cifrato = (w >> 25) & 1U, .ack = (w >> 24) & 1U, .src = (w >> 18) & 0x3FU,\n        .dst = (w >> 12) & 0x3FU, .len = (w >> 8) & 0x0FU, .seq = w & 0xFFU\n    }};\n    if (out->hdr.versione != 1U) { return FRM_ERR_VER; }\n    size_t plen = len_attesa(out->hdr.tipo);\n    if (out->hdr.len != plen) { return FRM_ERR_PAYLOAD; }\n    if (n != 5 + plen) { return FRM_ERR_LEN; }\n    if (out->hdr.tipo == FRM_SENSORE) {\n        out->dati.sensore.temp_d = u16_a_i16((uint16_t)(((uint16_t)buf[4] << 8) | buf[5]));\n        out->dati.sensore.umid_d = (uint16_t)(((uint16_t)buf[6] << 8) | buf[7]);\n    } else if (out->hdr.tipo == FRM_COMANDO) {\n        out->dati.comando.op = buf[4]; out->dati.comando.arg = buf[5];\n    } else if (out->hdr.tipo == FRM_ERRORE) {\n        out->dati.errore.cod = (uint16_t)(((uint16_t)buf[4] << 8) | buf[5]);\n    }\n    return FRM_OK;\n}\n",
+        "main.c": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include \"frame_bin.h\"\n\nstatic void stampa_hex(const uint8_t *b, size_t n) {\n    printf(\"ENC(%zu):\", n);\n    for (size_t i = 0; i < n; ++i) { printf(\" %02\" PRIx8, b[i]); }\n    printf(\"\\n\");\n}\n\nstatic void stampa_frame(const frame_t *f) {\n    static const char *const NT[] = {\"PING\", \"SENS\", \"CMD\", \"ERR\"};\n    printf(\"DEC OK: v=%u %s prio=%u cif=%u ack=%u %u->%u seq=%u\",\n           f->hdr.versione, NT[f->hdr.tipo], f->hdr.priorita, f->hdr.cifrato,\n           f->hdr.ack, f->hdr.src, f->hdr.dst, f->hdr.seq);\n    if (f->hdr.tipo == FRM_SENSORE) {\n        printf(\" temp=%\" PRId16 \" umid=%\" PRIu16, f->dati.sensore.temp_d, f->dati.sensore.umid_d);\n    } else if (f->hdr.tipo == FRM_COMANDO) {\n        printf(\" op=%\" PRIu8 \" arg=%\" PRIu8, f->dati.comando.op, f->dati.comando.arg);\n    } else if (f->hdr.tipo == FRM_ERRORE) {\n        printf(\" cod=%\" PRIu16, f->dati.errore.cod);\n    }\n    printf(\"\\n\");\n}\n\nint main(void) {\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        unsigned int pr = 0, ci = 0, ak = 0, sr = 0, ds = 0, sq = 0, u1 = 0, u2 = 0;\n        int s1 = 0;\n        uint8_t raw[16] = {};\n        if (strcmp(cmd, \"ENC_PING\") == 0 && sscanf(riga, \"ENC_PING %u %u %u %u %u %u %c\", &pr, &ci, &ak, &sr, &ds, &sq, &extra) == 6) {\n            frame_t f = {.hdr = {1, FRM_PING, pr, ci, ak, sr, ds, 0, sq}};\n            stampa_hex(raw, frame_codifica(&f, raw, sizeof(raw)));\n        } else if (strcmp(cmd, \"ENC_SENS\") == 0 && sscanf(riga, \"ENC_SENS %u %u %u %u %u %u %d %u %c\", &pr, &ci, &ak, &sr, &ds, &sq, &s1, &u2, &extra) == 8) {\n            frame_t f = {.hdr = {1, FRM_SENSORE, pr, ci, ak, sr, ds, 4, sq}, .dati = {.sensore = {(int16_t)s1, (uint16_t)u2}}};\n            stampa_hex(raw, frame_codifica(&f, raw, sizeof(raw)));\n        } else if (strcmp(cmd, \"ENC_CMD\") == 0 && sscanf(riga, \"ENC_CMD %u %u %u %u %u %u %u %u %c\", &pr, &ci, &ak, &sr, &ds, &sq, &u1, &u2, &extra) == 8) {\n            frame_t f = {.hdr = {1, FRM_COMANDO, pr, ci, ak, sr, ds, 2, sq}, .dati = {.comando = {(uint8_t)u1, (uint8_t)u2}}};\n            stampa_hex(raw, frame_codifica(&f, raw, sizeof(raw)));\n        } else if (strcmp(cmd, \"ENC_ERR\") == 0 && sscanf(riga, \"ENC_ERR %u %u %u %u %u %u %u %c\", &pr, &ci, &ak, &sr, &ds, &sq, &u1, &extra) == 7) {\n            frame_t f = {.hdr = {1, FRM_ERRORE, pr, ci, ak, sr, ds, 2, sq}, .dati = {.errore = {(uint16_t)u1}}};\n            stampa_hex(raw, frame_codifica(&f, raw, sizeof(raw)));\n        } else if (strcmp(cmd, \"DEC\") == 0) {\n            size_t n = 0; int pos = 0;\n            if (sscanf(riga, \"DEC %zu%n\", &n, &pos) != 1 || n > 16) { return EXIT_FAILURE; }\n            const char *p = riga + pos;\n            for (size_t i = 0; i < n; ++i) {\n                unsigned int v = 0; int av = 0;\n                if (sscanf(p, \"%x%n\", &v, &av) != 1 || v > 255) { return EXIT_FAILURE; }\n                raw[i] = (uint8_t)v; p += av;\n            }\n            frame_t f = {};\n            esito_frame_t e = frame_decodifica(raw, n, &f);\n            if (e == FRM_OK) { stampa_frame(&f); }\n            else {\n                static const char *const NE[] = {\"OK\", \"LEN\", \"CRC\", \"VER\", \"PAYLOAD\"};\n                printf(\"DEC ERR: %s\\n\", NE[e]);\n            }\n        } else { return EXIT_FAILURE; }\n    }\n    return EXIT_SUCCESS;\n}\n"
+      }
+    }
+  ],
+  "errori_comuni": [
+    "Scrivere una macro multi-istruzione tra semplici graffe { ... } invece di do { ... } while (0) (rompendo if-else), oppure dimenticare il punto e virgola o metterne uno di troppo nella definizione della macro.",
+    "Usare int rc = setjmp(env); invece di un contesto sintattico consentito (come if (setjmp(env) == 0)), oppure dimenticare volatile sulle variabili automatiche locali modificate prima di un longjmp.",
+    "Allocare memoria con malloc o aprire file in funzioni interne senza registrarli per la pulizia prima di un longjmp, provocando perdite di memoria silenziose lungo i frame saltati.",
+    "Applicare CONTENITORE_DI a un puntatore che punta alla testa sentinella anziché a un elemento reale, oppure rimuovere e liberare un nodo con LISTA_PER_OGNI invece di LISTA_PER_OGNI_SICURO.",
+    "Accedere a una tabella 2D di macchina a stati senza verificare i limiti di stato ed evento o senza controllare che il puntatore a funzione di azione non sia nullptr.",
+    "Serializzare direttamente i byte grezzi di una struct a campi di bit con memcpy o fwrite assumendo un ordine dei bit e un endianness universali, invece di usare spostamenti e maschere esplicite."
+  ],
+  "differenze_python": [
+    "In Python il polimorfismo e il sovraccarico vengono risolti dinamicamente a tempo di esecuzione sugli oggetti; in C _Generic abbinato a funzioni inline seleziona la funzione esatta a tempo di compilazione senza alcun sovraccarico a tempo di esecuzione.",
+    "In Python le eccezioni (try/except/finally) eseguono automaticamente la pulizia delle risorse tramite i context manager (with); in C longjmp salta direttamente i frame dello stack senza eseguire alcuna pulizia automatica, rendendo indispensabile il tracciamento esplicito delle risorse.",
+    "In Python le liste sono collezioni di riferimenti gestite dal runtime; in C le liste intrusive con offsetof incorporano i collegamenti direttamente negli oggetti per evitare allocazioni extra e permettere l'appartenenza simultanea a più liste."
+  ]
+}
