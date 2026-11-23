@@ -1,0 +1,16 @@
+{
+  "capitolo": 4,
+  "errori": [],
+  "avvisi": [
+    "04_01.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "04_02.md: usa il termine 'funzione' che il glossario introduce al capitolo 7",
+    "04_02.md: usa il termine 'argomento' che il glossario introduce al capitolo 7"
+  ],
+  "info": {
+    "programmi": 4,
+    "frammenti": 11,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 6042
+  }
+}

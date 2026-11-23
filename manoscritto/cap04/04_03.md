@@ -1,0 +1,163 @@
+## 4.3 Scelte multiple con `switch`
+
+Quando devi confrontare una stessa espressione con molti valori specifici — per esempio un codice di menu (`1`, `2`, `3`), una lettera di comando (`'A'`, `'B'`, `'C'`) o un giorno della settimana (`1`..`7`) — una lunga catena `if / else if / else` che ripete sempre lo stesso confronto con `==` diventa verbosa e ripetitiva. In questi casi il C mette a disposizione un costrutto dedicato: `switch`.
+
+La regola di scelta tra `if / else if` e `switch` è chiara: usa `if / else if` quando confronti intervalli (`temperatura < 37.5`), condizioni complesse con `&&` e `||`, oppure valori `double`; usa `switch` quando smisti il flusso di controllo confrontando una singola espressione intera (o `char`) con un insieme finito di valori costanti discreti.
+
+La forma di base di uno `switch` è composta dall'espressione di controllo tra parentesi tonde e da un blocco contenente etichette `case`, istruzioni `break;` e un'etichetta opzionale `default:`:
+
+<!-- cod: id=4.3-b tipo=frammento -->
+```c
+switch (scelta) {
+    case 1:
+        printf("Avvio stampa\n");
+        break;
+    case 2:
+        printf("Salvataggio dati\n");
+        break;
+    default:
+        printf("Scelta non riconosciuta\n");
+        break;
+}
+```
+
+Quando il programma raggiunge lo `switch`, valuta l'espressione tra parentesi una sola volta e salta direttamente all'etichetta `case` il cui valore costante coincide con il risultato. Se nessun `case` corrisponde, salta all'etichetta `default` (se presente); se manca anche `default`, l'intero `switch` viene saltato senza eseguire nulla. Conviene inserire **sempre** il ramo `default`, anche quando ti aspetti soltanto certi valori: funge da rete di sicurezza per intercettare dati imprevisti o errori di logica.
+
+Lo standard C impone vincoli precisi su ciò che puoi scrivere dentro uno `switch`:
+
+- L'espressione di `switch (espressione)` deve avere un **tipo intero** (`int`, `long`, `char`, `bool` e le relative varianti con o senza segno; in seguito potrai usarvi anche le enumerazioni, lo vedremo nel capitolo 12). Non puoi mai usare un `double` o un `float` dentro uno `switch`: il compilatore segnala un errore di compilazione.
+- Ogni etichetta `case` deve indicare un'**espressione costante intera** nota a tempo di compilazione: un letterale intero (`1`), un letterale carattere (`'A'`), oppure — in C23 — una costante dichiarata con `constexpr` (non una normale variabile `int`, e nemmeno una `const int` non `constexpr`).
+- Tutte le etichette `case` di uno stesso `switch` devono avere valori **distinti**: duplicare un valore causa un errore di compilazione.
+
+Una caratteristica fondamentale dello `switch` in C è che le etichette `case` sono semplici punti di ingresso, non blocchi separati. Una volta saltato a un `case`, il programma esegue tutte le istruzioni che trova fino a incontrare un'istruzione `break;` (che fa uscire dallo `switch`) oppure la parentesi graffa di chiusura dello `switch`. Se manca `break;`, l'esecuzione prosegue automaticamente dentro il ramo `case` successivo: questo meccanismo si chiama **fall-through**.
+
+Il fall-through può essere sfruttato in modo pulito in due situazioni:
+
+1. **Raggruppamento di etichette vuote**: quando più valori devono eseguire esattamente lo stesso codice, impili le etichette `case` una sotto l'altra senza istruzioni in mezzo, come `case 'a':` seguito subito da `case 'A':`. È un idioma standard e chiarissimo.
+2. **Fall-through intenzionale dopo istruzioni**: quando un livello superiore include anche le azioni dei livelli inferiori (per esempio un abbonamento avanzato che eredita i vantaggi dei piani base). In C23 questo passaggio intenzionale si dichiara esplicitamente con l'**attributo** (*attribute*) standard `[[fallthrough]];` posto al posto di `break;`. Un **attributo** è un'annotazione standard C23 tra doppie parentesi quadre `[[...]]` che fornisce informazioni aggiuntive al compilatore.
+
+> **C23** — L'attributo standard `[[fallthrough]];` è stato introdotto dallo standard C23. Nei compilatori che supportano solo standard precedenti (C17 o C11) la sintassi `[[fallthrough]];` non è disponibile e viene rifiutata dal compilatore: in quei casi si segnala il fall-through intenzionale con un commento esplicito come `/* fallthrough */` (che molti compilatori riconoscono per sopprimere gli avvisi).
+
+Riassumiamo la regola precisa secondo lo standard C23:
+
+- L'istruzione `switch (espressione)` accetta un'espressione di tipo intero (inclusi `char` e `bool`) e salta all'etichetta `case` con espressione costante intera corrispondente, oppure a `default` se nessuna etichetta coincide.
+- Le etichette `case` di uno stesso `switch` devono essere tutte distinte.
+- Senza `break` l'esecuzione prosegue nel ramo successivo (`fall-through`); se il `fall-through` dopo istruzioni è intenzionale, in C23 lo si segnala con `[[fallthrough]];`.
+- I vincoli sui tipi interi, l'unicità delle costanti `case`, il meccanismo di `fall-through` e l'attributo standard `[[fallthrough]]` sono comportamento completamente **definito** dallo standard C23.
+
+Un ultimo dettaglio pratico riguarda le variabili dichiarate dentro un ramo `case`. Se vuoi introdurre una variabile locale usata solo in un determinato `case`, racchiudi il codice di quel ramo tra parentesi graffe `{ ... }`:
+
+<!-- cod: id=4.3-c tipo=frammento -->
+```c
+switch (modalita) {
+    case 1: {
+        int sconto = 10;
+        printf("Sconto applicato: %d%%\n", sconto);
+        break;
+    }
+    default:
+        printf("Nessuno sconto\n");
+        break;
+}
+```
+
+Le parentesi graffe limitano la variabile `sconto` a quel solo ramo e impediscono al programma di saltare oltre la sua inizializzazione entrando in un `case` successivo, evitando errori di compilazione e ambiguità.
+
+> **Se vieni da Python** — In Python il costrutto `match`/`case` non ha fall-through tra i rami: una volta completato un ramo, l'esecuzione esce automaticamente dal blocco. Nello `switch` del C, invece, l'esecuzione prosegue nel `case` successivo se non termini il ramo con `break;` (e in C23, quando vuoi davvero proseguire dopo delle istruzioni, lo dichiari con `[[fallthrough]];`).
+
+### Esempio guidato
+
+Il programma seguente utilizza due istruzioni `switch`. Il primo `switch` esamina il numero di un giorno della settimana (`1..7`) e raggruppa le etichette vuote per distinguere i giorni lavorativi (`1..5`) dal fine settimana (`6..7`), con un ramo `default` per eventuali numeri fuori intervallo. Il secondo `switch` esamina il livello di un abbonamento (`1..3`) e sfrutta il fall-through intenzionale annotato con `[[fallthrough]];` per elencare tutti i vantaggi cumulativi inclusi nel livello scelto.
+
+<!-- cod: id=4.3-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    int giorno = 6;
+    int livello_abbonamento = 3;
+
+    switch (giorno) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            printf("Giorno %d: lavorativo\n", giorno);
+            break;
+        case 6:
+        case 7:
+            printf("Giorno %d: fine settimana\n", giorno);
+            break;
+        default:
+            printf("Giorno %d: valore non valido\n", giorno);
+            break;
+    }
+
+    printf("Vantaggi abbonamento (livello %d):\n", livello_abbonamento);
+    switch (livello_abbonamento) {
+        case 3:
+            printf("- Consulenza prioritaria\n");
+            [[fallthrough]];
+        case 2:
+            printf("- Accesso ai laboratori serali\n");
+            [[fallthrough]];
+        case 1:
+            printf("- Prestito libri della biblioteca\n");
+            break;
+        default:
+            printf("- Livello non riconosciuto\n");
+            break;
+    }
+
+    return 0;
+}
+```
+
+```output
+Giorno 6: fine settimana
+Vantaggi abbonamento (livello 3):
+- Consulenza prioritaria
+- Accesso ai laboratori serali
+- Prestito libri della biblioteca
+```
+
+Osserva come lavorano i due `switch`:
+
+- Nel primo `switch`, `giorno` vale `6`: il flusso salta direttamente a `case 6:`, prosegue attraverso l'etichetta vuota `case 7:`, stampa `Giorno 6: fine settimana` e si ferma grazie a `break;`.
+- Nel secondo `switch`, `livello_abbonamento` vale `3`. Il flusso entra in `case 3:`, stampa il vantaggio del livello 3 e incontra `[[fallthrough]];`, proseguendo intenzionalmente in `case 2:`, poi in `case 1:`, fino al `break;` che evita di entrare anche in `default:`.
+- Se cambiassi `livello_abbonamento` a `1`, verrebbe stampato solo il terzo vantaggio; se lo impostassi a `9`, entrerebbe in `default:`.
+
+> **Approfondimento — Dimenticare `break` e il ruolo di `[[fallthrough]]`**
+> Dimenticare un `break;` al termine di un ramo `case` è uno degli errori logici più frequenti in C: il programma compila senza errori, ma esegue silenziosamente anche le istruzioni del `case` successivo, sovrascrivendo risultati o stampando messaggi sbagliati. Quando attivi gli avvisi del compilatore (per esempio con `-Wextra`), il compilatore può segnalare i fall-through non annotati come sospetti. Scrivere `[[fallthrough]];` nei rari casi in cui il passaggio è voluto comunica chiaramente la tua intenzione sia a chi legge il codice sia al compilatore, permettendogli di avvisarti soltanto quando hai davvero dimenticato un `break;`.
+
+### Esercizio 4.3 — Biglietteria ferroviaria con `switch` e `[[fallthrough]]`
+
+**Descrizione**
+
+Un sistema di biglietteria elabora un viaggio descritto da `char codice_treno = 'i';` (`'R'`/`'r'` = Regionale a `0.12` euro/km; `'I'`/`'i'` = Intercity a `0.18` euro/km; `'A'`/`'a'` = Alta Velocità a `0.26` euro/km; altro = codice non valido), `int distanza_km = 150;` e `int livello_servizio = 2;` (`3` = Executive, `2` = Business, `1` = Standard). Scrivi un programma C con due istruzioni `switch`: il primo `switch` su `codice_treno` raggruppa lettere maiuscole e minuscole, imposta la tariffa chilometrica (gestendo il caso imprevisto in `default`) e stampa categoria e prezzo base con due cifre decimali; il secondo `switch` su `livello_servizio` usa il fall-through intenzionale annotato con l'attributo C23 `[[fallthrough]];` per stampare i servizi cumulativi inclusi (`case 3`: `- Accesso lounge stazione`, `case 2`: `- Posto riservato con presa elettrica`, `case 1`: `- Trasporto bagaglio a mano`, `default`: `- Livello servizio non riconosciuto`). Stampa l'output esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- costrutto `switch`, `case`, `break` e `default`
+- raggruppamento di etichette `case` vuote
+- fall-through intenzionale
+- attributo C23 `[[fallthrough]]`
+
+**Domande guida**
+
+1. Perché un carattere `char` come `codice_treno` può essere usato direttamente come espressione di uno `switch`?
+2. Come puoi gestire sia `'I'` maiuscola sia `'i'` minuscola nello `switch` senza duplicare le istruzioni?
+3. Quale differenza c'è tra dimenticare un `break` per errore e usare `[[fallthrough]];` in modo intenzionale?
+4. Perché conviene inserire sempre un ramo `default` anche quando ti aspetti solo alcuni valori?
+
+**Esempio di esecuzione**
+
+```output
+Categoria treno: Intercity
+Distanza: 150 km
+Prezzo base: 27.00 euro
+Servizi inclusi (livello 2):
+- Posto riservato con presa elettrica
+- Trasporto bagaglio a mano
+```
