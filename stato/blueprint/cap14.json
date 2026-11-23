@@ -1,0 +1,473 @@
+{
+  "capitolo": 14,
+  "titolo": "Puntatori avanzati",
+  "obiettivi": [
+    "Usare puntatori a puntatori per modificare un puntatore dentro una funzione e gestire array di puntatori",
+    "Allocare e liberare matrici dinamiche in modo contiguo o per righe senza perdite di memoria",
+    "Elaborare argomenti da riga di comando con argc/argv e convertire stringhe in numeri con strtol e strtod controllando gli overflow con errno, ERANGE e HUGE_VAL",
+    "Applicare correttamente const e restrict e prevenire puntatori pendenti usando valori sentinella"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "puntatore a puntatore",
+      "definizione": "Variabile che contiene l'indirizzo di un'altra variabile di tipo puntatore."
+    },
+    {
+      "termine": "puntatore pendente",
+      "definizione": "Puntatore che conserva l'indirizzo di un oggetto la cui durata di vita è terminata o che è stato liberato."
+    },
+    {
+      "termine": "valore sentinella",
+      "definizione": "Valore speciale, come nullptr o '\\0', posto al termine di una sequenza per segnalarne la fine senza un contatore separato."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "operatore sizeof e tipo size_t",
+    "overflow",
+    "comportamento indefinito",
+    "funzione",
+    "passaggio per valore",
+    "durata di vita",
+    "array",
+    "stringa",
+    "terminatore nullo",
+    "puntatore",
+    "indirizzo di memoria",
+    "dereferenziazione",
+    "puntatore nullo",
+    "decadimento di array",
+    "aritmetica dei puntatori",
+    "stack",
+    "heap",
+    "allocazione dinamica",
+    "perdita di memoria",
+    "uso dopo la liberazione",
+    "doppia liberazione",
+    "struttura",
+    "campo"
+  ],
+  "regole": [
+    {
+      "id": "14.R1",
+      "enunciato": "Un puntatore a puntatore di tipo T **pp memorizza l'indirizzo di una variabile puntatore T *p (ottenuto con &p). Con un livello di dereferenziazione (*pp) si legge o si modifica il puntatore p del chiamante; con due livelli (**pp) si accede all'oggetto di tipo T puntato da p. Per modificare il puntatore del chiamante dentro una funzione (ad esempio allocarlo, ridimensionarlo con realloc o azzerarlo a nullptr dopo free) occorre passare &p a un parametro T **pp, verificando sempre che pp != nullptr prima di dereferenziarlo.",
+      "nota_standard": "indefinito: i puntatori multipli e la dereferenziazione su livelli validi sono definiti dallo standard C23; dereferenziare pp o *pp quando è nullptr o non inizializzato provoca comportamento indefinito."
+    },
+    {
+      "id": "14.R2",
+      "enunciato": "Una matrice dinamica di R righe e C colonne può essere rappresentata sullo heap come array di puntatori alle righe (T **m con R + 1 allocazioni e accesso m[i][j]) oppure come un singolo blocco contiguo (T *dati = calloc(R * C, sizeof(*dati)) con accesso dati[i * C + j], verificando prima che R == 0 || C <= SIZE_MAX / R). Nell'allocazione per righe, se l'allocazione della riga i fallisce occorre liberare le righe 0..i-1 già allocate e l'array di puntatori prima di restituire nullptr. Un array bidimensionale statico T a[R][C] decade a T (*)[C] e non a T **.",
+      "nota_standard": "definito: entrambe le rappresentazioni e la regola di decadimento di T[R][C] a T (*)[C] sono definite dallo standard C23; superare i limiti di una riga o di un blocco contiguo provoca comportamento indefinito."
+    },
+    {
+      "id": "14.R3",
+      "enunciato": "La firma standard di main con argomenti da riga di comando è int main(int argc, char *argv[]) (equivalente a char **argv): argc è non negativo, argv[0] contiene il nome del programma se argc > 0 e argv[argc] è garantito essere un puntatore nullo (valore sentinella). Le funzioni strtol, strtoul, strtoll, strtoull e strtod di <stdlib.h> convertono una stringa in numero restituendo tramite char **endptr il puntatore al primo carattere non convertito. Prima della chiamata occorre azzerare errno = 0 (<errno.h>): in caso di overflow o underflow la funzione imposta errno = ERANGE (e strtod restituisce ±HUGE_VAL di <math.h> in caso di overflow).",
+      "nota_standard": "definito: argc, argv[argc] == nullptr, le funzioni strto* e la segnalazione con errno/ERANGE/HUGE_VAL sono definite dallo standard C23; nessuna funzione della libreria standard azzera errno in caso di successo, e passare a strto* un puntatore nullo come primo argomento provoca comportamento indefinito."
+    },
+    {
+      "id": "14.R4",
+      "enunciato": "In C la conversione implicita che aggiunge const a un puntatore è consentita solo sul primo livello puntato: T * si converte implicitamente in const T * e T ** si converte implicitamente in T *const *, mentre T ** NON si converte implicitamente in const T ** né in const T *const *. Il qualificatore restrict applicato a un puntatore a oggetto (T *restrict p) dichiara al compilatore che, durante l'esecuzione del blocco in cui p è dichiarato, ogni oggetto modificato tramite p non sarà acceduto tramite alcun altro puntatore non derivato da p.",
+      "nota_standard": "indefinito: le regole di conversione di const tra livelli di puntatori e la semantica di restrict sono definite dallo standard C23; violare la promessa di non sovrapposizione di restrict modificando lo stesso oggetto attraverso due puntatori indipendenti provoca comportamento indefinito."
+    },
+    {
+      "id": "14.R5",
+      "enunciato": "Un valore sentinella (come '\\0' in una stringa o nullptr in un array di puntatori char **) indica la fine di una sequenza senza contatore separato e richiede di riservare sempre spazio per l'elemento terminatore. Un puntatore diventa un puntatore pendente quando l'oggetto a cui puntava termina la propria durata di vita (uscita dalla funzione o dal blocco di una variabile locale, chiamata a free oppure spostamento del blocco da parte di realloc). Per prevenire puntatori pendenti si azzerano i puntatori dopo free e si usano indici size_t anziché puntatori diretti agli elementi di array ridimensionabili.",
+      "nota_standard": "indefinito: dereferenziare, confrontare in modo ordinato o leggere un puntatore pendente (o anche solo usarne il valore indeterminato dopo free/realloc) provoca comportamento indefinito nello standard C23."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr in caso di fallimento."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte (size > 0 in C23), restituendo il nuovo indirizzo oppure nullptr lasciando ptr valido."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strtol",
+      "firma": "long int strtol(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in long int nella base indicata (0 o 2..36), salva in *endptr il primo carattere non letto e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtoul",
+      "firma": "unsigned long int strtoul(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in unsigned long int nella base indicata (0 o 2..36), salva in *endptr il primo carattere non letto e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtoll",
+      "firma": "long long int strtoll(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in long long int nella base indicata (0 o 2..36), salva in *endptr il primo carattere non letto e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtoull",
+      "firma": "unsigned long long int strtoull(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in unsigned long long int nella base indicata (0 o 2..36), salva in *endptr il primo carattere non letto e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtod",
+      "firma": "double strtod(const char *restrict nptr, char **restrict endptr);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in double, salva in *endptr il primo carattere non letto e segnala overflow/underflow con errno = ERANGE (e ±HUGE_VAL in overflow)."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "strcspn",
+      "firma": "size_t strcspn(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Restituisce la lunghezza del prefisso iniziale di s1 composto solo da caratteri assenti in s2."
+    },
+    {
+      "nome": "strdup",
+      "firma": "char *strdup(const char *s);",
+      "header": "string.h",
+      "descrizione": "Funzione C23 che alloca sullo heap una copia completa della stringa s (incluso '\\0') e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "14.1",
+      "titolo": "Puntatori a puntatori",
+      "contenuti": [
+        "Cos'è un puntatore a puntatore (T **pp = &p;): doppia indirezione tra *pp (il puntatore p) e **pp (l'oggetto puntato da p), con schema di memoria in blocco text",
+        "Perché passare un puntatore T * per valore non permette alla funzione di cambiare dove punta la variabile del chiamante: passaggio di &p a un parametro T **pp (completando quanto anticipato nel capitolo 10)",
+        "Casi d'uso idiomatici di T **: funzioni di allocazione o riallocazione che restituiscono un bool di esito e consegnano il nuovo indirizzo tramite parametro di uscita, scambio di due puntatori (void scambia_str(const char **a, const char **b)) e rilascio sicuro (void libera_int(int **p) che esegue free(*p); *p = nullptr;)",
+        "Avanzamento di un cursore di lettura su stringa tramite const char **cursore (preparando il meccanismo del parametro endptr di strtol e strtod)",
+        "Controlli difensivi su entrambi i livelli (pp != nullptr e *pp != nullptr) per evitare dereferenziazioni nulle"
+      ],
+      "esempio_guidato": "Un programma che dimostra lo scambio di due puntatori const char * tramite scambia_stringhe(const char **a, const char **b), una funzione bool espandi_array(int **dati, size_t *cap, size_t nuova_cap) che aggiorna il puntatore del chiamante con realloc e una funzione void libera_e_azzera(int **dati) che libera il blocco e imposta il puntatore del chiamante a nullptr.",
+      "approfondimento": "Quando fermarsi a due livelli di indirezione: un puntatore a tre livelli (T ***) rende il codice difficile da leggere ed è quasi sempre il segnale che conviene raccogliere puntatore, lunghezza e capacità in una struct descrittore.",
+      "esercizio_id": "14.1"
+    },
+    {
+      "id": "14.2",
+      "titolo": "Array di puntatori e matrici dinamiche",
+      "contenuti": [
+        "Array di puntatori (char *nomi[N] sullo stack o char **nomi sullo heap): memorizzare stringhe o righe di lunghezza diversa e riordinarle scambiando solo i puntatori senza copiare il contenuto",
+        "Matrice dinamica per righe (T **m): allocazione dell'array di R puntatori e di ciascuna delle R righe di C elementi, sintassi m[i][j], gestione del fallimento parziale (liberare solo le righe 0..i-1 già allocate) e ordine inverso di liberazione",
+        "Matrice dinamica in un unico blocco contiguo (T *dati = calloc(R * C, sizeof(*dati)) con controllo preventivo di overflow R > SIZE_MAX / C): accesso dati[i * C + j], una sola allocazione, una sola free e migliore località in memoria (schema comparativo in blocco text)",
+        "Approccio ibrido (array di puntatori alle righe che indirizzano le fette dati + i * C di un blocco contiguo) e criteri per scegliere tra le rappresentazioni",
+        "Chiarimento fondamentale: un array 2D statico int a[3][4] decade a int (*)[4] (puntatore ad array di 4 int), non a int **"
+      ],
+      "esempio_guidato": "Un programma che alloca la stessa griglia 3x4 sia come matrice per righe (int **per_righe) sia come blocco contiguo (int *contigua), scambia due righe in tempo costante su per_righe scambiando soltanto i puntatori di riga, calcola la somma di una colonna su contigua con i * cols + j e libera entrambe le strutture senza perdite di memoria.",
+      "approfondimento": "Perché una matrice in un singolo blocco contiguo è di norma più veloce di un array di puntatori alle righe: riduce il numero di chiamate all'allocatore da R + 1 a 1 ed elimina un livello di indirezione a ogni accesso, favorendo la cache del processore (approfondiremo la località dei dati nel capitolo 25).",
+      "esercizio_id": "14.2"
+    },
+    {
+      "id": "14.3",
+      "titolo": "Argomenti da riga di comando (argc/argv), strtol e strtod",
+      "contenuti": [
+        "Firma int main(int argc, char *argv[]): significato di argc, di argv[0], degli argomenti argv[1..argc-1] e della garanzia dello standard argv[argc] == nullptr",
+        "Analisi di opzioni (es. --base, --scala) e argomenti posizionali con strcmp, segnalazione degli errori d'uso su stderr e restituzione di EXIT_FAILURE",
+        "Conversione rigorosa di stringhe in interi con strtol, strtoul, strtoll e strtoull (<stdlib.h>): ruolo di base (10, 16, 2, 0), passaggio di &endptr per controllare che ci siano cifre valide (endptr != s) e nessun carattere residuo (*endptr == '\\0')",
+        "Conversione rigorosa in virgola mobile con strtod (<stdlib.h>) e perché evitare funzioni prive di controllo d'errore come atoi/atol/atof",
+        "Controllo di overflow e underflow con <errno.h>: azzerare sempre errno = 0 prima della chiamata e controllare errno == ERANGE (insieme a ±HUGE_VAL di <math.h> per strtod e agli estremi INT_MIN/INT_MAX se si restringe il valore a int)"
+      ],
+      "esempio_guidato": "Un programma con int main(int argc, char *argv[]) che elabora gli argomenti da riga di comando (oppure un elenco dimostrativo predefinito quando avviato senza argomenti), analizza un flag --base e converte stringhe numeriche con strtol e strtod azzerando errno = 0 e distinguendo tra formato non valido ed overflow (ERANGE e HUGE_VAL).",
+      "approfondimento": "Due insidie frequenti con strto*: nessuna funzione della libreria standard azzera errno quando riesce (quindi bisogna sempre scrivere errno = 0 prima della chiamata), e strtoul/strtoull accettano un segno '-' iniziale applicando la negazione modulare senza segno (se vuoi solo numeri non negativi, verifica prima che non ci sia '-').",
+      "esercizio_id": "14.3"
+    },
+    {
+      "id": "14.4",
+      "titolo": "Correttezza di const e qualificatore restrict",
+      "contenuti": [
+        "Correttezza di const con puntatori multipli: lettura da destra a sinistra di const char **, char *const * e const char *const *",
+        "Perché in C T ** si converte implicitamente in T *const * ma NON in const T ** né in const T *const *: dimostrazione del buco di sicurezza dei tipi che si aprirebbe se T ** -> const T ** fosse permessa",
+        "Come progettare API const-correct per array di stringhe (dichiarare const char *v[] quando le stringhe non vanno modificate, così decade a const char ** e si converte a const char *const *)",
+        "Il qualificatore restrict (C99/C23): contratto di assenza di aliasing tra puntatori a oggetti, perché compare nelle firme standard (strcpy, snprintf, sscanf, strtol) e quali ottimizzazioni abilita",
+        "Violazione di restrict (puntatori sovrapposti quando almeno uno scrive) come comportamento indefinito: quando usare restrict e quando evitarlo (operazioni in-place o con buffer potenzialmente sovrapposti)"
+      ],
+      "esempio_guidato": "Un programma che dimostra una funzione di stampa const-correct su const char *const * (affiancata da un blocco di tipo errore che tenta la conversione illegale da char ** a const char **) e confronta una funzione vettoriale con restrict (che richiede buffer disgiunti) con una trasformazione in-place senza restrict.",
+      "approfondimento": "Che cos'è l'aliasing dei puntatori: quando due puntatori di tipo compatibile raggiungono la stessa area di memoria, il compilatore senza restrict deve assumere che una scrittura attraverso il primo possa cambiare ciò che leggerà dal secondo, rinunciando a mantenere i valori nei registri della CPU.",
+      "esercizio_id": "14.4"
+    },
+    {
+      "id": "14.5",
+      "titolo": "Valori sentinella e puntatori pendenti",
+      "contenuti": [
+        "Cos'è un valore sentinella: terminazione di sequenze senza lunghezza separata ('\\0' per le stringhe, nullptr per array di puntatori come argv e tabelle dinamiche char **), vantaggi e costi (lunghezza O(n) e obbligo dello slot extra + 1)",
+        "Scansione, inserimento e rilascio di array di puntatori terminati da nullptr",
+        "Cos'è un puntatore pendente (dangling pointer) e perché usarne il valore dopo la fine della durata di vita dell'oggetto è comportamento indefinito",
+        "Le quattro cause principali di puntatori pendenti (mostrate in frammenti esplicitamente vietati con relative correzioni): indirizzo di variabile locale restituita da funzione, variabile di un blocco interno uscita di visibilità, puntatore o alias non azzerato dopo free, e puntatore a un elemento invalidato da realloc",
+        "Strategie di prevenzione: azzerare il puntatore tramite funzione T ** dopo free, memorizzare indici size_t anziché puntatori diretti dentro array ridimensionabili e verificare sempre con AddressSanitizer"
+      ],
+      "esempio_guidato": "Un programma che gestisce una lista dinamica di comandi terminata dalla sentinella nullptr, mantiene un indice size_t verso un comando attivo che resta valido anche dopo la crescita con realloc (spiegando perché un puntatore diretto diventerebbe un puntatore pendente) e distrugge la lista azzerando il puntatore a nullptr, affiancato da frammenti vietati sui quattro casi di puntatore pendente.",
+      "approfondimento": "Perché un indice size_t è immune allo spostamento operato da realloc: l'indirizzo assoluto del blocco sullo heap può cambiare, rendendo pendenti tutti i puntatori che vi puntavano, ma la posizione relativa dell'elemento rispetto alla nuova base resta identica.",
+      "esercizio_id": "14.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "14.1",
+      "tipo": "esercizio",
+      "titolo": "Parser di coppie chiave=valore e tabella dinamica gestiti tramite puntatori a puntatori",
+      "descrizione": "Scrivi un programma C che definisca `typedef struct coppia { char *chiave; char *valore; } coppia_t;` e implementi quattro funzioni basate su puntatori a puntatori: (1) `int estrai_coppia(const char **cursore, char chiave_out[32], char valore_out[32])` che salta eventuali spazi, tabulazioni e `';'` iniziali avanzando `*cursore`; se raggiunge `'\\0'` restituisce `0`, altrimenti estrae una coppia `chiave=valore` (dove `chiave` e `valore` sono non vuoti, lunghi al più `31` caratteri e non contengono spazi, `'='` o `';'`), avanza `*cursore` al carattere successivo alla coppia e restituisce `1` (restituisce `-1` in caso di errore di sintassi); (2) `bool aggiungi_coppia(coppia_t **tab, size_t *len, size_t *cap, const char *chiave, const char *valore)` che fa crescere `*tab` con `realloc` (`0 -> 2 -> 4 -> ...`) e duplica `chiave` e `valore` con `strdup`; (3) `void scambia_puntatori(char **a, char **b)` che scambia due puntatori `char *` senza copiare stringhe; (4) `void libera_tabella(coppia_t **tab, size_t *len, size_t *cap)` che libera ogni coppia e `*tab`, azzerando `*tab = nullptr`, `*len = 0` e `*cap = 0`. In `main` leggi dalla prima riga di `stdin` una sequenza di coppie separate da `';'` o spazi, estraile in un ciclo passando `&cursore` a `estrai_coppia` e inseriscile con `aggiungi_coppia(&tabella, &len, &cap, ...)`. Leggi poi dalle righe successive eventuali comandi `SWAP <i> <j>` (`0 <= i, j < len`), che scambiano i puntatori `tabella[i].valore` e `tabella[j].valore` chiamando `scambia_puntatori`. In caso di errore di sintassi, indice o allocazione libera tutto, scrivi su `stderr` e restituisci `EXIT_FAILURE`. Al termine stampa le coppie, il totale con capacità, chiama `libera_tabella(&tabella, &len, &cap)` e verifica che `tabella == nullptr` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "puntatore a puntatore (T **) per modificare un puntatore del chiamante dentro una funzione",
+        "avanzamento di un cursore di scansione tramite const char **cursore",
+        "riallocazione sicura di un array dinamico tramite coppia_t **tab con puntatore temporaneo",
+        "scambio di puntatori char * tramite char ** senza copiare i caratteri",
+        "funzione di rilascio che libera e azzera il puntatore del chiamante (*tab = nullptr)"
+      ],
+      "domande_guida": [
+        "Perché aggiungi_coppia e libera_tabella devono ricevere coppia_t **tab invece di coppia_t *tab?",
+        "Come fa estrai_coppia a comunicare al ciclo in main il punto esatto della riga da cui riprendere la lettura alla chiamata successiva?",
+        "Quale vantaggio offre scambia_puntatori(&tabella[i].valore, &tabella[j].valore) rispetto a copiare le stringhe con strcpy?",
+        "Perché dopo libera_tabella(&tabella, &len, &cap) la verifica tabella == nullptr in main risulta vera?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "host=alpha; porta=8080; modo=auto\nSWAP 0 2\n",
+          "output": "[0] host=auto\n[1] porta=8080\n[2] modo=alpha\nTotale coppie: 3 (capacita: 4)\nDopo rilascio: ptr_nullo=1 len=0 cap=0\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "   ; ; \n",
+          "output": "Totale coppie: 0 (capacita: 0)\nDopo rilascio: ptr_nullo=1 len=0 cap=0\n"
+        },
+        {
+          "input": "utente=admin\nSWAP 0 0\n",
+          "output": "[0] utente=admin\nTotale coppie: 1 (capacita: 2)\nDopo rilascio: ptr_nullo=1 len=0 cap=0\n"
+        },
+        {
+          "input": "a=1; b=2; c=3; d=4; e=5\nSWAP 0 4\nSWAP 1 3\n",
+          "output": "[0] a=5\n[1] b=4\n[2] c=3\n[3] d=2\n[4] e=1\nTotale coppie: 5 (capacita: 8)\nDopo rilascio: ptr_nullo=1 len=0 cap=0\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct coppia {\n    char *chiave;\n    char *valore;\n} coppia_t;\n\nint estrai_coppia(const char **cursore, char chiave_out[32], char valore_out[32]);\nbool aggiungi_coppia(coppia_t **tab, size_t *len, size_t *cap, const char *chiave, const char *valore);\nvoid scambia_puntatori(char **a, char **b);\nvoid libera_tabella(coppia_t **tab, size_t *len, size_t *cap);\n\nint main(void) {\n    char riga[256], extra = '\\0';\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n        fprintf(stderr, \"Errore: input mancante.\\n\");\n        return EXIT_FAILURE;\n    }\n    riga[strcspn(riga, \"\\r\\n\")] = '\\0';\n\n    coppia_t *tabella = nullptr;\n    size_t len = 0, cap = 0;\n    const char *cursore = riga;\n    char k[32], v[32];\n    int esito = 0;\n    while ((esito = estrai_coppia(&cursore, k, v)) == 1) {\n        if (!aggiungi_coppia(&tabella, &len, &cap, k, v)) {\n            libera_tabella(&tabella, &len, &cap);\n            fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    if (esito == -1) {\n        libera_tabella(&tabella, &len, &cap);\n        fprintf(stderr, \"Errore: sintassi coppia non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        char cmd[16];\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t i = 0, j = 0;\n        if (strcmp(cmd, \"SWAP\") == 0 && sscanf(riga, \"SWAP %zu %zu %c\", &i, &j, &extra) == 2 &&\n            i < len && j < len) {\n            scambia_puntatori(&tabella[i].valore, &tabella[j].valore);\n        } else {\n            libera_tabella(&tabella, &len, &cap);\n            fprintf(stderr, \"Errore: comando SWAP non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    for (size_t i = 0; i < len; ++i) {\n        printf(\"[%zu] %s=%s\\n\", i, tabella[i].chiave, tabella[i].valore);\n    }\n    printf(\"Totale coppie: %zu (capacita: %zu)\\n\", len, cap);\n    libera_tabella(&tabella, &len, &cap);\n    printf(\"Dopo rilascio: ptr_nullo=%d len=%zu cap=%zu\\n\", tabella == nullptr, len, cap);\n    return EXIT_SUCCESS;\n}\n\nint estrai_coppia(const char **cursore, char chiave_out[32], char valore_out[32]) {\n    if (cursore == nullptr || *cursore == nullptr) { return -1; }\n    const char *p = *cursore;\n    while (*p == ' ' || *p == '\\t' || *p == ';') { ++p; }\n    if (*p == '\\0') { *cursore = p; return 0; }\n    size_t lk = 0;\n    while (*p != '\\0' && *p != '=' && *p != ';' && *p != ' ' && *p != '\\t') {\n        if (lk >= 31) { return -1; }\n        chiave_out[lk++] = *p++;\n    }\n    chiave_out[lk] = '\\0';\n    if (lk == 0 || *p != '=') { return -1; }\n    ++p;\n    size_t lv = 0;\n    while (*p != '\\0' && *p != '=' && *p != ';' && *p != ' ' && *p != '\\t') {\n        if (lv >= 31) { return -1; }\n        valore_out[lv++] = *p++;\n    }\n    valore_out[lv] = '\\0';\n    if (lv == 0 || (*p != '\\0' && *p != ';' && *p != ' ' && *p != '\\t')) { return -1; }\n    *cursore = p;\n    return 1;\n}\n\nbool aggiungi_coppia(coppia_t **tab, size_t *len, size_t *cap, const char *chiave, const char *valore) {\n    if (tab == nullptr || len == nullptr || cap == nullptr) { return false; }\n    if (*len == *cap) {\n        size_t ncap = (*cap == 0) ? 2 : (*cap * 2);\n        coppia_t *tmp = realloc(*tab, ncap * sizeof(*tmp));\n        if (tmp == nullptr) { return false; }\n        *tab = tmp;\n        *cap = ncap;\n    }\n    char *ck = strdup(chiave);\n    char *cv = strdup(valore);\n    if (ck == nullptr || cv == nullptr) {\n        free(ck);\n        free(cv);\n        return false;\n    }\n    (*tab)[*len] = (coppia_t){.chiave = ck, .valore = cv};\n    ++(*len);\n    return true;\n}\n\nvoid scambia_puntatori(char **a, char **b) {\n    if (a != nullptr && b != nullptr) {\n        char *tmp = *a;\n        *a = *b;\n        *b = tmp;\n    }\n}\n\nvoid libera_tabella(coppia_t **tab, size_t *len, size_t *cap) {\n    if (tab != nullptr && *tab != nullptr) {\n        for (size_t i = 0; i < *len; ++i) {\n            free((*tab)[i].chiave);\n            free((*tab)[i].valore);\n        }\n        free(*tab);\n        *tab = nullptr;\n    }\n    if (len != nullptr) { *len = 0; }\n    if (cap != nullptr) { *cap = 0; }\n}\n"
+    },
+    {
+      "id": "14.2",
+      "tipo": "esercizio",
+      "titolo": "Trasposizione di matrice contigua e ordinamento di righe tramite array di puntatori",
+      "descrizione": "Scrivi un programma C che metta a confronto le due rappresentazioni dinamiche di una matrice di interi `R x C`: un blocco contiguo `typedef struct matrice_contigua { size_t righe; size_t cols; int *dati; } matrice_contigua_t;` (con accesso `dati[r * cols + c]`) e un array di puntatori alle righe `int **per_righe` (con accesso `per_righe[r][c]`). Implementa sei funzioni: `bool crea_contigua(matrice_contigua_t *m, size_t r, size_t c)` (verifica `r > 0 && c > 0 && r <= SIZE_MAX / c` e alloca con `calloc`), `void libera_contigua(matrice_contigua_t *m)` (libera e azzera i campi), `bool trasponi_contigua(const matrice_contigua_t *src, matrice_contigua_t *dst)` (alloca `dst` di dimensione `src->cols x src->righe` e copia `src[r][c]` in `dst[c][r]`), `int **crea_per_righe(size_t r, size_t c)` (alloca l'array di `r` puntatori e ciascuna riga di `c` interi, liberando correttamente le righe già allocate in caso di fallimento intermedio), `void libera_per_righe(int **m, size_t r)` e `void ordina_righe_per_somma(int **m, size_t r, size_t c)` (ordina in modo stabile le righe per somma crescente degli elementi scambiando esclusivamente i puntatori `int *` delle righe, senza copiare gli elementi delle righe). In `main` leggi dalla prima riga `r c` (`1 <= r <= 32`, `1 <= c <= 32`) e dalle successive `r` righe i `c` interi di ciascuna riga. Carica i valori in entrambe le strutture, calcola e stampa la trasposta (`c x r`) dalla matrice contigua, poi ordina le righe di `per_righe` e stampa ciascuna riga con la propria somma nel formato dell'esempio. Libera tutta la memoria prima di uscire.",
+      "concetti_da_tenere_a_mente": [
+        "matrice dinamica in un unico blocco contiguo con calcolo dell'indice r * cols + c",
+        "controllo preventivo di overflow del prodotto r * c con SIZE_MAX / c",
+        "matrice dinamica per righe (int **) con pulizia parziale in caso di errore di allocazione",
+        "ordinamento stabile delle righe scambiando solo i puntatori int * senza copiare gli elementi"
+      ],
+      "domande_guida": [
+        "Quale espressione mappa le coordinate (r, c) nella posizione lineare dell'array dati di una matrice contigua di cols colonne?",
+        "Se in crea_per_righe l'allocazione della riga k fallisce, quali blocchi di memoria devono essere liberati prima di restituire nullptr?",
+        "Perché ordina_righe_per_somma riesce a spostare intere righe di per_righe con un solo assegnamento di puntatore mentre su una matrice contigua dovrebbe copiare c interi per ogni spostamento?",
+        "In che ordine devi chiamare free dentro libera_per_righe per evitare una perdita di memoria o un uso dopo la liberazione?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3 2\n10 5\n1 2\n3 0\n",
+          "output": "Trasposta (2x3):\n10 1 3\n5 2 0\nRighe ordinate per somma:\n1 2 (somma=3)\n3 0 (somma=3)\n10 5 (somma=15)\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1 1\n-7\n",
+          "output": "Trasposta (1x1):\n-7\nRighe ordinate per somma:\n-7 (somma=-7)\n"
+        },
+        {
+          "input": "2 3\n4 -1 2\n-5 0 -2\n",
+          "output": "Trasposta (3x2):\n4 -5\n-1 0\n2 -2\nRighe ordinate per somma:\n-5 0 -2 (somma=-7)\n4 -1 2 (somma=5)\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct matrice_contigua {\n    size_t righe;\n    size_t cols;\n    int *dati;\n} matrice_contigua_t;\n\nbool crea_contigua(matrice_contigua_t *m, size_t r, size_t c);\nvoid libera_contigua(matrice_contigua_t *m);\nbool trasponi_contigua(const matrice_contigua_t *src, matrice_contigua_t *dst);\nint **crea_per_righe(size_t r, size_t c);\nvoid libera_per_righe(int **m, size_t r);\nlong long somma_riga(const int *riga, size_t c);\nvoid ordina_righe_per_somma(int **m, size_t r, size_t c);\n\nint main(void) {\n    char riga[512], extra = '\\0';\n    int r_in = 0, c_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %d %c\", &r_in, &c_in, &extra) != 2 ||\n        r_in < 1 || r_in > 32 || c_in < 1 || c_in > 32) {\n        fprintf(stderr, \"Errore: dimensioni matrice non valide.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t r = (size_t)r_in, c = (size_t)c_in;\n    matrice_contigua_t orig = {}, trasp = {};\n    int **per_righe = crea_per_righe(r, c);\n    if (!crea_contigua(&orig, r, c) || per_righe == nullptr) {\n        libera_contigua(&orig);\n        libera_per_righe(per_righe, r);\n        fprintf(stderr, \"Errore: allocazione fallita.\\n\");\n        return EXIT_FAILURE;\n    }\n    for (size_t i = 0; i < r; ++i) {\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n            libera_contigua(&orig); libera_per_righe(per_righe, r);\n            fprintf(stderr, \"Errore: riga mancante.\\n\");\n            return EXIT_FAILURE;\n        }\n        const char *p = riga;\n        for (size_t j = 0; j < c; ++j) {\n            int val = 0, letti = 0;\n            if (sscanf(p, \"%d%n\", &val, &letti) != 1) {\n                libera_contigua(&orig); libera_per_righe(per_righe, r);\n                fprintf(stderr, \"Errore: valore intero non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            orig.dati[i * c + j] = val;\n            per_righe[i][j] = val;\n            p += letti;\n        }\n        if (sscanf(p, \" %c\", &extra) == 1) {\n            libera_contigua(&orig); libera_per_righe(per_righe, r);\n            fprintf(stderr, \"Errore: dati in eccesso sulla riga.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    if (!trasponi_contigua(&orig, &trasp)) {\n        libera_contigua(&orig); libera_per_righe(per_righe, r);\n        return EXIT_FAILURE;\n    }\n    printf(\"Trasposta (%zux%zu):\\n\", trasp.righe, trasp.cols);\n    for (size_t i = 0; i < trasp.righe; ++i) {\n        for (size_t j = 0; j < trasp.cols; ++j) {\n            printf(\"%s%d\", (j > 0) ? \" \" : \"\", trasp.dati[i * trasp.cols + j]);\n        }\n        printf(\"\\n\");\n    }\n    ordina_righe_per_somma(per_righe, r, c);\n    printf(\"Righe ordinate per somma:\\n\");\n    for (size_t i = 0; i < r; ++i) {\n        for (size_t j = 0; j < c; ++j) {\n            printf(\"%s%d\", (j > 0) ? \" \" : \"\", per_righe[i][j]);\n        }\n        printf(\" (somma=%lld)\\n\", somma_riga(per_righe[i], c));\n    }\n    libera_contigua(&orig);\n    libera_contigua(&trasp);\n    libera_per_righe(per_righe, r);\n    return EXIT_SUCCESS;\n}\n\nbool crea_contigua(matrice_contigua_t *m, size_t r, size_t c) {\n    if (m == nullptr || r == 0 || c == 0 || r > SIZE_MAX / c) { return false; }\n    int *d = calloc(r * c, sizeof(*d));\n    if (d == nullptr) { return false; }\n    m->righe = r; m->cols = c; m->dati = d;\n    return true;\n}\n\nvoid libera_contigua(matrice_contigua_t *m) {\n    if (m != nullptr) { free(m->dati); m->dati = nullptr; m->righe = 0; m->cols = 0; }\n}\n\nbool trasponi_contigua(const matrice_contigua_t *src, matrice_contigua_t *dst) {\n    if (!crea_contigua(dst, src->cols, src->righe)) { return false; }\n    for (size_t i = 0; i < src->righe; ++i) {\n        for (size_t j = 0; j < src->cols; ++j) {\n            dst->dati[j * dst->cols + i] = src->dati[i * src->cols + j];\n        }\n    }\n    return true;\n}\n\nint **crea_per_righe(size_t r, size_t c) {\n    if (r == 0 || c == 0) { return nullptr; }\n    int **m = calloc(r, sizeof(*m));\n    if (m == nullptr) { return nullptr; }\n    for (size_t i = 0; i < r; ++i) {\n        m[i] = calloc(c, sizeof(*m[i]));\n        if (m[i] == nullptr) {\n            libera_per_righe(m, i);\n            return nullptr;\n        }\n    }\n    return m;\n}\n\nvoid libera_per_righe(int **m, size_t r) {\n    if (m == nullptr) { return; }\n    for (size_t i = 0; i < r; ++i) { free(m[i]); }\n    free(m);\n}\n\nlong long somma_riga(const int *riga, size_t c) {\n    long long s = 0;\n    for (size_t j = 0; j < c; ++j) { s += riga[j]; }\n    return s;\n}\n\nvoid ordina_righe_per_somma(int **m, size_t r, size_t c) {\n    for (size_t i = 1; i < r; ++i) {\n        int *chiave = m[i];\n        long long s_chiave = somma_riga(chiave, c);\n        size_t j = i;\n        while (j > 0 && somma_riga(m[j - 1], c) > s_chiave) {\n            m[j] = m[j - 1];\n            --j;\n        }\n        m[j] = chiave;\n    }\n}\n"
+    },
+    {
+      "id": "14.3",
+      "tipo": "esercizio",
+      "titolo": "Elaboratore di argomenti da riga di comando con strtol, strtod ed errno",
+      "descrizione": "Scrivi un programma C con firma `int main(int argc, char *argv[])` che includa `<ctype.h>`, `<errno.h>`, `<math.h>`, `<stdio.h>`, `<stdlib.h>` e `<string.h>` per analizzare opzioni da riga di comando e convertire stringhe in numeri controllando formato e overflow. Implementa tre funzioni: (1) `int parsa_long(const char *s, int base, long *out)` che rifiuta stringhe vuote o con spazi iniziali (`isspace`), imposta `errno = 0`, chiama `strtol(s, &end, base)` e restituisce `0` in caso di successo (`end != s && *end == '\\0' && errno != ERANGE`), `2` se `errno == ERANGE` (overflow/underflow) e `1` per errore di formato; (2) `bool parsa_double(const char *s, double *out)` che imposta `errno = 0`, chiama `strtod(s, &end)` e restituisce `true` solo se la stringa non è vuota né inizia con spazi, `end != s`, `*end == '\\0'`, `errno != ERANGE`, `val == val` (esclude NaN) e `fabs(val) != HUGE_VAL`; (3) `int esegui_comando(int argc, char *argv[])` che scorre `argv[1..argc-1]` (terminato dalla sentinella `argv[argc] == nullptr`) riconoscendo `--base <B>` (`B` in `{0, 2, 8, 10, 16}`, predefinita `10`) e `--scala <S>` (`double` finito, predefinito `1.0`). Se un'opzione che inizia con `--` è sconosciuta o ha un parametro mancante o non valido, stampa `ERRORE OPZIONE: <opt>` e restituisce `1`. Ogni altro argomento viene convertito con `parsa_long(arg, base, &v)`: se valido viene sommato in `long long`, altrimenti incrementa `scartati` e stampa `SCARTATO: <arg> (overflow)` oppure `SCARTATO: <arg> (formato)`. Al termine di un comando valido stampa `RISULTATO -> base=<B> scala=<S:.2f> validi=<V> scartati=<SC> somma=<SOMMA> scalata=<SOMMA*S:.2f>` e restituisce `0`. In `main`: se `argc > 1` esegue direttamente `esegui_comando(argc, argv)` e restituisce `EXIT_SUCCESS` o `EXIT_FAILURE`; se `argc == 1` legge da `stdin` righe di argomenti separati da spazi, costruisce per ciascuna riga un array `char *args[33]` con `args[0] = \"cli\"` e sentinella `args[n] = nullptr` e richiama `esegui_comando(n, args)`.",
+      "concetti_da_tenere_a_mente": [
+        "firma int main(int argc, char *argv[]) e sentinella argv[argc] == nullptr",
+        "conversione di interi con strtol in basi diverse (0, 2, 8, 10, 16) e controllo di endptr",
+        "conversione in virgola mobile con strtod e controllo di HUGE_VAL (<math.h>)",
+        "azzeramento obbligatorio di errno = 0 prima della chiamata e verifica di errno == ERANGE (<errno.h>)"
+      ],
+      "domande_guida": [
+        "Perché devi scrivere errno = 0 immediatamente prima di ogni chiamata a strtol o strtod?",
+        "Quali due controlli su endptr servono dopo strtol(s, &end, base) per distinguere una stringa senza cifre, una stringa con caratteri residui come 12abc e una conversione completamente valida?",
+        "Che differenza c'è nel comportamento di strtol quando base vale 0 rispetto a quando base vale 10 o 16?",
+        "Come ti permette la doppia modalità in main (argc > 1 da terminale e argc == 1 da stdin) di riutilizzare identicamente la stessa funzione esegui_comando?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "--base 16 --scala 0.5 10 ff 99999999999999999999999999999 1g\n--base 0 10 0x10 010\n--scala 1e500 5\n",
+          "output": "SCARTATO: 99999999999999999999999999999 (overflow)\nSCARTATO: 1g (formato)\nRISULTATO -> base=16 scala=0.50 validi=2 scartati=2 somma=271 scalata=135.50\nRISULTATO -> base=0 scala=1.00 validi=3 scartati=0 somma=34 scalata=34.00\nERRORE OPZIONE: --scala\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "--base 2 1010 1111 102\n",
+          "output": "SCARTATO: 102 (formato)\nRISULTATO -> base=2 scala=1.00 validi=2 scartati=1 somma=25 scalata=25.00\n"
+        },
+        {
+          "input": "-10 25 -5\n--sconosciuta 1\n",
+          "output": "RISULTATO -> base=10 scala=1.00 validi=3 scartati=0 somma=10 scalata=10.00\nERRORE OPZIONE: --sconosciuta\n"
+        },
+        {
+          "input": "--base 8 --scala -2.5 10 20\n",
+          "output": "RISULTATO -> base=8 scala=-2.50 validi=2 scartati=0 somma=24 scalata=-60.00\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <errno.h>\n#include <math.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nint parsa_long(const char *s, int base, long *out);\nbool parsa_double(const char *s, double *out);\nint esegui_comando(int argc, char *argv[]);\n\nint main(int argc, char *argv[]) {\n    if (argc > 1) {\n        return (esegui_comando(argc, argv) == 0) ? EXIT_SUCCESS : EXIT_FAILURE;\n    }\n    char riga[512];\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        riga[strcspn(riga, \"\\r\\n\")] = '\\0';\n        char prog[] = \"cli\";\n        char *args[33];\n        int n = 0;\n        args[n++] = prog;\n        char *p = riga;\n        while (*p != '\\0' && n < 32) {\n            while (*p != '\\0' && isspace((unsigned char)*p)) { ++p; }\n            if (*p == '\\0') { break; }\n            args[n++] = p;\n            while (*p != '\\0' && !isspace((unsigned char)*p)) { ++p; }\n            if (*p != '\\0') { *p++ = '\\0'; }\n        }\n        args[n] = nullptr;\n        if (n > 1) {\n            esegui_comando(n, args);\n        }\n    }\n    return EXIT_SUCCESS;\n}\n\nint parsa_long(const char *s, int base, long *out) {\n    if (s == nullptr || *s == '\\0' || isspace((unsigned char)*s)) { return 1; }\n    char *end = nullptr;\n    errno = 0;\n    long val = strtol(s, &end, base);\n    if (end == s || *end != '\\0') { return 1; }\n    if (errno == ERANGE) { return 2; }\n    *out = val;\n    return 0;\n}\n\nbool parsa_double(const char *s, double *out) {\n    if (s == nullptr || *s == '\\0' || isspace((unsigned char)*s)) { return false; }\n    char *end = nullptr;\n    errno = 0;\n    double val = strtod(s, &end);\n    if (end == s || *end != '\\0' || errno == ERANGE) { return false; }\n    if (val != val || fabs(val) == HUGE_VAL) { return false; }\n    *out = val;\n    return true;\n}\n\nint esegui_comando(int argc, char *argv[]) {\n    int base = 10;\n    double scala = 1.0;\n    int validi = 0, scartati = 0;\n    long long somma = 0;\n    for (int i = 1; i < argc && argv[i] != nullptr; ++i) {\n        if (strcmp(argv[i], \"--base\") == 0) {\n            long b = 0;\n            if (i + 1 >= argc || parsa_long(argv[i + 1], 10, &b) != 0 ||\n                (b != 0 && b != 2 && b != 8 && b != 10 && b != 16)) {\n                printf(\"ERRORE OPZIONE: --base\\n\");\n                return 1;\n            }\n            base = (int)b;\n            ++i;\n        } else if (strcmp(argv[i], \"--scala\") == 0) {\n            if (i + 1 >= argc || !parsa_double(argv[i + 1], &scala)) {\n                printf(\"ERRORE OPZIONE: --scala\\n\");\n                return 1;\n            }\n            ++i;\n        } else if (argv[i][0] == '-' && argv[i][1] == '-') {\n            printf(\"ERRORE OPZIONE: %s\\n\", argv[i]);\n            return 1;\n        } else {\n            long v = 0;\n            int err = parsa_long(argv[i], base, &v);\n            if (err == 0) {\n                somma += v;\n                ++validi;\n            } else {\n                ++scartati;\n                printf(\"SCARTATO: %s (%s)\\n\", argv[i], (err == 2) ? \"overflow\" : \"formato\");\n            }\n        }\n    }\n    printf(\"RISULTATO -> base=%d scala=%.2f validi=%d scartati=%d somma=%lld scalata=%.2f\\n\",\n           base, scala, validi, scartati, somma, (double)somma * scala);\n    return 0;\n}\n"
+    },
+    {
+      "id": "14.4",
+      "tipo": "esercizio",
+      "titolo": "Filtro di segnale con restrict, gestione sicura della sovrapposizione e const a due livelli",
+      "descrizione": "Scrivi un programma C che elabori un buffer dinamico di `cap` campioni `double` (`1 <= cap <= 100`) rispettando rigorosamente i contratti di `restrict` e `const`. Implementa quattro funzioni prima di `main`: (1) `bool fette_sovrapposte(size_t off_a, size_t off_b, size_t len)` che restituisce `true` se gli intervalli `[off_a, off_a + len)` e `[off_b, off_b + len)` condividono almeno un indice; (2) `void media_mobile_restrict(double *restrict dst, const double *restrict src, size_t n)` che richiede buffer disgiunti e calcola per `n == 1` `dst[0] = src[0]`, mentre per `n >= 2` calcola `dst[0] = (src[0] + src[1]) / 2.0`, `dst[i] = (src[i - 1] + src[i] + src[i + 1]) / 3.0` per `0 < i < n - 1` e `dst[n - 1] = (src[n - 2] + src[n - 1]) / 2.0`; (3) `bool applica_filtro(double *buf, size_t cap, size_t off_dst, size_t off_src, size_t len, bool *usato_tmp)` che controlla i limiti (`len >= 1`, `off_dst <= cap - len`, `off_src <= cap - len`), chiama direttamente `media_mobile_restrict` con `*usato_tmp = false` se le fette sono disgiunte, oppure alloca un buffer temporaneo `tmp`, calcola `media_mobile_restrict(tmp, buf + off_src, len)`, copia `tmp` in `buf + off_dst`, libera `tmp` e imposta `*usato_tmp = true` se le fette si sovrappongono; (4) `double energia_fette(const double *const *fette, const size_t *lunghezze, size_t k)` che riceve un array di puntatori a dati costanti (`const double *const *`) e somma i quadrati di tutti i campioni delle `k` fette. In `main` leggi dalla prima riga `cap`, dalla seconda riga i `cap` campioni `double`, e poi fino a fine input comandi `FILTRA <off_dst> <off_src> <len>` stampando `FILTRA [<src>..+<len>] -> [<dst>..+<len>] (tmp=<si|no>)`. Al termine stampa il buffer finale (`%.2f`) e l'energia totale calcolata chiamando `energia_fette` sulle due metà `{buf, buf + cap / 2}` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "contratto del qualificatore restrict: assenza di sovrapposizione tra dst e src",
+        "prevenzione del comportamento indefinito tramite rilevazione della sovrapposizione e buffer temporaneo",
+        "const-correctness a due livelli con const double *const *",
+        "gestione sicura dei limiti con aritmetica priva di overflow (off <= cap - len)"
+      ],
+      "domande_guida": [
+        "Perché chiamare media_mobile_restrict(buf + 1, buf, 4) direttamente senza buffer temporaneo violerebbe il contratto di restrict e produrrebbe comportamento indefinito?",
+        "Come stabilisce fette_sovrapposte se due sotto-intervalli di lunghezza len dentro lo stesso buffer si intersecano?",
+        "Che cosa impedisce di modificare ciascuno dei due const presenti nella firma const double *const *fette?",
+        "Perché conviene controllare off_dst <= cap - len (dopo aver verificato len <= cap) invece di scrivere off_dst + len <= cap?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "6\n0 6 0 6 0 6\nFILTRA 3 0 3\nFILTRA 1 0 4\n",
+          "output": "FILTRA [0..+3] -> [3..+3] (tmp=no)\nFILTRA [0..+4] -> [1..+4] (tmp=si)\nBuffer: 0.00 3.00 2.00 3.00 1.50 3.00\nEnergia totale: 33.25\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\n4.5\nFILTRA 0 0 1\n",
+          "output": "FILTRA [0..+1] -> [0..+1] (tmp=si)\nBuffer: 4.50\nEnergia totale: 20.25\n"
+        },
+        {
+          "input": "4\n2 4 6 8\nFILTRA 2 0 2\n",
+          "output": "FILTRA [0..+2] -> [2..+2] (tmp=no)\nBuffer: 2.00 4.00 3.00 3.00\nEnergia totale: 38.00\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nbool fette_sovrapposte(size_t off_a, size_t off_b, size_t len);\nvoid media_mobile_restrict(double *restrict dst, const double *restrict src, size_t n);\nbool applica_filtro(double *buf, size_t cap, size_t off_dst, size_t off_src, size_t len, bool *usato_tmp);\ndouble energia_fette(const double *const *fette, const size_t *lunghezze, size_t k);\n\nint main(void) {\n    char riga[512], cmd[16], extra = '\\0';\n    int cap_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &cap_in, &extra) != 1 || cap_in < 1 || cap_in > 100) {\n        fprintf(stderr, \"Errore: capacita non valida.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t cap = (size_t)cap_in;\n    double *buf = calloc(cap, sizeof(*buf));\n    if (buf == nullptr) { return EXIT_FAILURE; }\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {\n        free(buf);\n        fprintf(stderr, \"Errore: campioni mancanti.\\n\");\n        return EXIT_FAILURE;\n    }\n    const char *p = riga;\n    for (size_t i = 0; i < cap; ++i) {\n        int letti = 0;\n        if (sscanf(p, \"%lf%n\", &buf[i], &letti) != 1) {\n            free(buf);\n            fprintf(stderr, \"Errore: campione non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        p += letti;\n    }\n    if (sscanf(p, \" %c\", &extra) == 1) {\n        free(buf);\n        fprintf(stderr, \"Errore: campioni in eccesso.\\n\");\n        return EXIT_FAILURE;\n    }\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t dst = 0, src = 0, len = 0;\n        bool usato_tmp = false;\n        if (strcmp(cmd, \"FILTRA\") != 0 ||\n            sscanf(riga, \"FILTRA %zu %zu %zu %c\", &dst, &src, &len, &extra) != 3 ||\n            !applica_filtro(buf, cap, dst, src, len, &usato_tmp)) {\n            free(buf);\n            fprintf(stderr, \"Errore: comando FILTRA non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n        printf(\"FILTRA [%zu..+%zu] -> [%zu..+%zu] (tmp=%s)\\n\",\n               src, len, dst, len, usato_tmp ? \"si\" : \"no\");\n    }\n    printf(\"Buffer:\");\n    for (size_t i = 0; i < cap; ++i) { printf(\" %.2f\", buf[i]); }\n    printf(\"\\n\");\n    size_t meta = cap / 2;\n    const double *fette[2] = {buf, buf + meta};\n    size_t lun[2] = {meta, cap - meta};\n    printf(\"Energia totale: %.2f\\n\", energia_fette(fette, lun, 2));\n    free(buf);\n    return EXIT_SUCCESS;\n}\n\nbool fette_sovrapposte(size_t off_a, size_t off_b, size_t len) {\n    return (off_a < off_b + len) && (off_b < off_a + len);\n}\n\nvoid media_mobile_restrict(double *restrict dst, const double *restrict src, size_t n) {\n    if (n == 1) {\n        dst[0] = src[0];\n        return;\n    }\n    dst[0] = (src[0] + src[1]) / 2.0;\n    for (size_t i = 1; i + 1 < n; ++i) {\n        dst[i] = (src[i - 1] + src[i] + src[i + 1]) / 3.0;\n    }\n    dst[n - 1] = (src[n - 2] + src[n - 1]) / 2.0;\n}\n\nbool applica_filtro(double *buf, size_t cap, size_t off_dst, size_t off_src, size_t len, bool *usato_tmp) {\n    if (buf == nullptr || usato_tmp == nullptr || len == 0 || len > cap ||\n        off_dst > cap - len || off_src > cap - len) {\n        return false;\n    }\n    if (!fette_sovrapposte(off_dst, off_src, len)) {\n        *usato_tmp = false;\n        media_mobile_restrict(buf + off_dst, buf + off_src, len);\n        return true;\n    }\n    double *tmp = malloc(len * sizeof(*tmp));\n    if (tmp == nullptr) { return false; }\n    media_mobile_restrict(tmp, buf + off_src, len);\n    for (size_t i = 0; i < len; ++i) {\n        buf[off_dst + i] = tmp[i];\n    }\n    free(tmp);\n    *usato_tmp = true;\n    return true;\n}\n\ndouble energia_fette(const double *const *fette, const size_t *lunghezze, size_t k) {\n    double somma = 0.0;\n    for (size_t j = 0; j < k; ++j) {\n        for (size_t i = 0; i < lunghezze[j]; ++i) {\n            somma += fette[j][i] * fette[j][i];\n        }\n    }\n    return somma;\n}\n"
+    },
+    {
+      "id": "14.5",
+      "tipo": "esercizio",
+      "titolo": "Elenco dinamico terminato da sentinella nullptr con segnalibro per indice immune a realloc",
+      "descrizione": "Scrivi un programma C che definisca `typedef struct elenco { char **voci; bool ha_evid; size_t idx_evid; } elenco_t;` dove `voci` è un array dinamico di `char *` **sempre terminato dal valore sentinella `nullptr`** (senza campo lunghezza separato) e la voce evidenziata è tracciata tramite l'indice `idx_evid` anziché tramite un puntatore diretto che diventerebbe un puntatore pendente dopo `realloc` o dopo una rimozione. Implementa quattro funzioni: (1) `size_t conta_voci(char *const *voci)` che conta le stringhe scorrendo fino alla sentinella `nullptr` (`0` se `voci == nullptr`); (2) `bool aggiungi_voce(elenco_t *e, const char *testo)` che calcola `n = conta_voci(e->voci)`, duplica `testo` con `strdup`, rialloca `e->voci` per `n + 2` puntatori (`n + 1` stringhe + la sentinella `nullptr`), inserisce la copia in `e->voci[n]` e scrive `e->voci[n + 1] = nullptr`; (3) `bool rimuovi_voce(elenco_t *e, size_t pos)` che controlla `pos < conta_voci(e->voci)`, libera `e->voci[pos]`, sposta a sinistra i puntatori successivi fino a includere la sentinella `nullptr` e aggiorna il segnalibro (`ha_evid = false` se `idx_evid == pos`, `--idx_evid` se `idx_evid > pos`); (4) `void libera_elenco(elenco_t *e)` che scorre fino alla sentinella liberando ogni stringa, libera `e->voci` e azzera `e->voci = nullptr`, `e->ha_evid = false`, `e->idx_evid = 0`. In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>`, `DEL <idx>` e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata, chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`.",
+      "concetti_da_tenere_a_mente": [
+        "array dinamico di puntatori char ** terminato dal valore sentinella nullptr",
+        "riserva dello slot aggiuntivo (n + 2) per mantenere sempre la sentinella finale dopo realloc",
+        "uso di un indice size_t al posto di un puntatore diretto per evitare puntatori pendenti dopo realloc",
+        "azzeramento sistematico di e->voci = nullptr dopo free per prevenire uso dopo la liberazione"
+      ],
+      "domande_guida": [
+        "Perché in aggiungi_voce devi richiedere spazio per n + 2 puntatori a realloc invece di n + 1?",
+        "Che cosa accadrebbe se la voce evidenziata fosse salvata come char **ptr_evid = &e.voci[1] e subito dopo arrivasse un comando ADD che fa spostare e.voci a realloc?",
+        "Come deve essere aggiornato idx_evid quando viene rimossa una voce con posizione minore di idx_evid rispetto a quando viene rimossa esattamente la voce evidenziata?",
+        "Perché libera_elenco deve liberare tutte le stringhe fino alla sentinella prima di chiamare free(e->voci) e impostare e->voci = nullptr?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "ADD alfa\nADD beta\nADD gamma\nMARK 1\nADD delta\nDEL 0\nLIST\nDEL 0\nLIST\n",
+          "output": "[0] beta *\n[1] gamma\n[2] delta\n[0] gamma\n[1] delta\nTotale finale: 2\nEvidenziata: nessuna\nPuntatore azzerato: 1\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "LIST\nMARK 0\nDEL 0\n",
+          "output": "(vuoto)\nMARK non valido\nDEL non valido\nTotale finale: 0\nEvidenziata: nessuna\nPuntatore azzerato: 1\n"
+        },
+        {
+          "input": "ADD unico\nMARK 0\nLIST\n",
+          "output": "[0] unico *\nTotale finale: 1\nEvidenziata: unico\nPuntatore azzerato: 1\n"
+        },
+        {
+          "input": "ADD uno\nADD due\nADD tre\nMARK 2\nDEL 1\nADD quattro\nLIST\n",
+          "output": "[0] uno\n[1] tre *\n[2] quattro\nTotale finale: 3\nEvidenziata: tre\nPuntatore azzerato: 1\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct elenco {\n    char **voci;\n    bool ha_evid;\n    size_t idx_evid;\n} elenco_t;\n\nsize_t conta_voci(char *const *voci);\nbool aggiungi_voce(elenco_t *e, const char *testo);\nbool rimuovi_voce(elenco_t *e, size_t pos);\nvoid libera_elenco(elenco_t *e);\n\nint main(void) {\n    elenco_t e = {};\n    char riga[128], cmd[16], parola[32], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t idx = 0;\n        if (strcmp(cmd, \"ADD\") == 0 && sscanf(riga, \"ADD %31s %c\", parola, &extra) == 1) {\n            if (!aggiungi_voce(&e, parola)) {\n                libera_elenco(&e);\n                fprintf(stderr, \"Errore: memoria esaurita.\\n\");\n                return EXIT_FAILURE;\n            }\n        } else if (strcmp(cmd, \"MARK\") == 0 && sscanf(riga, \"MARK %zu %c\", &idx, &extra) == 1) {\n            if (idx < conta_voci(e.voci)) {\n                e.ha_evid = true;\n                e.idx_evid = idx;\n            } else {\n                printf(\"MARK non valido\\n\");\n            }\n        } else if (strcmp(cmd, \"DEL\") == 0 && sscanf(riga, \"DEL %zu %c\", &idx, &extra) == 1) {\n            if (!rimuovi_voce(&e, idx)) {\n                printf(\"DEL non valido\\n\");\n            }\n        } else if (strcmp(cmd, \"LIST\") == 0 && sscanf(riga, \"LIST %c\", &extra) != 1) {\n            size_t n = conta_voci(e.voci);\n            if (n == 0) {\n                printf(\"(vuoto)\\n\");\n            } else {\n                for (size_t i = 0; e.voci[i] != nullptr; ++i) {\n                    printf(\"[%zu] %s%s\\n\", i, e.voci[i],\n                           (e.ha_evid && e.idx_evid == i) ? \" *\" : \"\");\n                }\n            }\n        } else {\n            libera_elenco(&e);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    size_t tot = conta_voci(e.voci);\n    printf(\"Totale finale: %zu\\n\", tot);\n    printf(\"Evidenziata: %s\\n\", e.ha_evid ? e.voci[e.idx_evid] : \"nessuna\");\n    libera_elenco(&e);\n    printf(\"Puntatore azzerato: %d\\n\", e.voci == nullptr);\n    return EXIT_SUCCESS;\n}\n\nsize_t conta_voci(char *const *voci) {\n    if (voci == nullptr) { return 0; }\n    size_t n = 0;\n    while (voci[n] != nullptr) { ++n; }\n    return n;\n}\n\nbool aggiungi_voce(elenco_t *e, const char *testo) {\n    if (e == nullptr || testo == nullptr) { return false; }\n    size_t n = conta_voci(e->voci);\n    char *copia = strdup(testo);\n    if (copia == nullptr) { return false; }\n    char **tmp = realloc(e->voci, (n + 2) * sizeof(*tmp));\n    if (tmp == nullptr) {\n        free(copia);\n        return false;\n    }\n    e->voci = tmp;\n    e->voci[n] = copia;\n    e->voci[n + 1] = nullptr;\n    return true;\n}\n\nbool rimuovi_voce(elenco_t *e, size_t pos) {\n    if (e == nullptr || e->voci == nullptr) { return false; }\n    size_t n = conta_voci(e->voci);\n    if (pos >= n) { return false; }\n    free(e->voci[pos]);\n    for (size_t i = pos; i < n; ++i) {\n        e->voci[i] = e->voci[i + 1];\n    }\n    if (e->ha_evid) {\n        if (e->idx_evid == pos) {\n            e->ha_evid = false;\n            e->idx_evid = 0;\n        } else if (e->idx_evid > pos) {\n            --e->idx_evid;\n        }\n    }\n    return true;\n}\n\nvoid libera_elenco(elenco_t *e) {\n    if (e == nullptr) { return; }\n    if (e->voci != nullptr) {\n        for (size_t i = 0; e->voci[i] != nullptr; ++i) {\n            free(e->voci[i]);\n        }\n        free(e->voci);\n        e->voci = nullptr;\n    }\n    e->ha_evid = false;\n    e->idx_evid = 0;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Passare un puntatore singolo T * a una funzione credendo che assegnare parametro = nuovo_blocco aggiorni anche il puntatore del chiamante invece di passare &ptr a un parametro T **.",
+    "Confondere un array bidimensionale statico int m[3][4] (che decade a int (*)[4]) con una matrice dinamica per righe int **, oppure dimenticare di liberare le righe già allocate quando malloc fallisce a metà dell'allocazione di una matrice per righe.",
+    "Dimenticare di azzerare errno = 0 prima di chiamare strtol o strtod, oppure controllare solo il valore restituito senza verificare endptr != s e *endptr == '\\0'.",
+    "Tentare di convertire implicitamente char ** in const char ** o violare il contratto di restrict passando due puntatori che puntano ad aree di memoria sovrapposte.",
+    "Conservare un puntatore diretto a un elemento di un array dinamico attraverso una chiamata a realloc, trasformandolo in un puntatore pendente, oppure dimenticare di riservare lo slot finale per il valore sentinella nullptr."
+  ],
+  "differenze_python": [
+    "In Python una lista di liste è gestita automaticamente e non espone la differenza tra righe frammentate e un unico blocco contiguo in memoria; in C scegliere tra matrice per righe (T **) e blocco contiguo (T *) incide direttamente su allocazioni, rilascio e località di cache.",
+    "In Python gli argomenti da riga di comando si leggono da sys.argv (una lista di stringhe) e int()/float() sollevano eccezioni; in C argc/argv sono un contatore e un array terminato da nullptr e la conversione sicura richiede strtol/strtod con controllo esplicito di endptr, errno ed ERANGE.",
+    "In Python il garbage collector impedisce i puntatori pendenti mantenendo vivi gli oggetti finché esistono riferimenti; in C la durata di vita è gestita esplicitamente e un puntatore a memoria liberata o spostata da realloc diventa subito un puntatore pendente."
+  ]
+}

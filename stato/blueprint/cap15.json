@@ -1,0 +1,458 @@
+{
+  "capitolo": 15,
+  "titolo": "Programmazione generica con void *",
+  "obiettivi": [
+    "Convertire e manipolare puntatori generici void * in modo sicuro",
+    "Copiare, spostare, confrontare e inizializzare blocchi di byte con memcpy, memmove, memcmp e memset",
+    "Progettare e implementare un vettore dinamico generico indipendente dal tipo degli elementi",
+    "Scrivere codice adattato al tipo e verifiche a tempo di compilazione con _Generic, typeof, auto e static_assert"
+  ],
+  "concetti_introdotti": [
+    {
+      "termine": "puntatore generico",
+      "definizione": "Puntatore di tipo void * capace di contenere l'indirizzo di qualsiasi oggetto, ma non dereferenziabile direttamente."
+    },
+    {
+      "termine": "contenitore generico",
+      "definizione": "Struttura dati che memorizza elementi di tipo qualsiasi, noto al programma solo a tempo di esecuzione."
+    },
+    {
+      "termine": "asserzione statica",
+      "definizione": "Controllo verificato dal compilatore con static_assert che interrompe la compilazione se una condizione costante è falsa."
+    }
+  ],
+  "concetti_richiesti": [
+    "variabile",
+    "tipo di dato",
+    "costante",
+    "operatore sizeof e tipo size_t",
+    "comportamento indefinito",
+    "puntatore",
+    "dereferenziazione",
+    "puntatore nullo",
+    "aritmetica dei puntatori",
+    "allocazione dinamica",
+    "struttura",
+    "enumerazione",
+    "allineamento",
+    "padding",
+    "puntatore a puntatore",
+    "puntatore pendente",
+    "qualificatore restrict"
+  ],
+  "regole": [
+    {
+      "id": "15.R1",
+      "enunciato": "Un puntatore generico void * (o const void *) può memorizzare l'indirizzo di qualsiasi oggetto in memoria. In C qualsiasi puntatore a oggetto T * si converte implicitamente in void * e viceversa senza cast, purché non si rimuovano qualificatori const. Non è consentito dereferenziare un void * né applicarvi l'aritmetica dei puntatori (p + 1 è un errore con -Wpedantic): per accedere ai dati occorre riconvertirlo al tipo originale esatto, e per calcolare spiazzamenti in byte occorre convertirlo a unsigned char * (o const unsigned char *). Il tipo void * riguarda solo puntatori a oggetti, non puntatori a funzione.",
+      "nota_standard": "indefinito: le conversioni implicite tra T * e void * e la stessa rappresentazione tra void * e char * sono definite dallo standard C23; dereferenziare un void * o farne aritmetica è una violazione di vincolo, mentre riconvertire un void * a un tipo incompatibile e dereferenziarlo provoca comportamento indefinito."
+    },
+    {
+      "id": "15.R2",
+      "enunciato": "Le funzioni di <string.h> operano su blocchi grezzi di n byte: memcpy(dst, src, n) copia n byte tra aree disgiunte (parametri restrict), memmove(dst, src, n) copia n byte gestendo in modo sicuro anche aree sovrapposte, memset(dst, c, n) scrive il byte (unsigned char)c in ciascuno degli n byte, memcmp(a, b, n) confronta n byte come unsigned char e memchr(s, c, n) cerca la prima occorrenza del byte (unsigned char)c (preservando const in C23). Non usare memcmp per confrontare struct con byte di padding. In C23 è vietato passare puntatori nulli a queste funzioni anche quando n == 0.",
+      "nota_standard": "indefinito: il comportamento di memcpy, memmove, memset, memcmp e memchr su puntatori validi è definito dallo standard C23; invocare memcpy su aree sovrapposte, superare i limiti di un buffer o passare puntatori nulli anche con n == 0 provoca comportamento indefinito."
+    },
+    {
+      "id": "15.R3",
+      "enunciato": "Un contenitore generico (come un vettore dinamico generico) memorizza un puntatore void *dati allocato sullo heap insieme alla dimensione dell'elemento dim_elem (size_t), alla lunghezza len e alla capacità cap. L'indirizzo dell'elemento di indice i si calcola come (unsigned char *)dati + i * dim_elem, e gli elementi vengono copiati o spostati con memcpy e memmove controllando sempre che nuova_cap <= SIZE_MAX / dim_elem prima di realloc. Poiché malloc/realloc garantiscono l'allineamento per qualsiasi tipo fondamentale e sizeof(T) è multiplo di alignof(T), ogni elemento dell'array generico risulta correttamente allineato per il tipo T.",
+      "nota_standard": "indefinito: l'allineamento garantito da malloc/realloc e la divisibilità di sizeof(T) per alignof(T) sono definiti dallo standard C23; inserire o leggere un elemento passando un puntatore di tipo o dimensione diversa da dim_elem provoca comportamento indefinito."
+    },
+    {
+      "id": "15.R4",
+      "enunciato": "L'espressione _Generic(expr, tipo1: ris1, tipo2: ris2, default: ris_def) seleziona a tempo di compilazione l'espressione associata al tipo di expr senza valutare expr a tempo di esecuzione (nessun effetto collaterale). Prima del confronto expr subisce la conversione lvalue (rimozione dei qualificatori di primo livello e decadimento degli array a puntatori); i tipi delle associazioni devono essere completi, di oggetto e mutuamente incompatibili. In C23 il tipo di nullptr è nullptr_t (definito in <stddef.h>), selezionabile esplicitamente in _Generic.",
+      "nota_standard": "definito: la selezione statica di _Generic, la mancata valutazione dell'espressione di controllo e il tipo nullptr_t sono definiti dallo standard C23; se nessuna associazione corrisponde e manca default:, il programma è rifiutato con errore di compilazione."
+    },
+    {
+      "id": "15.R5",
+      "enunciato": "In C23 typeof(expr) ricava il tipo esatto di expr (senza valutarla) mantenendo eventuali qualificatori come const, mentre typeof_unqual(expr) rimuove i qualificatori di primo livello permettendo di dichiarare copie modificabili a partire da oggetti const. La parola chiave auto (C23) deduce il tipo di una singola variabile dal suo inizializzatore a tempo di compilazione. La parola chiave static_assert(cond, \"msg\") o static_assert(cond) (forma a un argomento in C23) verifica un'espressione costante intera a tempo di compilazione e arresta la compilazione se è falsa.",
+      "nota_standard": "definito: typeof, typeof_unqual, l'inferenza di tipo con auto e la parola chiave static_assert (anche senza stringa di messaggio) sono standardizzati in C23; una static_assert falsa o un uso di auto senza inizializzatore valido costituiscono errori di compilazione."
+    }
+  ],
+  "funzioni_usate": [
+    {
+      "nome": "printf",
+      "firma": "int printf(const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati su stdout e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fprintf",
+      "firma": "int fprintf(FILE *restrict stream, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Stampa testo e valori formattati sullo stream indicato (come stderr) e restituisce il numero di caratteri scritti o negativo in caso di errore."
+    },
+    {
+      "nome": "fgets",
+      "firma": "char *fgets(char *restrict s, int n, FILE *restrict stream);",
+      "header": "stdio.h",
+      "descrizione": "Legge al più n - 1 caratteri da stream nel buffer s fino a '\\n' o fine dell'input, aggiunge '\\0' e restituisce s oppure nullptr."
+    },
+    {
+      "nome": "sscanf",
+      "firma": "int sscanf(const char *restrict s, const char *restrict format, ...);",
+      "header": "stdio.h",
+      "descrizione": "Analizza la stringa s secondo format, memorizza i valori convertiti negli indirizzi passati e restituisce il numero di assegnamenti riusciti oppure EOF."
+    },
+    {
+      "nome": "malloc",
+      "firma": "void *malloc(size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap un blocco di size byte non inizializzati e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "calloc",
+      "firma": "void *calloc(size_t nmemb, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Alloca sullo heap spazio per nmemb oggetti di size byte azzerati bit per bit e ne restituisce l'indirizzo oppure nullptr."
+    },
+    {
+      "nome": "realloc",
+      "firma": "void *realloc(void *ptr, size_t size);",
+      "header": "stdlib.h",
+      "descrizione": "Ridimensiona il blocco puntato da ptr a size byte (size > 0 in C23), restituendo il nuovo indirizzo oppure nullptr lasciando ptr valido."
+    },
+    {
+      "nome": "free",
+      "firma": "void free(void *ptr);",
+      "header": "stdlib.h",
+      "descrizione": "Rilascia un blocco allocato sullo heap; se ptr è nullptr non esegue alcuna azione."
+    },
+    {
+      "nome": "strtol",
+      "firma": "long int strtol(const char *restrict nptr, char **restrict endptr, int base);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in long int nella base indicata, salva in *endptr il primo carattere non convertito e segnala overflow con errno = ERANGE."
+    },
+    {
+      "nome": "strtod",
+      "firma": "double strtod(const char *restrict nptr, char **restrict endptr);",
+      "header": "stdlib.h",
+      "descrizione": "Converte la stringa nptr in double, salva in *endptr il primo carattere non convertito e segnala overflow/underflow con errno = ERANGE."
+    },
+    {
+      "nome": "strlen",
+      "firma": "size_t strlen(const char *s);",
+      "header": "string.h",
+      "descrizione": "Restituisce il numero di caratteri della stringa s che precedono il terminatore nullo '\\0'."
+    },
+    {
+      "nome": "strcmp",
+      "firma": "int strcmp(const char *s1, const char *s2);",
+      "header": "string.h",
+      "descrizione": "Confronta lessicograficamente s1 e s2 restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memcpy",
+      "firma": "void *memcpy(void *restrict s1, const void *restrict s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 tra aree di memoria non sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memmove",
+      "firma": "void *memmove(void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Copia n byte da s2 a s1 gestendo correttamente anche aree di memoria sovrapposte e restituisce s1."
+    },
+    {
+      "nome": "memcmp",
+      "firma": "int memcmp(const void *s1, const void *s2, size_t n);",
+      "header": "string.h",
+      "descrizione": "Confronta i primi n byte di s1 e s2 interpretandoli come unsigned char, restituendo < 0, 0 oppure > 0."
+    },
+    {
+      "nome": "memset",
+      "firma": "void *memset(void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Imposta i primi n byte dell'area puntata da s al valore (unsigned char)c e restituisce s."
+    },
+    {
+      "nome": "memchr",
+      "firma": "void *memchr(const void *s, int c, size_t n);",
+      "header": "string.h",
+      "descrizione": "Cerca la prima occorrenza di (unsigned char)c nei primi n byte di s e restituisce il puntatore trovato (preservando const in C23) oppure nullptr."
+    },
+    {
+      "nome": "isspace",
+      "firma": "int isspace(int c);",
+      "header": "ctype.h",
+      "descrizione": "Restituisce un valore diverso da zero se c (passato come unsigned char o EOF) è un carattere di spaziatura."
+    },
+    {
+      "nome": "fabs",
+      "firma": "double fabs(double x);",
+      "header": "math.h",
+      "descrizione": "Restituisce il valore assoluto in virgola mobile di x."
+    }
+  ],
+  "sotto_sezioni": [
+    {
+      "id": "15.1",
+      "titolo": "Il puntatore generico void *",
+      "contenuti": [
+        "Cos'è il puntatore generico void * (e const void *): memorizza l'indirizzo di qualunque oggetto in memoria astraendo dal tipo concreto (riprendendo il cenno del capitolo 11 su malloc)",
+        "Conversioni implicite in C senza cast tra T * e void * (e tra const T * e const void *) e rispetto della qualificazione const",
+        "Divieti dello standard su void *: nessuna dereferenziazione diretta (*p) e nessuna aritmetica dei puntatori (p + 1 è rifiutata con -Wpedantic); calcolo portabile di spiazzamenti in byte convertendo a unsigned char * o const unsigned char *",
+        "Riconversione al tipo esatto originale tramite un'etichetta enum o un contratto documentato e rischi della riconversione errata (comportamento indefinito; approfondiremo lo strict aliasing nel capitolo 22)",
+        "Confine di void *: vale solo per puntatori a oggetti, non per puntatori a funzione (che vedremo nel capitolo 16)"
+      ],
+      "esempio_guidato": "Un programma che usa un puntatore void * per riferirsi in sequenza a variabili int, double e a una struct, implementa una funzione generica stampa_oggetto(const void *p, tipo_t t) che riconverte al tipo corretto e calcola l'indirizzo dell'elemento i-esimo tramite (const unsigned char *)base + i * dim_elem, affiancato da due brevi blocchi di tipo errore (dereferenziazione e aritmetica su void *).",
+      "approfondimento": "Perché convertire void * in unsigned char * per sommare un offset in byte è sempre portabile: lo standard C23 garantisce che void * e char * abbiano la stessa rappresentazione in memoria e gli stessi requisiti di allineamento.",
+      "esercizio_id": "15.1"
+    },
+    {
+      "id": "15.2",
+      "titolo": "Operazioni su byte: memcpy, memmove, memcmp e memset",
+      "contenuti": [
+        "Funzioni mem* di <string.h> rispetto alle funzioni str*: operano su esattamente n byte di qualunque tipo tramite void * / const void *, senza fermarsi ai byte nulli 0x00",
+        "Differenza cruciale tra memcpy (parametri restrict: aree sovrapposte causano comportamento indefinito) e memmove (sicura anche su aree sovrapposte, ideale per spostare elementi dentro un array)",
+        "Inizializzazione byte per byte con memset(dst, c, n) e l'errore classico di usarla per impostare interi a valori diversi da 0 (es. memset(arr, 1, ...) scrive 0x01010101)",
+        "Confronto di sequenze di byte con memcmp e ricerca di un byte con memchr (con preservazione di const in C23, segnalata nel box C23): perché NON usare memcmp per confrontare struct con padding",
+        "Regola di sicurezza C23: proteggere sempre le chiamate con if (n > 0) quando un puntatore potrebbe essere nullptr, perché passare nullptr a memcpy/memmove/memcmp/memset/memchr è comportamento indefinito anche per n == 0"
+      ],
+      "esempio_guidato": "Un programma che manipola un buffer binario uint8_t contenente anche byte 0x00: inizializza un'area con memset, copia un'intestazione disgiunta con memcpy, sposta una porzione sovrapposta con memmove, localizza un marcatore binario con memchr e confronta due blocchi con memcmp, affiancato da un breve frammento commentato sulla trappola di memset su un array di int.",
+      "approfondimento": "Perché memmove non ha bisogno di allocare un buffer temporaneo: quando sorgente e destinazione si trovano nello stesso oggetto, può copiare in avanti se dst < src e all'indietro se dst > src, ottenendo lo stesso effetto di una copia tramite buffer ausiliario.",
+      "esercizio_id": "15.2"
+    },
+    {
+      "id": "15.3",
+      "titolo": "Progettare un vettore dinamico generico",
+      "contenuti": [
+        "Architettura di un contenitore generico in C: struct vettore_gen con void *dati, size_t dim_elem, size_t len e size_t cap (schema di memoria in blocco text per un vettore di int e uno di struct)",
+        "Calcolo degli indirizzi degli elementi tramite (unsigned char *)v->dati + idx * v->dim_elem, inserimento e copia con memcpy, scorrimento per inserimenti/rimozioni intermedi con memmove",
+        "Crescita geometrica sicura con realloc, puntatore temporaneo e controllo preventivo di overflow nuova_cap <= SIZE_MAX / v->dim_elem",
+        "Garanzia di allineamento automatico per elementi omogenei: combinazione tra l'allineamento garantito da malloc/realloc e il fatto che sizeof(T) è sempre multiplo di alignof(T)",
+        "Limiti della genericità basata solo su void *: responsabilità del chiamante sul tipo passato e copia superficiale degli elementi (nei capitoli 16 e 17 aggiungeremo i puntatori a funzione per confronto e distruzione personalizzati)"
+      ],
+      "esempio_guidato": "Un programma che implementa un vettore dinamico generico (vg_init, vg_push, vg_get, vg_remove, vg_free) e lo istanzia contemporaneamente sia per valori double sia per strutture coppia_xy_t, verificando crescita, rimozione intermedia con memmove e rilascio senza perdite di memoria.",
+      "approfondimento": "Confronto tra due modelli di contenitore generico in C: memorizzare i valori direttamente in un blocco contiguo (void *dati con dim_elem, migliore località di cache e una sola allocazione) oppure memorizzare un array di puntatori void ** a oggetti allocati separatamente (che vedremo con le tabelle hash nel capitolo 18).",
+      "esercizio_id": "15.3"
+    },
+    {
+      "id": "15.4",
+      "titolo": "Selezione sul tipo con _Generic",
+      "contenuti": [
+        "Sintassi e semantica di _Generic(expr, tipo1: ris1, ..., default: ris_def): selezione interamente risolta a tempo di compilazione senza costo a tempo di esecuzione",
+        "Mancata valutazione dell'espressione di controllo (nessun effetto collaterale) e trasformazioni sul suo tipo (rimozione dei qualificatori di primo livello e decadimento degli array a puntatori)",
+        "Distinzione tra puntatori a dati mutabili e puntatori a dati costanti (char * contro const char *) e riconoscimento del tipo C23 nullptr_t (<stddef.h>, con box C23)",
+        "Uso di _Generic per selezionare funzioni specializzate sul tipo (es. _Generic((x), int32_t: f_i32, double: f_dbl)(x)) o etichette/specificatori di formato",
+        "Controllo di esaustività omettendo default: (errore di compilazione per tipi imprevisti) e rinvio ai capitoli 19, 21 e 24 per combinare _Generic con le macro con argomenti"
+      ],
+      "esempio_guidato": "Un programma che applica _Generic a variabili int, double, char *, const char * e nullptr (nullptr_t) per selezionare sia il nome del tipo sia la funzione di elaborazione corrispondente, mostrando anche l'assenza di valutazione dell'espressione di controllo.",
+      "approfondimento": "Perché tutti i rami di un'espressione _Generic devono essere sintatticamente validi e ben tipizzati: il compilatore controlla i tipi di ogni ramo anche se a tempo di compilazione ne sceglie soltanto uno, perciò quando si selezionano funzioni è buona pratica mettere dentro _Generic i nomi delle funzioni e applicare gli argomenti (x) fuori dalle parentesi di _Generic.",
+      "esercizio_id": "15.4"
+    },
+    {
+      "id": "15.5",
+      "titolo": "typeof, auto e static_assert",
+      "contenuti": [
+        "Operatori C23 typeof e typeof_unqual (con box C23 per i compilatori precedenti): ricavare il tipo di un'espressione senza valutarla e rimuovere const/volatile di primo livello con typeof_unqual per dichiarare copie modificabili",
+        "Inferenza statica del tipo con auto in C23 (con box C23 sulla vecchia parola chiave auto): dichiarazione di una singola variabile inizializzata, tipo fisso deciso a compilazione e criteri di leggibilità (quando usarla e quando scrivere il tipo esplicito)",
+        "Asserzione statica con static_assert in C23 (parola chiave nativa, senza <assert.h>, sia a due argomenti sia nella nuova forma C23 a un solo argomento, con box C23 su _Static_assert di C11/C17)",
+        "Applicazioni pratiche di static_assert: verificare CHAR_BIT == 8, sizeof e offsetof di strutture binarie, alignof e sincronizzazione tra la dimensione di un array di etichette e il numero di valori di un enum",
+        "Differenza netta tra asserzione statica (verificata prima di produrre l'eseguibile, costo zero a tempo di esecuzione) e controlli a tempo di esecuzione (nel capitolo 21 introdurremo anche assert)"
+      ],
+      "esempio_guidato": "Un programma C23 che usa static_assert (a due argomenti e a un argomento) per controllare layout e dimensioni di una struct e la coerenza con un enum, usa typeof per uno scambio tipizzato, usa typeof_unqual per derivare una variabile modificabile da un parametro const e usa auto per variabili locali verificandone il tipo dedotto con _Generic.",
+      "approfondimento": "Come leggere auto in C23 senza confonderlo con i linguaggi dinamici: auto non rende il C dinamicamente tipizzato; il compilatore sostituisce il tipo esatto dell'inizializzatore al momento della compilazione, quindi l'eseguibile generato è identico a quello scritto con il tipo esplicito.",
+      "esercizio_id": "15.5"
+    }
+  ],
+  "esercizi": [
+    {
+      "id": "15.1",
+      "tipo": "esercizio",
+      "titolo": "Registro eterogeneo di parametri con puntatori generici void * e indirizzamento a byte",
+      "descrizione": "Scrivi un programma C che modelli un registro di `6` parametri di tipi eterogenei usando un puntatore generico `void *`. Definisci `typedef enum tipo_param : int { TIPO_INT = 0, TIPO_DOUBLE = 1, TIPO_BOOL = 2 } tipo_param_t;` e `typedef struct voce_reg { char nome[16]; tipo_param_t tipo; void *ptr; } voce_reg_t;`. Implementa tre funzioni: (1) `const void *elemento_generico(const void *base, size_t idx, size_t dim_elem)` che calcola l'indirizzo dell'elemento `idx` convertendo `base` a `const unsigned char *` e aggiungendo `idx * dim_elem` (senza aritmetica su `void *`); (2) `void stampa_parametro(const voce_reg_t *v)` che riconverte `(const void *)v->ptr` al puntatore tipizzato esatto (`const int *`, `const double *`, `const bool *`) e stampa `<nome> (<tipo>) = <valore>` (`%.2f` per `double`, `true`/`false` per `bool`); (3) `bool aggiorna_parametro(voce_reg_t *v, const char *val_str)` che valida e converte `val_str` con `strtol` (controllando `endptr`, `errno == ERANGE` e `INT_MIN..INT_MAX` per `TIPO_INT`; accettando solo `\"0\"` o `\"1\"` per `TIPO_BOOL`) o `strtod` (escludendo NaN, `HUGE_VAL` ed `ERANGE` per `TIPO_DOUBLE`) e scrive il valore dereferenziando il puntatore riconvertito. In `main` dichiara `int contatori[3] = {10, 20, 30};`, `double soglie[2] = {1.5, 9.25};` e `bool attivo = false;`, costruisci `voce_reg_t reg[6]` con nomi `c0`, `c1`, `c2`, `s0`, `s1`, `attivo`, e verifica che `elemento_generico(contatori, i, sizeof(int)) == &contatori[i]` e `elemento_generico(soglie, i, sizeof(double)) == &soglie[i]`. Leggi da `stdin` fino a fine input i comandi `GET <nome>` e `SET <nome> <val>` (stampando `Parametro sconosciuto: <nome>` o `Valore non valido per <nome>` sui casi errati senza terminare). Al termine stampa `Stato finale:`, tutti i `6` parametri e `Verifica indirizzi a byte: OK` esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "puntatore generico void * e const void * con conversioni implicite da/verso T *",
+        "calcolo portabile di indirizzi in byte tramite const unsigned char * (evitando aritmetica su void *)",
+        "riconversione sicura del puntatore generico guidata dall'etichetta tipo_param_t",
+        "validazione rigorosa dei valori di ingresso con strtol, strtod, errno ed ERANGE"
+      ],
+      "domande_guida": [
+        "Perché dentro elemento_generico devi convertire base in const unsigned char * prima di scrivere + idx * dim_elem anziché sommare direttamente a base?",
+        "Che cosa accadrebbe se stampa_parametro riconvertisse v->ptr a const double * quando v->tipo vale TIPO_INT?",
+        "Perché nella struct voce_reg il campo ptr ha tipo void * mentre nella funzione elemento_generico il parametro base ha tipo const void *?",
+        "In che modo il confronto elemento_generico(contatori, i, sizeof(int)) == &contatori[i] verifica l'aritmetica a byte senza dipendere dagli indirizzi fisici?"
+      ],
+      "difficolta": 3,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "GET c1\nSET c1 -42\nSET s0 3.75\nSET attivo 1\nSET attivo 2\nGET ignoto\n",
+          "output": "c1 (int) = 20\nValore non valido per attivo\nParametro sconosciuto: ignoto\nStato finale:\nc0 (int) = 10\nc1 (int) = -42\nc2 (int) = 30\ns0 (double) = 3.75\ns1 (double) = 9.25\nattivo (bool) = true\nVerifica indirizzi a byte: OK\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "",
+          "output": "Stato finale:\nc0 (int) = 10\nc1 (int) = 20\nc2 (int) = 30\ns0 (double) = 1.50\ns1 (double) = 9.25\nattivo (bool) = false\nVerifica indirizzi a byte: OK\n"
+        },
+        {
+          "input": "SET c0 999999999999999999999\nSET s1 abc\nSET c2 0\nSET attivo 0\nGET c2\n",
+          "output": "Valore non valido per c0\nValore non valido per s1\nc2 (int) = 0\nStato finale:\nc0 (int) = 10\nc1 (int) = 20\nc2 (int) = 0\ns0 (double) = 1.50\ns1 (double) = 9.25\nattivo (bool) = false\nVerifica indirizzi a byte: OK\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <ctype.h>\n#include <errno.h>\n#include <limits.h>\n#include <math.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef enum tipo_param : int {\n    TIPO_INT = 0, TIPO_DOUBLE = 1, TIPO_BOOL = 2\n} tipo_param_t;\n\ntypedef struct voce_reg {\n    char nome[16];\n    tipo_param_t tipo;\n    void *ptr;\n} voce_reg_t;\n\nconst void *elemento_generico(const void *base, size_t idx, size_t dim_elem);\nvoid stampa_parametro(const voce_reg_t *v);\nbool aggiorna_parametro(voce_reg_t *v, const char *val_str);\nvoce_reg_t *cerca_voce(voce_reg_t reg[], size_t n, const char *nome);\n\nint main(void) {\n    int contatori[3] = {10, 20, 30};\n    double soglie[2] = {1.5, 9.25};\n    bool attivo = false;\n    voce_reg_t reg[6] = {\n        {\"c0\", TIPO_INT, &contatori[0]}, {\"c1\", TIPO_INT, &contatori[1]},\n        {\"c2\", TIPO_INT, &contatori[2]}, {\"s0\", TIPO_DOUBLE, &soglie[0]},\n        {\"s1\", TIPO_DOUBLE, &soglie[1]}, {\"attivo\", TIPO_BOOL, &attivo}\n    };\n    bool indirizzi_ok = true;\n    for (size_t i = 0; i < 3; ++i) {\n        if (elemento_generico(contatori, i, sizeof(int)) != &contatori[i]) { indirizzi_ok = false; }\n    }\n    for (size_t i = 0; i < 2; ++i) {\n        if (elemento_generico(soglie, i, sizeof(double)) != &soglie[i]) { indirizzi_ok = false; }\n    }\n    char riga[128], cmd[16], nome[32], val[64], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"GET\") == 0 && sscanf(riga, \"GET %31s %c\", nome, &extra) == 1) {\n            voce_reg_t *v = cerca_voce(reg, 6, nome);\n            if (v == nullptr) { printf(\"Parametro sconosciuto: %s\\n\", nome); }\n            else { stampa_parametro(v); }\n        } else if (strcmp(cmd, \"SET\") == 0 && sscanf(riga, \"SET %31s %63s %c\", nome, val, &extra) == 2) {\n            voce_reg_t *v = cerca_voce(reg, 6, nome);\n            if (v == nullptr) { printf(\"Parametro sconosciuto: %s\\n\", nome); }\n            else if (!aggiorna_parametro(v, val)) { printf(\"Valore non valido per %s\\n\", nome); }\n        } else {\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"Stato finale:\\n\");\n    for (size_t i = 0; i < 6; ++i) { stampa_parametro(&reg[i]); }\n    printf(\"Verifica indirizzi a byte: %s\\n\", indirizzi_ok ? \"OK\" : \"ERRORE\");\n    return EXIT_SUCCESS;\n}\n\nconst void *elemento_generico(const void *base, size_t idx, size_t dim_elem) {\n    const unsigned char *bytes = base;\n    return bytes + idx * dim_elem;\n}\n\nvoid stampa_parametro(const voce_reg_t *v) {\n    const void *p = v->ptr;\n    if (v->tipo == TIPO_INT) {\n        const int *pi = p;\n        printf(\"%s (int) = %d\\n\", v->nome, *pi);\n    } else if (v->tipo == TIPO_DOUBLE) {\n        const double *pd = p;\n        printf(\"%s (double) = %.2f\\n\", v->nome, *pd);\n    } else {\n        const bool *pb = p;\n        printf(\"%s (bool) = %s\\n\", v->nome, *pb ? \"true\" : \"false\");\n    }\n}\n\nbool aggiorna_parametro(voce_reg_t *v, const char *val_str) {\n    if (v == nullptr || val_str == nullptr || *val_str == '\\0' || isspace((unsigned char)*val_str)) {\n        return false;\n    }\n    char *end = nullptr;\n    errno = 0;\n    if (v->tipo == TIPO_INT) {\n        long x = strtol(val_str, &end, 10);\n        if (end == val_str || *end != '\\0' || errno == ERANGE || x < INT_MIN || x > INT_MAX) {\n            return false;\n        }\n        int *pi = v->ptr;\n        *pi = (int)x;\n        return true;\n    }\n    if (v->tipo == TIPO_DOUBLE) {\n        double d = strtod(val_str, &end);\n        if (end == val_str || *end != '\\0' || errno == ERANGE || d != d || fabs(d) == HUGE_VAL) {\n            return false;\n        }\n        double *pd = v->ptr;\n        *pd = d;\n        return true;\n    }\n    if (strcmp(val_str, \"0\") == 0 || strcmp(val_str, \"1\") == 0) {\n        bool *pb = v->ptr;\n        *pb = (val_str[0] == '1');\n        return true;\n    }\n    return false;\n}\n\nvoce_reg_t *cerca_voce(voce_reg_t reg[], size_t n, const char *nome) {\n    for (size_t i = 0; i < n; ++i) {\n        if (strcmp(reg[i].nome, nome) == 0) { return &reg[i]; }\n    }\n    return nullptr;\n}\n"
+    },
+    {
+      "id": "15.2",
+      "tipo": "esercizio",
+      "titolo": "Editor di buffer binario con memcpy, memmove, memset, memcmp e memchr",
+      "descrizione": "Scrivi un programma C che gestisca un buffer binario `typedef struct buf_bin { uint8_t dati[64]; size_t len; } buf_bin_t;` (capace di contenere liberamente byte `0x00`) implementando cinque funzioni basate su `memcpy`, `memmove`, `memset`, `memcmp` e `memchr` (`<string.h>`): (1) `bool buf_inserisci(buf_bin_t *b, size_t pos, const uint8_t *src, size_t n)` verifica `pos <= b->len && n <= 64 - b->len`, sposta con `memmove` gli eventuali `b->len - pos` byte di coda se `n > 0 && pos < b->len`, copia `n` byte da `src` con `memcpy` se `n > 0` e aggiorna `b->len`; (2) `bool buf_rimuovi(buf_bin_t *b, size_t pos, size_t n)` verifica `pos <= b->len && n <= b->len - pos`, sposta a sinistra i byte residui con `memmove` se `n > 0 && pos + n < b->len` e riduce `b->len`; (3) `bool buf_riempi(buf_bin_t *b, size_t pos, size_t n, uint8_t val)` verifica i limiti e applica `memset` quando `n > 0`; (4) `ptrdiff_t buf_trova_byte(const buf_bin_t *b, size_t da, uint8_t val)` usa `memchr` (preservando `const` in C23) sull'intervallo `[da, b->len)` restituendo l'indice assoluto oppure `-1`; (5) `int buf_confronta(const buf_bin_t *b, size_t p1, size_t p2, size_t n, bool *ok)` verifica i limiti per entrambe le fette e usa `memcmp` normalizzando il risultato in `-1`, `0` o `1` (`0` se `n == 0`). In `main` leggi da `stdin` fino a fine input comandi (con valori di byte decimali in `0..255`): `INS <pos> <k> <b0> ... <bk-1>` (`0 <= k <= 16`), `DEL <pos> <n>`, `FILL <pos> <n> <val>`, `FIND <da> <val>`, `CMP <p1> <p2> <n>` e `DUMP`, stampando gli esiti esattamente come nell'esempio di esecuzione.",
+      "concetti_da_tenere_a_mente": [
+        "uso di memmove (e non memcpy) per spostare porzioni sovrapposte dello stesso buffer",
+        "uso di memcpy su aree disgiunte e memset per riempire intervalli di byte",
+        "ricerca di un byte anche oltre eventuali byte 0x00 con memchr (C23 const-preserving)",
+        "confronto di fette di byte senza segno con memcmp e protezione dei casi n == 0"
+      ],
+      "domande_guida": [
+        "Perché in buf_inserisci e buf_rimuovi devi usare memmove per spostare i byte di coda dentro b->dati mentre puoi usare memcpy per copiare da src a b->dati + pos?",
+        "Perché strchr non funzionerebbe al posto di memchr sul buffer binario dell'esempio di esecuzione?",
+        "Che cosa restituisce memcmp(a, b, n) in generale e come normalizzi il suo valore in -1, 0 o 1?",
+        "Perché conviene controllare if (n > 0) prima di chiamare memcpy, memmove, memset o memcmp?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "INS 0 4 10 0 255 42\nINS 2 2 170 187\nDUMP\nFIND 0 255\nFILL 1 2 7\nDUMP\nCMP 1 2 1\nDEL 0 2\nDUMP\n",
+          "output": "INS ok (len=4)\nINS ok (len=6)\nDUMP (6): 0a 00 aa bb ff 2a\nFIND -> 4\nFILL ok\nDUMP (6): 0a 07 07 bb ff 2a\nCMP -> 0\nDEL ok (len=4)\nDUMP (4): 07 bb ff 2a\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "DUMP\nFIND 0 0\nDEL 0 1\nINS 0 0\nDUMP\n",
+          "output": "DUMP (0): (vuoto)\nFIND -> -1\nDEL rifiutato\nINS ok (len=0)\nDUMP (0): (vuoto)\n"
+        },
+        {
+          "input": "INS 0 4 1 2 1 3\nCMP 0 2 2\nCMP 2 0 2\nCMP 0 0 0\nFIND 1 1\n",
+          "output": "INS ok (len=4)\nCMP -> -1\nCMP -> 1\nCMP -> 0\nFIND -> 2\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\nconstexpr size_t CAP_BUF = 64;\n\ntypedef struct buf_bin {\n    uint8_t dati[CAP_BUF];\n    size_t len;\n} buf_bin_t;\n\nbool buf_inserisci(buf_bin_t *b, size_t pos, const uint8_t *src, size_t n);\nbool buf_rimuovi(buf_bin_t *b, size_t pos, size_t n);\nbool buf_riempi(buf_bin_t *b, size_t pos, size_t n, uint8_t val);\nptrdiff_t buf_trova_byte(const buf_bin_t *b, size_t da, uint8_t val);\nint buf_confronta(const buf_bin_t *b, size_t p1, size_t p2, size_t n, bool *ok);\n\nint main(void) {\n    buf_bin_t b = {};\n    char riga[256], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        if (strcmp(cmd, \"INS\") == 0) {\n            size_t pos = 0, k = 0;\n            int letti = 0;\n            if (sscanf(riga, \"INS %zu %zu%n\", &pos, &k, &letti) != 2 || k > 16) {\n                fprintf(stderr, \"Errore: comando INS non valido.\\n\");\n                return EXIT_FAILURE;\n            }\n            uint8_t tmp[16] = {};\n            const char *p = riga + letti;\n            for (size_t i = 0; i < k; ++i) {\n                unsigned int v = 0;\n                int step = 0;\n                if (sscanf(p, \"%u%n\", &v, &step) != 1 || v > UINT8_MAX) {\n                    fprintf(stderr, \"Errore: byte INS non valido.\\n\");\n                    return EXIT_FAILURE;\n                }\n                tmp[i] = (uint8_t)v;\n                p += step;\n            }\n            if (sscanf(p, \" %c\", &extra) == 1) { return EXIT_FAILURE; }\n            if (buf_inserisci(&b, pos, tmp, k)) { printf(\"INS ok (len=%zu)\\n\", b.len); }\n            else { printf(\"INS rifiutato\\n\"); }\n        } else if (strcmp(cmd, \"DEL\") == 0) {\n            size_t pos = 0, n = 0;\n            if (sscanf(riga, \"DEL %zu %zu %c\", &pos, &n, &extra) != 2) { return EXIT_FAILURE; }\n            if (buf_rimuovi(&b, pos, n)) { printf(\"DEL ok (len=%zu)\\n\", b.len); }\n            else { printf(\"DEL rifiutato\\n\"); }\n        } else if (strcmp(cmd, \"FILL\") == 0) {\n            size_t pos = 0, n = 0;\n            unsigned int val = 0;\n            if (sscanf(riga, \"FILL %zu %zu %u %c\", &pos, &n, &val, &extra) != 3 || val > UINT8_MAX) {\n                return EXIT_FAILURE;\n            }\n            if (buf_riempi(&b, pos, n, (uint8_t)val)) { printf(\"FILL ok\\n\"); }\n            else { printf(\"FILL rifiutato\\n\"); }\n        } else if (strcmp(cmd, \"FIND\") == 0) {\n            size_t da = 0;\n            unsigned int val = 0;\n            if (sscanf(riga, \"FIND %zu %u %c\", &da, &val, &extra) != 2 || val > UINT8_MAX) {\n                return EXIT_FAILURE;\n            }\n            printf(\"FIND -> %td\\n\", buf_trova_byte(&b, da, (uint8_t)val));\n        } else if (strcmp(cmd, \"CMP\") == 0) {\n            size_t p1 = 0, p2 = 0, n = 0;\n            bool ok = false;\n            if (sscanf(riga, \"CMP %zu %zu %zu %c\", &p1, &p2, &n, &extra) != 3) { return EXIT_FAILURE; }\n            int r = buf_confronta(&b, p1, p2, n, &ok);\n            if (ok) { printf(\"CMP -> %d\\n\", r); }\n            else { printf(\"CMP rifiutato\\n\"); }\n        } else if (strcmp(cmd, \"DUMP\") == 0 && sscanf(riga, \"DUMP %c\", &extra) != 1) {\n            printf(\"DUMP (%zu):\", b.len);\n            if (b.len == 0) { printf(\" (vuoto)\\n\"); }\n            else {\n                for (size_t i = 0; i < b.len; ++i) { printf(\" %02\" PRIx8, b.dati[i]); }\n                printf(\"\\n\");\n            }\n        } else {\n            fprintf(stderr, \"Errore: comando sconosciuto.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    return EXIT_SUCCESS;\n}\n\nbool buf_inserisci(buf_bin_t *b, size_t pos, const uint8_t *src, size_t n) {\n    if (b == nullptr || pos > b->len || n > CAP_BUF - b->len) { return false; }\n    if (n > 0) {\n        if (pos < b->len) {\n            memmove(b->dati + pos + n, b->dati + pos, b->len - pos);\n        }\n        memcpy(b->dati + pos, src, n);\n        b->len += n;\n    }\n    return true;\n}\n\nbool buf_rimuovi(buf_bin_t *b, size_t pos, size_t n) {\n    if (b == nullptr || pos > b->len || n > b->len - pos) { return false; }\n    if (n > 0) {\n        if (pos + n < b->len) {\n            memmove(b->dati + pos, b->dati + pos + n, b->len - (pos + n));\n        }\n        b->len -= n;\n    }\n    return true;\n}\n\nbool buf_riempi(buf_bin_t *b, size_t pos, size_t n, uint8_t val) {\n    if (b == nullptr || pos > b->len || n > b->len - pos) { return false; }\n    if (n > 0) { memset(b->dati + pos, val, n); }\n    return true;\n}\n\nptrdiff_t buf_trova_byte(const buf_bin_t *b, size_t da, uint8_t val) {\n    if (b == nullptr || da >= b->len) { return -1; }\n    const void *trovato = memchr(b->dati + da, val, b->len - da);\n    if (trovato == nullptr) { return -1; }\n    return (const uint8_t *)trovato - b->dati;\n}\n\nint buf_confronta(const buf_bin_t *b, size_t p1, size_t p2, size_t n, bool *ok) {\n    if (b == nullptr || ok == nullptr || n > b->len || p1 > b->len - n || p2 > b->len - n) {\n        if (ok != nullptr) { *ok = false; }\n        return 0;\n    }\n    *ok = true;\n    if (n == 0) { return 0; }\n    int r = memcmp(b->dati + p1, b->dati + p2, n);\n    return (r < 0) ? -1 : (r > 0 ? 1 : 0);\n}\n"
+    },
+    {
+      "id": "15.3",
+      "tipo": "esercizio",
+      "titolo": "Vettore dinamico generico vettore_gen_t riutilizzato per int64_t e struct misura_t",
+      "descrizione": "Scrivi un programma C che implementi un contenitore generico `typedef struct vettore_gen { void *dati; size_t dim_elem; size_t len; size_t cap; } vettore_gen_t;` completamente indipendente dal tipo degli elementi. Implementa sette funzioni: `void vg_init(vettore_gen_t *v, size_t dim_elem)`, `void vg_free(vettore_gen_t *v)`, `bool vg_riserva(vettore_gen_t *v, size_t nuova_cap)` (controlla `nuova_cap <= SIZE_MAX / v->dim_elem` e usa `realloc` con puntatore temporaneo), `bool vg_inserisci(vettore_gen_t *v, size_t pos, const void *elem)` (`pos <= v->len`, raddoppia la capacità `0 -> 2 -> 4 -> ...` se necessario, sposta con `memmove` e copia con `memcpy`), `bool vg_rimuovi(vettore_gen_t *v, size_t pos, void *out)` (`pos < v->len`, copia in `out` se non nullo, sposta con `memmove` e decrementa `len`), `const void *vg_leggi(const vettore_gen_t *v, size_t pos)` (`nullptr` se fuori limiti) e `bool vg_scambia(vettore_gen_t *v, size_t i, size_t j)` (scambia due elementi usando un buffer temporaneo dinamico di `v->dim_elem` byte e `memcpy`). In `main` crea due `vettore_gen_t`: `v_num` per `int64_t` e `v_mis` per `typedef struct misura { int id; double valore; } misura_t;`. Leggi da `stdin` fino a fine input i comandi `NUM_INS <pos> <val64>`, `NUM_DEL <pos>` (stampa `DEL_NUM: <val>`), `NUM_SWAP <i> <j>`, `MIS_INS <pos> <id> <valore>`, `MIS_DEL <pos>` (stampa `DEL_MIS: #<id>=<valore:.2f>`) e `MIS_SWAP <i> <j>`; se un'operazione fallisce per posizione/indice non valido stampa `ERR` e prosegui. Al termine stampa contenuto, lunghezza e capacità di entrambi i vettori leggendo con `vg_leggi` e libera tutto con `vg_free`.",
+      "concetti_da_tenere_a_mente": [
+        "progettazione di un contenitore generico con void *dati, dim_elem, len e cap",
+        "calcolo dell'indirizzo dell'elemento i-esimo tramite (unsigned char *)v->dati + i * v->dim_elem",
+        "inserimento, rimozione e scambio generici con memcpy e memmove",
+        "controllo di overflow su nuova_cap * dim_elem con SIZE_MAX / dim_elem",
+        "riutilizzo dello stesso codice su tipi scalari (int64_t) e strutture (misura_t)"
+      ],
+      "domande_guida": [
+        "Perché vg_init ha bisogno di ricevere dim_elem = sizeof(tipo) dal chiamante?",
+        "Come fa vg_scambia a scambiare due elementi di dimensione arbitraria senza conoscere a tempo di compilazione se siano int64_t o misura_t?",
+        "Quale condizione impedisce l'overflow del prodotto nuova_cap * v->dim_elem prima di chiamare realloc?",
+        "Perché dopo aver chiamato vg_leggi(&v_mis, i) devi assegnare il puntatore const void * restituito a const misura_t * prima di accedere a ->id e ->valore?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "NUM_INS 0 100\nNUM_INS 1 300\nNUM_INS 1 200\nNUM_SWAP 0 2\nNUM_DEL 1\nMIS_INS 0 10 12.5\nMIS_INS 1 20 8.25\nMIS_INS 0 30 4.0\nMIS_SWAP 0 2\nMIS_DEL 1\n",
+          "output": "DEL_NUM: 200\nDEL_MIS: #10=12.50\nNUM (len=2, cap=4): 300 100\nMIS (len=2, cap=4): #20=8.25 #30=4.00\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "NUM_DEL 0\nNUM_INS 1 5\nMIS_SWAP 0 0\n",
+          "output": "ERR\nERR\nERR\nNUM (len=0, cap=0): (vuoto)\nMIS (len=0, cap=0): (vuoto)\n"
+        },
+        {
+          "input": "NUM_INS 0 -9\nNUM_SWAP 0 0\nMIS_INS 0 7 3.14\n",
+          "output": "NUM (len=1, cap=2): -9\nMIS (len=1, cap=2): #7=3.14\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct vettore_gen {\n    void *dati;\n    size_t dim_elem;\n    size_t len;\n    size_t cap;\n} vettore_gen_t;\n\ntypedef struct misura {\n    int id;\n    double valore;\n} misura_t;\n\nvoid vg_init(vettore_gen_t *v, size_t dim_elem);\nvoid vg_free(vettore_gen_t *v);\nbool vg_riserva(vettore_gen_t *v, size_t nuova_cap);\nbool vg_inserisci(vettore_gen_t *v, size_t pos, const void *elem);\nbool vg_rimuovi(vettore_gen_t *v, size_t pos, void *out);\nconst void *vg_leggi(const vettore_gen_t *v, size_t pos);\nbool vg_scambia(vettore_gen_t *v, size_t i, size_t j);\n\nint main(void) {\n    vettore_gen_t v_num, v_mis;\n    vg_init(&v_num, sizeof(int64_t));\n    vg_init(&v_mis, sizeof(misura_t));\n    char riga[128], cmd[16], extra = '\\0';\n    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {\n        if (sscanf(riga, \"%15s\", cmd) != 1) { continue; }\n        size_t pos = 0, i = 0, j = 0;\n        long long v64 = 0;\n        int id = 0;\n        double val = 0.0;\n        if (strcmp(cmd, \"NUM_INS\") == 0 && sscanf(riga, \"NUM_INS %zu %lld %c\", &pos, &v64, &extra) == 2) {\n            int64_t x = (int64_t)v64;\n            if (!vg_inserisci(&v_num, pos, &x)) { printf(\"ERR\\n\"); }\n        } else if (strcmp(cmd, \"NUM_DEL\") == 0 && sscanf(riga, \"NUM_DEL %zu %c\", &pos, &extra) == 1) {\n            int64_t rim = 0;\n            if (vg_rimuovi(&v_num, pos, &rim)) { printf(\"DEL_NUM: %\" PRId64 \"\\n\", rim); }\n            else { printf(\"ERR\\n\"); }\n        } else if (strcmp(cmd, \"NUM_SWAP\") == 0 && sscanf(riga, \"NUM_SWAP %zu %zu %c\", &i, &j, &extra) == 2) {\n            if (!vg_scambia(&v_num, i, j)) { printf(\"ERR\\n\"); }\n        } else if (strcmp(cmd, \"MIS_INS\") == 0 && sscanf(riga, \"MIS_INS %zu %d %lf %c\", &pos, &id, &val, &extra) == 3) {\n            misura_t m = {.id = id, .valore = val};\n            if (!vg_inserisci(&v_mis, pos, &m)) { printf(\"ERR\\n\"); }\n        } else if (strcmp(cmd, \"MIS_DEL\") == 0 && sscanf(riga, \"MIS_DEL %zu %c\", &pos, &extra) == 1) {\n            misura_t rim = {};\n            if (vg_rimuovi(&v_mis, pos, &rim)) { printf(\"DEL_MIS: #%d=%.2f\\n\", rim.id, rim.valore); }\n            else { printf(\"ERR\\n\"); }\n        } else if (strcmp(cmd, \"MIS_SWAP\") == 0 && sscanf(riga, \"MIS_SWAP %zu %zu %c\", &i, &j, &extra) == 2) {\n            if (!vg_scambia(&v_mis, i, j)) { printf(\"ERR\\n\"); }\n        } else {\n            vg_free(&v_num); vg_free(&v_mis);\n            fprintf(stderr, \"Errore: comando non valido.\\n\");\n            return EXIT_FAILURE;\n        }\n    }\n    printf(\"NUM (len=%zu, cap=%zu):\", v_num.len, v_num.cap);\n    if (v_num.len == 0) { printf(\" (vuoto)\\n\"); }\n    else {\n        for (size_t k = 0; k < v_num.len; ++k) {\n            const int64_t *p = vg_leggi(&v_num, k);\n            printf(\" %\" PRId64, *p);\n        }\n        printf(\"\\n\");\n    }\n    printf(\"MIS (len=%zu, cap=%zu):\", v_mis.len, v_mis.cap);\n    if (v_mis.len == 0) { printf(\" (vuoto)\\n\"); }\n    else {\n        for (size_t k = 0; k < v_mis.len; ++k) {\n            const misura_t *m = vg_leggi(&v_mis, k);\n            printf(\" #%d=%.2f\", m->id, m->valore);\n        }\n        printf(\"\\n\");\n    }\n    vg_free(&v_num);\n    vg_free(&v_mis);\n    return EXIT_SUCCESS;\n}\n\nvoid vg_init(vettore_gen_t *v, size_t dim_elem) {\n    *v = (vettore_gen_t){.dati = nullptr, .dim_elem = dim_elem, .len = 0, .cap = 0};\n}\n\nvoid vg_free(vettore_gen_t *v) {\n    if (v != nullptr) { free(v->dati); v->dati = nullptr; v->len = 0; v->cap = 0; }\n}\n\nbool vg_riserva(vettore_gen_t *v, size_t nuova_cap) {\n    if (v == nullptr || v->dim_elem == 0 || nuova_cap <= v->cap) { return nuova_cap <= v->cap; }\n    if (nuova_cap > SIZE_MAX / v->dim_elem) { return false; }\n    void *tmp = realloc(v->dati, nuova_cap * v->dim_elem);\n    if (tmp == nullptr) { return false; }\n    v->dati = tmp;\n    v->cap = nuova_cap;\n    return true;\n}\n\nbool vg_inserisci(vettore_gen_t *v, size_t pos, const void *elem) {\n    if (v == nullptr || elem == nullptr || pos > v->len) { return false; }\n    if (v->len == v->cap) {\n        size_t ncap = (v->cap == 0) ? 2 : (v->cap * 2);\n        if (!vg_riserva(v, ncap)) { return false; }\n    }\n    unsigned char *base = v->dati;\n    if (pos < v->len) {\n        memmove(base + (pos + 1) * v->dim_elem, base + pos * v->dim_elem, (v->len - pos) * v->dim_elem);\n    }\n    memcpy(base + pos * v->dim_elem, elem, v->dim_elem);\n    ++v->len;\n    return true;\n}\n\nbool vg_rimuovi(vettore_gen_t *v, size_t pos, void *out) {\n    if (v == nullptr || pos >= v->len) { return false; }\n    unsigned char *base = v->dati;\n    if (out != nullptr) { memcpy(out, base + pos * v->dim_elem, v->dim_elem); }\n    if (pos + 1 < v->len) {\n        memmove(base + pos * v->dim_elem, base + (pos + 1) * v->dim_elem, (v->len - pos - 1) * v->dim_elem);\n    }\n    --v->len;\n    return true;\n}\n\nconst void *vg_leggi(const vettore_gen_t *v, size_t pos) {\n    if (v == nullptr || pos >= v->len) { return nullptr; }\n    const unsigned char *base = v->dati;\n    return base + pos * v->dim_elem;\n}\n\nbool vg_scambia(vettore_gen_t *v, size_t i, size_t j) {\n    if (v == nullptr || i >= v->len || j >= v->len) { return false; }\n    if (i == j) { return true; }\n    void *tmp = malloc(v->dim_elem);\n    if (tmp == nullptr) { return false; }\n    unsigned char *base = v->dati;\n    memcpy(tmp, base + i * v->dim_elem, v->dim_elem);\n    memcpy(base + i * v->dim_elem, base + j * v->dim_elem, v->dim_elem);\n    memcpy(base + j * v->dim_elem, tmp, v->dim_elem);\n    free(tmp);\n    return true;\n}\n"
+    },
+    {
+      "id": "15.4",
+      "tipo": "esercizio",
+      "titolo": "Dispatch a tempo di compilazione e riconoscimento dei tipi con _Generic e nullptr_t",
+      "descrizione": "Scrivi un programma C che dimostri la selezione sul tipo con `_Generic` (senza usare `#define`) e il tipo C23 `nullptr_t` (`<stddef.h>`). Definisci cinque funzioni di calcolo della norma: `double norma_i32(int32_t x)` (`fabs((double)x)`), `double norma_u32(uint32_t x)` (`(double)x`), `double norma_dbl(double x)` (`fabs(x)`), `double norma_str(const char *s)` (`s == nullptr ? 0.0 : (double)strlen(s)`), e `double norma_null(nullptr_t p)` (restituisce sempre `0.0`), più una funzione di tracciamento `int32_t incrementa_cont(int *c, int32_t x)` che incrementa `*c` e restituisce `x` (per verificare che l'espressione di controllo dentro `_Generic` non viene mai valutata!). In `main` leggi da `stdin` una riga con `a b c testo flag_null` (`int32_t a`, `uint32_t b`, `double c`, una parola `testo` fino a `31` caratteri senza spazi e `flag_null` in `{0, 1}`). Imposta `char *p_mut = (flag_null == 1) ? nullptr : testo;`, `const char *p_const = \"costante\";` e `nullptr_t np = nullptr;`. Usando espressioni `_Generic` (con rami `int32_t`, `uint32_t`, `double`, `char *`, `const char *`, `nullptr_t` e `default`), seleziona a tempo di compilazione sia il nome del tipo sia la funzione di norma per ciascuno dei sei oggetti (`a`, `b`, `c`, `p_mut`, `p_const`, `np`), verifica con `_Generic(incrementa_cont(&chiamate, a), ...)` che `chiamate` resti `0`, e stampa ogni riga e la somma delle norme esattamente come nell'esempio.",
+      "concetti_da_tenere_a_mente": [
+        "selezione statica del tipo con _Generic(expr, tipo: valore, ..., default: valore)",
+        "dispatch di funzioni selezionando il nome della funzione dentro _Generic e passando l'argomento fuori",
+        "distinzione in _Generic tra char *, const char * e il tipo C23 nullptr_t (<stddef.h>)",
+        "mancata valutazione dell'espressione di controllo di _Generic a tempo di esecuzione"
+      ],
+      "domande_guida": [
+        "Perché conviene scrivere _Generic(x, int32_t: norma_i32, double: norma_dbl)(x) invece di scrivere la chiamata dentro ogni ramo di _Generic?",
+        "Come mai _Generic distingue char * da const char * pur rimuovendo un eventuale const esterno da const int32_t?",
+        "Perché chiamare incrementa_cont(&chiamate, a) come espressione di controllo di _Generic lascia chiamate uguale a 0?",
+        "Quale vantaggio offre avere nullptr_t come tipo distinto in _Generic rispetto alla vecchia macro NULL?"
+      ],
+      "difficolta": 4,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "-15 40 -2.5 ciao 0\n",
+          "output": "a: tipo=int32_t norma=15.00\nb: tipo=uint32_t norma=40.00\nc: tipo=double norma=2.50\np_mut: tipo=char * norma=4.00\np_const: tipo=const char * norma=8.00\nnp: tipo=nullptr_t norma=0.00\nEffetti collaterali in _Generic: chiamate=0 (tipo=int32_t)\nSomma norme: 69.50\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "0 0 0.0 test 1\n",
+          "output": "a: tipo=int32_t norma=0.00\nb: tipo=uint32_t norma=0.00\nc: tipo=double norma=0.00\np_mut: tipo=char * norma=0.00\np_const: tipo=const char * norma=8.00\nnp: tipo=nullptr_t norma=0.00\nEffetti collaterali in _Generic: chiamate=0 (tipo=int32_t)\nSomma norme: 8.00\n"
+        },
+        {
+          "input": "100 25 3.25 ab 0\n",
+          "output": "a: tipo=int32_t norma=100.00\nb: tipo=uint32_t norma=25.00\nc: tipo=double norma=3.25\np_mut: tipo=char * norma=2.00\np_const: tipo=const char * norma=8.00\nnp: tipo=nullptr_t norma=0.00\nEffetti collaterali in _Generic: chiamate=0 (tipo=int32_t)\nSomma norme: 138.25\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <math.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ndouble norma_i32(int32_t x) { return fabs((double)x); }\ndouble norma_u32(uint32_t x) { return (double)x; }\ndouble norma_dbl(double x) { return fabs(x); }\ndouble norma_str(const char *s) { return (s == nullptr) ? 0.0 : (double)strlen(s); }\ndouble norma_null(nullptr_t p) { (void)p; return 0.0; }\nint32_t incrementa_cont(int *c, int32_t x) { ++(*c); return x; }\n\nint main(void) {\n    char riga[256], testo[32], extra = '\\0';\n    long long a_in = 0;\n    unsigned long long b_in = 0;\n    double c = 0.0;\n    int flag_null = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%lld %llu %lf %31s %d %c\", &a_in, &b_in, &c, testo, &flag_null, &extra) != 5 ||\n        a_in < INT32_MIN || a_in > INT32_MAX || b_in > UINT32_MAX || (flag_null != 0 && flag_null != 1)) {\n        fprintf(stderr, \"Errore: input non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    int32_t a = (int32_t)a_in;\n    uint32_t b = (uint32_t)b_in;\n    char *p_mut = (flag_null == 1) ? nullptr : testo;\n    const char *p_const = \"costante\";\n    nullptr_t np = nullptr;\n\n    const char *t_a = _Generic(a, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                               char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n    const char *t_b = _Generic(b, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                               char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n    const char *t_c = _Generic(c, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                               char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n    const char *t_pm = _Generic(p_mut, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                                char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n    const char *t_pc = _Generic(p_const, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                                char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n    const char *t_np = _Generic(np, int32_t: \"int32_t\", uint32_t: \"uint32_t\", double: \"double\",\n                                char *: \"char *\", const char *: \"const char *\", nullptr_t: \"nullptr_t\", default: \"altro\");\n\n    double n_a = _Generic(a, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(a);\n    double n_b = _Generic(b, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(b);\n    double n_c = _Generic(c, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(c);\n    double n_pm = _Generic(p_mut, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(p_mut);\n    double n_pc = _Generic(p_const, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(p_const);\n    double n_np = _Generic(np, int32_t: norma_i32, uint32_t: norma_u32, double: norma_dbl, char *: norma_str, const char *: norma_str, nullptr_t: norma_null)(np);\n\n    int chiamate = 0;\n    const char *t_check = _Generic(incrementa_cont(&chiamate, a), int32_t: \"int32_t\", default: \"altro\");\n\n    printf(\"a: tipo=%s norma=%.2f\\n\", t_a, n_a);\n    printf(\"b: tipo=%s norma=%.2f\\n\", t_b, n_b);\n    printf(\"c: tipo=%s norma=%.2f\\n\", t_c, n_c);\n    printf(\"p_mut: tipo=%s norma=%.2f\\n\", t_pm, n_pm);\n    printf(\"p_const: tipo=%s norma=%.2f\\n\", t_pc, n_pc);\n    printf(\"np: tipo=%s norma=%.2f\\n\", t_np, n_np);\n    printf(\"Effetti collaterali in _Generic: chiamate=%d (tipo=%s)\\n\", chiamate, t_check);\n    printf(\"Somma norme: %.2f\\n\", n_a + n_b + n_c + n_pm + n_pc + n_np);\n    return EXIT_SUCCESS;\n}\n"
+    },
+    {
+      "id": "15.5",
+      "tipo": "esercizio",
+      "titolo": "Verificatore di pacchetti C23 con static_assert, typeof, typeof_unqual e auto",
+      "descrizione": "Scrivi un programma C23 che definisca `typedef enum stato_pkt : uint8_t { PKT_OK = 0, PKT_ATTESA = 1, PKT_ERRORE = 2, PKT_CONTEGGIO = 3 } stato_pkt_t;`, l'array costante `static const char *const NOMI_STATO[] = {\"OK\", \"ATTESA\", \"ERRORE\"};` e la struttura compatta `typedef struct pacchetto { uint64_t timestamp; uint32_t id; uint16_t lunghezza; uint8_t stato; uint8_t flag; } pacchetto_t;`. Inserisci cinque `static_assert` (usando sia la forma a due argomenti sia la forma C23 a un solo argomento) per verificare a tempo di compilazione: `CHAR_BIT == 8`, `sizeof(pacchetto_t) == 16`, `alignof(pacchetto_t) >= alignof(uint64_t)`, `offsetof(pacchetto_t, id) == 8 && offsetof(pacchetto_t, flag) == 15` e `sizeof(NOMI_STATO) / sizeof(NOMI_STATO[0]) == PKT_CONTEGGIO`. Implementa: (1) `void scambia_pacchetti(pacchetto_t *a, pacchetto_t *b)` usando `typeof(*a) tmp = *a;`; (2) `uint64_t peso_pacchetto(const pacchetto_t *p, const uint64_t fattore)` che usa `typeof_unqual(fattore) molt = fattore;` (rimuovendo `const` per poter incrementare `molt` di `1` quando `p->flag != 0`) e `auto ris = (uint64_t)p->lunghezza * molt;`. In `main` leggi dalla prima riga `n` (`1 <= n <= 32`) e dalle successive `n` righe `timestamp id lunghezza stato flag` (`stato` in `0..2`, `lunghezza <= UINT16_MAX`, `flag <= UINT8_MAX`). Alloca `pacchetto_t *elenco` con `calloc`, ordina i pacchetti in ordine crescente di `timestamp` (e a parità per `id` crescente) tramite `scambia_pacchetti`, accumula `auto somma_len = (uint64_t)0;` e `auto somma_pond = (uint64_t)0;` (con `fattore = 2`) verificando il tipo dedotto da `auto` con `_Generic(somma_len, uint64_t: \"uint64_t\", default: \"altro\")`, stampa l'esito delle verifiche, i pacchetti ordinati e i totali esattamente come nell'esempio e libera la memoria.",
+      "concetti_da_tenere_a_mente": [
+        "asserzione statica con static_assert (a uno e a due argomenti in C23) su sizeof, alignof, offsetof e CHAR_BIT",
+        "typeof(*a) per dichiarare variabili temporanee coerenti con il tipo puntato",
+        "typeof_unqual(fattore) per rimuovere const di primo livello e creare una copia modificabile",
+        "inferenza statica del tipo con auto in C23 verificata a tempo di compilazione con _Generic"
+      ],
+      "domande_guida": [
+        "Che cosa succederebbe in peso_pacchetto se scrivessi typeof(fattore) molt = fattore; invece di typeof_unqual(fattore) molt = fattore; e poi tentassi ++molt?",
+        "Quale errore protegge in modo automatico la static_assert su sizeof(NOMI_STATO) / sizeof(NOMI_STATO[0]) == PKT_CONTEGGIO?",
+        "Perché le cinque static_assert non aggiungono alcun costo di esecuzione al programma compilato?",
+        "Come mai in auto somma_len = (uint64_t)0; serve il cast esplicito (uint64_t)0 se vuoi garantire che il tipo inferito sia uint64_t?"
+      ],
+      "difficolta": 5,
+      "verificabile": true,
+      "esempi_io": [
+        {
+          "input": "3\n200 102 50 1 0\n100 105 80 0 3\n100 101 20 2 1\n",
+          "output": "Verifiche static_assert: superate (sizeof=16)\nTipo somma_len (auto): uint64_t\n#101 ts=100 len=20 stato=ERRORE flag=1 pond=60\n#105 ts=100 len=80 stato=OK flag=3 pond=240\n#102 ts=200 len=50 stato=ATTESA flag=0 pond=100\nTotale lunghezza: 150, totale ponderato: 400\n"
+        }
+      ],
+      "test": [
+        {
+          "input": "1\n0 1 0 0 0\n",
+          "output": "Verifiche static_assert: superate (sizeof=16)\nTipo somma_len (auto): uint64_t\n#1 ts=0 len=0 stato=OK flag=0 pond=0\nTotale lunghezza: 0, totale ponderato: 0\n"
+        },
+        {
+          "input": "2\n500 9 100 2 0\n500 3 250 1 255\n",
+          "output": "Verifiche static_assert: superate (sizeof=16)\nTipo somma_len (auto): uint64_t\n#3 ts=500 len=250 stato=ATTESA flag=255 pond=750\n#9 ts=500 len=100 stato=ERRORE flag=0 pond=200\nTotale lunghezza: 350, totale ponderato: 950\n"
+        }
+      ],
+      "soluzione_riferimento": "#include <inttypes.h>\n#include <limits.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\ntypedef enum stato_pkt : uint8_t {\n    PKT_OK = 0,\n    PKT_ATTESA = 1,\n    PKT_ERRORE = 2,\n    PKT_CONTEGGIO = 3\n} stato_pkt_t;\n\nstatic const char *const NOMI_STATO[] = {\"OK\", \"ATTESA\", \"ERRORE\"};\n\ntypedef struct pacchetto {\n    uint64_t timestamp;\n    uint32_t id;\n    uint16_t lunghezza;\n    uint8_t stato;\n    uint8_t flag;\n} pacchetto_t;\n\nstatic_assert(CHAR_BIT == 8, \"Richiesti byte da 8 bit\");\nstatic_assert(sizeof(pacchetto_t) == 16, \"Layout pacchetto_t deve essere di 16 byte\");\nstatic_assert(alignof(pacchetto_t) >= alignof(uint64_t));\nstatic_assert(offsetof(pacchetto_t, id) == 8 && offsetof(pacchetto_t, flag) == 15);\nstatic_assert(sizeof(NOMI_STATO) / sizeof(NOMI_STATO[0]) == PKT_CONTEGGIO,\n              \"NOMI_STATO non allineato a stato_pkt_t\");\n\nvoid scambia_pacchetti(pacchetto_t *a, pacchetto_t *b);\nuint64_t peso_pacchetto(const pacchetto_t *p, const uint64_t fattore);\n\nint main(void) {\n    char riga[256], extra = '\\0';\n    int n_in = 0;\n    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n        sscanf(riga, \"%d %c\", &n_in, &extra) != 1 || n_in < 1 || n_in > 32) {\n        fprintf(stderr, \"Errore: numero pacchetti non valido.\\n\");\n        return EXIT_FAILURE;\n    }\n    size_t n = (size_t)n_in;\n    pacchetto_t *elenco = calloc(n, sizeof(*elenco));\n    if (elenco == nullptr) { return EXIT_FAILURE; }\n    for (size_t i = 0; i < n; ++i) {\n        unsigned long long ts = 0;\n        unsigned int id = 0, len = 0, st = 0, fl = 0;\n        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||\n            sscanf(riga, \"%llu %u %u %u %u %c\", &ts, &id, &len, &st, &fl, &extra) != 5 ||\n            len > UINT16_MAX || st >= PKT_CONTEGGIO || fl > UINT8_MAX) {\n            free(elenco);\n            fprintf(stderr, \"Errore: dati pacchetto non validi.\\n\");\n            return EXIT_FAILURE;\n        }\n        elenco[i] = (pacchetto_t){\n            .timestamp = (uint64_t)ts, .id = (uint32_t)id,\n            .lunghezza = (uint16_t)len, .stato = (uint8_t)st, .flag = (uint8_t)fl\n        };\n    }\n    for (size_t i = 0; i < n; ++i) {\n        for (size_t j = i + 1; j < n; ++j) {\n            if (elenco[j].timestamp < elenco[i].timestamp ||\n                (elenco[j].timestamp == elenco[i].timestamp && elenco[j].id < elenco[i].id)) {\n                scambia_pacchetti(&elenco[i], &elenco[j]);\n            }\n        }\n    }\n    auto somma_len = (uint64_t)0;\n    auto somma_pond = (uint64_t)0;\n    const char *tipo_acc = _Generic(somma_len, uint64_t: \"uint64_t\", default: \"altro\");\n    printf(\"Verifiche static_assert: superate (sizeof=%zu)\\n\", sizeof(pacchetto_t));\n    printf(\"Tipo somma_len (auto): %s\\n\", tipo_acc);\n    for (size_t i = 0; i < n; ++i) {\n        auto pond = peso_pacchetto(&elenco[i], 2U);\n        somma_len += elenco[i].lunghezza;\n        somma_pond += pond;\n        printf(\"#%\" PRIu32 \" ts=%\" PRIu64 \" len=%\" PRIu16 \" stato=%s flag=%\" PRIu8 \" pond=%\" PRIu64 \"\\n\",\n               elenco[i].id, elenco[i].timestamp, elenco[i].lunghezza,\n               NOMI_STATO[elenco[i].stato], elenco[i].flag, pond);\n    }\n    printf(\"Totale lunghezza: %\" PRIu64 \", totale ponderato: %\" PRIu64 \"\\n\", somma_len, somma_pond);\n    free(elenco);\n    return EXIT_SUCCESS;\n}\n\nvoid scambia_pacchetti(pacchetto_t *a, pacchetto_t *b) {\n    typeof(*a) tmp = *a;\n    *a = *b;\n    *b = tmp;\n}\n\nuint64_t peso_pacchetto(const pacchetto_t *p, const uint64_t fattore) {\n    typeof_unqual(fattore) molt = fattore;\n    if (p->flag != 0U) {\n        ++molt;\n    }\n    auto ris = (uint64_t)p->lunghezza * molt;\n    return ris;\n}\n"
+    }
+  ],
+  "errori_comuni": [
+    "Tentare di dereferenziare direttamente un puntatore generico (*p) o di eseguirvi aritmetica dei puntatori (p + 1) invece di riconvertirlo al tipo esatto o a unsigned char *.",
+    "Usare memcpy al posto di memmove quando sorgente e destinazione si sovrappongono dentro lo stesso buffer, oppure passare puntatori nulli a memcpy/memmove/memcmp/memset anche con n == 0.",
+    "Usare memset(array_int, 1, sizeof(array_int)) pensando di impostare ogni int al valore 1 invece di impostare ogni singolo byte a 0x01, oppure confrontare due struct con padding tramite memcmp.",
+    "Scrivere chiamate di funzione con argomenti di tipo incompatibile dentro i rami di _Generic invece di selezionare la funzione dentro _Generic e applicare gli argomenti fuori, oppure aspettarsi che l'espressione di controllo di _Generic venga eseguita.",
+    "Usare typeof su una variabile const e tentare poi di modificare la nuova variabile invece di usare typeof_unqual, oppure passare a static_assert una variabile ordinaria anziché un'espressione costante a tempo di compilazione."
+  ],
+  "differenze_python": [
+    "In Python una lista può contenere oggetti di tipi diversi senza sforzo perché ogni elemento è un riferimento a un oggetto con informazioni di tipo a tempo di esecuzione; in C un contenitore generico manipola byte grezzi tramite void * e dim_elem, ottenendo compattezza e velocità al prezzo di richiedere rigore sui tipi.",
+    "In Python il controllo del tipo (isinstance) avviene a tempo di esecuzione; in C _Generic, typeof e static_assert risolvono completamente selezione e verifiche a tempo di compilazione senza alcun costo a tempo di esecuzione.",
+    "In Python una variabile non ha tipo fisso e può cambiare tipo a ogni assegnamento; in C23 la parola chiave auto deduce un tipo statico definitivo dall'inizializzatore al momento della compilazione."
+  ]
+}
