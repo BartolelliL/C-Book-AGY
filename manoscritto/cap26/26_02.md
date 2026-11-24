@@ -1,0 +1,195 @@
+## 26.2 L'analizzatore lessicale
+
+Quando il programma riceve un testo MiniL come `var somma = 10 + 25;`, dal punto di vista del C si tratta di una semplice sequenza di `char` terminata da `'\0'`. Lavorare direttamente sui singoli caratteri dentro il parser renderebbe la grammatica illeggibile, perché ogni regola dovrebbe continuamente saltare spazi, ignorare commenti e distinguere `=` da `==`. Per separare la lettura dei caratteri dalla comprensione della grammatica si introduce il primo stadio dell'interprete: l'**analizzatore lessicale** (*lexer*), il componente iniziale di un interprete che trasforma il codice sorgente in una sequenza di token tipizzati dotati di posizione (riga e colonna).
+
+Un **token** rappresenta la minima unità significativa del linguaggio: una parola chiave (`var`, `while`), un identificatore (`somma`), un letterale intero (`42`), un operatore (`>=`, `&&`) o un simbolo di punteggiatura (`(`, `;`). In C lo modelliamo con una `struct` leggera:
+
+<!-- cod: id=26.2-b tipo=frammento -->
+```c
+typedef struct token {
+    tok_tipo_t tipo;
+    const char *inizio;
+    size_t len;
+    int64_t val_int;
+    size_t riga;
+    size_t col;
+} token_t;
+```
+
+Il campo `tipo` appartiene a una enumerazione `tok_tipo_t` che comprende tutte le categorie del linguaggio, più due valori speciali: `TOK_EOF` (il **valore sentinella** che segnala la fine del sorgente) e `TOK_ERR` (un token diagnostico che trasporta il motivo dell'errore lessicale e le coordinate esatte). I campi `inizio` e `len` descrivono una vista (puntatore e lunghezza) direttamente dentro la stringa sorgente, senza creare copie sullo heap; `val_int` memorizza il valore già convertito per i letterali numerici; `riga` e `col` (a partire da `1`) registrano dove inizia il token nel sorgente.
+
+Lo stato dell'analizzatore lessicale è altrettanto compatto: `const char *src` (il testo sorgente), `size_t pos` (l'indice del carattere corrente) e i contatori `riga` e `col`. Ogni volta che si consuma un carattere tramite una funzione interna `avanza`, se il carattere letto è `'\n'` si incrementa `riga` e si riporta `col` a `1`; altrimenti si incrementa `col`.
+
+Prima di costruire il token successivo, il lexer salta tutti gli elementi privi di significato grammaticale:
+
+1. **Spazi bianchi** (`' '`, `'\t'`, `'\r'`, `'\n'`), riconosciuti con `isspace` di `<ctype.h>`.
+2. **Commenti di riga** introdotti da `//`: quando `src[pos] == '/'` e `src[pos + 1] == '/'`, il cursore avanza fino a incontrare `'\n'` oppure `'\0'`. Poiché lo spazio bianco successivo (lo stesso `'\n'`) verrà saltato dall'iterazione seguente del ciclo, anche la posizione di riga e colonna resta sempre coerente.
+
+Fai molta attenzione a una regola fondamentale di `<ctype.h>` che hai incontrato nel capitolo 9: le funzioni `isspace`, `isalpha`, `isdigit` e `isalnum` accettano un `int` che **deve** essere rappresentabile come `unsigned char` oppure uguale a `EOF`. Su piattaforme dove `char` è con segno, passare direttamente un `char` negativo (per esempio un carattere accentato codificato in UTF-8) provoca **comportamento indefinito** secondo lo standard C23. Converti quindi **sempre** il carattere con `(unsigned char)c` prima di passarlo a qualunque funzione di `<ctype.h>`.
+
+Saltati spazi e commenti, il lexer ispeziona il carattere corrente `c = src[pos]` e decide la categoria del token:
+
+- **Fine del testo**: se `c == '\0'`, restituisce `TOK_EOF` con la riga e la colonna correnti, senza avanzare oltre il terminatore nullo.
+- **Identificatori e parole chiave**: se `isalpha((unsigned char)c) || c == '_'`, consuma tutti i caratteri successivi che soddisfano `isalnum((unsigned char)src[pos]) || src[pos] == '_'`. Ottiene così la vista `(inizio, len)` e la confronta con una tabella `static const` di coppie `(parola_chiave, tok_tipo_t)` verificando sia `strlen(kw) == len` sia `strncmp(inizio, kw, len) == 0`. Controllare anche la lunghezza è indispensabile: senza di essa, un prefisso come `var` verrebbe confuso con `variabile`. Se la parola non è in tabella, il token è `TOK_IDENT`.
+- **Letterali interi**: se `isdigit((unsigned char)c)`, accumula le cifre in un `int64_t val = 0`. In C23 l'overflow su un intero con segno con gli operatori `*` e `+` provoca **comportamento indefinito**: se l'utente scrive un numero di trenta cifre nel proprio sorgente MiniL, il tuo interprete non può permettersi di entrare in UB. Usa invece `ckd_mul(&val, val, 10)` e `ckd_add(&val, val, cifra)` di `<stdckdint.h>` (capitolo 21): entrambe sono completamente definite in C23 e restituiscono `true` se il risultato non entra in `int64_t`. In caso di overflow il lexer finisce di consumare le cifre contigue e restituisce `TOK_ERR` con il messaggio `"overflow intero"` e le coordinate di inizio del numero.
+- **Operatori a uno o due caratteri e punteggiatura**: dopo aver consumato `c`, il lexer osserva il carattere successivo `p = src[pos]` (*lookahead* di un carattere) prima di decidere se avanzare di nuovo. Se `c == '='` e `p == '='`, consuma anche `p` e restituisce `TOK_EQ`; altrimenti lascia `p` intatto e restituisce `TOK_ASS`. Lo stesso vale per `!=`, `<=`, `>=`, `&&` e `||`. Nota un caso importante: `&` e `|` isolati non esistono in MiniL, quindi se dopo `&` non c'è un secondo `&` (o dopo `|` non c'è `|`), il lexer produce un token `TOK_ERR` con `"carattere non valido"` e le coordinate esatte del simbolo errato. Lo stesso accade per qualsiasi carattere non previsto dal linguaggio, come `@` o `$`.
+
+> **C23** — Le macro `ckd_mul` e `ckd_add` di `<stdckdint.h>` sono una novità di C23; su compilatori più vecchi occorre verificare preventivamente il limite rispetto a `INT64_MAX / 10` e `INT64_MAX % 10` prima di moltiplicare o sommare.
+
+### Esempio guidato
+
+Questo breve lexer didattico analizza una singola istruzione contenente parole chiave, identificatori, interi e operatori `=`, `==`, `+` e `;`. Mostra il cursore con riga/colonna, il cast a `unsigned char`, la tabella statica delle parole chiave e il lookahead di un carattere per distinguere `=` da `==`.
+
+<!-- cod: id=26.2-a tipo=programma -->
+```c
+#include <ctype.h>
+#include <inttypes.h>
+#include <stdckdint.h>
+#include <stdio.h>
+#include <string.h>
+
+typedef enum tok_tipo {
+    TK_EOF, TK_ERR, TK_VAR, TK_IDENT, TK_INT, TK_ASS, TK_EQ, TK_PIU, TK_PV
+} tok_tipo_t;
+
+typedef struct token {
+    tok_tipo_t tipo;
+    const char *inizio;
+    size_t len, col;
+    int64_t val;
+} token_t;
+
+typedef struct lexer {
+    const char *src;
+    size_t pos, col;
+} lexer_t;
+
+static char avanza(lexer_t *lx) { ++lx->col; return lx->src[lx->pos++]; }
+
+static tok_tipo_t cerca_kw(const char *s, size_t n) {
+    static const struct { const char *kw; tok_tipo_t t; } TAB[] = {{"var", TK_VAR}};
+    for (size_t i = 0; i < sizeof(TAB) / sizeof(TAB[0]); ++i) {
+        if (strlen(TAB[i].kw) == n && strncmp(s, TAB[i].kw, n) == 0) { return TAB[i].t; }
+    }
+    return TK_IDENT;
+}
+
+static token_t prossimo(lexer_t *lx) {
+    while (lx->src[lx->pos] != '\0' && isspace((unsigned char)lx->src[lx->pos])) {
+        avanza(lx);
+    }
+    size_t col = lx->col, start = lx->pos;
+    char c = lx->src[lx->pos];
+    if (c == '\0') { return (token_t){.tipo = TK_EOF, .col = col}; }
+    if (isalpha((unsigned char)c) || c == '_') {
+        while (isalnum((unsigned char)lx->src[lx->pos]) || lx->src[lx->pos] == '_') { avanza(lx); }
+        size_t n = lx->pos - start;
+        return (token_t){cerca_kw(lx->src + start, n), lx->src + start, n, col, 0};
+    }
+    if (isdigit((unsigned char)c)) {
+        int64_t v = 0;
+        while (isdigit((unsigned char)lx->src[lx->pos])) {
+            int64_t d = (int64_t)(avanza(lx) - '0');
+            if (ckd_mul(&v, v, 10) || ckd_add(&v, v, d)) { return (token_t){.tipo = TK_ERR, .col = col}; }
+        }
+        return (token_t){.tipo = TK_INT, .col = col, .val = v};
+    }
+    avanza(lx);
+    if (c == '=' && lx->src[lx->pos] == '=') { avanza(lx); return (token_t){.tipo = TK_EQ, .col = col}; }
+    if (c == '=') { return (token_t){.tipo = TK_ASS, .col = col}; }
+    if (c == '+') { return (token_t){.tipo = TK_PIU, .col = col}; }
+    if (c == ';') { return (token_t){.tipo = TK_PV, .col = col}; }
+    return (token_t){.tipo = TK_ERR, .col = col};
+}
+
+int main(void) {
+    static const char *NOMI[] = {"EOF", "ERR", "VAR", "IDENT", "INT", "ASS", "EQ", "PIU", "PV"};
+    lexer_t lx = {.src = "var x = 12 + 34; x == 46;", .pos = 0, .col = 1};
+    while (true) {
+        token_t t = prossimo(&lx);
+        if (t.tipo == TK_IDENT) {
+            printf("col %2zu: IDENT(%.*s)\n", t.col, (int)t.len, t.inizio);
+        } else if (t.tipo == TK_INT) {
+            printf("col %2zu: INT(%" PRId64 ")\n", t.col, t.val);
+        } else {
+            printf("col %2zu: %s\n", t.col, NOMI[t.tipo]);
+        }
+        if (t.tipo == TK_EOF || t.tipo == TK_ERR) { break; }
+    }
+    return 0;
+}
+```
+
+```output
+col  1: VAR
+col  5: IDENT(x)
+col  7: ASS
+col  9: INT(12)
+col 12: PIU
+col 14: INT(34)
+col 16: PV
+col 18: IDENT(x)
+col 20: EQ
+col 23: INT(46)
+col 25: PV
+col 26: EOF
+```
+
+Nota come lo specificatore `%.*s` di `printf` stampi esattamente `(int)t.len` caratteri a partire da `t.inizio`, senza che la sottostringa nel buffer sorgente debba terminare con `'\0'`. In `prossimo`, quando `c` è `'='`, il controllo `lx->src[lx->pos] == '='` è sempre sicuro perché, se `c` era l'ultimo carattere prima della fine, `lx->src[lx->pos]` è il terminatore `'\0'` (mai fuori dai limiti dell'array).
+
+> **Approfondimento — Zero allocazioni nell'analizzatore lessicale**
+> Perché `token_t` memorizza la coppia `(const char *inizio, size_t len)` che punta dentro il buffer sorgente invece di duplicare subito ogni identificatore con `strdup`? Perché la maggior parte dei token (parole chiave, numeri, operatori) non ha bisogno di alcuna copia in memoria, e anche per gli identificatori sarà eventualmente il parser a copiarli nell'arena dell'AST solo quando costruisce un nodo valido. In questo modo il lexer non esegue nessuna allocazione sullo heap, resta velocissimo e non può mai provocare perdite di memoria.
+
+### Esercizio 26.2 — Analizzatore lessicale completo per MiniL con coordinate, commenti e controllo di overflow
+
+**Descrizione**
+
+Realizza su tre file (`lexer_minil.h`, `lexer_minil.c`, `main.c`) l'**analizzatore lessicale** completo del linguaggio MiniL. (1) In `lexer_minil.h` (protetto da `LEXER_MINIL_H`) definisci `tok_tipo_t` comprendente `TOK_EOF`, `TOK_ERR`, `TOK_INT`, `TOK_IDENT`, tutte le parole chiave (`var`, `if`, `else`, `while`, `fn`, `return`, `stampa`, `true`, `false`), gli operatori aritmetici/logici/relazionali (`+`, `-`, `*`, `/`, `%`, `!`, `=`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`) e la punteggiatura (`(`, `)`, `{`, `}`, `,`, `;`), oltre a `token_t` (con `tipo`, `inizio`, `len`, `val_int`, `riga`, `col`) e `lexer_t`. Dichiara `lexer_init`, `lexer_prossimo` e `tok_nome`. (2) In `lexer_minil.c` salta spazi e commenti `//` aggiornando `riga` e `col`, converte ogni carattere a `unsigned char` prima di chiamare `<ctype.h>`, distingue identificatori e parole chiave, converte letterali interi in `int64_t` usando `ckd_mul` e `ckd_add` (restituendo `TOK_ERR` con messaggio `overflow intero` se supera `INT64_MAX`) e gestisce il lookahead per gli operatori doppi (`==`, `!=`, `<=`, `>=`, `&&`, `||`; un `&` o `|` singolo o un carattere ignoto produce `TOK_ERR` con `carattere non valido`). (3) In `main.c` leggi l'intero sorgente da `stdin` (fino a `4095` byte) e stampa un token per riga nel formato `<riga>:<col> <NOME>` (`INT=<val>` per i numeri, `IDENT=<testo>` per gli identificatori), arrestandosi con `ERRORE <riga>:<col>: <msg>` su `TOK_ERR` oppure terminando con `<riga>:<col> EOF`, esattamente come nell'esempio.
+
+**Concetti da tenere a mente**
+
+- conversione obbligatoria a `unsigned char` prima di invocare `isspace`, `isalpha`, `isdigit` e `isalnum`
+- tracciamento esatto di riga e colonna attraverso spazi, ritorni a capo e commenti di riga `//`
+- lookahead di un carattere per distinguere operatori a uno e due caratteri (`=` vs `==`, `&` isolato vs `&&`)
+- parsing di interi `int64_t` con `ckd_mul` e `ckd_add` senza comportamento indefinito
+
+**Domande guida**
+
+1. Come fa il lexer a distinguere la parola chiave `var` da un identificatore come `variabile`?
+2. Perché nella conversione di una sequenza di cifre in `int64_t` conviene usare `ckd_mul` e `ckd_add` invece di moltiplicare direttamente per `10`?
+3. Che cosa succede alla riga e alla colonna quando il lexer incontra un commento `//` seguito da `'\n'`?
+4. Perché un singolo carattere `'&'` non seguito da un altro `'&'` deve generare un token di errore invece di essere ignorato?
+
+**Esempio di esecuzione**
+
+```input
+var x = 42; // init
+if (x >= 10 && !false) {
+    stampa x + 1;
+}
+```
+
+```output
+1:1 VAR
+1:5 IDENT=x
+1:7 ASS
+1:9 INT=42
+1:11 PV
+2:1 IF
+2:4 TONDA_A
+2:5 IDENT=x
+2:7 GE
+2:10 INT=10
+2:13 AND
+2:16 BANG
+2:17 FALSE
+2:22 TONDA_C
+2:24 GRAFFA_A
+3:5 STAMPA
+3:12 IDENT=x
+3:14 PIU
+3:16 INT=1
+3:17 PV
+4:1 GRAFFA_C
+5:1 EOF
+```

@@ -1,0 +1,15 @@
+# Capitolo 26 — Progetto finale: un interprete per un piccolo linguaggio
+
+> **In questo capitolo imparerai a:**
+> - Progettare la sintassi e le strutture dati di un piccolo linguaggio imperativo usando unioni etichettate ed enum
+> - Implementare un analizzatore lessicale e un analizzatore sintattico a discesa ricorsiva con precedenza degli operatori
+> - Gestire i nodi dell'albero di sintassi con un allocatore ad arena e gli ambienti di variabili e funzioni con la tabella hash generica opaca
+> - Integrare controllo di flusso, funzioni definite dall'utente, funzioni predefinite e test automatici su più file senza perdite di memoria
+
+> **Ti servono:** allocazione dinamica e sanitizer (capitolo 11), strutture ed enumerazioni (capitolo 12), unioni etichettate e allineamento (capitolo 13), programmazione generica con `void *` (capitolo 15), puntatori a funzione (capitolo 16), strutture dati dinamiche (capitolo 17), tabelle hash (capitolo 18), programmi su più file e tipi opachi (capitolo 19), `goto cleanup` e aritmetica controllata (capitolo 21), allocatore ad arena (capitolo 22) e test automatici (capitolo 25).
+
+Nei venticinque capitoli precedenti hai costruito un intero repertorio di strumenti: dalla gestione rigorosa della memoria sullo heap fino agli allocatori ad arena, dai puntatori a funzione alle tabelle hash generiche come tipi opachi, dalla compilazione separata ai test automatici. Finora ciascuna tecnica ha risolto un problema ben delimitato; in questo capitolo conclusivo le riunisci tutte dentro un unico programma reale di alcune centinaia di righe: un interprete completo per un piccolo linguaggio imperativo chiamato **MiniL**.
+
+Scrivere un interprete è uno dei modi più efficaci per consolidare la padronanza del C. Ogni fase del programma mette alla prova una competenza diversa: la scansione del testo esige cura su caratteri, indici e overflow; l'analisi grammaticale richiede ricorsione controllata e strutture ad albero; la gestione delle variabili trasforma la tabella hash opaca in un sistema di ambiti annidati; l'esecuzione del codice utente ti obbliga a difendere il programma ospite da divisioni per zero, overflow e cicli infiniti senza mai ricorrere a comportamento indefinito.
+
+Il capitolo è organizzato come un cantiere in sei tappe progressive. Nelle prime cinque sotto-sezioni progetti e verifichi separatamente ogni componente dell'interprete — strutture dati e arena, analizzatore lessicale, analizzatore sintattico, valutatore con ambienti, controllo di flusso e funzioni — attraverso esempi mirati ed esercizi dedicati. Nella sesta sotto-sezione integri tutti i moduli in un progetto su più file corredato da una suite di test automatici e pronto per la verifica con i sanitizer.
