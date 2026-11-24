@@ -1,0 +1,16 @@
+{
+  "capitolo": 15,
+  "errori": [],
+  "avvisi": [
+    "15_01.md: usa il termine 'strict aliasing' che il glossario introduce al capitolo 22",
+    "15_05.md: usa il termine 'asserzione' che il glossario introduce al capitolo 21",
+    "15_99.md: usa il termine 'asserzione' che il glossario introduce al capitolo 21"
+  ],
+  "info": {
+    "programmi": 5,
+    "frammenti": 9,
+    "errori_voluti": 2,
+    "tracce": 0,
+    "parole": 8892
+  }
+}
