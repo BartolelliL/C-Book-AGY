@@ -1,0 +1,17 @@
+{
+  "capitolo": 17,
+  "errori": [],
+  "avvisi": [
+    "17_00.md: usa il termine 'tabella hash' che il glossario introduce al capitolo 18",
+    "17_02.md: usa il termine 'collegamento' che il glossario introduce al capitolo 19",
+    "17_05.md: usa il termine 'tabella hash' che il glossario introduce al capitolo 18",
+    "17_99.md: usa il termine 'tabella hash' che il glossario introduce al capitolo 18"
+  ],
+  "info": {
+    "programmi": 5,
+    "frammenti": 9,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 8128
+  }
+}
