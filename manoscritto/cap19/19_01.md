@@ -1,0 +1,183 @@
+## 19.1 File di intestazione, file sorgenti e compilazione separata
+
+Quando un programma supera qualche centinaio di righe, dividere il codice in moduli distinti non è una questione estetica ma una necessità tecnica. Separare il programma in più file risolve tre problemi concreti: permette di distinguere l'*interfaccia* (quali tipi e funzioni un modulo mette a disposizione) dall'*implementazione* (come quelle funzioni sono scritte), consente di riutilizzare lo stesso modulo in programmi diversi senza duplicarne il codice sorgente e rende possibile ricompilare soltanto i file effettivamente modificati.
+
+In C ogni modulo è formato tipicamente da una coppia di file con lo stesso nome di base:
+
+- un **file di intestazione** (*header file*), con estensione `.h`, che espone dichiarazioni di tipi, costanti e prototipi condivisi tra più file sorgenti;
+- un file sorgente con estensione `.c`, che contiene le definizioni vere e proprie delle funzioni dichiarate nell'header.
+
+Per capire come il compilatore trasforma più file sorgenti in un unico eseguibile occorre osservare da vicino le fasi della traduzione introdotte nel capitolo 1. Il compilatore non legge mai tutti i file `.c` contemporaneamente: lavora su un file `.c` alla volta. Prima che inizi l'analisi del codice C, il preprocessore espande ogni direttiva `#include` copiando testualmente il contenuto degli header richiesti dentro il file sorgente. Il risultato di questa espansione è chiamato **unità di traduzione** (*translation unit*): è un singolo file sorgente `.c` dopo l'espansione di tutti gli `#include` e delle direttive del preprocessore.
+
+Ciascuna unità di traduzione viene tradotta dal compilatore in modo del tutto indipendente in un *file oggetto* (con estensione `.o` su sistemi Unix/Linux/macOS o `.obj` su alcuni compilatori Windows), che contiene codice macchina ancora incompleto perché i riferimenti a funzioni definite in altri file non hanno ancora un indirizzo definitivo. Questa prima fase si chiama **compilazione separata** (*separate compilation*): la compilazione indipendente di ciascun file `.c` in un file oggetto, seguita dal collegamento finale in un unico eseguibile. Nell'ultima fase interviene il collegatore, che unisce tutti i file oggetto e le librerie richieste, risolve ogni chiamata tra moduli e produce l'eseguibile finale.
+
+```text
+geometria.h ──┐                        ┌── geometria.o ──┐
+              ├──> preprocessore ──>   │                 ├──> collegatore ──> programma
+geometria.c ──┘    (unità di trad. 1)  │                 │
+                                       │                 │
+geometria.h ──┐                        │                 │
+              ├──> preprocessore ──>   └── main.o ───────┘
+main.c ───────┘    (unità di trad. 2)
+```
+
+Da riga di comando puoi eseguire la compilazione separata in due passaggi espliciti (usando il flag `-c` per fermarti al file oggetto) oppure affidare i passaggi a un solo comando:
+
+```text
+cc -std=c23 -Wall -Wextra -Wpedantic -Werror -c geometria.c
+cc -std=c23 -Wall -Wextra -Wpedantic -Werror -c main.c
+cc geometria.o main.o -lm -o programma
+```
+
+Se in seguito modifichi soltanto `main.c`, ti basta ricompilare `main.c` in `main.o` e ripetere il collegamento, senza dover ricompilare `geometria.c`. Quando invece modifichi `geometria.h`, devi ricompilare tutti i file `.c` che lo includono.
+
+Per includere un file di intestazione il preprocessore offre due forme di `#include`:
+
+- `#include <stdio.h>` (con parentesi angolari) cerca l'header nelle directory di sistema della libreria standard;
+- `#include "geometria.h"` (con virgolette doppie) cerca prima nella directory del file sorgente corrente (o nei percorsi del progetto) e, solo se non lo trova, nei percorsi di sistema.
+
+Quando scrivi il file di implementazione `modulo.c`, segui sempre una regola d'oro: inserisci `#include "modulo.h"` come **prima direttiva** del file, prima persino di `<stdio.h>` o `<stdlib.h>`. Questa abitudine garantisce due verifiche automatiche a ogni compilazione:
+
+1. verifica che `modulo.h` sia *autosufficiente*, cioè che includa da sé tutti gli header da cui dipendono i suoi tipi (come `<stddef.h>` o `<stdint.h>`) senza contare su inclusioni precedenti fatte dal chiamante;
+2. verifica che i prototipi dichiarati in `modulo.h` coincidano esattamente con le definizioni scritte in `modulo.c`.
+
+Che cosa deve contenere un file di intestazione e che cosa va invece evitato con rigore? Nell'header vanno solo **dichiarazioni**: definizioni di tipi (`struct`, `enum`, `typedef`), prototipi di funzioni e costanti condivise. Non devi mai mettere in un `.h` definizioni di funzioni normali (non `inline` e non `static`) né definizioni di variabili globali con collegamento esterno: poiché ogni `#include` copia il contenuto dell'header in ciascuna unità di traduzione, includere quell'header in due file `.c` genererebbe due definizioni dello stesso simbolo e il collegatore segnalerebbe un errore di definizione multipla.
+
+Riassumiamo le regole fondamentali della compilazione separata secondo lo standard C23:
+
+- L'interfaccia pubblica di un modulo risiede nel file di intestazione (`.h`) con sole dichiarazioni; l'implementazione risiede nel corrispondente file sorgente (`.c`).
+- Ogni file `.c`, dopo il preprocessore, forma un'unità di traduzione compilata indipendentemente in un file oggetto; il collegatore unisce i file oggetto nell'eseguibile finale.
+- Ogni `modulo.c` include `"modulo.h"` come prima direttiva per verificare l'autosufficienza dell'header e la corrispondenza delle firme.
+- Secondo lo standard C23, ogni identificatore con collegamento esterno usato nel programma deve avere esattamente una definizione esterna. Dichiarare nell'header un prototipo incompatibile con la definizione nel `.c` (situazione possibile se il `.c` dimentica di includere il proprio header) provoca **comportamento indefinito**, perché il compilatore non può accorgersi della discrepanza tra le due unità di traduzione.
+
+> **Se vieni da Python** — In Python ogni file `.py` è direttamente un modulo importabile a tempo di esecuzione con `import`. In C la modularità separa esplicitamente l'interfaccia (`.h`) dall'implementazione (`.c`) e avviene in due fasi distinte prima dell'esecuzione: la compilazione separata di ciascuna unità di traduzione e il collegamento finale.
+
+### Esempio guidato
+
+Costruiamo un piccolo programma di geometria 2D suddiviso in tre file: `geometria.h`, `geometria.c` e `main.c`. L'header definisce i tipi `punto_t` e `rettangolo_t` e dichiara tre funzioni; `geometria.c` include `"geometria.h"` come prima riga e le implementa; `main.c` usa il modulo conoscendone solo l'interfaccia.
+
+<!-- cod: id=19.1-a tipo=programma gruppo=geo file=geometria.h -->
+```c
+typedef struct punto {
+    double x;
+    double y;
+} punto_t;
+
+typedef struct rettangolo {
+    punto_t origine;
+    double larghezza;
+    double altezza;
+} rettangolo_t;
+
+double geo_distanza(punto_t a, punto_t b);
+double geo_area(rettangolo_t r);
+double geo_perimetro(rettangolo_t r);
+```
+
+<!-- cod: id=19.1-b tipo=programma gruppo=geo file=geometria.c -->
+```c
+#include "geometria.h"
+#include <math.h>
+
+double geo_distanza(punto_t a, punto_t b) {
+    double dx = b.x - a.x;
+    double dy = b.y - a.y;
+    return sqrt(dx * dx + dy * dy);
+}
+
+double geo_area(rettangolo_t r) {
+    return r.larghezza * r.altezza;
+}
+
+double geo_perimetro(rettangolo_t r) {
+    return 2.0 * (r.larghezza + r.altezza);
+}
+```
+
+<!-- cod: id=19.1-c tipo=programma gruppo=geo file=main.c -->
+```c
+#include <stdio.h>
+#include "geometria.h"
+
+int main(void) {
+    punto_t p1 = {.x = 1.0, .y = 2.0};
+    punto_t p2 = {.x = 4.0, .y = 6.0};
+    rettangolo_t r = {
+        .origine = p1,
+        .larghezza = 5.0,
+        .altezza = 3.5
+    };
+
+    printf("Distanza p1-p2: %.2f\n", geo_distanza(p1, p2));
+    printf("Area rettangolo: %.2f\n", geo_area(r));
+    printf("Perimetro rettangolo: %.2f\n", geo_perimetro(r));
+    return 0;
+}
+```
+
+```output
+Distanza p1-p2: 5.00
+Area rettangolo: 17.50
+Perimetro rettangolo: 17.00
+```
+
+Osserva come sono divise le responsabilità tra i tre file:
+
+- `geometria.h` non include `<math.h>` perché la sua interfaccia usa soltanto `double` e i tipi che definisce. La dipendenza da `sqrt` è un dettaglio implementativo confinato dentro `geometria.c`.
+- In `geometria.c` la prima riga è `#include "geometria.h"`: se `geo_area` avesse un tipo di ritorno o un parametro diverso dal prototipo nell'header, il compilatore segnalerebbe immediatamente l'incompatibilità di tipo.
+- In `main.c` il compilatore conosce `punto_t`, `rettangolo_t` e le firme delle funzioni `geo_*` grazie a `#include "geometria.h"`, ma non vede i corpi delle funzioni: genera chiamate a simboli esterni che il collegatore risolve unendo `geometria.o` e `main.o` (con `-lm` per la libreria matematica).
+
+> **Approfondimento — Perché includere `"modulo.h"` come prima riga di `modulo.c`**
+> Supponi che un header `archivio.h` usi `size_t` nei suoi prototipi ma dimentichi `#include <stddef.h>`. Se `archivio.c` includesse `<stdio.h>` prima di `"archivio.h"`, `<stdio.h>` definirebbe già `size_t` e l'errore resterebbe nascosto durante la compilazione di `archivio.c`. Il difetto emergerebbe solo in seguito, in un altro file sorgente che includesse `"archivio.h"` prima di qualsiasi header standard. Mettendo sempre `#include "archivio.h"` alla riga 1 di `archivio.c`, il compilatore controlla l'autosufficienza dell'header fin dalla prima compilazione.
+
+### Esercizio 19.1 — Modulo di aritmetica razionale su più file con separazione tra interfaccia e implementazione
+
+**Descrizione**
+
+Scrivi un programma C organizzato su tre file (`razionale.h`, `razionale.c`, `main.c`) che implementi un modulo per l'aritmetica esatta sui numeri razionali (frazioni `num / den` ridotte ai minimi termini). Nel file di intestazione `razionale.h` definisci `typedef struct razionale { int64_t num; int64_t den; } razionale_t;` e dichiara cinque funzioni:
+
+1. `razionale_t raz_crea(int64_t num, int64_t den, bool *ok)` che rifiuta `den == 0` impostando `*ok = false`, altrimenti porta il segno sul numeratore (`den > 0`), normalizza `0 / den` in `0 / 1`, divide per il massimo comun divisore (algoritmo di Euclide) e imposta `*ok = true`;
+2. `razionale_t raz_somma(razionale_t a, razionale_t b)`;
+3. `razionale_t raz_moltiplica(razionale_t a, razionale_t b)`;
+4. `int raz_confronta(razionale_t a, razionale_t b)` che restituisce `-1`, `0` oppure `1`;
+5. `void raz_stampa(razionale_t r)` che stampa `<num>` se `r.den == 1`, altrimenti `<num>/<den>`.
+
+Nel file `razionale.c` includi `"razionale.h"` come prima direttiva e implementa il modulo (nessuna funzione definita nell'header). In `main.c` leggi comandi da `stdin` fino a fine input: `NORM <n> <d>`, `ADD <n1> <d1> <n2> <d2>`, `MUL <n1> <d1> <n2> <d2>` e `CMP <n1> <d1> <n2> <d2>` (se un denominatore è `0` stampa `ERRORE DENOMINATORE ZERO` e prosegui), producendo l'output esatto dell'esempio.
+
+**Concetti da tenere a mente**
+
+- separazione tra file di intestazione (`.h` con tipi e prototipi) e file sorgente (`.c` con definizioni)
+- inclusione di `"razionale.h"` come prima direttiva in `razionale.c` per verificare coerenza e autosufficienza
+- compilazione separata di `razionale.c` e `main.c` seguita dal collegamento nell'eseguibile finale
+- normalizzazione canonica di frazioni (segno sul numeratore, riduzione tramite MCD, gestione di `den == 0`)
+
+**Domande guida**
+
+1. Perché `razionale.h` deve includere `<stdint.h>` direttamente invece di sperare che lo faccia `main.c` prima di `#include "razionale.h"`?
+2. Che cosa accadrebbe al momento del collegamento se definissi il corpo di `raz_somma` dentro `razionale.h` e lo includessi sia in `razionale.c` sia in `main.c`?
+3. Perché in `razionale.c` conviene scrivere `#include "razionale.h"` come prima riga del file?
+4. Come garantisce `raz_crea` una rappresentazione unica anche per frazioni come `0/-5` o `-6/-8`?
+
+**Esempio di esecuzione**
+
+```input
+NORM -6 -8
+NORM 0 -5
+NORM 4 0
+ADD 1 6 1 3
+MUL -2 3 9 4
+CMP 2 3 3 5
+CMP 2 4 1 2
+CMP -1 2 1 3
+```
+
+```output
+3/4
+0
+ERRORE DENOMINATORE ZERO
+1/2
+-3/2
+1
+0
+-1
+```
