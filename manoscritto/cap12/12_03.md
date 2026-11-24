@@ -1,0 +1,150 @@
+## 12.3 Puntatori a `struct` e operatore `->`
+
+Nel capitolo 10 hai visto che per permettere a una funzione di modificare una variabile del chiamante (o di ispezionare un dato di grandi dimensioni senza copiarlo) si passa l'indirizzo della variabile mediante un puntatore. Con le strutture questa esigenza diventa la norma: una `struct` può contenere molti campi e array, e le funzioni che gestiscono un conto, un sensore o una scheda devono spesso aggiornarne lo stato sul posto.
+
+Un puntatore a struttura si dichiara e si inizializza con le stesse regole di qualsiasi altro puntatore:
+
+<!-- cod: id=12.3-b tipo=frammento -->
+```c
+punto_t pt = {.x = 3.0, .y = 4.0};
+punto_t *p = &pt;        // puntatore che permette lettura e modifica
+const punto_t *cp = &pt; // puntatore di sola lettura
+```
+
+Una volta ottenuto il puntatore `p`, come accedi al campo `x` della struttura puntata? Istintivamente potresti provare a scrivere `*p.x`, pensando di dereferenziare `p` e poi selezionare `x`. Questo però è un **errore di compilazione**: per la precedenza degli operatori del C, l'operatore punto `.` ha precedenza più alta dell'operatore unario di dereferenziazione `*`. Il compilatore interpreta quindi `*p.x` come `*(p.x)`, cercando un campo `x` dentro il puntatore `p` (che non è una struttura) e rifiutando il codice.
+
+Per dereferenziare prima `p` e poi accedere al campo servono le parentesi tonde: `(*p).x`. Scrivere parentesi a ogni accesso è però scomodo e poco leggibile; per questo il C fornisce l'**operatore freccia** (`->`), una scrittura compatta e idiomatica che combina dereferenziazione e accesso al campo:
+
+<!-- cod: id=12.3-c tipo=frammento -->
+```c
+p->x   // equivale esattamente a (*p).x
+```
+
+```text
+  p (punto_t *)                 pt (punto_t)
++---------------+            +-------------------+
+|   indirizzo   | ---------> | x: 3.0  | y: 4.0  |
++---------------+            +-------------------+
+                                 ^         ^
+                               p->x      p->y
+```
+
+Lo schema mostra il funzionamento di `p->campo`: il puntatore `p` memorizza l'indirizzo iniziale di `pt` e l'operatore `->` segue quell'indirizzo per raggiungere il campo richiesto all'interno dell'oggetto puntato.
+
+L'operatore `->` si usa costantemente nelle funzioni che ricevono strutture tramite puntatore:
+
+- **Puntatore modificabile (`tipo_t *p`)**: la funzione può leggere e modificare i campi della struttura originale del chiamante tramite `p->campo`.
+- **Puntatore a costante (`const tipo_t *p`)**: la funzione può leggere `p->campo` senza copiare l'intera struttura, ma il compilatore impedisce qualsiasi modifica ai suoi campi.
+
+Prima di applicare `->` a un puntatore ricevuto come parametro (o ottenuto da un'allocazione), controlla sempre che non sia nullo (`if (p == nullptr)`). Secondo lo standard C23, l'equivalenza tra `p->campo` e `(*p).campo` e le regole di precedenza di `.` e `->` rispetto a `*` e `&` sono completamente definite; al contrario, applicare `->` a un puntatore nullo, non inizializzato o già liberato provoca **comportamento indefinito**.
+
+I puntatori a struttura si combinano in modo diretto anche con l'allocazione dinamica sullo heap (capitolo 11). Per allocare una singola struttura sullo heap scrivi `malloc(sizeof(*p))` (passando il tipo dell'oggetto puntato, non del puntatore!), controlli `p == nullptr`, inizializzi i campi tramite `->` e al termine rilasci il blocco con `free(p)` seguito da `p = nullptr;`. Infine, se hai bisogno dell'indirizzo di un singolo campo della struttura puntata — per esempio per passarlo a `sscanf` — scrivi semplicemente `&p->campo`, come spiegato nel box di approfondimento più avanti.
+
+Riassumiamo le regole chiave:
+
+- Dato un puntatore `p` a struttura (`struct tag *p` o `const struct tag *p`), `p->campo` equivale esattamente a `(*p).campo`.
+- Le parentesi in `(*p).campo` sono obbligatorie perché `.` e `->` hanno precedenza più alta di `*` e `&`.
+- Verifica sempre `p != nullptr` prima di usare `p->campo`: dereferenziare con `->` un puntatore nullo, non inizializzato o già liberato è comportamento indefinito.
+- Per allocare una singola struttura sullo heap usa `malloc(sizeof(*p))`, controlla `nullptr` e libera il blocco con `free(p)`.
+
+> **Se vieni da Python** — In Python si usa sempre l'operatore punto (`obj.campo`) perché ogni variabile è implicitamente un riferimento a un oggetto. In C si distingue sempre tra accesso diretto a un valore struttura (`s.campo`) e accesso indiretto tramite un puntatore a struttura (`p->campo`).
+
+### Esempio guidato
+
+Il programma seguente gestisce un conto corrente `conto_t` tramite tre funzioni: `deposita` e `preleva` ricevono `conto_t *` per modificare i campi sul posto, mentre `stampa_conto` riceve `const conto_t *` per la sola lettura. Tutte verificano `nullptr` prima di usare `->`. Nella seconda parte di `main`, un secondo conto viene allocato sullo heap con `malloc(sizeof(*secondo))`, aggiornato e liberato con `free`.
+
+<!-- cod: id=12.3-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct conto {
+    int numero;
+    double saldo;
+    int operazioni;
+} conto_t;
+
+bool deposita(conto_t *c, double importo) {
+    if (c == nullptr || importo <= 0.0) { return false; }
+    c->saldo += importo;
+    ++c->operazioni;
+    return true;
+}
+bool preleva(conto_t *c, double importo) {
+    if (c == nullptr || importo <= 0.0 || importo > c->saldo) { return false; }
+    c->saldo -= importo;
+    ++c->operazioni;
+    return true;
+}
+void stampa_conto(const conto_t *c) {
+    if (c != nullptr) {
+        printf("Conto #%d: saldo=%.2f euro, operazioni=%d\n", c->numero, c->saldo, c->operazioni);
+    }
+}
+int main(void) {
+    conto_t principale = {.numero = 1001, .saldo = 150.0, .operazioni = 0};
+    deposita(&principale, 50.0);
+    preleva(&principale, 80.0);
+    stampa_conto(&principale);
+    conto_t *secondo = malloc(sizeof(*secondo));
+    if (secondo == nullptr) { return EXIT_FAILURE; }
+    secondo->numero = 2002; secondo->saldo = 0.0; secondo->operazioni = 0;
+    deposita(secondo, 300.0);
+    stampa_conto(secondo);
+    free(secondo);
+    return 0;
+}
+```
+
+```output
+Conto #1001: saldo=120.00 euro, operazioni=2
+Conto #2002: saldo=300.00 euro, operazioni=1
+```
+
+Analizziamo i punti salienti dell'esempio:
+
+- In `deposita` e `preleva` il controllo `c == nullptr` precede ogni accesso `c->saldo`: grazie alla valutazione a corto circuito (capitolo 4), se `c` è nullo `c->saldo` non viene mai valutato.
+- In `main`, `principale` risiede sullo stack e ne passiamo l'indirizzo `&principale` alle funzioni: le modifiche su `c->saldo` e `c->operazioni` aggiornano direttamente `principale`.
+- `stampa_conto` accetta `const conto_t *c`: questo dichiara esplicitamente che la funzione non altera lo stato del conto e consente di chiamarla anche su strutture `const`.
+- `secondo` viene allocato sullo heap con `malloc(sizeof(*secondo))`, inizializzato campo per campo con `->`, passato direttamente alle stesse funzioni (è già un `conto_t *`) e infine liberato con `free(secondo); secondo = nullptr;`.
+
+> **Approfondimento — Precedenza tra `->` e `&`**
+> Anche l'operatore indirizzo `&` ha precedenza inferiore rispetto a `->` (e a `.`). Per questo l'espressione `&p->saldo` viene raggruppata automaticamente dal compilatore come `&(p->saldo)`: accede prima al campo `saldo` della struttura puntata da `p` e poi ne calcola l'indirizzo (di tipo `double *`). Questa regola è particolarmente utile quando passi i campi di una struttura puntata a funzioni come `sscanf(riga, "%lf", &p->saldo)`.
+
+### Esercizio 12.3 — Controllo di un'unità batteria tramite puntatori a struct e operatore ->
+
+**Descrizione**
+
+Scrivi un programma C che definisca `typedef struct batteria { char seriale[20]; int capacita_wh; int carica_wh; int cicli_completi; bool in_allarme; } batteria_t;` e dichiari prima di `main` i prototipi di tre funzioni che accedono ai campi tramite l'operatore `->` dopo aver verificato che il puntatore non sia `nullptr`: `bool ricarica_batteria(batteria_t *b, int wh)` (rifiuta e restituisce `false` se `b == nullptr || b->in_allarme || wh <= 0`; altrimenti aumenta `b->carica_wh` di `wh` senza superare `b->capacita_wh`, incrementa `b->cicli_completi` se `b->carica_wh == b->capacita_wh` e restituisce `true`), `bool scarica_batteria(batteria_t *b, int wh)` (rifiuta e restituisce `false` se `b == nullptr || b->in_allarme || wh <= 0 || wh > b->carica_wh`; altrimenti sottrae `wh` da `b->carica_wh`, imposta `b->in_allarme = true` se `b->carica_wh * 10 < b->capacita_wh` e restituisce `true`) e `void stampa_batteria(const batteria_t *b)` (stampa lo stato). In `main` leggi dalla prima riga `seriale capacita_wh carica_wh` (`capacita_wh > 0`, `0 <= carica_wh <= capacita_wh`) inizializzando `in_allarme` a `carica_wh * 10 < capacita_wh`, poi elabora i comandi `CARICA <wh>`, `SCARICA <wh>` e `RESET` (che imposta `in_allarme = false` tramite un puntatore `batteria_t *ptr = &unita;`) fino a fine input, stampando ogni esito e lo stato finale con `stampa_batteria(&unita)` esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- puntatori a `struct` (`batteria_t *` e `const batteria_t *`)
+- operatore freccia (`p->campo`) equivalente a `(*p).campo`
+- modifica sul posto della struttura del chiamante tramite passaggio per puntatore
+- controllo difensivo `p != nullptr` prima di accedere ai campi con `->`
+
+**Domande guida**
+
+1. Perché all'interno di `ricarica_batteria` e `scarica_batteria` occorre scrivere `b->carica_wh` invece di `*b.carica_wh`?
+2. Qual è la differenza tra il parametro `batteria_t *b` delle funzioni di modifica e il parametro `const batteria_t *b` di `stampa_batteria`?
+3. Perché le modifiche effettuate su `b->carica_wh` e `b->in_allarme` si riflettono direttamente sulla variabile `unita` dichiarata in `main`?
+4. In che modo il controllo `b->carica_wh * 10 < b->capacita_wh` verifica che la carica sia scesa sotto il 10% senza usare numeri in virgola mobile?
+
+**Esempio di esecuzione**
+
+```input
+BAT-A1 1000 300
+SCARICA 250
+CARICA 200
+RESET
+CARICA 950
+```
+
+```output
+SCARICA 250: ok (carica=50 Wh, allarme=1)
+CARICA 200: rifiutata
+RESET allarme eseguito
+CARICA 950: ok (carica=1000 Wh, cicli=1)
+Batteria BAT-A1: 1000/1000 Wh, cicli=1, allarme=0
+```
