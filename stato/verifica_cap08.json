@@ -1,0 +1,18 @@
+{
+  "capitolo": 8,
+  "errori": [],
+  "avvisi": [
+    "08_02.md: usa il termine 'stack' che il glossario introduce al capitolo 11",
+    "08_02.md: usa il termine 'sanitizer' che il glossario introduce al capitolo 11",
+    "08_03.md: usa il termine 'puntatore' che il glossario introduce al capitolo 10",
+    "08_04.md: usa il termine 'località dei dati' che il glossario introduce al capitolo 25",
+    "08_05.md: usa il termine 'notazione O' che il glossario introduce al capitolo 23"
+  ],
+  "info": {
+    "programmi": 5,
+    "frammenti": 11,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 7710
+  }
+}
