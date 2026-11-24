@@ -1,0 +1,194 @@
+## 14.3 Argomenti da riga di comando (`argc`/`argv`), `strtol` e `strtod`
+
+Finora i tuoi programmi hanno letto i dati da `stdin` con `fgets`. Gli strumenti reali da terminale, però, ricevono spesso opzioni e valori direttamente sulla riga di comando al momento dell'avvio, come `./programma --base 16 1a ff`. In C il sistema operativo consegna questi argomenti al programma attraverso una seconda firma standard di `main`:
+
+<!-- cod: id=14.3-b tipo=frammento -->
+```c
+int main(int argc, char *argv[])
+```
+
+Poiché nei parametri di funzione un array `T a[]` decade a puntatore `T *a`, `char *argv[]` è del tutto equivalente a `char **argv`: un puntatore al primo elemento di un array di puntatori a stringa. Lo standard C23 garantisce tre proprietà fondamentali:
+
+- `argc` (*argument count*) è un `int` non negativo che indica quanti argomenti sono stati passati.
+- Se `argc > 0`, `argv[0]` punta a una stringa che rappresenta il nome con cui il programma è stato avviato (o una stringa vuota se il sistema non lo fornisce). Gli argomenti veri e propri forniti dall'utente sono `argv[1]`, `argv[2]`, ..., `argv[argc - 1]`.
+- `argv[argc]` è garantito essere un puntatore nullo (`nullptr`), che funge da valore sentinella al termine dell'elenco (approfondiremo i valori sentinella nella sotto-sezione 14.5).
+
+```text
+argc = 4
+argv ---> [ argv[0] ] ---> "./calc\0"
+          [ argv[1] ] ---> "--base\0"
+          [ argv[2] ] ---> "16\0"
+          [ argv[3] ] ---> "ff\0"
+          [ argv[4] ] ---> nullptr
+```
+
+Per analizzare opzioni come `--base` o `--scala` e argomenti posizionali si scorre `argv` dall'indice `1` fino ad `argc - 1` confrontando le stringhe con `strcmp`. Se un'opzione richiede un parametro successivo (per esempio `--base 16`), occorre sempre verificare `i + 1 < argc` prima di accedere ad `argv[i + 1]`, e poi incrementare `i` per saltare il parametro già consumato. Quando l'utente fornisce un'opzione sconosciuta o malformata, è buona norma segnalare il problema su `stderr` con `fprintf` e restituire `EXIT_FAILURE`.
+
+### Conversione rigorosa in interi: `strtol`, `strtoul`, `strtoll`, `strtoull`
+
+Ogni elemento di `argv` è una stringa `char *`. Come convertirlo in un numero in modo affidabile? Le vecchie funzioni come `atoi`, `atol` e `atof` non segnalano in alcun modo gli errori di formato (restituiscono semplicemente `0` per `"abc"`) e provocano comportamento indefinito in caso di overflow: vanno quindi sempre evitate. Al loro posto, `<stdlib.h>` fornisce una famiglia di funzioni rigorose che sfruttano proprio un puntatore a puntatore `char **endptr`:
+
+- `long int strtol(const char *restrict nptr, char **restrict endptr, int base);`
+- `unsigned long int strtoul(const char *restrict nptr, char **restrict endptr, int base);`
+- `long long int strtoll(const char *restrict nptr, char **restrict endptr, int base);`
+- `unsigned long long int strtoull(const char *restrict nptr, char **restrict endptr, int base);`
+
+Il parametro `base` può valere un numero tra `2` e `36` (per esempio `10` per decimale, `16` per esadecimale, `2` per binario) oppure `0`: con `base == 0` la funzione riconosce automaticamente il prefisso della stringa (`0x`/`0X` per esadecimale, `0` iniziale per ottale, altrimenti decimale).
+
+Passando l'indirizzo di un puntatore locale `char *end = nullptr;` come secondo argomento (`&end`), la funzione scrive in `end` l'indirizzo del primo carattere che non ha potuto convertire. Con due soli controlli su `end` distingui ogni errore di formato:
+
+- Se `end == s`, non è stata letta alcuna cifra valida (per esempio stringa vuota `""` o `"ciao"`).
+- Se `*end != '\0'`, dopo il numero restano caratteri residui non validi (per esempio `"12abc"`, dove `end` punta ad `'a'`).
+
+### Conversione in virgola mobile con `strtod` e controllo di `errno`
+
+Per i numeri in virgola mobile `<stdlib.h>` offre `double strtod(const char *restrict nptr, char **restrict endptr);`, che usa lo stesso meccanismo di `endptr` per segnalare la fine della conversione.
+
+Come si rileva invece un **overflow** (numero troppo grande per il tipo) o un **underflow** (numero non nullo troppo vicino a zero per `double`)? Qui entra in gioco l'header `<errno.h>`, che definisce `errno` e la costante `ERANGE`:
+
+1. **Prima** di chiamare `strtol`, `strtoul`, `strtoll`, `strtoull` o `strtod`, scrivi sempre `errno = 0;`.
+2. **Dopo** la chiamata, controlla `errno == ERANGE`: in caso di overflow `strtol` restituisce `LONG_MAX` o `LONG_MIN` (e analogamente le altre varianti intere restituiscono il limite del proprio tipo), mentre `strtod` restituisce `+HUGE_VAL` o `-HUGE_VAL` (definita in `<math.h>`).
+3. Se il tuo programma deve memorizzare il risultato di `strtol` in un tipo più stretto come `int`, dopo aver verificato `errno != ERANGE` controlla anche `val >= INT_MIN && val <= INT_MAX` prima del cast.
+
+Secondo lo standard C23, il comportamento di `argc`, `argv[argc] == nullptr`, delle funzioni `strto*` e della segnalazione tramite `errno`, `ERANGE` e `HUGE_VAL` è definito. Nessuna funzione della libreria standard azzera `errno` in caso di successo; inoltre, passare un puntatore nullo come primo argomento (`nptr`) a una funzione `strto*` provoca comportamento indefinito.
+
+> **Se vieni da Python** — In Python gli argomenti da riga di comando si leggono da `sys.argv` (una lista di stringhe) e `int()`/`float()` sollevano eccezioni; in C `argc`/`argv` sono un contatore e un array terminato da `nullptr` e la conversione sicura richiede `strtol`/`strtod` con controllo esplicito di `endptr`, `errno` ed `ERANGE`.
+
+### Esempio guidato
+
+Il programma seguente accetta argomenti da riga di comando con firma `int main(int argc, char *argv[])` (e, quando viene eseguito senza argomenti, usa un elenco dimostrativo predefinito). Riconosce l'opzione `--base <B>` e converte i valori restanti con `strtol`, distinguendo tra formato errato ed overflow (`ERANGE`), poi mostra anche la conversione di tre stringhe con `strtod` e il controllo di `HUGE_VAL`.
+
+<!-- cod: id=14.3-a tipo=programma -->
+```c
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void analizza_interi(int n, char *const *args) {
+    int base = 10;
+    for (int i = 1; i < n && args[i] != nullptr; ++i) {
+        if (strcmp(args[i], "--base") == 0 && i + 1 < n) {
+            char *end = nullptr;
+            errno = 0;
+            long b = strtol(args[++i], &end, 10);
+            if (end != args[i] && *end == '\0' && errno != ERANGE &&
+                (b == 0 || (b >= 2 && b <= 36))) {
+                base = (int)b;
+                printf("Base impostata a %d\n", base);
+            } else {
+                fprintf(stderr, "Base non valida: %s\n", args[i]);
+            }
+            continue;
+        }
+        char *end = nullptr;
+        errno = 0;
+        long val = strtol(args[i], &end, base);
+        if (end == args[i] || *end != '\0') {
+            printf("'%s' -> errore di formato\n", args[i]);
+        } else if (errno == ERANGE) {
+            printf("'%s' -> overflow/underflow (ERANGE)\n", args[i]);
+        } else {
+            printf("'%s' (base %d) -> %ld\n", args[i], base, val);
+        }
+    }
+}
+
+void prova_strtod(const char *s) {
+    char *end = nullptr;
+    errno = 0;
+    double val = strtod(s, &end);
+    if (end == s || *end != '\0') {
+        printf("strtod('%s') -> formato non valido\n", s);
+    } else if (errno == ERANGE && fabs(val) == HUGE_VAL) {
+        printf("strtod('%s') -> overflow (ERANGE, HUGE_VAL)\n", s);
+    } else if (errno == ERANGE) {
+        printf("strtod('%s') -> underflow (ERANGE)\n", s);
+    } else {
+        printf("strtod('%s') -> %.2f\n", s, val);
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        analizza_interi(argc, argv);
+    } else {
+        char a0[] = "demo";
+        char a1[] = "--base";
+        char a2[] = "16";
+        char a3[] = "2a";
+        char a4[] = "99999999999999999999999999999";
+        char a5[] = "1g";
+        char *demo[] = {a0, a1, a2, a3, a4, a5, nullptr};
+        analizza_interi(6, demo);
+    }
+
+    prova_strtod("3.25");
+    prova_strtod("1e500");
+    prova_strtod("12.4x");
+    return EXIT_SUCCESS;
+}
+```
+
+```output
+Base impostata a 16
+'2a' (base 16) -> 42
+'99999999999999999999999999999' -> overflow/underflow (ERANGE)
+'1g' -> errore di formato
+strtod('3.25') -> 3.25
+strtod('1e500') -> overflow (ERANGE, HUGE_VAL)
+strtod('12.4x') -> formato non valido
+```
+
+Osserva come lavorano insieme `endptr`, `errno` e la sentinella `nullptr`:
+
+- Il ciclo in `analizza_interi` controlla `i < n && args[i] != nullptr`, sfruttando sia il contatore sia la sentinella finale.
+- Prima di ogni chiamata a `strtol` o `strtod` azzeriamo esplicitamente `errno = 0;`. Senza questo azzeramento, l'errore `ERANGE` impostato su `"99999999999999999999999999999"` resterebbe attivo anche sulle chiamate successive.
+- Per `"1g"` in base 16, `strtol` converte la cifra `'1'` e ferma `end` su `'g'`: il controllo `*end != '\0'` cattura subito il carattere residuo non valido.
+- In `prova_strtod`, `"1e500"` supera `DBL_MAX`: `strtod` imposta `errno = ERANGE` e restituisce `HUGE_VAL`, così possiamo distinguere l'overflow dall'underflow.
+
+> **Approfondimento — Due insidie frequenti con `strto*`**
+> Prima insidia: nessuna funzione della libreria standard azzera `errno` quando ha successo; dimenticare `errno = 0;` prima di `strtol` o `strtod` può produrre falsi positivi ereditati da una chiamata precedente. Seconda insidia: `strtoul` e `strtoull` accettano comunque un segno `'-'` iniziale e applicano la negazione modulare senza segno (convertendo `"-1"` in `ULONG_MAX` senza errore!). Se vuoi accettare solo numeri non negativi, verifica prima che la stringa (dopo eventuali spazi) non inizi con `'-'`.
+
+### Esercizio 14.3 — Elaboratore di argomenti da riga di comando con `strtol`, `strtod` ed `errno`
+
+**Descrizione**
+
+Scrivi un programma C con firma `int main(int argc, char *argv[])` che includa `<ctype.h>`, `<errno.h>`, `<math.h>`, `<stdio.h>`, `<stdlib.h>` e `<string.h>` per analizzare opzioni da riga di comando e convertire stringhe in numeri controllando formato e overflow. Implementa tre funzioni:
+
+1. `int parsa_long(const char *s, int base, long *out)` che rifiuta stringhe vuote o con spazi iniziali (`isspace`), imposta `errno = 0`, chiama `strtol(s, &end, base)` e restituisce `0` in caso di successo (`end != s && *end == '\0' && errno != ERANGE`), `2` se `errno == ERANGE` (overflow/underflow) e `1` per errore di formato;
+2. `bool parsa_double(const char *s, double *out)` che imposta `errno = 0`, chiama `strtod(s, &end)` e restituisce `true` solo se la stringa non è vuota né inizia con spazi, `end != s`, `*end == '\0'`, `errno != ERANGE`, `val == val` (esclude NaN) e `fabs(val) != HUGE_VAL`;
+3. `int esegui_comando(int argc, char *argv[])` che scorre `argv[1..argc-1]` (terminato dalla sentinella `argv[argc] == nullptr`) riconoscendo `--base <B>` (`B` in `{0, 2, 8, 10, 16}`, predefinita `10`) e `--scala <S>` (`double` finito, predefinito `1.0`). Se un'opzione che inizia con `--` è sconosciuta o ha un parametro mancante o non valido, stampa `ERRORE OPZIONE: <opt>` e restituisce `1`. Ogni altro argomento viene convertito con `parsa_long(arg, base, &v)`: se valido viene sommato in `long long`, altrimenti incrementa `scartati` e stampa `SCARTATO: <arg> (overflow)` oppure `SCARTATO: <arg> (formato)`. Al termine di un comando valido stampa `RISULTATO -> base=<B> scala=<S:.2f> validi=<V> scartati=<SC> somma=<SOMMA> scalata=<SOMMA*S:.2f>` e restituisce `0`.
+
+In `main`: se `argc > 1` esegue direttamente `esegui_comando(argc, argv)` e restituisce `EXIT_SUCCESS` o `EXIT_FAILURE`; se `argc == 1` legge da `stdin` righe di argomenti separati da spazi, costruisce per ciascuna riga un array `char *args[33]` con `args[0] = "cli"` e sentinella `args[n] = nullptr` e richiama `esegui_comando(n, args)`.
+
+**Concetti da tenere a mente**
+
+- firma `int main(int argc, char *argv[])` e sentinella `argv[argc] == nullptr`
+- conversione di interi con `strtol` in basi diverse (`0`, `2`, `8`, `10`, `16`) e controllo di `endptr`
+- conversione in virgola mobile con `strtod` e controllo di `HUGE_VAL` (`<math.h>`)
+- azzeramento obbligatorio di `errno = 0` prima della chiamata e verifica di `errno == ERANGE` (`<errno.h>`)
+
+**Domande guida**
+
+1. Perché devi scrivere `errno = 0` immediatamente prima di ogni chiamata a `strtol` o `strtod`?
+2. Quali due controlli su `endptr` servono dopo `strtol(s, &end, base)` per distinguere una stringa senza cifre, una stringa con caratteri residui come `12abc` e una conversione completamente valida?
+3. Che differenza c'è nel comportamento di `strtol` quando `base` vale `0` rispetto a quando `base` vale `10` o `16`?
+4. Come ti permette la doppia modalità in `main` (`argc > 1` da terminale e `argc == 1` da `stdin`) di riutilizzare identicamente la stessa funzione `esegui_comando`?
+
+**Esempio di esecuzione**
+
+```input
+--base 16 --scala 0.5 10 ff 99999999999999999999999999999 1g
+--base 0 10 0x10 010
+--scala 1e500 5
+```
+
+```output
+SCARTATO: 99999999999999999999999999999 (overflow)
+SCARTATO: 1g (formato)
+RISULTATO -> base=16 scala=0.50 validi=2 scartati=2 somma=271 scalata=135.50
+RISULTATO -> base=0 scala=1.00 validi=3 scartati=0 somma=34 scalata=34.00
+ERRORE OPZIONE: --scala
+```
