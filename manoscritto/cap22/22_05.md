@@ -1,0 +1,210 @@
+## 22.5 Strict aliasing, `restrict` e diagnosi delle corruzioni
+
+Quando lavori a basso livello con puntatori, buffer grezzi e allocatori personalizzati, una domanda torna spesso: se ho una variabile `float x`, posso leggerne i bit convertendo `&x` a `uint32_t *`? La risposta dello standard C23 è un netto no, e il motivo riguarda il modo in cui il compilatore genera codice veloce.
+
+Per ottimizzare un programma, il compilatore deve sapere se una scrittura tramite un puntatore `p` può modificare l'oggetto letto tramite un altro puntatore `q` (situazione chiamata *aliasing*). Se dovesse supporre che qualunque puntatore possa puntare a qualunque variabile, dovrebbe ricaricare ogni valore dalla memoria dopo ogni scrittura, rinunciando a gran parte delle ottimizzazioni nei registri.
+
+Per questo lo standard definisce il **tipo effettivo** di un oggetto in memoria (il suo tipo dichiarato, oppure, per la memoria priva di tipo restituita da `malloc`, il tipo dell'ultima scrittura eseguita su di essa) e stabilisce la regola di **strict aliasing**: un oggetto in memoria non può essere letto o scritto tramite un puntatore di tipo incompatibile. In particolare, lo standard C23 consente di accedere a un oggetto solo attraverso un'espressione di uno di questi tipi:
+
+- il proprio tipo effettivo (o una versione qualificata con `const` o `volatile`);
+- la corrispondente versione con segno o senza segno (per esempio `unsigned int` per un `int`);
+- una `struct` o una `union` che contenga tra i suoi campi uno dei tipi sopra elencati;
+- un **tipo carattere** (`char`, `signed char` oppure `unsigned char`), che ha il permesso speciale di ispezionare la rappresentazione in byte di qualsiasi oggetto.
+
+Violando questa regola — per esempio facendo il cosiddetto *type punning* tramite cast di puntatore — si provoca **comportamento indefinito**:
+
+<!-- cod: id=22.5-b tipo=frammento -->
+```c
+// ERRORE: comportamento indefinito (violazione di strict aliasing), NON scrivere mai così!
+float f = 1.5f;
+uint32_t bit_sbagliati = *(uint32_t *)&f;
+```
+
+Come si reinterpretano allora i bit di un `float` o di un `double` in modo 100% portabile e conforme al C23? Con `memcpy`, affiancata da una `static_assert` sulle dimensioni:
+
+<!-- cod: id=22.5-c tipo=frammento -->
+```c
+static_assert(sizeof(float) == sizeof(uint32_t));
+float f = 1.5f;
+uint32_t bit = 0;
+memcpy(&bit, &f, sizeof(bit));
+```
+
+`memcpy` copia la rappresentazione in byte e aggiorna legalmente il tipo effettivo della destinazione, rispettando strict aliasing; inoltre tutti i compilatori moderni riconoscono questo idioma e lo traducono in un singolo spostamento di registro senza alcuna chiamata a funzione. Che dire invece del *type punning* tramite `union` (scrivere in un campo `float` e leggere da un campo `uint32_t`)? In C la lettura di un campo non attivo di una `union` reinterpreta la rappresentazione dei byte (dipendendo comunque da dimensione, padding ed endianness della piattaforma), ma può creare problemi di portabilità (per esempio con i bit di padding o in codice condiviso con C++): per questo `memcpy` resta la tecnica più pulita, esplicita e universale.
+
+Strict aliasing permette al compilatore di escludere l'aliasing tra puntatori di **tipi incompatibili** (come `float *` e `uint32_t *`), ma non aiuta quando due puntatori hanno lo **stesso tipo** (come `double *dst` e `const double *a`). Qui interviene il qualificatore `restrict` (introdotto nel capitolo 14): qualificando i parametri come `double *restrict dst, const double *restrict a`, prometti al compilatore che le aree di memoria a cui accedi tramite quei puntatori **non si sovrappongono**. Così il compilatore può ottimizzare il ciclo esattamente come fa per tipi incompatibili. Come per strict aliasing, violare la promessa di `restrict` (passando aree sovrapposte) provoca **comportamento indefinito** (approfondiremo l'interazione tra comportamento indefinito e ottimizzazioni nel capitolo 25).
+
+> **Se vieni da Python** — In Python il modulo `struct` converte numeri in sequenze di byte senza esporre l'aliasing dei puntatori; in C la reinterpretazione portabile dei bit di un oggetto richiede `memcpy` per rispettare la regola di strict aliasing.
+
+Chiudiamo il capitolo con le **tecniche difensive** che puoi integrare nei tuoi allocatori per diagnosticare corruzioni della memoria durante lo sviluppo, in affiancamento ad AddressSanitizer:
+
+- **Canarini di confine (*redzone*)**: prima e dopo il payload restituito al chiamante, l'allocatore riserva due fasce di guardia (la guardia sinistra deve avere dimensione multipla di `alignof(max_align_t)` per preservare l'allineamento del payload) e le riempie con byte noti (per esempio `0xA5` a sinistra e `0x5A` a destra). Alla verifica o al rilascio, se anche un solo byte delle guardie è cambiato, l'allocatore segnala immediatamente un **underflow** (scrittura prima dell'inizio) o un **overflow** (scrittura oltre la fine).
+- **Avvelenamento (*poisoning*)**: subito dopo l'allocazione il payload viene riempito con un pattern riconoscibile (come `0xAA`) per far emergere subito eventuali letture di memoria non inizializzata; subito prima della `free`, il payload viene sovrascritto con un altro pattern (come `0xDD`) per rendere evidenti eventuali errori di **uso dopo la liberazione**.
+- **Tracciamento delle allocazioni attive**: mantenendo una tabella di record indicizzati tramite `(uintptr_t)payload`, l'allocatore diagnostico può segnalare con precisione i blocchi e i byte non ancora liberati (**perdite di memoria**) e intercettare le **doppie liberazioni**.
+
+```text
+Blocco protetto da canarini (allocato in un'unica malloc):
++--------------------+------------------------+--------------------+
+| Guardia sinistra   | Payload (avvelenato)   | Guardia destra     |
+| 0xA5 0xA5 ... 0xA5 | 0xAA 0xAA ... 0xAA     | 0x5A 0x5A ... 0x5A |
++--------------------+------------------------+--------------------+
+^ grezzo             ^ payload (allineato)    ^ payload + dim
+```
+
+### Esempio guidato
+
+Il programma seguente riunisce i tre pilastri della sotto-sezione: (1) reinterpreta in modo sicuro i bit di un `double` con `memcpy` e `static_assert` (evitando il cast scorretto mostrato sopra), (2) esegue un ciclo vettoriale con `restrict` su array disgiunti, e (3) costruisce un piccolo blocco protetto da byte canarino capace di rilevare uno sforamento di un singolo byte nella redzone destra senza causare comportamento indefinito (poiché la redzone appartiene comunque al blocco allocato con `malloc`).
+
+<!-- cod: id=22.5-a tipo=programma -->
+```c
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static_assert(sizeof(double) == sizeof(uint64_t));
+
+static constexpr size_t GUARDIA = (alignof(max_align_t) > 16) ? alignof(max_align_t) : 16;
+static constexpr unsigned char CAN_SX = 0xA5U;
+static constexpr unsigned char CAN_DX = 0x5AU;
+static constexpr unsigned char VELENO_ALLOC = 0xAAU;
+static constexpr unsigned char VELENO_FREE = 0xDDU;
+
+static uint64_t double_a_bit(double x) {
+    uint64_t bit = 0;
+    memcpy(&bit, &x, sizeof(bit));
+    return bit;
+}
+
+static void scala_e_somma(size_t n, double *restrict dst,
+                          const double *restrict a, const double *restrict b, double k) {
+    for (size_t i = 0; i < n; ++i) {
+        dst[i] = a[i] + k * b[i];
+    }
+}
+
+static unsigned char *alloca_protetto(size_t dim) {
+    unsigned char *grezzo = malloc(GUARDIA + dim + GUARDIA);
+    if (grezzo == nullptr) {
+        return nullptr;
+    }
+    memset(grezzo, CAN_SX, GUARDIA);
+    memset(grezzo + GUARDIA, VELENO_ALLOC, dim);
+    memset(grezzo + GUARDIA + dim, CAN_DX, GUARDIA);
+    return grezzo + GUARDIA;
+}
+
+static bool guardie_integre(const unsigned char *payload, size_t dim) {
+    const unsigned char *grezzo = payload - GUARDIA;
+    for (size_t i = 0; i < GUARDIA; ++i) {
+        if (grezzo[i] != CAN_SX || grezzo[GUARDIA + dim + i] != CAN_DX) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void libera_protetto(unsigned char *payload, size_t dim) {
+    memset(payload, VELENO_FREE, dim);
+    free(payload - GUARDIA);
+}
+
+int main(void) {
+    double valore = -3.5;
+    uint64_t bit = double_a_bit(valore);
+    printf("double %.1f -> bit = 0x%016" PRIx64 "\n", valore, bit);
+
+    double a[3] = {1.0, 2.0, 3.0};
+    double b[3] = {0.5, 1.0, -1.5};
+    double dst[3] = {};
+    scala_e_somma(3, dst, a, b, 2.0);
+    printf("restrict: %.1f %.1f %.1f\n", dst[0], dst[1], dst[2]);
+
+    size_t dim = 8;
+    unsigned char *buf = alloca_protetto(dim);
+    if (buf == nullptr) {
+        return 1;
+    }
+    printf("Prima della corruzione: guardie=%s\n", guardie_integre(buf, dim) ? "OK" : "CORROTTE");
+    buf[dim] = 0xFFU;  // scrive 1 byte dentro la guardia destra (ancora nel blocco malloc)
+    printf("Dopo sforamento di 1 byte: guardie=%s\n", guardie_integre(buf, dim) ? "OK" : "CORROTTE");
+    libera_protetto(buf, dim);
+    return 0;
+}
+```
+
+```output
+double -3.5 -> bit = 0xc00c000000000000
+restrict: 2.0 4.0 0.0
+Prima della corruzione: guardie=OK
+Dopo sforamento di 1 byte: guardie=CORROTTE
+```
+
+Osserva come `buf[dim] = 0xFFU;` simuli uno sforamento di un singolo byte oltre il payload senza provocare comportamento indefinito durante il test: il byte all'indice `dim` appartiene infatti alla fascia `GUARDIA` allocata dalla stessa `malloc`, e `guardie_integre` intercetta subito l'alterazione del byte canarino `0x5A`.
+
+> **Approfondimento — Perché violare strict aliasing si rompe con `-O2`**
+> Un programma che viola strict aliasing può sembrare funzionare quando lo compili con `-O0` e rompersi improvvisamente con `-O2`: con le ottimizzazioni attive il compilatore assume per contratto che un `float *` e un `uint32_t *` non puntino allo stesso indirizzo e può mantenere il valore di uno dei due in un registro senza ricaricarlo dopo la scrittura sull'altro.
+
+### Esercizio 22.5 — Allocatore diagnostico con canarini di confine, poisoning, ispezione bit via `memcpy` e kernel `restrict`
+
+**Descrizione**
+
+Realizza su tre file (`mem_diag.h`, `mem_diag.c`, `main.c`) un modulo di diagnostica e manipolazione sicura della memoria che integri canarini di confine (redzone), avvelenamento dei byte (poisoning), reinterpretazione di bit conforme a **strict aliasing** e operazioni con `restrict`. (1) In `mem_diag.h` (protetto da `MEM_DIAG_H`) definisci il tipo opaco `diag_ctx_t`, l'enumerazione `diag_esito_t` (`DIAG_OK`, `DIAG_ERR_SCONOSCIUTO`, `DIAG_ERR_GIA_LIBERATO`, `DIAG_ERR_UNDERFLOW`, `DIAG_ERR_OVERFLOW`, `DIAG_ERR_ENTRAMBI`) e dichiara: `diag_ctx_t *diag_crea(void);`, `void diag_distruggi(diag_ctx_t *ctx);`, `void *diag_alloca(diag_ctx_t *ctx, size_t dim);`, `diag_esito_t diag_verifica(const diag_ctx_t *ctx, const void *ptr);`, `diag_esito_t diag_libera(diag_ctx_t *ctx, void *ptr);`, `void diag_report_leak(const diag_ctx_t *ctx, size_t *blocchi_attivi, size_t *byte_attivi);`, `const char *diag_esito_nome(diag_esito_t e);`, `uint32_t float_a_bit(float x);`, `float bit_a_float(uint32_t b);` e `void combina_disgiunti(size_t n, float *restrict dst, const float *restrict a, const float *restrict b, float k);`. (2) In `mem_diag.c` ogni blocco allocato da `diag_alloca` riserva una guardia sinistra di `ALLIN_GUARD` byte (`>= alignof(max_align_t)`) riempita con `0xA5`, il payload di `dim` byte riempito con `0xAA` e una guardia destra di `ALLIN_GUARD` byte riempita con `0x5A`; al rilascio `diag_libera` controlla le guardie, avvelena il payload con `0xDD` prima di `free` e conserva la chiave `uintptr_t` per segnalare eventuali doppie liberazioni. Implementa `float_a_bit` e `bit_a_float` esclusivamente con `memcpy` e `static_assert(sizeof(float) == sizeof(uint32_t))`, e `combina_disgiunti` come `dst[i] = a[i] + k * b[i]`. (3) In `main.c` gestisci fino a `16` blocchi tramite i comandi da `stdin`: `ALLOC <id> <dim>`, `CORROMPI_SX <id>` (altera il byte `-1` dentro la guardia sinistra), `CORROMPI_DX <id>` (altera il byte `dim` dentro la guardia destra), `CHECK <id>`, `FREE <id>`, `FBITS <val>` (estrae segno, esponente e mantissa con `float_a_bit` e verifica il round-trip con `bit_a_float`), `AXPY <k> <n> <a0..> <b0..>` (alloca `a`, `b`, `dst` disgiunti con `diag_alloca`, invoca `combina_disgiunti`, stampa i risultati e verifica che le tre `diag_libera` restituiscano `DIAG_OK`) e `LEAKS`.
+
+**Concetti da tenere a mente**
+
+- guardie di confine (redzone/canarini) allineate per rilevare underflow e overflow senza comportamento indefinito
+- avvelenamento (poisoning) con `memset` su allocazione e rilascio e tracciamento delle perdite di memoria
+- reinterpretazione portabile dei bit di un `float` tramite `memcpy` e `static_assert` nel rispetto di strict aliasing
+- contratto di non sovrapposizione del qualificatore `restrict` su buffer distinti
+
+**Domande guida**
+
+1. Perché la guardia sinistra posta prima del payload deve avere dimensione multipla di `alignof(max_align_t)`?
+2. In che modo scrivere un byte nella guardia sinistra a `payload[-1]` durante il test evita il comportamento indefinito pur simulando un underflow?
+3. Perché `float_a_bit` usa `memcpy` anziché `*(uint32_t *)&x`, e perché questa scelta non penalizza le prestazioni con il compilatore ottimizzante?
+4. Quale contratto violeresti se invocassi `combina_disgiunti` passando lo stesso buffer sia come `dst` sia come `a`?
+
+**Esempio di esecuzione**
+
+```input
+ALLOC 0 16
+ALLOC 1 12
+CHECK 0
+CORROMPI_DX 0
+CHECK 0
+FREE 0
+FREE 0
+CORROMPI_SX 1
+CORROMPI_DX 1
+CHECK 1
+LEAKS
+FREE 1
+LEAKS
+FBITS 1.0
+FBITS -6.5
+AXPY 2.0 3 1.0 2.0 3.0 0.5 1.5 -1.0
+LEAKS
+```
+
+```output
+ALLOC[0]: OK dim=16
+ALLOC[1]: OK dim=12
+CHECK[0]: OK
+CORROMPI_DX[0]: OK
+CHECK[0]: OVERFLOW
+FREE[0]: OVERFLOW
+FREE[0]: GIA_LIBERATO
+CORROMPI_SX[1]: OK
+CORROMPI_DX[1]: OK
+CHECK[1]: ENTRAMBI
+LEAKS: blocchi=1 byte=12
+FREE[1]: ENTRAMBI
+LEAKS: blocchi=0 byte=0
+FBITS 1.00: hex=0x3f800000 segno=0 esp=127 mant=0x000000 roundtrip=OK
+FBITS -6.50: hex=0xc0d00000 segno=1 esp=129 mant=0x500000 roundtrip=OK
+AXPY: 2.00 5.00 1.00 (guardie=OK)
+LEAKS: blocchi=0 byte=0
+```

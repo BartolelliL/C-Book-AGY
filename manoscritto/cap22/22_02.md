@@ -1,0 +1,254 @@
+## 22.2 L'allocatore ad arena su buffer statico
+
+Quando elabori un testo, costruisci un albero di nodi o analizzi una richiesta di rete, spesso crei decine o migliaia di piccoli oggetti che condividono la stessa **durata di vita**: nascono insieme durante una fase di lavoro e diventano tutti inutili nello stesso istante, appena quella fase termina. Chiamare `malloc` per ogni singolo oggetto e poi scrivere un ciclo di `free` per smontare l'intera struttura ha due svantaggi evidenti: ogni chiamata a `malloc` aggiunge metadati e lavoro di ricerca nell'allocatore di sistema, e basta dimenticare un percorso di errore per introdurre una **perdita di memoria**.
+
+L'idea per eliminare entrambi i problemi è tanto semplice quanto efficace: invece di chiedere mille piccoli blocchi separati, riservi una sola volta una regione di memoria contigua e consegni le fette una dopo l'altra avanzando un semplice indice. Quando tutti gli oggetti non servono più, riporti l'indice a zero in una singola istruzione.
+
+Questo schema si chiama **allocatore ad arena** (*arena allocator*, spesso detto anche *bump allocator*): è un allocatore che assegna memoria avanzando un cursore su un buffer contiguo e libera tutti gli oggetti in un colpo solo.
+
+Per costruire un'arena su un buffer statico, priva di qualunque chiamata a `malloc` e `free`, basta una `struct` con quattro campi:
+
+- `base`: puntatore `unsigned char *` al primo byte del buffer (dichiarato con `alignas(max_align_t)` o un allineamento maggiore);
+- `cap`: capacità totale del buffer in byte;
+- `usati`: cursore che indica quanti byte sono già stati assegnati dall'inizio del buffer;
+- `picco`: valore massimo mai raggiunto da `usati`, utile per dimensionare il buffer in base all'uso reale.
+
+```text
+Buffer statico alignas(max_align_t):
++---------+-----+----------------+-----+----------------------+
+| obj 1   | pad |     obj 2      | pad |    spazio libero     |
++---------+-----+----------------+-----+----------------------+
+^                                      ^                      ^
+base                                   base + usati           base + cap
+```
+
+Ogni allocazione nell'arena lavora in tempo costante ($O(1)$) e segue quattro passaggi precisi:
+
+1. Controlla che `a != nullptr`, `dim > 0` e che l'allineamento richiesto `allin` sia una potenza di due non nulla (nell'allocazione generica `arena_alloca` si usa `alignof(max_align_t)`).
+2. Calcola lo spiazzamento di **padding** necessario rispetto all'indirizzo effettivo corrente `curr = (uintptr_t)(a->base + a->usati)`. Il resto rispetto ad `allin` è `resto = (size_t)(curr & (uintptr_t)(allin - 1))`; se `resto != 0`, servono `pad = allin - resto` byte di allineamento, altrimenti `pad = 0`.
+3. Verifica l'assenza di overflow e di sforamento della capacità con `ckd_add(&inizio, a->usati, pad)`, `ckd_add(&fine, inizio, dim)` e `fine <= a->cap`. Se uno di questi controlli fallisce, restituisce `nullptr` senza modificare lo stato dell'arena.
+4. Aggiorna `a->usati = fine`, aggiorna `a->picco` se `a->usati > a->picco` e restituisce `a->base + inizio`.
+
+Perché calcolare il resto sull'indirizzo reale `a->base + a->usati` anziché solo sull'indice `a->usati`? Se `base` è allineata a `alignof(max_align_t)` (per esempio 16 byte), ma il chiamante chiede un oggetto allineato a 32 byte, `a->usati == 0` non garantisce che `a->base` sia multiplo di 32. Calcolare il resto sull'indirizzo effettivo tramite `uintptr_t` rende la funzione corretta per qualsiasi allineamento.
+
+Il rilascio della memoria nell'arena avviene in blocco:
+
+- **`arena_reset`** imposta semplicemente `a->usati = 0` in tempo costante $O(1)$ (preservando `a->picco`), rendendo immediatamente riutilizzabile l'intero buffer per una nuova fase di lavoro.
+- **Marche di salvataggio e ripristino (checkpoint)**: se all'interno di una fase più lunga vuoi creare allocazioni temporanee annidate, salvi la posizione corrente con `size_t marca = a->usati;` e, al termine del lavoro temporaneo, riporti indietro il cursore con `arena_ripristina(a, marca)` (verificando `marca <= a->usati`). In questo modo gli oggetti allocati *prima* della marca restano intatti, mentre quelli allocati *dopo* vengono rilasciati tutti insieme.
+
+Questo modello di gestione della memoria è ideale per strutture costruite per fasi: nel capitolo 26 useremo proprio un allocatore ad arena per allocare tutti i nodi dell'albero di sintassi del nostro interprete e liberarli in un colpo solo al termine dell'esecuzione.
+
+Fai attenzione alla regola di sicurezza dello standard C23: mentre il calcolo degli spiazzamenti allineati e il ripristino del cursore sono completamente definiti, conservare e dereferenziare un puntatore ottenuto dall'arena *dopo* un `arena_reset` o *dopo* un `arena_ripristina` che riporta il cursore prima di quel blocco produce un **puntatore pendente** e l'accesso provoca **comportamento indefinito**.
+
+> **Se vieni da Python** — In Python l'allocazione e la liberazione degli oggetti sono gestite automaticamente dal garbage collector e dal conteggio dei riferimenti, con un costo fisso per ogni singolo oggetto; in C puoi scegliere allocatori su misura (come arena, pool e lista libera) per azzerare il costo di allocazione e controllare esattamente l'allineamento e la durata di vita della memoria.
+
+### Esempio guidato
+
+Il programma seguente, organizzato su tre file (`arena.h`, `arena.c`, `main.c`), utilizza un allocatore ad arena appoggiato su un buffer statico `alignas(max_align_t)` per costruire una lista temporanea di token estratti da una frase. Dopo aver stampato i token, richiama `arena_reset` in tempo costante per analizzare una seconda frase senza chiamare mai `malloc` né `free`, e infine mostra il rientro pulito di `nullptr` quando una richiesta supera la capacità residua.
+
+<!-- cod: id=22.2-a tipo=programma gruppo=arena_token file=arena.h -->
+```c
+#ifndef ARENA_H
+#define ARENA_H
+
+#include <stddef.h>
+
+typedef struct arena {
+    unsigned char *base;
+    size_t cap;
+    size_t usati;
+    size_t picco;
+} arena_t;
+
+bool arena_inizializza(arena_t *a, void *buffer, size_t cap);
+void *arena_alloca(arena_t *a, size_t dim);
+void arena_reset(arena_t *a);
+
+#endif
+```
+
+<!-- cod: id=22.2-b tipo=programma gruppo=arena_token file=arena.c -->
+```c
+#include "arena.h"
+#include <stdckdint.h>
+#include <stdint.h>
+
+bool arena_inizializza(arena_t *a, void *buffer, size_t cap) {
+    if (a == nullptr || buffer == nullptr || cap == 0) {
+        return false;
+    }
+    if (((uintptr_t)buffer & (uintptr_t)(alignof(max_align_t) - 1)) != 0) {
+        return false;
+    }
+    a->base = buffer;
+    a->cap = cap;
+    a->usati = 0;
+    a->picco = 0;
+    return true;
+}
+
+void *arena_alloca(arena_t *a, size_t dim) {
+    if (a == nullptr || a->base == nullptr || dim == 0) {
+        return nullptr;
+    }
+    size_t allin = alignof(max_align_t);
+    uintptr_t curr = (uintptr_t)(a->base + a->usati);
+    size_t resto = (size_t)(curr & (uintptr_t)(allin - 1));
+    size_t pad = (resto == 0) ? 0 : (allin - resto);
+    size_t inizio = 0;
+    size_t fine = 0;
+    if (ckd_add(&inizio, a->usati, pad) || ckd_add(&fine, inizio, dim) || fine > a->cap) {
+        return nullptr;
+    }
+    a->usati = fine;
+    if (a->usati > a->picco) {
+        a->picco = a->usati;
+    }
+    return a->base + inizio;
+}
+
+void arena_reset(arena_t *a) {
+    if (a != nullptr) {
+        a->usati = 0;
+    }
+}
+```
+
+<!-- cod: id=22.2-c tipo=programma gruppo=arena_token file=main.c -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+#include "arena.h"
+
+typedef struct nodo_token {
+    char testo[16];
+    struct nodo_token *prox;
+} nodo_token_t;
+
+static alignas(max_align_t) unsigned char spazio_arena[512];
+
+static nodo_token_t *separa_parole(arena_t *a, const char *frase) {
+    nodo_token_t *testa = nullptr;
+    nodo_token_t **coda = &testa;
+    const char *p = frase;
+    while (*p != '\0') {
+        while (*p == ' ') {
+            ++p;
+        }
+        if (*p == '\0') {
+            break;
+        }
+        const char *inizio = p;
+        while (*p != '\0' && *p != ' ') {
+            ++p;
+        }
+        size_t len = (size_t)(p - inizio);
+        if (len >= sizeof(testa->testo)) {
+            len = sizeof(testa->testo) - 1;
+        }
+        nodo_token_t *nodo = arena_alloca(a, sizeof(*nodo));
+        if (nodo == nullptr) {
+            return nullptr;
+        }
+        memcpy(nodo->testo, inizio, len);
+        nodo->testo[len] = '\0';
+        nodo->prox = nullptr;
+        *coda = nodo;
+        coda = &nodo->prox;
+    }
+    return testa;
+}
+
+static void stampa_lista(const char *etichetta, const nodo_token_t *t) {
+    printf("%s:", etichetta);
+    for (const nodo_token_t *c = t; c != nullptr; c = c->prox) {
+        printf(" [%s]", c->testo);
+    }
+    printf("\n");
+}
+
+int main(void) {
+    arena_t arena = {};
+    if (!arena_inizializza(&arena, spazio_arena, sizeof(spazio_arena))) {
+        return 1;
+    }
+
+    nodo_token_t *lista1 = separa_parole(&arena, "memoria veloce senza malloc");
+    stampa_lista("Frase 1", lista1);
+
+    arena_reset(&arena);
+    nodo_token_t *lista2 = separa_parole(&arena, "reset in tempo costante");
+    stampa_lista("Frase 2", lista2);
+
+    void *eccesso = arena_alloca(&arena, 1024);
+    printf("Richiesta 1024 byte: %s\n", (eccesso == nullptr) ? "nullptr (esaurita)" : "OK");
+    printf("Picco non nullo: %d, usati dopo reset+frase2 > 0: %d\n",
+           (arena.picco > 0) ? 1 : 0, (arena.usati > 0) ? 1 : 0);
+    return 0;
+}
+```
+
+```output
+Frase 1: [memoria] [veloce] [senza] [malloc]
+Frase 2: [reset] [in] [tempo] [costante]
+Richiesta 1024 byte: nullptr (esaurita)
+Picco non nullo: 1, usati dopo reset+frase2 > 0: 1
+```
+
+Nota come `separa_parole` costruisca l'intera lista concatenata di `nodo_token_t` senza alcuna funzione `libera_lista`: appena la prima frase è stata stampata, `arena_reset(&arena)` azzera il cursore e rende l'intero buffer `spazio_arena` pronto per la seconda frase. Quando poi `main` richiede `1024` byte da un'arena di `512` byte, `arena_alloca` rileva `fine > a->cap` e restituisce `nullptr` lasciando intatti i nodi di `lista2`.
+
+> **Approfondimento — Frammentazione e durata di vita**
+> Un'arena azzera il costo amministrativo per singolo oggetto (nessuna intestazione per blocco) e rende impossibili le perdite di memoria individuali, ma ha un limite strutturale: non può riciclare un singolo oggetto finché non si ripristina una marca o non si resetta l'intera arena. Funziona al meglio quando gli oggetti nascono e muoiono insieme.
+
+### Esercizio 22.2 — Allocatore ad arena su buffer statico con allineamento esplicito e marche di ripristino
+
+**Descrizione**
+
+Realizza su tre file (`arena_st.h`, `arena_st.c`, `main.c`) un **allocatore ad arena** privo di chiamate a `malloc`, appoggiato su un buffer statico. (1) In `arena_st.h` (protetto da `ARENA_ST_H`) definisci `typedef struct arena { unsigned char *base; size_t cap; size_t usati; size_t picco; } arena_t;` e dichiara: `bool arena_init(arena_t *a, void *buffer, size_t cap);` (verifica `a != nullptr`, `buffer != nullptr`, `cap > 0` e che `buffer` sia allineato almeno a `alignof(max_align_t)`), `void *arena_alloca_allineato(arena_t *a, size_t dim, size_t allin);` (richiede `dim > 0` e `allin` potenza di due; calcola il padding necessario rispetto all'indirizzo corrente `a->base + a->usati` tramite `uintptr_t`, controlla overflow con `ckd_add` e capacità `fine <= a->cap`, aggiorna `usati` e `picco`), `void *arena_alloca(arena_t *a, size_t dim);` (delega a `arena_alloca_allineato(a, dim, alignof(max_align_t))`), `size_t arena_marca(const arena_t *a);`, `bool arena_ripristina(arena_t *a, size_t marca);` (accetta `marca <= a->usati` preservando `a->picco`) e `void arena_reset(arena_t *a);` (azzera `usati` preservando `picco`). (2) In `main.c` dichiara un buffer statico `static alignas(64) unsigned char mem_arena[256];` (con `static_assert(64 >= alignof(max_align_t))`), inizializza l'arena e gestisci da `stdin` una pila di al più `8` marche e i comandi: `ALLOC <dim> <allin>`, `ALLOC_DEF <dim>`, `MARK`, `RESTORE`, `RESET` e `STATS`. Per ogni allocazione riuscita verifica con `uintptr_t` l'allineamento del puntatore restituito e inizializza i byte con `memset`, producendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- buffer statico allineato con `alignas(64)` / `alignas(max_align_t)` senza alcuna chiamata a `malloc`
+- calcolo del padding rispetto all'indirizzo corrente e controllo di overflow con `ckd_add`
+- salvataggio e ripristino del cursore (marche/checkpoint) per rilasci parziali annidati
+- reset globale $O(1)$ mantenendo il picco storico di utilizzo
+
+**Domande guida**
+
+1. Perché `arena_alloca_allineato` calcola il resto di allineamento sull'indirizzo effettivo `a->base + a->usati` anziché solo su `a->usati`?
+2. Che cosa succede ai puntatori allocati dopo una marca una volta che il chiamante invoca `arena_ripristina`?
+3. Perché `arena_reset` e `arena_ripristina` non riducono il campo `a->picco`?
+4. In quale caso `arena_alloca_allineato` deve restituire `nullptr` anche se `a->usati < a->cap`?
+
+**Esempio di esecuzione**
+
+```input
+ALLOC 5 16
+ALLOC 10 16
+MARK
+ALLOC 20 32
+ALLOC 64 16
+STATS
+RESTORE
+STATS
+ALLOC_DEF 16
+ALLOC 200 16
+RESET
+STATS
+```
+
+```output
+ALLOC(5, 16): OK usati=5 allin_ok=1
+ALLOC(10, 16): OK usati=26 allin_ok=1
+MARK #1: pos=26
+ALLOC(20, 32): OK usati=52 allin_ok=1
+ALLOC(64, 16): OK usati=128 allin_ok=1
+STATS: usati=128 picco=128 cap=256
+RESTORE: OK usati=26
+STATS: usati=26 picco=128 cap=256
+ALLOC_DEF(16): OK allin_ok=1
+ALLOC(200, 16): OK usati=248 allin_ok=1
+RESET: usati=0
+STATS: usati=0 picco=248 cap=256
+```

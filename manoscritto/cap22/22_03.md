@@ -1,0 +1,266 @@
+## 22.3 L'allocatore a pool per blocchi di dimensione fissa
+
+L'allocatore ad arena funziona benissimo quando gli oggetti muoiono tutti insieme, ma non è adatto quando gli oggetti vengono creati e distrutti in ordine arbitrario: pensa alle particelle di una simulazione fisica, alle connessioni attive di un server o ai nodi di una struttura dati dinamica che crescono e si riducono continuamente. In molti di questi casi, però, tutti gli oggetti hanno esattamente la **stessa dimensione**.
+
+Sfruttando questa uniformità possiamo costruire un **allocatore a pool** (*pool allocator*, spesso chiamato anche *fixed-size pool*): un allocatore specializzato che gestisce blocchi di dimensione fissa garantendo allocazione e rilascio in tempo costante ($O(1)$) e **zero frammentazione esterna**, perché ogni blocco liberato ha sempre la dimensione esatta per accogliere qualsiasi richiesta successiva.
+
+Come fa un pool a sapere in tempo costante qual è il prossimo blocco libero senza scorrere l'intero buffer? Mantiene una **lista libera** (*free list*): una sequenza collegata di blocchi di memoria disponibili mantenuta dall'allocatore per soddisfare nuove richieste e riciclare blocchi liberati. Il trucco fondamentale del pool è che, finché un blocco è libero, i suoi byte non contengono dati dell'utente: possiamo usarne i primi `sizeof(void *)` byte per memorizzare il puntatore al blocco libero successivo! In questo modo la lista libera non richiede nessuna allocazione esterna di nodi.
+
+```text
+Pool di 4 blocchi di dimensione uniforme (passo):
+testa_libera -> [ Blocco 0: prox -> B2 ] [ Blocco 1: OCCUPATO ] [ Blocco 2: prox -> nullptr ] [ Blocco 3: OCCUPATO ]
+```
+
+Quando il chiamante chiede un blocco (`pool_alloca`), il pool estrae il blocco in testa alla lista libera (`testa_libera`), sposta `testa_libera` sul blocco successivo e restituisce l'indirizzo estratto: poche istruzioni, tempo $O(1)$. Quando il chiamante libera un blocco (`pool_libera`), il pool scrive il vecchio valore di `testa_libera` nei primi byte del blocco appena rilasciato e fa puntare `testa_libera` ad esso: ancora tempo $O(1)$.
+
+Per realizzare questo schema in modo portabile e conforme allo standard C23 occorre rispettare tre regole rigorose:
+
+1. **Calcolo del passo (dimensione dello slot)**: ogni blocco deve poter ospitare sia i dati richiesti (`dim_blocco`) sia il puntatore della lista libera (`sizeof(void *)`), ed essere allineato per qualsiasi tipo fondamentale. Si prende quindi `min_dim = max(dim_blocco, sizeof(void *))` e lo si arrotonda al multiplo superiore di `alignof(max_align_t)` controllando gli overflow con `ckd_add` e `ckd_mul` prima di allocare `n_blocchi * passo` byte.
+2. **Tipo effettivo e `memcpy` per il puntatore `prox`**: quando un blocco viene riciclato — prima contiene il puntatore `void *` della lista libera, poi una `struct` dell'utente, poi di nuovo `void *` — devi rispettare la regola del **tipo effettivo** e dello **strict aliasing** (che analizzeremo in dettaglio nella sotto-sezione 22.5). Un'area di memoria ottenuta da `malloc` non ha un tipo dichiarato: ogni scrittura di un oggetto utente ne imposta legalmente il nuovo tipo effettivo. Per leggere e scrivere il puntatore `prox` all'interno di un blocco libero senza violare le regole di aliasing, si usa sempre `memcpy(&prox, blocco, sizeof(prox))` e `memcpy(blocco, &prox, sizeof(prox))`, mai cast diretti del tipo `*(void **)blocco`.
+3. **Validazione sicura in `pool_libera`**: prima di reinserire un puntatore `ptr` nella lista libera, un pool robusto verifica due cose: che `ptr` appartenga davvero all'intervallo del pool su un confine esatto di slot, e che quel blocco non sia già libero (per bloccare sul nascere una **doppia liberazione**, che creerebbe un ciclo infinito nella lista libera). Attenzione: in C confrontare con `<` o `>=` due puntatori che non appartengono allo stesso oggetto allocato (per esempio `ptr` sullo stack e `p->memoria` sullo heap) provoca **comportamento indefinito**. La soluzione portabile è convertire gli indirizzi a `uintptr_t`, controllare `addr >= base && addr < fine && ((addr - base) % p->passo) == 0`, ricavare l'indice dello slot `idx = (size_t)(addr - base) / p->passo` e verificare una tabella di stato `uint8_t *occupato`.
+
+Secondo lo standard C23, le regole sul tipo effettivo degli oggetti allocati dinamicamente e sulla copia con `memcpy` sono completamente definite; leggere un blocco riciclato prima di scrivervi il nuovo tipo, liberare due volte lo stesso blocco o confrontare con `<` puntatori a oggetti non correlati provoca invece **comportamento indefinito**.
+
+### Esempio guidato
+
+Il programma seguente su tre file (`pool_entita.h`, `pool_entita.c`, `main.c`) implementa un allocatore a pool per gestire le particelle di una piccola simulazione. Alloca quattro particelle fino a riempire il pool, ne libera due in ordine sparso, alloca due nuove particelle che riciclano esattamente gli slot liberati in tempo costante $O(1)$ e stampa ad ogni passo il numero di blocchi occupati e liberi.
+
+<!-- cod: id=22.3-a tipo=programma gruppo=pool_particelle file=pool_entita.h -->
+```c
+#ifndef POOL_ENTITA_H
+#define POOL_ENTITA_H
+
+#include <stddef.h>
+
+typedef struct pool_entita pool_entita_t;
+
+pool_entita_t *pool_entita_crea(size_t dim_blocco, size_t n_blocchi);
+void pool_entita_distruggi(pool_entita_t *p);
+void *pool_entita_alloca(pool_entita_t *p);
+bool pool_entita_libera(pool_entita_t *p, void *ptr);
+size_t pool_entita_occupati(const pool_entita_t *p);
+size_t pool_entita_liberi(const pool_entita_t *p);
+
+#endif
+```
+
+<!-- cod: id=22.3-b tipo=programma gruppo=pool_particelle file=pool_entita.c -->
+```c
+#include "pool_entita.h"
+#include <stdckdint.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct pool_entita {
+    unsigned char *memoria;
+    uint8_t *stato;
+    void *testa_libera;
+    size_t passo;
+    size_t n_blocchi;
+    size_t occupati;
+};
+
+pool_entita_t *pool_entita_crea(size_t dim_blocco, size_t n_blocchi) {
+    if (dim_blocco == 0 || n_blocchi == 0) {
+        return nullptr;
+    }
+    size_t base_dim = (dim_blocco < sizeof(void *)) ? sizeof(void *) : dim_blocco;
+    size_t allin = alignof(max_align_t);
+    size_t somma = 0;
+    size_t tot = 0;
+    if (ckd_add(&somma, base_dim, allin - 1)) {
+        return nullptr;
+    }
+    size_t passo = somma & ~(allin - 1);
+    if (ckd_mul(&tot, n_blocchi, passo)) {
+        return nullptr;
+    }
+    pool_entita_t *p = calloc(1, sizeof(*p));
+    if (p == nullptr) {
+        return nullptr;
+    }
+    p->memoria = malloc(tot);
+    p->stato = calloc(n_blocchi, sizeof(*p->stato));
+    if (p->memoria == nullptr || p->stato == nullptr) {
+        free(p->memoria);
+        free(p->stato);
+        free(p);
+        return nullptr;
+    }
+    p->passo = passo;
+    p->n_blocchi = n_blocchi;
+    for (size_t i = 0; i < n_blocchi; ++i) {
+        void *prox = (i + 1 < n_blocchi) ? (void *)(p->memoria + (i + 1) * passo) : nullptr;
+        memcpy(p->memoria + i * passo, &prox, sizeof(prox));
+    }
+    p->testa_libera = p->memoria;
+    return p;
+}
+
+void pool_entita_distruggi(pool_entita_t *p) {
+    if (p == nullptr) {
+        return;
+    }
+    free(p->memoria);
+    free(p->stato);
+    free(p);
+}
+
+void *pool_entita_alloca(pool_entita_t *p) {
+    if (p == nullptr || p->testa_libera == nullptr) {
+        return nullptr;
+    }
+    void *blocco = p->testa_libera;
+    void *prox = nullptr;
+    memcpy(&prox, blocco, sizeof(prox));
+    p->testa_libera = prox;
+    size_t idx = (size_t)((unsigned char *)blocco - p->memoria) / p->passo;
+    p->stato[idx] = 1;
+    ++p->occupati;
+    return blocco;
+}
+
+bool pool_entita_libera(pool_entita_t *p, void *ptr) {
+    if (p == nullptr || ptr == nullptr) {
+        return false;
+    }
+    uintptr_t addr = (uintptr_t)ptr;
+    uintptr_t base = (uintptr_t)p->memoria;
+    uintptr_t fine = base + p->n_blocchi * p->passo;
+    if (addr < base || addr >= fine || ((addr - base) % p->passo) != 0) {
+        return false;
+    }
+    size_t idx = (size_t)(addr - base) / p->passo;
+    if (p->stato[idx] == 0) {
+        return false;
+    }
+    p->stato[idx] = 0;
+    memcpy(ptr, &p->testa_libera, sizeof(p->testa_libera));
+    p->testa_libera = ptr;
+    --p->occupati;
+    return true;
+}
+
+size_t pool_entita_occupati(const pool_entita_t *p) {
+    return (p != nullptr) ? p->occupati : 0;
+}
+
+size_t pool_entita_liberi(const pool_entita_t *p) {
+    return (p != nullptr) ? (p->n_blocchi - p->occupati) : 0;
+}
+```
+
+<!-- cod: id=22.3-c tipo=programma gruppo=pool_particelle file=main.c -->
+```c
+#include <stdio.h>
+#include "pool_entita.h"
+
+typedef struct particella {
+    int id;
+    double x;
+    double y;
+} particella_t;
+
+int main(void) {
+    pool_entita_t *pool = pool_entita_crea(sizeof(particella_t), 4);
+    if (pool == nullptr) {
+        return 1;
+    }
+
+    particella_t *attive[4] = {};
+    for (int i = 0; i < 4; ++i) {
+        attive[i] = pool_entita_alloca(pool);
+        attive[i]->id = i + 1;
+        attive[i]->x = (double)i * 1.5;
+        attive[i]->y = (double)i * -0.5;
+    }
+    printf("Dopo 4 allocazioni: occ=%zu lib=%zu\n",
+           pool_entita_occupati(pool), pool_entita_liberi(pool));
+    printf("Quinta allocazione: %s\n",
+           (pool_entita_alloca(pool) == nullptr) ? "PIENO" : "OK");
+
+    pool_entita_libera(pool, attive[1]);
+    pool_entita_libera(pool, attive[3]);
+    printf("Dopo 2 rilasci: occ=%zu lib=%zu\n",
+           pool_entita_occupati(pool), pool_entita_liberi(pool));
+
+    particella_t *nuova = pool_entita_alloca(pool);
+    bool riciclato = (nuova == attive[3]);
+    nuova->id = 99;
+    nuova->x = 10.0;
+    nuova->y = 20.0;
+    printf("Nuova particella id=%d (%.1f, %.1f) riciclato_slot3=%d occ=%zu lib=%zu\n",
+           nuova->id, nuova->x, nuova->y, riciclato ? 1 : 0,
+           pool_entita_occupati(pool), pool_entita_liberi(pool));
+
+    pool_entita_distruggi(pool);
+    return 0;
+}
+```
+
+```output
+Dopo 4 allocazioni: occ=4 lib=0
+Quinta allocazione: PIENO
+Dopo 2 rilasci: occ=2 lib=2
+Nuova particella id=99 (10.0, 20.0) riciclato_slot3=1 occ=3 lib=1
+```
+
+Osserva come `pool_entita_t` nasconda la propria implementazione dietro un **tipo opaco** (capitolo 19). Quando liberiamo `attive[1]` e poi `attive[3]`, quest'ultimo finisce in cima alla lista libera (politica LIFO): la successiva `pool_entita_alloca` restituisce esattamente l'indirizzo di `attive[3]` in tempo costante, senza mai invocare `malloc`, e la scrittura dei campi di `nuova` imposta legalmente il nuovo valore nello slot riciclato.
+
+> **Approfondimento — Memoria da `malloc`, tipo effettivo e `memcpy`**
+> Perché in C23 la memoria di un pool generico dovrebbe provenire da `malloc` e leggere/scrivere il puntatore della lista libera con `memcpy`? Un blocco allocato con `malloc` non ha un tipo dichiarato, quindi ogni scrittura di un nuovo tipo utente ne aggiorna legalmente il tipo effettivo, mentre `memcpy` evita qualsiasi conflitto di strict aliasing quando il blocco torna nella lista libera.
+
+### Esercizio 22.3 — Allocatore a pool generico opaco con rilevamento di doppia liberazione e puntatori estranei
+
+**Descrizione**
+
+Realizza su tre file (`pool_blocchi.h`, `pool_blocchi.c`, `main.c`) un **allocatore a pool** generico come **tipo opaco** `pool_t` per blocchi di dimensione fissa. (1) In `pool_blocchi.h` (protetto da `POOL_BLOCCHI_H`) definisci `typedef struct pool pool_t;` e `typedef enum pool_esito { POOL_OK = 0, POOL_ERR_NULLO, POOL_ERR_FUORI_POOL, POOL_ERR_DOPPIA_FREE } pool_esito_t;`, e dichiara `pool_t *pool_crea(size_t dim_blocco, size_t n_blocchi);`, `void pool_distruggi(pool_t *p);`, `void *pool_alloca(pool_t *p);`, `pool_esito_t pool_libera(pool_t *p, void *ptr);`, `size_t pool_liberi(const pool_t *p);`, `size_t pool_occupati(const pool_t *p);`, `size_t pool_picco(const pool_t *p);` e `size_t pool_capacita(const pool_t *p);`. (2) In `pool_blocchi.c` arrotonda il passo di ciascuno slot al multiplo superiore di `alignof(max_align_t)` di `max(dim_blocco, sizeof(void *))` controllando l'overflow con `ckd_add`/`ckd_mul`, alloca l'area contigua con `malloc` (priva di tipo dichiarato, così da rispettare il tipo effettivo C23 al riciclo dei blocchi) e una tabella di stato `uint8_t *occupato` con `calloc`. Mantieni la lista libera leggendo e scrivendo il puntatore `prox` dentro ogni blocco libero esclusivamente con `memcpy`. In `pool_libera` valida `ptr` tramite `uintptr_t` (rifiutando puntatori estranei o disallineati con `POOL_ERR_FUORI_POOL` e blocchi già liberi con `POOL_ERR_DOPPIA_FREE`). (3) In `main.c` gestisci un array di `16` handle `sessione_t *slots[16]` (`typedef struct sessione { uint32_t id; int64_t punti; char tag[12]; } sessione_t;`) con i comandi da `stdin`: `INIT <n>` (`1 <= n <= 16`), `NEW <slot> <id> <punti> <tag>`, `SHOW <slot>`, `FREE <slot>` (senza azzerare `slots[slot]` così da poter testare una doppia liberazione; prima di uscire libera solo gli slot ancora attivi tramite `pool_distruggi`), `FREE_BAD` (tenta `pool_libera` su `nullptr`, su una variabile sullo stack e su un puntatore interno disallineato a `+1` byte dallo slot 0 se allocato) e `STATS`, producendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- allocazione e rilascio $O(1)$ tramite lista libera memorizzata nei blocchi liberi su slot a passo costante allineato
+- rispetto del tipo effettivo C23 sui blocchi riciclati mediante memoria `malloc` e `memcpy` per il collegamento della lista libera
+- verifica di appartenenza al pool e confine di slot tramite `uintptr_t` evitando confronti `<` tra puntatori estranei
+- rilevamento deterministico della doppia liberazione tramite tabella di stato
+
+**Domande guida**
+
+1. Perché il passo di ogni blocco del pool deve essere almeno `sizeof(void *)` oltre che multiplo di `alignof(max_align_t)`?
+2. In che modo usare `memcpy` per salvare e leggere il puntatore al blocco libero successivo previene violazioni di strict aliasing?
+3. Perché in `pool_libera` conviene convertire `ptr` e `p->memoria` a `uintptr_t` prima di verificare se `ptr` rientra nell'intervallo del pool?
+4. Che cosa succederebbe alla lista libera se un blocco già libero venisse reinserito una seconda volta senza il controllo di doppia liberazione?
+
+**Esempio di esecuzione**
+
+```input
+INIT 3
+NEW 0 101 500 ALFA
+NEW 1 102 750 BETA
+NEW 2 103 200 GAMMA
+NEW 3 104 100 DELTA
+STATS
+SHOW 1
+FREE 1
+FREE 1
+FREE_BAD
+NEW 3 104 900 DELTA
+SHOW 3
+STATS
+```
+
+```output
+INIT: cap=3
+NEW[0]: OK allin_ok=1
+NEW[1]: OK allin_ok=1
+NEW[2]: OK allin_ok=1
+NEW[3]: PIENO
+STATS: liberi=0 occupati=3 tot=3 picco=3
+SHOW[1]: id=102 punti=750 tag=BETA
+FREE[1]: OK
+FREE[1]: DOPPIA_FREE
+FREE_BAD: null=NULLO stack=FUORI_POOL disallin=FUORI_POOL
+NEW[3]: OK allin_ok=1
+SHOW[3]: id=104 punti=900 tag=DELTA
+STATS: liberi=0 occupati=3 tot=3 picco=3
+```
