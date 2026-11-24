@@ -1,0 +1,169 @@
+## 13.2 Operatori bit a bit, maschere e spostamenti
+
+Immagina di dover memorizzare otto interruttori booleani (acceso/spento) per configurare un sensore, oppure i quattro canali da 8 bit (alfa, rosso, verde, blu) di un pixel dentro un singolo intero a 32 bit. Usare un `bool` separato per ogni flag spreca spazio, e dividere e moltiplicare per potenze di due per estrarre i singoli campi è verboso e poco espressivo. Il C mette a disposizione gli **operatori bit a bit**, che operano direttamente sui singoli bit degli operandi interi.
+
+### Gli operatori logici bit a bit: `&`, `|`, `^`, `~`
+
+Gli operatori bit a bit eseguono un'operazione logica in parallelo su ogni posizione di bit dei loro operandi interi:
+
+| Operatore | Nome | Risultato sul singolo bit | Esempio su 4 bit (`1010` e `1100`) |
+|---|---|---|---|
+| `&` | AND bit a bit | `1` solo se entrambi i bit sono `1` | `1010 & 1100` → `1000` |
+| `|` | OR bit a bit | `1` se almeno uno dei due bit è `1` | `1010 | 1100` → `1110` |
+| `^` | XOR bit a bit | `1` se i due bit sono diversi | `1010 ^ 1100` → `0110` |
+| `~` | NOT bit a bit (unario) | inverte ogni bit (`0` → `1`, `1` → `0`) | `~1010` → `0101` (su tutti i bit del tipo) |
+
+Agli operatori binari `&`, `|` e `^` corrispondono gli assegnamenti composti `&=`, `|=` e `^=`.
+
+Non confondere mai gli operatori bit a bit (`&`, `|`, `~`) con gli operatori logici booleani (`&&`, `||`, `!`) del capitolo 3:
+
+- `&&`, `||` e `!` trattano l'intero operando come vero (diverso da zero) o falso (zero), producono sempre `0` oppure `1` e applicano la valutazione a corto circuito.
+- `&`, `|` e `~` elaborano ciascun bit in modo indipendente, producono un intero e valutano sempre entrambi gli operandi. Per esempio, `0b0100 && 0b0010` vale `1` (entrambi diversi da zero), mentre `0b0100 & 0b0010` vale `0` (nessun bit a `1` in comune).
+
+### Gli operatori di spostamento: `<<` e `>>`
+
+Gli operatori di spostamento fanno scorrere i bit di un intero verso sinistra (`<<`, con assegnamento composto `<<=`) o verso destra (`>>`, con `>>=`):
+
+- **Spostamento a sinistra (`x << k`)** su un tipo senza segno: sposta tutti i bit di `k` posizioni verso il bit più significativo, scarta i `k` bit che escono a sinistra e riempie con `0` le `k` posizioni libere a destra. Se non si perdono bit significativi, equivale a moltiplicare per $2^k$.
+- **Spostamento a destra (`x >> k`)** su un tipo senza segno: sposta tutti i bit di `k` posizioni verso il bit meno significativo, scarta i `k` bit che escono a destra e riempie con `0` le `k` posizioni libere a sinistra (spostamento logico). Equivale alla divisione intera per $2^k$.
+
+Attenzione alle regole dello standard C23 sugli spostamenti, perché qui è facile introdurre **comportamento indefinito**:
+
+- In `x << k` e `x >> k`, il conteggio `k` deve soddisfare $0 \le k < W$, dove $W$ è la larghezza in bit del tipo promosso di `x`. Se `k < 0` oppure `k >= W` (per esempio spostare un `uint32_t` di `32` bit), il comportamento è **indefinito**.
+- Se `x` ha un tipo con segno: `x << k` è **comportamento indefinito** se `x < 0` oppure se il risultato matematico $x \cdot 2^k$ non è rappresentabile nel tipo promosso (overflow).
+- Se `x` ha un tipo con segno negativo (`x < 0`), `x >> k` è **comportamento dipendente dall'implementazione** (molti compilatori propagano il bit di segno `1`, ma lo standard non lo impone).
+
+Regola pratica: esegui **sempre** le manipolazioni di bit e gli spostamenti su tipi interi senza segno (`uint16_t`, `uint32_t`, `uint64_t`, `unsigned int`).
+
+### Maschere di bit e i quattro idiomi fondamentali
+
+Una **maschera di bit** (*bitmask*) è un valore intero usato con gli operatori bit a bit per leggere, impostare, azzerare o invertire specifici bit. Per isolare il singolo bit in posizione `k` (contando da `0` per il bit meno significativo) si costruisce la maschera `1U << k` (o `1ULL << k` per tipi a 64 bit):
+
+```text
+k = 3  ->  1U << 3  =  0000'1000  (solo il bit 3 vale 1)
+         ~(1U << 3) =  1111'0111  (tutti a 1 tranne il bit 3)
+```
+
+Con questa maschera si scrivono i quattro idiomi che incontrerai in qualsiasi codice C a basso livello:
+
+1. **Impostare il bit `k` a `1`**: `x |= (1U << k);`
+2. **Azzerare il bit `k` a `0`**: `x &= ~(1U << k);`
+3. **Invertire (commutare) il bit `k`**: `x ^= (1U << k);`
+4. **Controllare se il bit `k` è `1`**: `(x & (1U << k)) != 0U`
+
+### Impacchettare ed estrarre sotto-campi di più bit
+
+Spesso un registro o una parola `uint32_t` contiene più campi di larghezza diversa (per esempio un campo da `4` bit a partire dalla posizione `pos`, seguito da un campo da `8` bit). Una maschera di `len` bit consecutivi tutti a `1` (con $1 \le \text{len} < 32$) si ottiene con `(1U << len) - 1U` (per esempio `(1U << 4) - 1U` vale `0b1111`, cioè `0x0FU`):
+
+- **Estrazione** di un sotto-campo lungo `len` bit che inizia al bit `pos`: `uint32_t campo = (val >> pos) & ((1U << len) - 1U);`
+- **Impacchettamento** di più campi in una parola `uint32_t`: si maschera ciascun campo alla sua larghezza, lo si sposta nella posizione di destinazione con `<<` e si combinano i contributi con `|`.
+
+### Promozioni intere e trappole con `uint8_t` e `uint16_t`
+
+Come hai imparato nel capitolo 3, nelle espressioni i tipi interi più piccoli di `int` (come `uint8_t` e `uint16_t`) subiscono le **promozioni intere** e vengono convertiti in `int` (che è con segno!) prima che l'operatore venga applicato. Questo produce due trappole frequenti:
+
+- Se `uint8_t b = 0x0FU;`, l'espressione `~b` promuove prima `b` a `int` (`0x0000000F` su 32 bit) e poi inverte tutti i 32 bit, producendo il valore negativo `0xFFFFFFF0` (`-16`). Se vuoi il complemento su 8 bit, scrivi `(uint8_t)(~b)` oppure `(uint8_t)(b ^ 0xFFU)`.
+- Se sposti a sinistra `1 << 31` con `1` di tipo `int` a 32 bit, provochi overflow con segno (**comportamento indefinito**). Usando il suffisso `U` (`1U << 31`) o un cast esplicito a `uint32_t` (`(uint32_t)1U << 31`), l'operando è senza segno e il risultato `0x80000000U` è completamente definito.
+
+### Esempio guidato
+
+Il programma seguente combina quattro canali a 8 bit (`alfa`, `rosso`, `verde`, `blu`) in un singolo colore ARGB `uint32_t`, li riestrae tramite `>>` e `& 0xFFU`, e poi manipola i flag di un registro di controllo a 16 bit (`uint16_t`) usando i quattro idiomi con maschere di bit.
+
+<!-- cod: id=13.2-a tipo=programma -->
+```c
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+
+constexpr uint16_t FLAG_ACCESO = (uint16_t)(1U << 0);
+constexpr uint16_t FLAG_ALLARME = (uint16_t)(1U << 2);
+constexpr uint16_t FLAG_SILENZIOSO = (uint16_t)(1U << 5);
+
+uint32_t impacchetta_argb(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
+    return ((uint32_t)a << 24) |
+           ((uint32_t)r << 16) |
+           ((uint32_t)g << 8) |
+           (uint32_t)b;
+}
+
+int main(void) {
+    uint32_t colore = impacchetta_argb(0xFFU, 0x3AU, 0x7CU, 0x19U);
+    uint8_t a = (uint8_t)((colore >> 24) & 0xFFU);
+    uint8_t r = (uint8_t)((colore >> 16) & 0xFFU);
+    uint8_t g = (uint8_t)((colore >> 8) & 0xFFU);
+    uint8_t b = (uint8_t)(colore & 0xFFU);
+
+    printf("Colore ARGB: 0x%08" PRIx32 "\n", colore);
+    printf("Canali estratti -> A=%" PRIu8 " R=%" PRIu8
+           " G=%" PRIu8 " B=%" PRIu8 "\n", a, r, g, b);
+
+    uint16_t registro = 0U;
+    registro |= FLAG_ACCESO | FLAG_ALLARME;
+    printf("Dopo imposta ACCESO|ALLARME: 0x%04" PRIx16 "\n", registro);
+
+    registro ^= FLAG_SILENZIOSO;
+    registro &= (uint16_t)(~FLAG_ALLARME);
+    printf("Dopo toggle SILENZIOSO e azzera ALLARME: 0x%04" PRIx16 "\n", registro);
+
+    bool acceso = (registro & FLAG_ACCESO) != 0U;
+    bool allarme = (registro & FLAG_ALLARME) != 0U;
+    bool silenzioso = (registro & FLAG_SILENZIOSO) != 0U;
+    printf("Stato flag -> acceso=%d allarme=%d silenzioso=%d\n",
+           acceso, allarme, silenzioso);
+
+    return 0;
+}
+```
+
+```output
+Colore ARGB: 0xff3a7c19
+Canali estratti -> A=255 R=58 G=124 B=25
+Dopo imposta ACCESO|ALLARME: 0x0005
+Dopo toggle SILENZIOSO e azzera ALLARME: 0x0021
+Stato flag -> acceso=1 allarme=0 silenzioso=1
+```
+
+Esaminiamo i dettagli più importanti:
+
+- In `impacchetta_argb`, ogni `uint8_t` viene convertito esplicitamente a `uint32_t` prima dello spostamento `<< 24` o `<< 16`: in questo modo nessuno spostamento avviene su un `int` con segno promosso.
+- Per riestrarre i canali, `>>` porta il byte desiderato nelle posizioni `7..0` e `& 0xFFU` azzera tutti i bit più significativi.
+- Sul registro `uint16_t`, l'azzeramento `registro &= (uint16_t)(~FLAG_ALLARME);` applica il cast esplicito a `uint16_t` sul risultato di `~` per gestire in modo pulito la promozione intera.
+- I test `(registro & FLAG_ACCESO) != 0U` racchiudono sempre `registro & FLAG_ACCESO` tra parentesi tonde.
+
+> **Approfondimento — La trappola di precedenza tra `&` e `!=`**
+> In C gli operatori relazionali e di uguaglianza (`==`, `!=`) hanno precedenza **maggiore** degli operatori bit a bit `&`, `^` e `|`. Se scrivi `if (stato & MASCHERA != 0)`, il compilatore interpreta l'espressione come `stato & (MASCHERA != 0)`, cioè `stato & 1`, controllando il bit `0` invece della maschera voluta! Metti quindi **sempre** le parentesi tonde attorno alle operazioni bit a bit dentro i confronti: `(stato & MASCHERA) != 0U`.
+
+### Esercizio 13.2 — Codificatore e decodificatore di istruzioni a 32 bit per una mini-CPU con maschere e spostamenti
+
+**Descrizione**
+
+Una mini-CPU codifica ogni istruzione in una parola `uint32_t` con questo layout: bit `31..28` = `opcode` (`0..15`), bit `27..24` = `rd` (`0..15`), bit `23..20` = `rs` (`0..15`), bit `19..16` = `flags` (`0..15`), bit `15..0` = `imm` (`int16_t` in `-32768..32767`, memorizzato nei 16 bit bassi come `(uint16_t)imm`). Definisci `typedef struct istruzione { uint8_t opcode; uint8_t rd; uint8_t rs; uint8_t flags; int16_t imm; } istruzione_t;` e tre funzioni: `uint32_t codifica_istruzione(const istruzione_t *i)`, `istruzione_t decodifica_istruzione(uint32_t w)` (che ricostruisce `imm` con segno dai 16 bit bassi senza comportamento indefinito) e `uint32_t aggiorna_flags(uint32_t w, uint8_t set_m, uint8_t clr_m, uint8_t tog_m)` (che sui 4 bit di `flags` applica nell'ordine `|= (set_m & 0x0FU)`, `&= ~(clr_m & 0x0FU)` e `^= (tog_m & 0x0FU)` lasciando invariati gli altri 28 bit). In `main` leggi comandi fino a fine input: `ENC <op> <rd> <rs> <flags> <imm>` stampa `ENC -> 0x<8hex>`; `DEC <u32>` (letto con `%u`) decodifica e stampa `DEC 0x<8hex> -> op=<op> rd=<rd> rs=<rs> flags=0x<1hex> imm=<imm>`; `FLG <u32> <set> <clr> <tog>` aggiorna i flag e stampa `FLG 0x<8hex> -> 0x<8hex> (flags=0x<1hex>)`. Valida ogni dominio (in caso di errore scrivi su `stderr` e restituisci `EXIT_FAILURE`) e al termine stampa `Operazioni eseguite: <tot>`.
+
+**Concetti da tenere a mente**
+
+- impacchettamento di campi in un `uint32_t` con spostamenti a sinistra (`<<`) e OR bit a bit (`|`)
+- estrazione di campi con spostamenti a destra (`>>`) e maschere di bit (`& 0x0FU`, `& 0xFFFFU`)
+- aggiornamento selettivo di bit con `|=` (imposta), `&= ~` (azzera) e `^=` (inverte)
+- uso esclusivo di operandi senza segno (`uint32_t`) per evitare comportamento indefinito negli spostamenti
+
+**Domande guida**
+
+1. Perché in `codifica_istruzione` devi convertire ciascun campo a `uint32_t` e mascherare `imm` con `0xFFFFU` prima di applicare `<<` e `|`?
+2. Come fai in `aggiorna_flags` a modificare solo i bit `19..16` della parola a 32 bit senza alterare `opcode`, registri e immediato?
+3. Perché spostare di 28 posizioni a sinistra un `int` con segno a 32 bit può provocare comportamento indefinito mentre su `uint32_t` è sempre definito?
+4. Quale sequenza di spostamento e maschera estrae esattamente i 4 bit del registro `rs` (posizioni `23..20`)?
+
+**Esempio di esecuzione**
+
+```input
+ENC 2 1 3 5 -10
+DEC 557187062
+FLG 557187062 8 1 2
+```
+
+```output
+ENC -> 0x2135fff6
+DEC 0x2135fff6 -> op=2 rd=1 rs=3 flags=0x5 imm=-10
+FLG 0x2135fff6 -> 0x213efff6 (flags=0xe)
+Operazioni eseguite: 3
+```
