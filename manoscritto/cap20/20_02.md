@@ -1,0 +1,198 @@
+## 20.2 Leggere file di testo e distinguere `feof` da `ferror`
+
+Leggere un file di testo sembra a prima vista l'operazione inversa della scrittura, ma presenta insidie molto più sottili: le righe possono avere lunghezze impreviste, un file può terminare senza `'\n'` finale, un disco può restituire un errore di lettura a metà del lavoro e la fine del file può essere rilevata solo *dopo* aver tentato di leggere oltre l'ultimo byte.
+
+Come hai già imparato dal capitolo 5 per `stdin`, il modo più sicuro per leggere testo in C consiste nel separare la lettura fisica dall'analisi del contenuto. Per leggere una riga alla volta si usa `fgets(buf, (int)sizeof(buf), fp)`, che legge al più `sizeof(buf) - 1` caratteri fermandosi al primo `'\n'` (che include nel buffer) oppure alla fine del file, aggiunge sempre `'\0'` e restituisce `buf` in caso di successo o `nullptr` se non riesce a leggere alcun carattere. Una volta ottenuta la riga in memoria, la analizzi con `sscanf`, `strtol` o `strtod` (capitolo 14), così da controllare con precisione gli errori di formato e l'overflow senza mai perdere il controllo della posizione sullo stream.
+
+Quando devi invece ispezionare il file un carattere alla volta, usi `fgetc(fp)`:
+
+```text
+int fgetc(FILE *stream);
+```
+
+Fai molta attenzione al tipo di ritorno: `fgetc` restituisce un `int`, mai un `char`. Se la lettura riesce, il byte letto viene convertito prima a `unsigned char` (valore compreso tra `0` e `255`) e poi promosso a `int`; se raggiunge la fine del file o si verifica un errore di I/O, restituisce la costante negativa `EOF`. Salvare il risultato di `fgetc` in una variabile `int` è indispensabile per distinguere `EOF` da tutti i 256 valori di byte possibili.
+
+Una situazione che devi gestire esplicitamente con `fgets` sono le **righe più lunghe del buffer**. Se `buf` ha dimensione `N` byte, `fgets` può inserire al massimo `N - 1` caratteri utili prima di `'\0'`. Se una riga nel file supera `N - 1` caratteri, la prima chiamata a `fgets` riempie `buf` senza incontrare `'\n'`, e la chiamata successiva leggerebbe i caratteri rimasti della stessa riga scambiandoli per una nuova riga. Come riconosci il troncamento? Controlli due condizioni: l'ultimo carattere letto in `buf` non è `'\n'` e la lunghezza `strlen(buf)` è uguale a `sizeof(buf) - 1`. Per distinguere una riga lunga esattamente `N - 1` caratteri seguita da `'\n'` (o dalla fine del file) da una riga davvero troncata, puoi leggere un singolo carattere successivo con `fgetc(fp)`: se non è né `'\n'` né `EOF`, la riga è davvero troppo lunga e puoi scartare tutti i caratteri residui con un ciclo `fgetc` fino a `'\n'` o `EOF` (oppure riallocare dinamicamente il buffer se vuoi conservarla per intero).
+
+Veniamo ora all'errore più diffuso nei programmi C che leggono file: scrivere il ciclo controllando `feof(fp)` *prima* della lettura.
+
+<!-- cod: id=20.2-b tipo=frammento -->
+```c
+// ERRORE: NON scrivere mai questo ciclo!
+char riga[64];
+while (!feof(fp)) {
+    fgets(riga, (int)sizeof(riga), fp);
+    printf("%s", riga);
+}
+```
+
+Perché questo frammento è sbagliato? Perché in C ogni stream mantiene due indicatori interni, interrogabili con `feof(fp)` (fine del file) e `ferror(fp)` (errore di I/O), ed entrambi partono a zero. La funzione `feof(fp)` **non prevede il futuro**: restituisce un valore diverso da zero solo *dopo* che un'operazione di lettura ha già tentato di andare oltre l'ultimo byte del file e ha fallito. Quando il programma ha letto l'ultima riga valida del file, `feof(fp)` è ancora `0`: il ciclo entra in un'iterazione di troppo, `fgets` fallisce restituendo `nullptr` senza modificare `riga` e il programma elabora una seconda volta l'ultima riga (oppure legge memoria non inizializzata se il file era vuoto). Inoltre, se si verifica un errore di lettura sul disco, `feof(fp)` rimane `0` e il ciclo non termina mai.
+
+Lo schema corretto è sempre lo stesso: **la condizione del ciclo controlla direttamente il valore restituito dalla funzione di lettura** (`fgets(...) != nullptr` oppure `(ch = fgetc(fp)) != EOF`). Soltanto *dopo* che il ciclo è terminato interroghi `ferror(fp)` e `feof(fp)` per capire il motivo dell'arresto:
+
+<!-- cod: id=20.2-c tipo=frammento -->
+```c
+while (fgets(riga, (int)sizeof(riga), fp) != nullptr) {
+    // elabora riga
+}
+if (ferror(fp) != 0) {
+    // si è verificato un errore di lettura
+} else if (feof(fp) != 0) {
+    // fine del file raggiunta regolarmente
+}
+```
+
+Se sullo stesso stream vuoi azzerare entrambi gli indicatori (per esempio dopo aver rilevato un errore gestibile o prima di riprendere a operare sullo stream), chiami `clearerr(fp)`.
+
+Secondo lo standard C23, il comportamento post-lettura di `feof`, la segnalazione degli errori tramite `ferror` e il ripristino tramite `clearerr` sono completamente definiti. Al contrario, memorizzare il valore restituito da `fgetc` in un `char` introduce un difetto **dipendente dall'implementazione**, legato al fatto che `char` può essere con segno o senza segno a seconda della piattaforma.
+
+### Esempio guidato
+
+Il programma seguente crea un breve file di configurazione con commenti, coppie `chiave=valore` e una riga intenzionalmente più lunga di un buffer di `24` byte. Rilegge poi il file con `fgets`, scarta in modo pulito il residuo delle righe troncate tramite `fgetc`, verifica `feof` e `ferror` alla fine del ciclo e infine provoca deliberatamente un errore provando a scrivere con `fputc` sullo stream aperto in sola lettura, per mostrare l'effetto di `ferror` e il successivo azzeramento con `clearerr`.
+
+<!-- cod: id=20.2-a tipo=programma -->
+```c
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static bool crea_config(const char *percorso) {
+    FILE *fp = fopen(percorso, "w");
+    if (fp == nullptr) {
+        return false;
+    }
+    bool ok = (fputs("# Config sensori\n", fp) != EOF);
+    ok = ok && (fputs("porta=8080\n", fp) != EOF);
+    ok = ok && (fputs("descrizione=valore_molto_piu_lungo_del_buffer\n", fp) != EOF);
+    ok = ok && (fputs("soglia=42\n", fp) != EOF);
+    if (fclose(fp) != 0) {
+        ok = false;
+    }
+    return ok;
+}
+
+int main(void) {
+    const char *percorso = "config_esempio.txt";
+    if (!crea_config(percorso)) {
+        remove(percorso);
+        return EXIT_FAILURE;
+    }
+
+    FILE *fp = fopen(percorso, "r");
+    if (fp == nullptr) {
+        remove(percorso);
+        return EXIT_FAILURE;
+    }
+
+    char buf[24];
+    size_t valide = 0;
+    size_t commenti = 0;
+    size_t troncate = 0;
+
+    while (fgets(buf, (int)sizeof(buf), fp) != nullptr) {
+        size_t len = strlen(buf);
+        bool ha_nl = (len > 0 && buf[len - 1] == '\n');
+        if (!ha_nl && len == sizeof(buf) - 1) {
+            int extra = fgetc(fp);
+            if (extra != EOF && extra != '\n') {
+                while (extra != EOF && extra != '\n') {
+                    extra = fgetc(fp);
+                }
+                ++troncate;
+                continue;
+            }
+        }
+        if (ha_nl) {
+            buf[len - 1] = '\0';
+        }
+        if (buf[0] == '\0' || buf[0] == '#') {
+            ++commenti;
+            continue;
+        }
+        char chiave[16];
+        long valore = 0;
+        char residuo = '\0';
+        if (sscanf(buf, "%15[^=]=%ld%c", chiave, &valore, &residuo) == 2) {
+            printf("Parametro: %s -> %ld\n", chiave, valore);
+            ++valide;
+        }
+    }
+
+    printf("Fine ciclo: feof=%d ferror=%d\n", feof(fp) != 0, ferror(fp) != 0);
+    (void)fputc('!', fp);
+    printf("Dopo fputc su sola lettura: ferror=%d\n", ferror(fp) != 0);
+    clearerr(fp);
+    printf("Dopo clearerr: feof=%d ferror=%d\n", feof(fp) != 0, ferror(fp) != 0);
+    printf("Riepilogo: valide=%zu commenti=%zu troncate=%zu\n",
+           valide, commenti, troncate);
+
+    fclose(fp);
+    remove(percorso);
+    return 0;
+}
+```
+
+```output
+Parametro: porta -> 8080
+Parametro: soglia -> 42
+Fine ciclo: feof=1 ferror=0
+Dopo fputc su sola lettura: ferror=1
+Dopo clearerr: feof=0 ferror=0
+Riepilogo: valide=2 commenti=1 troncate=1
+```
+
+Osserva come si comporta il programma sulle diverse righe del file:
+
+- Il ciclo `while (fgets(buf, (int)sizeof(buf), fp) != nullptr)` si arresta non appena `fgets` tenta di leggere oltre l'ultima riga. In quel momento `feof(fp)` vale diverso da zero (`1` nella stampa booleana) e `ferror(fp)` vale `0`.
+- Quando `fgets` legge la riga `descrizione=valore_molto_piu_lungo_del_buffer\n` in un buffer di `24` byte, `buf` contiene i primi `23` caratteri senza `'\n'`. La variabile `int extra = fgetc(fp)` legge il 24° carattere (`'_'`), che non è né `'\n'` né `EOF`: il ciclo interno consuma il resto della riga fino a `'\n'`, incrementa `troncate` e passa alla riga successiva (`soglia=42`) senza spezzarla.
+- La chiamata `(void)fputc('!', fp)` tenta una scrittura su uno stream aperto con `"r"`: fallisce e imposta l'indicatore di errore (`ferror(fp) != 0`).
+- La chiamata `clearerr(fp)` azzera entrambi gli indicatori (`feof` e `ferror` tornano entrambi a `0`). Infine lo stream viene chiuso e il file temporaneo rimosso.
+
+> **Approfondimento — La trappola di `char c = fgetc(fp);`**
+> Salvare il risultato di `fgetc` in un `char` invece che in un `int` produce due difetti diversi a seconda della piattaforma:
+> - Sui sistemi in cui `char` è senza segno (`0..255`), `EOF` (di solito `-1`) viene convertito a `255`, quindi il confronto `c != EOF` è sempre vero e il programma entra in un ciclo infinito.
+> - Sui sistemi in cui `char` è con segno (`-128..127`), un byte legittimo di valore `0xFF` (`255`) viene convertito a `-1`, diventando indistinguibile da `EOF` e interrompendo prematuramente la lettura del file.
+>
+> Dichiara quindi **sempre** `int c = fgetc(fp);`.
+
+### Esercizio 20.2 — Analizzatore di file di log con gestione delle righe lunghe e diagnostica feof/ferror/clearerr
+
+**Descrizione**
+
+Scrivi un programma C che simuli la lettura rigorosa di un file di log testuale. (1) Copia integralmente `stdin` in un file di testo temporaneo `"log_20_2.txt"` usando `fgetc`/`fputc` (memorizzando ogni carattere in `int`), verifica l'assenza di errori e chiudi il file. (2) Riapri `"log_20_2.txt"` in modalità `"r"` e leggilo con `fgets` in un buffer di esattamente `32` byte (`char buf[32]`). Se una riga supera i 31 caratteri utili (cioè `buf` contiene 31 caratteri senza `'\n'` e il carattere successivo letto con `fgetc` non è né `'\n'` né `EOF`), scarta i caratteri residui della riga fino a `'\n'` o `EOF` con `fgetc` e incrementa il contatore `troncate`. Altrimenti rimuovi eventuale `'\n'`/`'\r'` finale: se la riga è vuota o inizia (dopo eventuali spazi) con `'#'`, incrementa `ignorate`; altrimenti verifica il formato esatto `<livello>;<codice>;<durata_ms>` dove `<livello>` è `INFO`, `WARN` o `ERR`, `<codice>` è un intero nell'intervallo `int32_t` e `<durata_ms>` è un intero non negativo nell'intervallo `int64_t` (entrambi convertiti con `strtol` azzerando `errno = 0` e controllando `ERANGE` e assenza di caratteri residui). Se valida, aggiorna il contatore del livello e la somma delle durate; altrimenti incrementa `malformate`. (3) Al termine del ciclo `fgets`, stampa lo stato `Stato fine lettura: EOF=<0|1> ERR=<0|1>` interrogando `feof` e `ferror`, provoca un errore di scrittura chiamando `fputc('X', fp)` sullo stream aperto in sola lettura e stampa `Dopo scrittura su sola lettura: ERR=<0|1>`, chiama `clearerr(fp)` e stampa `Dopo clearerr: EOF=<0|1> ERR=<0|1>`. (4) Chiudi il file, rimuovilo con `remove` e stampa il riepilogo esatto dell'esempio.
+
+**Concetti da tenere a mente**
+
+- ciclo di lettura basato sul ritorno di `fgets`/`fgetc` anziché su `while (!feof(fp))`
+- memorizzazione del ritorno di `fgetc` in `int` per distinguere `EOF` da ogni byte valido
+- rilevamento e smaltimento delle righe più lunghe del buffer di `fgets` senza corrompere le righe successive
+- distinzione tra `feof` e `ferror` e azzeramento degli indicatori con `clearerr`
+
+**Domande guida**
+
+1. Perché controllare `while (!feof(fp))` prima di chiamare `fgets` produrrebbe un conteggio errato sull'ultima riga del file?
+2. Come fai a distinguere una riga lunga esattamente 31 caratteri (seguita da `'\n'`) da una riga realmente troncata lunga 32 o più caratteri quando il buffer è di 32 byte?
+3. Perché il valore restituito da `fgetc` va sempre salvato in una variabile `int` e non in un `char`?
+4. Quale effetto produce `clearerr(fp)` sugli indicatori interni dello stream dopo un errore di scrittura su uno stream aperto in sola lettura?
+
+**Esempio di esecuzione**
+
+```input
+# Log di sistema
+INFO;100;15
+
+WARN;205;40
+ERR;500;120
+INFO;abc;10
+WARN;99;-5
+INFO;101;999;questa_riga_supera_i_trentuno_caratteri
+```
+
+```output
+Stato fine lettura: EOF=1 ERR=0
+Dopo scrittura su sola lettura: ERR=1
+Dopo clearerr: EOF=0 ERR=0
+Valide: 3 (INFO=1 WARN=1 ERR=1) Durata=175 ms
+Ignorate: 2 Malformate: 2 Troncate: 1
+```

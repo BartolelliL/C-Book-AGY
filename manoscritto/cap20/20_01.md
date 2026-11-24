@@ -1,0 +1,191 @@
+## 20.1 Aprire, scrivere e chiudere file di testo
+
+Quando scrivi un programma che produce un rapporto, un registro di eventi o un file di configurazione, non puoi più limitarti a stampare sul terminale: hai bisogno di aprire un file sul filesystem, scrivervi caratteri leggibili e assicurarti che tutti i byte raggiungano effettivamente il disco prima di proseguire.
+
+Nel capitolo 5 hai incontrato lo **stream** come astrazione di un canale sequenziale di caratteri o byte e hai usato i tre stream predefiniti `stdin`, `stdout` e `stderr`. Nella libreria standard (`<stdio.h>`) ogni stream è rappresentato da un oggetto di tipo `FILE`, il prototipo storico del **tipo opaco** che hai studiato nel capitolo 19. Il tuo codice non conosce i campi interni di `FILE` (come il puntatore al buffer interno, la posizione corrente o gli indicatori di stato) e non deve mai copiarlo per valore: lavori sempre e soltanto attraverso un puntatore `FILE *`. Un **file di testo** (*text file*) è un file aperto in modalità testo contenente righe di caratteri leggibili, con eventuale traduzione automatica dei fine riga da parte della libreria standard (per esempio tra `'\n'` usato dal programma C e la sequenza `"\r\n"` su Windows).
+
+Per associare un `FILE *` a un file sul disco si chiama `fopen`:
+
+```text
+FILE *fopen(const char *restrict filename, const char *restrict mode);
+```
+
+Il primo argomento è il percorso del file; il secondo è una stringa che indica la modalità di apertura. Le modalità di testo standard sono:
+
+| Modalità | Significato | Se il file esiste già | Se il file non esiste |
+|---|---|---|---|
+| `"r"` | Solo lettura | Apre dall'inizio | Fallisce (`nullptr`) |
+| `"w"` | Solo scrittura | Tronca a zero byte | Crea un nuovo file |
+| `"a"` | Scrittura in coda (append) | Scrive sempre in fondo | Crea un nuovo file |
+| `"r+"` | Lettura e scrittura | Apre dall'inizio senza troncare | Fallisce (`nullptr`) |
+| `"w+"` | Lettura e scrittura | Tronca a zero byte | Crea un nuovo file |
+| `"a+"` | Lettura e scrittura in coda | Legge dall'inizio, scrive in fondo | Crea un nuovo file |
+| `"wx"` / `"w+x"` | Scrittura esclusiva (C11/C23) | Fallisce (`nullptr`), evita sovrascritture | Crea un nuovo file |
+
+Se l'apertura fallisce (per esempio perché il file non esiste in modalità `"r"`, manca il permesso di scrittura o il file esiste già con `"wx"`), `fopen` restituisce `nullptr`. Controllare subito `if (fp == nullptr)` è obbligatorio prima di qualunque operazione sullo stream.
+
+Una volta aperto il file in scrittura, hai tre funzioni principali di `<stdio.h>`:
+
+- `fprintf(fp, formato, ...)`: funziona esattamente come `printf`, ma scrive sullo stream `fp`. Restituisce il numero di caratteri scritti oppure un valore negativo in caso di errore.
+- `fputs(s, fp)`: scrive la stringa `s` senza il terminatore nullo e **senza aggiungere `'\n'`** (a differenza di `puts`, che scrive su `stdout` aggiungendo sempre un ritorno a capo). Restituisce un valore non negativo oppure `EOF` in caso di errore.
+- `fputc(c, fp)`: scrive il singolo carattere `(unsigned char)c` su `fp` e lo restituisce come `int`, oppure restituisce `EOF` in caso di errore.
+
+Le scritture su un `FILE *` non finiscono immediatamente sul disco: per ragioni di efficienza la libreria standard le accumula nel **buffer** interno dello stream e le trasferisce al sistema operativo a blocchi. Quando hai bisogno di forzare subito lo svuotamento del buffer di uno stream di uscita (per esempio prima di controllare che non ci siano errori o prima di una fase critica), chiami `fflush(fp)`, che restituisce `0` in caso di successo oppure `EOF` in caso di errore. Passare `nullptr` a `fflush` svuota tutti gli stream di uscita aperti.
+
+Al termine dell'uso devi chiudere lo stream con `fclose(fp)`. Questa funzione svuota eventuali dati ancora nel buffer, rilascia il descrittore del sistema operativo e restituisce `0` in caso di successo oppure `EOF` in caso di errore. Controllare il valore restituito da `fclose` quando hai scritto su un file è essenziale quanto controllare `fopen`.
+
+Infine, `<stdio.h>` fornisce due funzioni portabili per operare sui nomi dei file sul disco:
+
+- `rename(vecchio, nuovo)`: rinomina il file `vecchio` in `nuovo` e restituisce `0` in caso di successo o un valore diverso da zero in caso di errore.
+- `remove(percorso)`: elimina il file `percorso` dal filesystem e restituisce `0` in caso di successo o diverso da zero in caso di errore.
+
+Combinare `rename` e `remove` permette uno schema molto solido di aggiornamento sicuro: invece di sovrascrivere direttamente un file importante con `"w"` (che lo troncherebbe subito a zero byte, lasciandolo vuoto o troncato se il programma fallisse a metà scrittura), scrivi prima l'intero contenuto su un file temporaneo, verifichi `fflush` e `fclose(fp) == 0`, e solo se tutto è riuscito promuovi il file temporaneo al nome definitivo con `rename`. Se qualcosa fallisce prima della rinomina, elimini il file temporaneo con `remove` e l'eventuale versione precedente resta intatta.
+
+Riassumiamo le regole chiave dello standard C23:
+
+- `FILE` è un oggetto opaco gestito solo tramite `FILE *`: non copiarlo mai per valore.
+- Controlla sempre `fp != nullptr` dopo `fopen`, l'esito di `fprintf`/`fputs`/`fputc`, `fflush(fp) == 0` quando svuoti esplicitamente il buffer e `fclose(fp) == 0` alla chiusura in scrittura.
+- Copiare un oggetto `FILE` per valore, invocare `fflush` su uno stream di ingresso oppure riutilizzare un `FILE *` dopo `fclose` provoca **comportamento indefinito** (anche se le modalità di `fopen`, incluse `"wx"`, e le funzioni `fprintf`, `fputs`, `fputc`, `fflush`, `fclose`, `rename` e `remove` sono completamente definite dallo standard C23).
+
+> **Se vieni da Python** — In Python il costrutto `with open(...) as f:` chiude automaticamente il file all'uscita dal blocco e lancia un'eccezione in caso di errore. In C non esistono gestori di contesto né eccezioni: devi controllare manualmente `fopen != nullptr`, verificare l'esito di scrittura e chiusura con `fclose(fp) == 0` e assicurarti che ogni percorso di uscita chiuda tutti gli stream aperti.
+
+### Esempio guidato
+
+Il programma seguente genera un breve rapporto meteorologico giornaliero su un file temporaneo usando `"w"`, `fputs`, `fprintf`, `fputc`, `fflush` e il controllo di `fclose`. Se la scrittura riesce, promuove il file al nome definitivo con `rename`, vi accoda un'osservazione finale aprendolo in modalità `"a"`, lo rilegge su `stdout` per verificarne il contenuto e infine lo elimina con `remove` per non lasciare tracce sul disco.
+
+<!-- cod: id=20.1-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+static bool scrivi_rapporto(const char *percorso) {
+    FILE *fp = fopen(percorso, "w");
+    if (fp == nullptr) {
+        return false;
+    }
+    bool ok = (fputs("RAPPORTO METEO\n", fp) != EOF);
+    ok = ok && (fprintf(fp, "Temperatura: %.1f C\n", 18.5) >= 0);
+    ok = ok && (fprintf(fp, "Umidita: %d%%\n", 62) >= 0);
+    for (int i = 0; i < 14 && ok; ++i) {
+        ok = (fputc('-', fp) != EOF);
+    }
+    ok = ok && (fputc('\n', fp) != EOF);
+    ok = ok && (fflush(fp) == 0);
+    if (fclose(fp) != 0) {
+        ok = false;
+    }
+    return ok;
+}
+
+static bool aggiungi_nota(const char *percorso, const char *nota) {
+    FILE *fp = fopen(percorso, "a");
+    if (fp == nullptr) {
+        return false;
+    }
+    bool ok = (fprintf(fp, "Nota: %s\n", nota) >= 0);
+    if (fclose(fp) != 0) {
+        ok = false;
+    }
+    return ok;
+}
+
+static bool stampa_file(const char *percorso) {
+    FILE *fp = fopen(percorso, "r");
+    if (fp == nullptr) {
+        return false;
+    }
+    char riga[128];
+    while (fgets(riga, (int)sizeof(riga), fp) != nullptr) {
+        fputs(riga, stdout);
+    }
+    bool ok = (ferror(fp) == 0);
+    if (fclose(fp) != 0) {
+        ok = false;
+    }
+    return ok;
+}
+
+int main(void) {
+    const char *tmp = "rapporto_esempio.tmp";
+    const char *fin = "rapporto_esempio.txt";
+
+    if (!scrivi_rapporto(tmp) || rename(tmp, fin) != 0) {
+        remove(tmp);
+        fprintf(stderr, "Errore nella creazione del rapporto.\n");
+        return EXIT_FAILURE;
+    }
+    if (!aggiungi_nota(fin, "Vento debole da nord.")) {
+        remove(fin);
+        fprintf(stderr, "Errore nell'aggiornamento del rapporto.\n");
+        return EXIT_FAILURE;
+    }
+    if (!stampa_file(fin) || remove(fin) != 0) {
+        remove(fin);
+        fprintf(stderr, "Errore nella lettura o rimozione.\n");
+        return EXIT_FAILURE;
+    }
+    printf("Pulizia completata.\n");
+    return 0;
+}
+```
+
+```output
+RAPPORTO METEO
+Temperatura: 18.5 C
+Umidita: 62%
+--------------
+Nota: Vento debole da nord.
+Pulizia completata.
+```
+
+Analizziamo i passaggi fondamentali dell'esempio:
+
+- In `scrivi_rapporto`, ogni chiamata di scrittura aggiorna il flag `ok` tramite valutazione a corto circuito (`ok && ...`), così al primo errore le scritture successive vengono saltate ma `fclose(fp)` viene comunque eseguito prima di uscire.
+- Il separatore di 14 trattini usa `fputc('-', fp)` seguito da `fputc('\n', fp)`, mentre l'intestazione usa `fputs` con `'\n'` esplicito perché `fputs` non aggiunge ritorni a capo automatici.
+- Dopo `fflush(fp) == 0`, controlliamo anche `fclose(fp) != 0` e non usiamo più `fp` dopo la chiusura.
+- In `main`, solo dopo che `scrivi_rapporto(tmp)` ha restituito `true`, il file temporaneo viene promosso a `fin` con `rename(tmp, fin) == 0`. Se la creazione o la rinomina fallisce, `remove(tmp)` ripulisce l'eventuale file parziale.
+- La funzione `aggiungi_nota` riapre `fin` in modalità `"a"`, accodando la riga finale senza toccare quelle esistenti. Infine `stampa_file` lo rilegge e `remove(fin)` lo cancella dal disco.
+
+> **Approfondimento — Perché controllare il valore restituito da `fclose`**
+> Quando scrivi su un file con `fprintf` o `fputs`, nella maggior parte dei casi i byte non raggiungono subito il disco: vengono copiati nel buffer in RAM dello stream. Di conseguenza tutte le chiamate a `fprintf` possono restituire successo anche se il disco è pieno o la connessione di rete del filesystem è caduta. Lo svuotamento effettivo verso il sistema operativo avviene spesso soltanto al momento di `fclose(fp)`. Ignorare il valore restituito da `fclose` su uno stream di scrittura significa rischiare di perdere silenziosamente gli ultimi dati scritti.
+
+### Esercizio 20.1 — Generatore di ricevute testuali con aggiornamento sicuro tramite rename e remove
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una sequenza di righe di comando fino a fine input per costruire una ricevuta su file di testo: `VOCE <articolo> <quantita> <prezzo_cent>` (`1 <= quantita <= 1000`, `0 <= prezzo_cent <= 1000000`, `<articolo>` senza spazi, max 31 caratteri, fino a 64 voci) e `NOTA <testo>` (fino a 16 note, max 127 caratteri ciascuna, rimuovendo il `'\n'` finale). Il programma deve: (1) aprire il file temporaneo `"ricevuta_20_1.tmp"` in modalità `"w"`, scrivere `"=== RICEVUTA ===\n"` con `fputs`, scrivere per ciascuna voce `<articolo> x<quantita> = <euro>.<cent>` con `fprintf` (oppure `"Nessuna voce.\n"` se non ci sono voci), disegnare una riga separatrice di esattamente 16 caratteri `'-'` seguita da `'\n'` usando `fputc`, scrivere `"Totale: <euro>.<cent>\n"` con `fprintf`, chiamare `fflush`, verificare `ferror` e controllare che `fclose` restituisca `0`; (2) rinominare `"ricevuta_20_1.tmp"` in `"ricevuta_20_1.txt"` con `rename`; (3) se è presente almeno una nota, riaprire `"ricevuta_20_1.txt"` in modalità `"a"`, scrivere `"Note:\n"` e ciascuna riga `"- <testo>\n"`, controllando `fclose`; (4) riaprire `"ricevuta_20_1.txt"` in modalità `"r"`, copiare integralmente il contenuto su `stdout` usando `fgets` e `fputs`, chiudere il file e rimuoverlo con `remove`, stampando infine `"Archivio rimosso: OK\n"`. In caso di errore di input o di I/O ripulisci eventuali file temporanei, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`.
+
+**Concetti da tenere a mente**
+
+- apertura di file di testo in modalità `"w"`, `"a"` e `"r"` con controllo obbligatorio di `fopen != nullptr`
+- uso combinato di `fputs`, `fputc`, `fprintf`, `fflush` e controllo del valore restituito da `fclose`
+- aggiornamento sicuro tramite scrittura su file temporaneo seguita da `rename`
+- rimozione controllata dei file temporanei e finali con `remove`
+
+**Domande guida**
+
+1. Perché conviene scrivere la ricevuta su un file temporaneo e spostarlo poi con `rename` invece di sovrascrivere direttamente il file definitivo?
+2. Quale errore potresti perdere se ignorassi il valore restituito da `fclose` dopo aver chiamato `fprintf` e `fputs`?
+3. Qual è la differenza di comportamento tra `fputs` e `puts` riguardo al carattere di fine riga `'\n'`?
+4. Che cosa succederebbe alle voci già salvate se nella fase delle note riaprissi `ricevuta_20_1.txt` con `"w"` anziché con `"a"`?
+
+**Esempio di esecuzione**
+
+```input
+VOCE Quaderno 2 150
+VOCE Penna 3 85
+NOTA Pagamento contanti
+NOTA Scontrino richiesto
+```
+
+```output
+=== RICEVUTA ===
+Quaderno x2 = 3.00
+Penna x3 = 2.55
+----------------
+Totale: 5.55
+Note:
+- Pagamento contanti
+- Scontrino richiesto
+Archivio rimosso: OK
+```
