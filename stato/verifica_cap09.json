@@ -1,0 +1,17 @@
+{
+  "capitolo": 9,
+  "errori": [],
+  "avvisi": [
+    "09_02.md: usa il termine 'puntatore' che il glossario introduce al capitolo 10",
+    "09_05.md: usa il termine 'sanitizer' che il glossario introduce al capitolo 11",
+    "09_99.md: usa il termine 'puntatore' che il glossario introduce al capitolo 10",
+    "09_99.md: usa il termine 'sanitizer' che il glossario introduce al capitolo 11"
+  ],
+  "info": {
+    "programmi": 5,
+    "frammenti": 9,
+    "errori_voluti": 0,
+    "tracce": 0,
+    "parole": 7648
+  }
+}
