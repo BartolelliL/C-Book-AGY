@@ -1,0 +1,221 @@
+## 24.5 Macchine a stati con tabelle di puntatori a funzione
+
+Protocolli di rete, parser lessicali, interfacce di controllo industriale e gestori di sessione condividono la stessa struttura logica: il comportamento del programma non dipende solo dall'evento appena arrivato, ma anche dalla fase in cui il sistema si trova in quel momento. Il modello formale che cattura questa logica è la **macchina a stati finiti** (*finite-state machine*): un modello di calcolo che si trova in uno stato alla volta e cambia stato in base agli eventi in ingresso.
+
+Scrivere una macchina a stati con `switch` annidati (`switch (stato)` dentro cui si apre uno `switch (evento)`) funziona finché gli stati sono due o tre, ma diventa rapidamente difficile da leggere, facile da rompere quando si aggiunge un evento e impossibile da ispezionare a colpo d'occhio. Estendendo le tabelle di dispatch del capitolo 16, puoi rappresentare l'intera macchina come **tabella bidimensionale costante di puntatori a funzione**.
+
+### Anatomia della tabella di transizione
+
+Una macchina a stati finiti è descritta da cinque elementi: un insieme finito di **stati**, un insieme finito di **eventi**, le **transizioni** ammesse da `(stato, evento)` verso il nuovo stato, le eventuali **azioni** eseguite durante la transizione (eventualmente condizionate da una **guardia** sul contesto) e gli **hook di ingresso** (*on-enter*) eseguiti quando la macchina entra in un nuovo stato.
+
+Ecco la mappa tabellare di un tornello automatico con 3 stati e 4 eventi:
+
+```text
+Stato \ Evento | MONETA         | PASSAGGIO      | ALLARME      | RIPARA
+---------------+----------------+----------------+--------------+--------------
+BLOCCATO       | -> SBLOCCATO   | (rifiutato)    | -> GUASTO    | (rifiutato)
+SBLOCCATO      | (rifiutato)    | -> BLOCCATO    | -> GUASTO    | (rifiutato)
+GUASTO         | (rifiutato)    | (rifiutato)    | (rifiutato)  | -> BLOCCATO
+```
+
+In C questa tabella si traduce direttamente in due enumerazioni chiuse da un valore sentinella di conteggio (`ST_CONTEGGIO`, `EV_CONTEGGIO`) e in una matrice costante `static const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO]` popolata con inizializzatori designati:
+
+<!-- cod: id=24.5-b tipo=frammento -->
+```c
+typedef struct transizione {
+    bool valida;
+    stato_t prossimo;
+    azione_fn azione;
+} transizione_t;
+
+static const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO] = {
+    [ST_BLOCCATO]  = { [EV_MONETA]    = {true, ST_SBLOCCATO, az_incassa},
+                       [EV_ALLARME]   = {true, ST_GUASTO, az_allarme} },
+    [ST_SBLOCCATO] = { [EV_PASSAGGIO] = {true, ST_BLOCCATO, az_passaggio},
+                       [EV_ALLARME]   = {true, ST_GUASTO, az_allarme} },
+    [ST_GUASTO]    = { [EV_RIPARA]    = {true, ST_BLOCCATO, az_ripara} }
+};
+```
+
+Tutte le celle non nominate nell'inizializzatore vengono azzerate automaticamente dal compilatore (`valida = false`, `azione = nullptr`), rendendo esplicito e sicuro il rifiuto di ogni coppia non ammessa. Ogni array parallelo indicizzato per stato (come `NOMI_STATO` o la tabella degli hook `ON_ENTER`) va sempre protetto con `static_assert` affinché aggiungere uno stato senza aggiornare le tabelle fallisca subito in compilazione.
+
+### Motore di transizione e guardie dinamiche
+
+Con la tabella 2D, il motore di transizione non contiene alcuno `switch` ed esegue sempre gli stessi passi in tempo `O(1)`:
+
+1. Verifica che il contesto non sia `nullptr` e che `stato < ST_CONTEGGIO` ed `evento < EV_CONTEGGIO`.
+2. Legge `const transizione_t *t = &TABELLA[stato][evento];` e, se `!t->valida`, rifiuta esplicitamente l'evento.
+3. Se `t->azione != nullptr`, invoca la funzione di azione passando il contesto e lo stato di destinazione predefinito `t->prossimo`.
+4. Aggiorna lo stato corrente e, se il nuovo stato differisce dal precedente e `ON_ENTER[nuovo]` non è `nullptr`, invoca l'hook di ingresso.
+
+Perché far restituire alla funzione di azione lo stato effettivo di destinazione? Perché permette di gestire le **guardie dinamiche** in modo pulito: nella maggior parte dei casi l'azione restituisce lo stato predefinito `def_st`, ma se una condizione di contesto scatta (ad esempio, il terzo errore di autenticazione consecutivo) l'azione può deviare la transizione verso uno stato alternativo (come `ST_BLOCCATA`), oppure segnalare tramite un flag booleano `ok` che l'evento va rifiutato senza cambiare stato.
+
+Rispetto allo standard C23, gli array bidimensionali costanti di struct con puntatori a funzione e gli inizializzatori designati sono completamente definiti; tuttavia, indicizzare `TABELLA` con uno stato o un evento fuori dai limiti oppure invocare un puntatore a funzione nullo provoca **comportamento indefinito**. I controlli di confine e i controlli `!= nullptr` nel motore sono quindi obbligatori.
+
+### Esempio guidato
+
+Il programma seguente implementa il tornello automatico a 3 stati (`ST_BLOCCATO`, `ST_SBLOCCATO`, `ST_GUASTO`) e 4 eventi (`EV_MONETA`, `EV_PASSAGGIO`, `EV_ALLARME`, `EV_RIPARA`) usando una tabella bidimensionale `TABELLA[ST_CONTEGGIO][EV_CONTEGGIO]`, controlli `static_assert` sulle tabelle ausiliarie e un motore di transizione privo di `switch`.
+
+<!-- cod: id=24.5-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+typedef enum stato { ST_BLOCCATO = 0, ST_SBLOCCATO, ST_GUASTO, ST_CONTEGGIO } stato_t;
+typedef enum evento { EV_MONETA = 0, EV_PASSAGGIO, EV_ALLARME, EV_RIPARA, EV_CONTEGGIO } evento_t;
+
+typedef struct tornello {
+    stato_t stato;
+    int monete;
+    int passaggi;
+} tornello_t;
+
+typedef stato_t (*azione_fn)(tornello_t *t, stato_t def_st);
+typedef struct transizione {
+    bool valida;
+    stato_t prossimo;
+    azione_fn azione;
+} transizione_t;
+
+static const char *const NOMI_STATO[] = {"BLOCCATO", "SBLOCCATO", "GUASTO"};
+static const char *const NOMI_EVENTO[] = {"MONETA", "PASSAGGIO", "ALLARME", "RIPARA"};
+static_assert(sizeof(NOMI_STATO) / sizeof(NOMI_STATO[0]) == ST_CONTEGGIO);
+static_assert(sizeof(NOMI_EVENTO) / sizeof(NOMI_EVENTO[0]) == EV_CONTEGGIO);
+
+static stato_t az_moneta(tornello_t *t, stato_t def_st) {
+    ++t->monete;
+    printf(" [incasso moneta #%d]", t->monete);
+    return def_st;
+}
+
+static stato_t az_passaggio(tornello_t *t, stato_t def_st) {
+    ++t->passaggi;
+    printf(" [passaggio #%d]", t->passaggi);
+    return def_st;
+}
+
+static stato_t az_allarme(tornello_t *t, stato_t def_st) {
+    (void)t;
+    printf(" [blocco di sicurezza]");
+    return def_st;
+}
+
+static stato_t az_ripara(tornello_t *t, stato_t def_st) {
+    (void)t;
+    printf(" [ripristino]");
+    return def_st;
+}
+
+static const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO] = {
+    [ST_BLOCCATO]  = { [EV_MONETA]    = {true, ST_SBLOCCATO, az_moneta},
+                       [EV_ALLARME]   = {true, ST_GUASTO, az_allarme} },
+    [ST_SBLOCCATO] = { [EV_PASSAGGIO] = {true, ST_BLOCCATO, az_passaggio},
+                       [EV_ALLARME]   = {true, ST_GUASTO, az_allarme} },
+    [ST_GUASTO]    = { [EV_RIPARA]    = {true, ST_BLOCCATO, az_ripara} }
+};
+
+static bool elabora(tornello_t *t, evento_t ev) {
+    if (t == nullptr || t->stato >= ST_CONTEGGIO || ev >= EV_CONTEGGIO) { return false; }
+    const transizione_t *tr = &TABELLA[t->stato][ev];
+    if (!tr->valida) {
+        printf("%s + %s -> RIFIUTATO\n", NOMI_STATO[t->stato], NOMI_EVENTO[ev]);
+        return false;
+    }
+    printf("%s + %s", NOMI_STATO[t->stato], NOMI_EVENTO[ev]);
+    stato_t dopo = (tr->azione != nullptr) ? tr->azione(t, tr->prossimo) : tr->prossimo;
+    t->stato = dopo;
+    printf(" -> %s\n", NOMI_STATO[dopo]);
+    return true;
+}
+
+int main(void) {
+    tornello_t t = {.stato = ST_BLOCCATO, .monete = 0, .passaggi = 0};
+    const evento_t sequenza[] = {
+        EV_PASSAGGIO, EV_MONETA, EV_PASSAGGIO, EV_ALLARME, EV_MONETA, EV_RIPARA
+    };
+    for (size_t i = 0; i < sizeof(sequenza) / sizeof(sequenza[0]); ++i) {
+        elabora(&t, sequenza[i]);
+    }
+    printf("Totale: monete=%d passaggi=%d\n", t.monete, t.passaggi);
+    return 0;
+}
+```
+
+```output
+BLOCCATO + PASSAGGIO -> RIFIUTATO
+BLOCCATO + MONETA [incasso moneta #1] -> SBLOCCATO
+SBLOCCATO + PASSAGGIO [passaggio #1] -> BLOCCATO
+BLOCCATO + ALLARME [blocco di sicurezza] -> GUASTO
+GUASTO + MONETA -> RIFIUTATO
+GUASTO + RIPARA [ripristino] -> BLOCCATO
+Totale: monete=1 passaggi=1
+```
+
+Osserva quanto è compatto il motore `elabora`: controlla i limiti, consulta la cella `TABELLA[t->stato][ev]` in tempo costante, rifiuta gli eventi non validi e invoca il puntatore a funzione solo se diverso da `nullptr`. L'intera semantica del tornello è leggibile in cinque righe dentro `TABELLA`.
+
+> **Approfondimento — Tabella 2D contro tabella di funzioni per stato**
+> Una matrice `Stati x Eventi` rende immediatamente verificabile ogni coppia `(stato, evento)` quando il numero di stati ed eventi è contenuto (fino a una decina ciascuno). Se invece progetti una macchina con decine di eventi sparsi — dove quasi tutte le celle sarebbero vuote — una matrice 2D sprecherebbe memoria: in quel caso conviene usare un array monodimensionale di funzioni indicizzato per stato (ogni funzione gestisce solo gli eventi rilevanti per quello stato) oppure una lista di transizioni per stato.
+
+### Esercizio 24.5 — Macchina a stati finiti opaca per sessioni di rete con tabella 2D di puntatori a funzione e guardie
+
+**Descrizione**
+
+Realizza su tre file (`fsm_sess.h`, `fsm_sess.c`, `main.c`) una **macchina a stati finiti** come **tipo opaco** `fsm_sess_t` che gestisce il ciclo di vita di una sessione autenticata mediante una tabella bidimensionale `static const transizione_t TABELLA[ST_CONTEGGIO][EV_CONTEGGIO]` priva di qualsiasi `switch` nel motore di transizione. (1) In `fsm_sess.h` (protetto da `FSM_SESS_H`) definisci `stato_sess_t` (`ST_CHIUSA`, `ST_HANDSHAKE`, `ST_AUTH`, `ST_ATTIVA`, `ST_BLOCCATA`, `ST_CONTEGGIO`), `evento_sess_t` (`EV_APRI`, `EV_ACK`, `EV_AUTH_OK`, `EV_AUTH_KO`, `EV_DATO`, `EV_CHIUDI`, `EV_RESET`, `EV_CONTEGGIO`) e `typedef struct fsm_sess fsm_sess_t;`, dichiarando `fsm_sess_t *fsm_crea(void);`, `void fsm_distruggi(fsm_sess_t *f);`, `bool fsm_invia(fsm_sess_t *f, evento_sess_t ev, int32_t payload);`, `stato_sess_t fsm_stato(const fsm_sess_t *f);`, `const char *fsm_nome_stato(stato_sess_t s);` e `void fsm_stampa_stats(const fsm_sess_t *f);`. (2) In `fsm_sess.c` verifica con `static_assert` le dimensioni delle tabelle `NOMI_STATO` e `ON_ENTER`. Le transizioni valide sono: `CHIUSA + APRI -> HANDSHAKE`; `HANDSHAKE + ACK -> AUTH` (azzera `err_auth`), `HANDSHAKE + CHIUDI -> CHIUSA`; `AUTH + AUTH_OK -> ATTIVA`, `AUTH + AUTH_KO -> AUTH` (con guardia nell'azione: al 3° errore consecutivo devia verso `ST_BLOCCATA`), `AUTH + CHIUDI -> CHIUSA`; `ATTIVA + DATO -> ATTIVA` (accetta `payload > 0` sommandolo a `byte_tx` e incrementando `pacchetti`; se `payload <= 0` rifiuta il pacchetto senza cambiare stato), `ATTIVA + CHIUDI -> CHIUSA`; `BLOCCATA + RESET -> CHIUSA` (azzera `err_auth`). Quando lo stato cambia invoca l'hook `ON_ENTER[nuovo_stato]` (`ATTIVA` incrementa `sessioni_ok`, `BLOCCATA` incrementa `blocchi`). (3) In `main.c` leggi da `stdin` i comandi `EV <nome> [payload]` (`payload` predefinito `0`), `STATO` e `STATS`, producendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- tabella bidimensionale `static const transizione_t[STATO_CONTEGGIO][EVENTO_CONTEGGIO]` con inizializzatori designati
+- motore di transizione privo di `switch` con validazione rigorosa degli indici di stato ed evento
+- azioni di transizione capaci di deviare lo stato di destinazione tramite guardie sul contesto
+- hook `ON_ENTER` invocati al cambio di stato e controlli a tempo di compilazione con `static_assert`
+
+**Domande guida**
+
+1. In che modo la tabella 2D `TABELLA[stato][evento]` gestisce le coppie `(stato, evento)` non ammesse senza causare comportamento indefinito?
+2. Come riesce l'azione di `EV_AUTH_KO` nello stato `ST_AUTH` a mantenere la transizione dentro la tabella 2D pur portando la macchina in `ST_BLOCCATA` solo al terzo fallimento?
+3. Perché l'hook `ON_ENTER[nuovo_stato]` va invocato solo quando `nuovo_stato != vecchio_stato`?
+4. Che cosa garantiscono le `static_assert` sugli array `NOMI_STATO` e `ON_ENTER` se in futuro aggiungi un nuovo stato all'enum `stato_sess_t`?
+
+**Esempio di esecuzione**
+
+```input
+STATO
+EV DATO 50
+EV APRI
+EV ACK
+EV AUTH_KO
+EV AUTH_OK
+EV DATO 120
+EV DATO 0
+EV DATO 80
+EV CHIUDI
+EV APRI
+EV ACK
+EV AUTH_KO
+EV AUTH_KO
+EV AUTH_KO
+EV APRI
+EV RESET
+STATS
+```
+
+```output
+STATO: CHIUSA
+EV DATO: RIFIUTATO (stato=CHIUSA)
+EV APRI: CHIUSA -> HANDSHAKE
+EV ACK: HANDSHAKE -> AUTH
+EV AUTH_KO: AUTH -> AUTH
+EV AUTH_OK: AUTH -> ATTIVA
+EV DATO: ATTIVA -> ATTIVA
+EV DATO: RIFIUTATO (stato=ATTIVA)
+EV DATO: ATTIVA -> ATTIVA
+EV CHIUDI: ATTIVA -> CHIUSA
+EV APRI: CHIUSA -> HANDSHAKE
+EV ACK: HANDSHAKE -> AUTH
+EV AUTH_KO: AUTH -> AUTH
+EV AUTH_KO: AUTH -> AUTH
+EV AUTH_KO: AUTH -> BLOCCATA
+EV APRI: RIFIUTATO (stato=BLOCCATA)
+EV RESET: BLOCCATA -> CHIUSA
+STATS: stato=CHIUSA sess_ok=1 blocchi=1 pkt=2 byte=200 rifiutati=3
+```
