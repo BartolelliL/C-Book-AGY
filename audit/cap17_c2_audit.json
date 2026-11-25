@@ -1,0 +1,17 @@
+{
+  "capitolo": 17,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap17/17_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "La formulazione tra parentesi ('restituisci `rad->dx` dopo `free(rad)`') può indurre lo studente a scrivere `free(rad); return rad->dx;`, che è un uso dopo la liberazione (comportamento indefinito). Anche se la prima parte della frase menziona il salvataggio del puntatore, conviene esplicitarlo anche nella regola unificata.",
+      "old_text": "(i casi 1 e 2 si possono unificare: se `rad->sx == nullptr`, restituisci `rad->dx` dopo `free(rad)`; se `rad->dx == nullptr`, restituisci `rad->sx` dopo `free(rad)`)",
+      "new_text": "(i casi 1 e 2 si possono unificare: se `rad->sx == nullptr`, salvi `rad->dx`, chiami `free(rad)` e restituisci il puntatore salvato; se `rad->dx == nullptr`, salvi `rad->sx`, chiami `free(rad)` e restituisci il puntatore salvato)"
+    }
+  ]
+}

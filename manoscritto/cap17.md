@@ -771,7 +771,7 @@ Nelle **ricerche per intervallo** `[lo, hi]` puoi sfruttare l'invariante per evi
 La rimozione di una chiave da un BST deve preservare l'invariante d'ordine e distingue tre casi:
 
 1. **Foglia (0 figli)**: liberi il nodo e sostituisci il puntatore nel padre con `nullptr`.
-2. **Un solo figlio**: salvi il puntatore all'unico figlio non nullo, liberi il nodo e colleghi il figlio direttamente al padre (i casi 1 e 2 si possono unificare: se `rad->sx == nullptr`, restituisci `rad->dx` dopo `free(rad)`; se `rad->dx == nullptr`, restituisci `rad->sx` dopo `free(rad)`).
+2. **Un solo figlio**: salvi il puntatore all'unico figlio non nullo, liberi il nodo e colleghi il figlio direttamente al padre (i casi 1 e 2 si possono unificare: se `rad->sx == nullptr`, salvi `rad->dx`, chiami `free(rad)` e restituisci il puntatore salvato; se `rad->dx == nullptr`, salvi `rad->sx`, chiami `free(rad)` e restituisci il puntatore salvato).
 3. **Due figli**: non puoi scollegare il nodo direttamente. Trovi il suo **successore in-ordine**, cioè il nodo con la chiave minima nel sottoalbero destro (partendo da `rad->dx` e scendendo sempre su `sx` finché `succ->sx != nullptr`). Copi chiave e valore di `succ` dentro `rad`, poi rimuovi ricorsivamente `succ->chiave` dal sottoalbero destro `rad->dx`. Poiché `succ` è il minimo del sottoalbero destro, non ha mai un figlio sinistro: la sua rimozione ricade quindi sempre nel caso 1 o nel caso 2.
 
 ### Distruzione in post-ordine, altezza e degenerazione
