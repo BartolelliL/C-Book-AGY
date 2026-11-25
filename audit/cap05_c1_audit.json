@@ -1,0 +1,77 @@
+{
+  "capitolo": 5,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap05/05_04.md",
+      "gravita": "alta",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "L'approfondimento usa il letterale esadecimale `0xFF`, che nel registro viene introdotto solo nel capitolo 13; inoltre afferma in modo assoluto che `EOF` venga convertito in `255` e che `255` venga troncato in `-1` coincidente con `EOF`, senza specificare che ciò vale su piattaforme a 8 bit quando `EOF` vale `-1` e che la conversione fuori intervallo verso un `char` con segno è dipendente dall'implementazione in C23 (6.3.1.3).",
+      "old_text": "> - sulle piattaforme in cui `char` è **senza segno** (per esempio molti sistemi ARM), i valori di `char` vanno da `0` a `255`: il valore negativo `EOF` viene convertito in `255` e il confronto `c == EOF` risulta **sempre falso**, impedendo al programma di rilevare la fine dell'input;\n> - sulle piattaforme in cui `char` è **con segno** (da `-128` a `127`), il byte valido di valore `255` (`0xFF`) viene troncato in `-1`, che coincide con `EOF`: il programma interrompe la lettura in anticipo scambiando un dato valido per la fine dello stream.",
+      "new_text": "> - sulle piattaforme a 8 bit in cui `char` è **senza segno** (per esempio molti sistemi ARM), i valori di `char` vanno da `0` a `255`: il valore negativo `EOF` viene convertito in un valore non negativo (tipicamente `255` quando `EOF` vale `-1`) e il confronto `c == EOF` risulta **sempre falso**, impedendo al programma di rilevare la fine dell'input;\n> - sulle piattaforme a 8 bit in cui `char` è **con segno** (da `-128` a `127`), il byte valido di valore `255` viene tipicamente convertito in `-1` (conversione fuori intervallo dipendente dall'implementazione), che coincide con `EOF` quando questo vale `-1`: il programma interrompe la lettura in anticipo scambiando un dato valido per la fine dello stream."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap05/05_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Lo standard C23 non impone in modo assoluto che `float` occupi 4 byte e `double` 8 byte su ogni implementazione (le dimensioni dipendono dall'implementazione, anche se 4 e 8 byte sono i valori standard IEEE 754 sulla quasi totalità dei sistemi moderni): conviene qualificare le dimensioni con \"tipicamente\".",
+      "old_text": "`sscanf` ha bisogno di sapere esattamente quanti byte scrivere in memoria (4 byte per un `float` con `%f`, 8 byte per un `double` con `%lf`).",
+      "new_text": "`sscanf` ha bisogno di sapere esattamente quanti byte scrivere in memoria (tipicamente 4 byte per un `float` con `%f`, 8 byte per un `double` con `%lf`)."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap05/05_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nel programma guidato `riga` è dichiarato senza inizializzazione (`char riga[128];`): se la prima chiamata a `fgets` restituisce `nullptr`, chiamare `sscanf` non leggerebbe semplicemente un \"buffer non aggiornato\", ma memoria non inizializzata (comportamento indefinito).",
+      "old_text": "se `fgets` restituisce `nullptr`, `sscanf` non viene nemmeno chiamata, evitando di leggere un buffer non aggiornato.",
+      "new_text": "se `fgets` restituisce `nullptr`, `sscanf` non viene nemmeno chiamata, evitando di leggere un buffer non inizializzato (alla prima lettura, comportamento indefinito) o rimasto al contenuto precedente."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap05/05_01.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La frase \"nell'ultima posizione occupata\" può far pensare che `fgets` sovrascriva l'ultimo carattere letto (o scriva sempre all'indice 99) invece di scrivere subito dopo l'ultimo carattere letto; inoltre lo schema sottostante mostra `'\\0'` senza che la prosa lo abbia collegato al \"carattere di chiusura interna\".",
+      "old_text": "e aggiunge automaticamente un carattere di chiusura interna nell'ultima posizione occupata. Proprio per lasciare spazio a questo carattere di chiusura interna, in un buffer di `100` byte possono entrare al massimo `99` caratteri letti dall'utente.\n\nUn dettaglio fondamentale è che `fgets` **conserva `'\\n'` nel buffer** se la riga letta è abbastanza corta da farlo entrare. Per esempio, se digiti `Anna` e premi Invio, dentro `riga` vengono memorizzati i caratteri `'A'`, `'n'`, `'n'`, `'a'`, `'\\n'` seguiti dal carattere di chiusura interna:",
+      "new_text": "e aggiunge automaticamente un carattere di chiusura interna (`'\\0'`, che approfondiremo nel capitolo 9) subito dopo l'ultimo carattere letto. Proprio per lasciare spazio a questo carattere di chiusura interna, in un buffer di `100` byte possono entrare al massimo `99` caratteri letti dall'utente.\n\nUn dettaglio fondamentale è che `fgets` **conserva `'\\n'` nel buffer** se la riga letta è abbastanza corta da farlo entrare. Per esempio, se digiti `Anna` e premi Invio, dentro `riga` vengono memorizzati i caratteri `'A'`, `'n'`, `'n'`, `'a'`, `'\\n'` seguiti da `'\\0'`:"
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap05/05_04.md",
+      "gravita": "bassa",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il rinvio in avanti alle funzioni di `<ctype.h>` è generico (\"nei capitoli successivi\") anziché indicare il capitolo esatto (capitolo 9) come richiesto dalle convenzioni.",
+      "old_text": "nei capitoli successivi vedremo le funzioni di `<ctype.h>` per classificare lettere e cifre in modo ancora più pulito.",
+      "new_text": "per classificare lettere e cifre in modo ancora più pulito useremo le funzioni di `<ctype.h>` (lo vedremo nel capitolo 9)."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap05/05_03.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "L'esempio di ridirezione `./programma > risultato.txt` usa solo la sintassi Linux/macOS, mentre il libro è multipiattaforma (come già fatto nella stessa sezione per `Ctrl+D` / `Ctrl+Z`).",
+      "old_text": "Da terminale puoi salvare l'uscita di un programma in un file usando l'operatore `>` (per esempio `./programma > risultato.txt`).",
+      "new_text": "Da terminale puoi salvare l'uscita di un programma in un file usando l'operatore `>` (per esempio `./programma > risultato.txt` su Linux e macOS, oppure `programma.exe > risultato.txt` su Windows)."
+    },
+    {
+      "id": "p7",
+      "file": "manoscritto/cap05/05_99.md",
+      "gravita": "bassa",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il riepilogo degli errori comuni parla di \"cicli infiniti\", ma i cicli non sono ancora stati introdotti (capitolo 6); conviene formulare l'effetto in termini coerenti con la sotto-sezione 5.4.",
+      "old_text": "causando cicli infiniti o troncamenti prematuri a seconda del segno di `char`.",
+      "new_text": "causando il mancato riconoscimento della fine dell'input o interruzioni premature della lettura a seconda del segno di `char`."
+    }
+  ]
+}

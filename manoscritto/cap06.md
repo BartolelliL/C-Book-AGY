@@ -76,7 +76,7 @@ Molti problemi su sequenze di lunghezza arbitraria si risolvono combinando quatt
 - **Contatore**: una variabile intera inizializzata a `0` prima del ciclo (per esempio `int conteggio = 0;`) e incrementata con `++conteggio;` ogni volta che incontri un elemento o un evento da contare.
 - **Accumulatore**: una variabile numerica inizializzata all'elemento neutro dell'operazione (`0` o `0.0` per una somma, `1` per un prodotto) e aggiornata nel corpo (per esempio `somma += valore;`).
 - **Minimo e massimo**: a differenza di somma e conteggio, non puoi quasi mai inizializzare `minimo` o `massimo` a `0`: se tutti i numeri letti fossero positivi (per esempio `12`, `18`, `25`), un `minimo` inizializzato a `0` rimarrebbe erroneamente `0`. La soluzione sicura consiste nell'inizializzare `minimo` e `massimo` con il **primo elemento valido** (riconoscibile perché `conteggio == 0`), aggiornandoli poi con `if (valore < minimo)` e `if (valore > massimo)` sugli elementi successivi.
-- **Caso di zero elementi letti**: poiché il ciclo `while` può compiere zero iterazioni (input vuoto), dopo il ciclo controlla sempre se `conteggio == 0` prima di stampare minimo, massimo o media. Dividere `somma / conteggio` quando `conteggio` vale `0` provocherebbe una divisione per zero (comportamento indefinito per gli interi, oppure valori speciali come `NaN` in virgola mobile).
+- **Caso di zero elementi letti**: poiché il ciclo `while` può compiere zero iterazioni (input vuoto), dopo il ciclo controlla sempre se `conteggio == 0` prima di stampare minimo, massimo o media. Dividere `somma / conteggio` quando `conteggio` vale `0` provocherebbe una divisione per zero (comportamento indefinito per gli interi, e anche in virgola mobile secondo lo standard base, dove i sistemi IEEE 754 producono valori speciali come `NaN`).
 
 ### L'errore del punto e virgola dopo `while`
 
@@ -139,7 +139,7 @@ Analizziamo come lavora questo programma:
 
 - Prima del ciclo inizializziamo `c` e i tre contatori (`caratteri`, `righe`, `cifre`) a `0`. Anche se l'input fosse completamente vuoto, il programma non userebbe mai variabili non inizializzate e stamperebbe tre zeri.
 - La condizione `(c = getchar()) != EOF` legge il carattere successivo, lo salva in `c` (di tipo `int`) e controlla che non sia la fine dell'input.
-- Per ogni carattere letto incrementiamo `caratteri` (compresi gli spazi e i `'\n'`), poi usiamo due `if` indipendenti per contare i ritorni a capo (`'\n'`, che delimitano le righe complete terminate da Invio) e le cifre decimali (sfruttando il fatto che in C i codici di `'0'..'9'` sono contigui).
+- Per ogni carattere letto incrementiamo `caratteri` (compresi gli spazi e i `'\n'`), poi usiamo due `if` indipendenti per contare i ritorni a capo (`'\n'`, che delimitano le righe complete terminate da Invio) e le cifre decimali (sfruttando il fatto che in C i codici di `'0'..'9'` sono contigui). Nota che nell'input di esempio solo la prima riga termina con `'\n'` mentre la seconda si chiude direttamente con `EOF`, perciò `righe` vale `1` e `caratteri` vale `22`; se dal terminale premi Invio anche dopo `108` prima di segnalare la fine dell'input otterrai `23` caratteri e `2` righe complete.
 
 Il secondo esempio mostra invece la lettura riga per riga con `fgets` e `sscanf`: legge una sequenza di importi in euro fino alla fine dell'input, controllando sia gli errori di formato sia il caso di sequenza vuota.
 
@@ -356,7 +356,7 @@ Osserva i punti chiave del programma:
 > **C23** — I tipi e i valori `bool`, `true`, `false` e `nullptr` sono parole chiave native in C23. Con standard precedenti (C17 o C11) servono `#include <stdbool.h>` per `bool`/`true`/`false` e `NULL` al posto di `nullptr`.
 
 > **Approfondimento — Perché dimenticare il controllo di `nullptr` blocca il `do-while`**
-> Quando uno stream raggiunge la fine dell'input, lo stato di fine file rimane attivo sullo stream stesso. Ogni chiamata successiva a `fgets(..., stdin)` non si ferma più ad aspettare nuovi caratteri: restituisce istantaneamente `nullptr` senza modificare il contenuto del buffer `riga`. Se un ciclo `do { ... } while (!valido);` non intercetta `nullptr`, esegue `sscanf` sullo stesso buffer (o fallisce di nuovo), lascia `valido` a `false` e ripete il ciclo milioni di volte al secondo fino a riempire il terminale di messaggi di errore. Controllare sempre il ritorno di `fgets` elimina questo rischio alla radice.
+> Quando uno stream raggiunge la fine dell'input, lo stato di fine file rimane attivo sullo stream stesso. Ogni chiamata successiva a `fgets(..., stdin)` non si ferma più ad aspettare nuovi caratteri: restituisce istantaneamente `nullptr` senza modificare il contenuto del buffer `riga`. Se un ciclo `do { ... } while (!valido);` non intercetta `nullptr`, esegue `sscanf` su un buffer non inizializzato (comportamento indefinito se l'input è vuoto fin dall'inizio) oppure rimasto al contenuto precedente, lascia `valido` a `false` e ripete il ciclo milioni di volte al secondo fino a riempire il terminale di messaggi di errore. Controllare sempre il ritorno di `fgets` elimina questo rischio alla radice.
 
 ### Esercizio 6.2 — Analisi delle cifre di un intero non negativo con `do-while`
 
@@ -692,7 +692,7 @@ Seguiamo l'esecuzione sulle sei righe dell'input:
 - La quinta riga (`610`) supera `SOGLIA_CRITICA`: registra `stato = 2` ed esegue `break`. La sesta riga (`200`) non viene nemmeno letta.
 - Dopo il ciclo, `stato` permette di stampare con certezza quale evento ha chiuso il ciclo.
 
-> **C23** — Le costanti `constexpr` e `nullptr` sono novità del C23; in C17/C11 puoi sostituire `constexpr` con `const` (o `#define`) e `nullptr` con `NULL`.
+> **C23** — Le parole chiave `constexpr` e `nullptr` sono novità del C23; in C17/C11 puoi sostituire `constexpr` con `const` e `nullptr` con `NULL`.
 
 > **Approfondimento — `continue` in `while` contro `continue` in `for`**
 > Confronta questi due frammenti che vorrebbero stampare i numeri da `0` a `4` saltando il `2`:
@@ -811,7 +811,7 @@ Per usare un invariante di ciclo allo scopo di verificare la correttezza di un c
 2. **Mantenimento**: se la proprietà è vera all'inizio di un'iterazione ed esegui il corpo del ciclo, essa resta vera al termine dell'iterazione stessa.
 3. **Conclusione**: quando la condizione di permanenza diventa falsa e il ciclo termina, combinare l'invariante con la negazione della condizione dimostra che il risultato finale è esattamente quello atteso.
 
-Vediamo un esempio concreto. Supponi di sommare i numeri da `1` a `n` con:
+Vediamo un esempio concreto. Supponi di sommare i numeri da `1` a `n` (con `n >= 0`) con:
 
 <!-- cod: id=6.5-c tipo=frammento -->
 ```c
@@ -895,7 +895,7 @@ Osserva come funzionano gli invarianti nelle due parti:
 - **Algoritmo di Euclide**: per una proprietà aritmetica fondamentale, `MCD(a, b)` è uguale a `MCD(b, a % b)`. Prima del ciclo `a = x` e `b = y`, quindi l'invariante `MCD(a, b) == MCD(x, y)` è vero. A ogni iterazione `a` e `b` vengono sostituiti con `b` e `a % b`, preservando l'invariante. Inoltre il resto `a % b` è sempre non negativo e strettamente minore di `b`: dunque `b` diminuisce strettamente a ogni passo e deve raggiungere `0`. All'uscita (`b == 0`), l'invariante afferma `MCD(a, 0) == MCD(x, y)`, e poiché `MCD(a, 0) = a`, la variabile `a` contiene certamente il massimo comun divisore cercato.
 
 > **Approfondimento — Usare l'invariante prima di scrivere il codice**
-> L'errore più comune nei cicli (sbagliare tra `<` e `<=`, inizializzare un contatore a `0` invece che a `1`, oppure dimenticare l'ultimo elemento) nasce quasi sempre dal fatto di scrivere prima il codice e solo dopo chiedersi che cosa rappresenti ciascuna variabile. Se invece scrivi in un commento di una riga l'invariante *prima* di scrivere il ciclo — per esempio "a questo punto `divisori` conta i divisori trovati nell'intervallo `1..(col - 1)`" — la scelta iniziale (`col = 1`, `divisori = 0`) e la condizione finale (`col <= n`) diventano obbligate e non lasciano spazio a dubbi off-by-one.
+> L'errore più comune nei cicli (sbagliare tra `<` e `<=`, inizializzare un contatore a `0` invece che a `1`, oppure dimenticare l'ultimo elemento) nasce quasi sempre dal fatto di scrivere prima il codice e solo dopo chiedersi che cosa rappresenti ciascuna variabile. Se invece scrivi in un commento di una riga l'invariante *prima* di scrivere il ciclo — per esempio "a questo punto `prodotto` contiene il prodotto degli interi nell'intervallo `1..(k - 1)`" — la scelta iniziale (`k = 1`, `prodotto = 1`) e la condizione finale (`k <= n`) diventano obbligate e non lasciano spazio a dubbi off-by-one.
 
 ### Esercizio 6.5 — Tabella di divisibilità con cicli annidati e invarianti
 

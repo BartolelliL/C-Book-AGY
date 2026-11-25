@@ -43,9 +43,9 @@ I tre argomenti di `fgets(buffer, n, stream)` hanno un significato preciso:
 - `n`: la capienza massima del buffer in byte, passata come `int`. Usare `(int)sizeof(riga)` invece di ripetere `100` evita disallineamenti se in futuro cambi la dimensione del buffer (ricorda dal capitolo 2 che `sizeof` produce un `size_t`, quindi il cast `(int)` rende esplicita la conversione al tipo richiesto da `fgets`);
 - `stream`: il canale da cui leggere, cioè `stdin` per la tastiera.
 
-La regola di comportamento di `fgets` è definita con esattezza dallo standard C23 (a patto che `n >= 1` e che `buffer` abbia almeno `n` byte): `fgets(buffer, n, stdin)` legge dallo stream `stdin` al più `n - 1` caratteri, fermandosi non appena incontra il carattere di ritorno a capo `'\n'` oppure la fine dell'input, e aggiunge automaticamente un carattere di chiusura interna nell'ultima posizione occupata. Proprio per lasciare spazio a questo carattere di chiusura interna, in un buffer di `100` byte possono entrare al massimo `99` caratteri letti dall'utente.
+La regola di comportamento di `fgets` è definita con esattezza dallo standard C23 (a patto che `n >= 1` e che `buffer` abbia almeno `n` byte): `fgets(buffer, n, stdin)` legge dallo stream `stdin` al più `n - 1` caratteri, fermandosi non appena incontra il carattere di ritorno a capo `'\n'` oppure la fine dell'input, e aggiunge automaticamente un carattere di chiusura interna (`'\0'`, che approfondiremo nel capitolo 9) subito dopo l'ultimo carattere letto. Proprio per lasciare spazio a questo carattere di chiusura interna, in un buffer di `100` byte possono entrare al massimo `99` caratteri letti dall'utente.
 
-Un dettaglio fondamentale è che `fgets` **conserva `'\n'` nel buffer** se la riga letta è abbastanza corta da farlo entrare. Per esempio, se digiti `Anna` e premi Invio, dentro `riga` vengono memorizzati i caratteri `'A'`, `'n'`, `'n'`, `'a'`, `'\n'` seguiti dal carattere di chiusura interna:
+Un dettaglio fondamentale è che `fgets` **conserva `'\n'` nel buffer** se la riga letta è abbastanza corta da farlo entrare. Per esempio, se digiti `Anna` e premi Invio, dentro `riga` vengono memorizzati i caratteri `'A'`, `'n'`, `'n'`, `'a'`, `'\n'` seguiti da `'\0'`:
 
 ```text
 Indice:      0     1     2     3     4     5    ...  99
@@ -278,12 +278,12 @@ Consumo pro capite: 7.00 L
 Osserva come funzionano i controlli del programma:
 
 - Il buffer `riga` viene riutilizzato per la seconda chiamata a `fgets`: una volta estratti `distanza_km` e `litri_consumati` nella prima lettura, il testo precedente non serve più.
-- Nella condizione `fgets(...) == nullptr || sscanf(...) != 2` entra in gioco la valutazione a corto circuito vista nel capitolo 4: se `fgets` restituisce `nullptr`, `sscanf` non viene nemmeno chiamata, evitando di leggere un buffer non aggiornato.
+- Nella condizione `fgets(...) == nullptr || sscanf(...) != 2` entra in gioco la valutazione a corto circuito vista nel capitolo 4: se `fgets` restituisce `nullptr`, `sscanf` non viene nemmeno chiamata, evitando di leggere un buffer non inizializzato (alla prima lettura, comportamento indefinito) o rimasto al contenuto precedente.
 - Per i due `double` lo specificatore in `sscanf` è `%lf %lf`, mentre nella `printf` finale è `%.2f`.
 - Prima delle divisioni `distanza_km / litri_consumati` e `litri_consumati / passeggeri`, il controllo `<= 0` esclude sia lo zero sia eventuali valori negativi privi di senso fisico.
 
 > **Approfondimento — Perché `%f` in `printf` va bene per `double`, ma in `sscanf` no**
-> Quando passi un `float` a `printf`, una regola storica del C (le *promozioni predefinite degli argomenti* nelle funzioni a numero variabile di argomenti) converte automaticamente quel `float` in `double` prima della chiamata; per questo `printf` riceve sempre un `double` e accetta `%f` per entrambi i tipi. Con `sscanf`, invece, non passi il valore della variabile ma il suo indirizzo tramite `&var`, e sugli indirizzi non avviene alcuna promozione automatica: `sscanf` ha bisogno di sapere esattamente quanti byte scrivere in memoria (4 byte per un `float` con `%f`, 8 byte per un `double` con `%lf`). Passare `&var` di tipo `double` con `%f` fa scrivere i byte nel formato sbagliato e in una porzione parziale della variabile, producendo comportamento indefinito.
+> Quando passi un `float` a `printf`, una regola storica del C (le *promozioni predefinite degli argomenti* nelle funzioni a numero variabile di argomenti) converte automaticamente quel `float` in `double` prima della chiamata; per questo `printf` riceve sempre un `double` e accetta `%f` per entrambi i tipi. Con `sscanf`, invece, non passi il valore della variabile ma il suo indirizzo tramite `&var`, e sugli indirizzi non avviene alcuna promozione automatica: `sscanf` ha bisogno di sapere esattamente quanti byte scrivere in memoria (tipicamente 4 byte per un `float` con `%f`, 8 byte per un `double` con `%lf`). Passare `&var` di tipo `double` con `%f` fa scrivere i byte nel formato sbagliato e in una porzione parziale della variabile, producendo comportamento indefinito.
 
 ### Esercizio 5.2 — Riepilogo di una sessione di ricarica elettrica
 
@@ -460,7 +460,7 @@ Esamina la sequenza dei controlli:
 - Tutti i rami di errore scrivono su `stderr` e interrompono subito il programma con `return EXIT_FAILURE;`. Solo se ogni controllo ha successo il programma scrive su `stdout` e restituisce `EXIT_SUCCESS`.
 
 > **Approfondimento — Ridirezione da riga di comando e separazione di `stdout` e `stderr`**
-> Da terminale puoi salvare l'uscita di un programma in un file usando l'operatore `>` (per esempio `./programma > risultato.txt`). Quel comando ridirige soltanto `stdout`: tutto ciò che il programma scrive con `fprintf(stdout, ...)` o `printf(...)` finisce nel file, mentre i messaggi inviati a `stderr` compaiono comunque sul terminale. Se invece stampassi gli errori su `stdout`, un errore di input finirebbe silenziosamente dentro `risultato.txt` al posto dei dati veri, corrompendo il file o mandando in errore il programma successivo che dovesse leggerlo.
+> Da terminale puoi salvare l'uscita di un programma in un file usando l'operatore `>` (per esempio `./programma > risultato.txt` su Linux e macOS, oppure `programma.exe > risultato.txt` su Windows). Quel comando ridirige soltanto `stdout`: tutto ciò che il programma scrive con `fprintf(stdout, ...)` o `printf(...)` finisce nel file, mentre i messaggi inviati a `stderr` compaiono comunque sul terminale. Se invece stampassi gli errori su `stdout`, un errore di input finirebbe silenziosamente dentro `risultato.txt` al posto dei dati veri, corrompendo il file o mandando in errore il programma successivo che dovesse leggerlo.
 
 ### Esercizio 5.3 — Validatore di prenotazione per una sala conferenze
 
@@ -532,7 +532,7 @@ Un'altra operazione frequente con i singoli caratteri è lavorare sulle cifre de
 - dopo aver verificato che `c >= '0' && c <= '9'`, l'espressione `c - '0'` calcola il valore numerico intero compreso tra `0` e `9` (per esempio `'5' - '0'` vale `5`);
 - viceversa, dato un intero `d` compreso tra `0` e `9`, l'espressione `'0' + d` produce il carattere stampabile corrispondente, pronto per essere passato a `putchar`.
 
-Al contrario, lo standard C23 non garantisce la contiguità delle lettere dell'alfabeto in tutte le codifiche esistenti, anche se su quasi tutti i sistemi moderni (ASCII/UTF-8) `'A'..'Z'` e `'a'..'z'` sono contigue; nei capitoli successivi vedremo le funzioni di `<ctype.h>` per classificare lettere e cifre in modo ancora più pulito.
+Al contrario, lo standard C23 non garantisce la contiguità delle lettere dell'alfabeto in tutte le codifiche esistenti, anche se su quasi tutti i sistemi moderni (ASCII/UTF-8) `'A'..'Z'` e `'a'..'z'` sono contigue; per classificare lettere e cifre in modo ancora più pulito useremo le funzioni di `<ctype.h>` (lo vedremo nel capitolo 9).
 
 In questa sotto-sezione leggiamo un numero fissato di caratteri con chiamate esplicite a `getchar()`, perché non abbiamo ancora introdotto i cicli. Per leggere ed elaborare sequenze di caratteri di lunghezza arbitraria fino a `EOF` userai un ciclo `while` (lo vedremo nel capitolo 6).
 
@@ -600,8 +600,8 @@ Segui passo dopo passo che cosa fa il programma:
 
 > **Approfondimento — Perché `char c = getchar();` è un bug di portabilità**
 > Scrivere `char c = getchar();` sembra innocuo, ma fallisce in modo diverso a seconda che il compilatore tratti `char` come senza segno o con segno (comportamento dipendente dall'implementazione):
-> - sulle piattaforme in cui `char` è **senza segno** (per esempio molti sistemi ARM), i valori di `char` vanno da `0` a `255`: il valore negativo `EOF` viene convertito in `255` e il confronto `c == EOF` risulta **sempre falso**, impedendo al programma di rilevare la fine dell'input;
-> - sulle piattaforme in cui `char` è **con segno** (da `-128` a `127`), il byte valido di valore `255` (`0xFF`) viene troncato in `-1`, che coincide con `EOF`: il programma interrompe la lettura in anticipo scambiando un dato valido per la fine dello stream.
+> - sulle piattaforme a 8 bit in cui `char` è **senza segno** (per esempio molti sistemi ARM), i valori di `char` vanno da `0` a `255`: il valore negativo `EOF` viene convertito in un valore non negativo (tipicamente `255` quando `EOF` vale `-1`) e il confronto `c == EOF` risulta **sempre falso**, impedendo al programma di rilevare la fine dell'input;
+> - sulle piattaforme a 8 bit in cui `char` è **con segno** (da `-128` a `127`), il byte valido di valore `255` viene tipicamente convertito in `-1` (conversione fuori intervallo dipendente dall'implementazione), che coincide con `EOF` quando questo vale `-1`: il programma interrompe la lettura in anticipo scambiando un dato valido per la fine dello stream.
 > Dichiarare sempre `int c = getchar();` elimina entrambi i bug su ogni architettura.
 
 ### Esercizio 5.4 — Verifica di un codice di accesso con `getchar` e `putchar`
@@ -652,7 +652,7 @@ Somma cifre: 11
 - **Usare `%f` invece di `%lf` in `sscanf` per una variabile `double`**: in `printf` entrambi usano `%f`, ma in `sscanf` scrivere `%f` per un `double` provoca comportamento indefinito; usa sempre `%lf` per `double`.
 - **Dimenticare il simbolo `&` davanti al nome della variabile numerica in `sscanf`**: scrivere `sscanf(riga, "%d", valore)` invece di `&valore` causa comportamento indefinito; controlla sempre gli avvisi del compilatore.
 - **Controllare il ritorno di `sscanf` con `!= 0` invece che con `== numero_atteso`**: su una riga vuota o di soli spazi `sscanf` restituisce `EOF` (un valore negativo), quindi `!= 0` risulterebbe vero per errore.
-- **Salvare il risultato di `getchar()` in una variabile `char` invece che in `int`**: impedisce di distinguere in modo portabile `EOF` dai caratteri validi, causando cicli infiniti o troncamenti prematuri a seconda del segno di `char`.
+- **Salvare il risultato di `getchar()` in una variabile `char` invece che in `int`**: impedisce di distinguere in modo portabile `EOF` dai caratteri validi, causando il mancato riconoscimento della fine dell'input o interruzioni premature della lettura a seconda del segno di `char`.
 - **Dimenticare che `fgets` conserva il carattere `'\n'` alla fine della riga letta**: quando il ritorno a capo entra nel buffer, aggiungerlo di nuovo nella `printf` con `%s` produce righe vuote doppie o confronti inattesi.
 - **Ignorare eventuali caratteri extra dopo un numero in `sscanf`**: senza il controllo con `" %c"` e una variabile `char` di appoggio, un input malformato come `12abc` viene accettato silenziosamente come `12`.
 

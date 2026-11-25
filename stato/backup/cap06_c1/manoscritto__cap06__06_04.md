@@ -1,0 +1,188 @@
+## 6.4 Modificare il percorso di un ciclo: `break` e `continue`
+
+Di norma un ciclo ripete tutto il proprio corpo fino in fondo e si arresta soltanto quando la condizione di permanenza diventa falsa. A volte però, durante un'iterazione, accade qualcosa che richiede una deviazione immediata: potresti aver già trovato l'elemento che cercavi, aver incontrato un valore speciale che segnala la fine dei dati, oppure voler ignorare una riga vuota senza annidare il resto del corpo dentro un altro `if`.
+
+Per questi due bisogni il C mette a disposizione due istruzioni di salto controllato: `break` e `continue`.
+
+### Uscire subito con `break`
+
+Hai già usato `break` nel capitolo 4 per chiudere i rami di uno `switch`. Dentro un ciclo (`while`, `do-while` o `for`), `break` **interrompe immediatamente il solo ciclo più interno che la racchiude** e trasferisce il flusso di controllo alla prima istruzione successiva al ciclo.
+
+È utile soprattutto in due casi:
+
+- **Ricerca riuscita**: appena trovi il primo numero o il primo carattere che soddisfa un criterio, non ha senso continuare a scorrere il resto della sequenza.
+- **Condizione sentinella o di emergenza**: interrompi l'elaborazione quando incontri un codice speciale (come `9999`) o superi una soglia critica.
+
+### Saltare l'iterazione corrente con `continue`
+
+L'istruzione `continue`, invece, non chiude il ciclo: **salta tutte le istruzioni residue dell'iterazione corrente** del solo ciclo più interno e passa subito all'iterazione successiva.
+
+È particolarmente comoda come filtro iniziale nel corpo del ciclo: se una riga è vuota o un campione è fuori intervallo, esegui `continue` e lasci il resto del corpo dedicato al caso normale, senza accumulare livelli superflui di `if`/`else`.
+
+### La differenza decisiva di `continue` tra `for` e `while`
+
+Fai molta attenzione al punto esatto in cui `continue` fa saltare il programma:
+
+- In un ciclo **`for`**, `continue` esegue comunque la **clausola di aggiornamento** prima di rivalutare la condizione.
+- In un ciclo **`while`** o **`do-while`**, `continue` salta direttamente alla **valutazione della condizione**, scavalcando qualsiasi istruzione di aggiornamento scritta più in basso nel corpo.
+
+Questa differenza spiega perché un `continue` scritto con leggerezza dentro un `while` con contatore può causare un ciclo infinito (vedi l'approfondimento a fine sotto-sezione). Quando invece il `while` avanza grazie a una lettura nella condizione stessa — come `while (fgets(...) != nullptr)` — `continue` è sicuro perché la chiamata successiva a `fgets` avviene comunque nel controllo di testa.
+
+### Interazione con `switch` dentro un ciclo
+
+Quando uno `switch` si trova all'interno di un ciclo, `break` e `continue` si comportano su livelli diversi:
+
+- `break` interrompe **lo `switch`** (il costrutto più interno tra cicli e `switch`), *non* il ciclo esterno.
+- `continue` invece ignora lo `switch` e agisce sul **ciclo più interno** che racchiude lo `switch`.
+
+Sia l'effetto di `break` e `continue` sul solo costrutto più interno sia l'esecuzione della clausola di aggiornamento del `for` dopo `continue` sono pienamente definiti dallo standard C23.
+
+### Usare `break` e `continue` con misura
+
+`break` e `continue` semplificano il codice quando rendono evidenti le eccezioni e le uscite anticipate, ma abusarne produce l'effetto opposto. Un ciclo lungo con molti `break` e `continue` sparsi in rami annidati diventa difficile da leggere perché devi controllare l'intero corpo per capire quando e come il ciclo può terminare. Come regola pratica:
+
+- metti eventuali `continue` di filtro nella parte alta del ciclo, come controlli rapidi di esclusione;
+- limita i `break` a poche condizioni di arresto ben riconoscibili, registrando in una variabile di stato il motivo dell'uscita se ti serve dopo il ciclo;
+- se la condizione di arresto è semplice e naturale, preferisci esprimerla direttamente nell'intestazione del ciclo.
+
+> **Se vieni da Python** — In Python i cicli `while` e `for` ammettono una clausola `else` eseguita soltanto se il ciclo si conclude senza incontrare `break`. In C non esiste alcun `else` collegato ai cicli: per distinguere un'uscita normale da un arresto con `break` si imposta una variabile booleana o una variabile intera di stato prima di eseguire `break`.
+
+### Esempio guidato
+
+Il programma seguente legge da `stdin` una sequenza di campioni interi prodotti da un sensore: usa `continue` per ignorare le righe vuote e i valori negativi di disturbo, e usa `break` per arrestarsi al codice sentinella `9999` oppure al superamento della soglia critica `500`. Prima di ogni `break` aggiorna `stato` per stampare alla fine la causa esatta dell'arresto.
+
+<!-- cod: id=6.4-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    constexpr int SENTINELLA = 9999;
+    constexpr int SOGLIA_CRITICA = 500;
+    char riga[128];
+    int validi = 0, disturbi = 0, picco = 0, stato = 0;
+
+    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {
+        int valore = 0;
+        char extra = '\0';
+        int esito = sscanf(riga, "%d %c", &valore, &extra);
+        if (esito == EOF) {
+            continue;
+        }
+        if (esito != 1) {
+            fprintf(stderr, "Errore: lettura non valida.\n");
+            return EXIT_FAILURE;
+        }
+        if (valore == SENTINELLA) {
+            stato = 1;
+            break;
+        }
+        if (valore < 0) {
+            ++disturbi;
+            continue;
+        }
+        if (valore > SOGLIA_CRITICA) {
+            stato = 2;
+            break;
+        }
+        if (validi == 0 || valore > picco) {
+            picco = valore;
+        }
+        ++validi;
+    }
+    printf("Validi: %d, picco: %d, disturbi: %d\n", validi, picco, disturbi);
+    printf("Arresto: %s\n", stato == 1 ? "sentinella" :
+           (stato == 2 ? "soglia critica" : "fine input"));
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+120
+
+-15
+340
+610
+200
+```
+
+```output
+Validi: 2, picco: 340, disturbi: 1
+Arresto: soglia critica
+```
+
+Seguiamo l'esecuzione sulle sei righe dell'input:
+
+- La prima riga (`120`) è valida: aggiorna `picco` a `120` e porta `validi` a `1`.
+- La seconda riga è vuota: `sscanf` restituisce `EOF` e `continue` fa ripartire subito il `while` con la riga successiva.
+- La terza riga (`-15`) è negativa: incrementa `disturbi` e usa `continue` per non includerla nel picco né nei campioni validi.
+- La quarta riga (`340`) è valida: aggiorna `picco` a `340` e porta `validi` a `2`.
+- La quinta riga (`610`) supera `SOGLIA_CRITICA`: registra `stato = 2` ed esegue `break`. La sesta riga (`200`) non viene nemmeno letta.
+- Dopo il ciclo, `stato` permette di stampare con certezza quale evento ha chiuso il ciclo.
+
+> **C23** — Le costanti `constexpr` e `nullptr` sono novità del C23; in C17/C11 puoi sostituire `constexpr` con `const` (o `#define`) e `nullptr` con `NULL`.
+
+> **Approfondimento — `continue` in `while` contro `continue` in `for`**
+> Confronta questi due frammenti che vorrebbero stampare i numeri da `0` a `4` saltando il `2`:
+>
+> ```text
+> // VERSIONE SBAGLIATA CON while: ciclo infinito!
+> int i = 0;
+> while (i < 5) {
+>     if (i == 2) {
+>         continue;  // salta ++i e torna a while (i < 5) con i ancora uguale a 2!
+>     }
+>     printf("%d\n", i);
+>     ++i;
+> }
+>
+> // VERSIONE CORRETTA CON for: termina regolarmente
+> for (int i = 0; i < 5; ++i) {
+>     if (i == 2) {
+>         continue;  // esegue comunque ++i prima di ricontrollare i < 5
+>     }
+>     printf("%d\n", i);
+> }
+> ```
+>
+> Nella versione `while`, quando `i` raggiunge `2`, `continue` salta l'istruzione `++i;` in fondo al corpo: `i` resta `2` per sempre. Nella versione `for`, invece, `continue` esegue sempre la clausola `++i` prima di tornare al test `i < 5`, evitando il blocco.
+
+### Esercizio 6.4 — Carico di un furgone con `break` e `continue`
+
+**Descrizione**
+
+Un furgone ha una capacità massima di `50.0` kg (`constexpr double CAPACITA_MAX = 50.0;`). Scrivi un programma C che legga da `stdin` una sequenza di righe con `while (fgets(...) != nullptr)`, dove ciascuna riga contiene il peso di un pacco in chilogrammi (`double`). Segui queste regole dentro il ciclo usando `continue` e `break`: se la riga è vuota o contiene solo spazi (`sscanf(riga, " %c", &primo) == EOF`), incrementa `righe_vuote` e passa subito alla riga successiva con `continue`; altrimenti estrai un solo `double` con `"%lf %c"` (se il formato non è valido stampa su `stderr` e restituisci `EXIT_FAILURE`); se `peso == 0.0` (valore sentinella di fine lista) registra il motivo di arresto ed esci dal ciclo con `break`; se `peso < 0.0` incrementa `scartati` e passa alla riga successiva con `continue`; se `carico_attuale + peso > CAPACITA_MAX` non caricare il pacco, registra che il furgone è pieno ed esci dal ciclo con `break`; altrimenti carica il pacco aggiornando `carico_attuale` e `caricati`. Al termine del ciclo stampa pacchi caricati, peso totale (`%.2f kg`), pacchi scartati, righe vuote ignorate e causa di arresto (`furgone pieno`, `codice sentinella` oppure `fine dell'input`), restituendo `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- istruzione `continue` per saltare righe vuote o valori scartati
+- istruzione `break` per arrestare il ciclo su sentinella o capacità esaurita
+- ordine dei controlli dentro il corpo del ciclo
+- registrazione dello stato di uscita prima del `break`
+
+**Domande guida**
+
+1. Perché conviene controllare se la riga contiene solo spazi bianchi prima di tentare la conversione numerica con `sscanf`?
+2. Che differenza pratica c'è tra usare `continue` quando un peso è negativo e usare `break` quando il peso vale `0.0` o supera la capacità residua?
+3. In che modo il programma può sapere dopo la fine del ciclo quale delle tre cause (`furgone pieno`, `codice sentinella` o `fine dell'input`) ha provocato l'uscita?
+4. Perché in questo ciclo `while` l'istruzione `continue` non provoca un ciclo infinito?
+
+**Esempio di esecuzione**
+
+```input
+12.5
+
+-3.0
+20.0
+15.0
+8.0
+10.0
+```
+
+```output
+Pacchi caricati: 3
+Peso totale: 47.50 kg
+Pacchi scartati: 1
+Righe vuote ignorate: 1
+Arresto: furgone pieno
+```

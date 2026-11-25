@@ -1,0 +1,160 @@
+## 5.2 Estrarre numeri da una riga con `sscanf`
+
+Con `fgets` sei riuscito a leggere una riga di testo dalla tastiera e a conservarla in un buffer `char`. Ma quel buffer contiene caratteri, non numeri: se l'utente digita `42`, in memoria ci sono i due caratteri `'4'` e `'2'`, non l'intero `42` su cui puoi eseguire somme o divisioni. Per fare calcoli devi convertire il testo nei tipi numerici del C (`int`, `long`, `unsigned int`, `double`) oppure estrarre un singolo `char`.
+
+La strategia che adotterai in tutto il libro divide il lavoro in due passi nettamente separati:
+
+1. leggi sempre l'intera riga da `stdin` dentro un buffer con `fgets`;
+2. estrai i valori dal buffer in memoria con `sscanf`.
+
+Separare lettura ed estrazione ti dà il pieno controllo su ciò che l'utente digita: la riga viene consumata per intero da `stdin` anche se contiene un errore di formato, evitando che caratteri sbagliati restino bloccati nello stream a rovinare le letture successive.
+
+La funzione `sscanf` (*string scan formatted*, dichiarata in `<stdio.h>`) analizza il testo già presente in un buffer secondo una stringa di formato e scrive i valori convertiti nelle variabili indicate:
+
+<!-- cod: id=5.2-b tipo=frammento -->
+```c
+char riga[128];
+int eta = 0;
+double altezza = 0.0;
+
+// Dopo aver letto la riga con fgets:
+int letti = sscanf(riga, "%d %lf", &eta, &altezza);
+```
+
+Nota il simbolo `&` davanti a `eta` e a `altezza`. Senza `&`, una funzione C riceverebbe soltanto una copia del valore della variabile e non potrebbe modificarla. Il simbolo `&` indica a `sscanf` dove si trova la variabile affinché possa scrivervi il risultato della conversione. Per ora trattalo come un idioma obbligatorio davanti a ogni variabile di destinazione passata a `sscanf` (lo vedremo nel capitolo 10, quando studieremo i puntatori).
+
+Gli specificatori di formato di `sscanf` somigliano a quelli di `printf`, ma presentano differenze cruciali che non puoi ignorare:
+
+| Tipo della variabile | Specificatore in `sscanf` | Note |
+|---|---|---|
+| `int` | `%d` | Salta eventuali spazi bianchi iniziali |
+| `long` | `%ld` | Salta eventuali spazi bianchi iniziali |
+| `unsigned int` | `%u` | Salta eventuali spazi bianchi iniziali |
+| `double` | `%lf` | **Mai** `%f` (che è solo per `float`) |
+| `char` | `%c` oppure `" %c"` | `%c` legge anche spazi e `'\n'`; `" %c"` salta gli spazi bianchi prima del carattere |
+
+Fai particolare attenzione a due punti della tabella:
+
+- Per leggere un `double` in `sscanf` devi scrivere `%lf`, non `%f`. Lo specificatore `%f` in `sscanf` corrisponde a un `float`, mentre per un `double` serve la `l` di *long float*.
+- Lo specificatore `%c`, a differenza di `%d` e `%lf`, **non salta** gli spazi bianchi né i ritorni a capo. Se una riga contiene `15 A` e scrivi `sscanf(riga, "%d%c", &n, &codice)`, in `codice` finisce lo spazio `' '` invece di `'A'`. Inserire uno spazio nella stringa di formato — cioè `"%d %c"` oppure `" %c"` — istruisce `sscanf` a saltare zero o più caratteri di spaziatura (spazi, tabulazioni, `'\n'`) prima di leggere il carattere desiderato.
+
+Secondo lo standard C23, fornire uno specificatore di formato che non corrisponde al tipo dell'argomento (per esempio `%f` per un `double`), oppure dimenticare `&` davanti alla variabile di destinazione, provoca **comportamento indefinito**: il compilatore con `-Wall -Wextra` ti avviserà spesso, ma lo standard non garantisce nulla sull'esecuzione del programma.
+
+Una singola chiamata a `sscanf` può estrarre più valori dalla stessa riga, separati da spazi. Per sapere se la conversione è riuscita, devi **sempre** controllare il valore restituito da `sscanf`:
+
+- restituisce il numero di elementi convertiti e assegnati con successo (da `0` fino al numero di specificatori presenti nella stringa di formato);
+- restituisce la costante negativa `EOF` se la lettura fallisce prima ancora della prima conversione (per esempio quando la riga è vuota o contiene solo spazi bianchi).
+
+Proprio per questo motivo il controllo corretto confronta il risultato con il numero esatto di valori attesi:
+
+<!-- cod: id=5.2-c tipo=frammento -->
+```c
+if (sscanf(riga, "%d %lf", &eta, &altezza) != 2) {
+    printf("Errore: inserisci un intero e un numero decimale.\n");
+    return 1;
+}
+```
+
+Non scrivere mai `if (sscanf(...) != 0)` pensando che significhi "ha letto almeno un valore": su una riga vuota `sscanf` restituisce `EOF`, che è un intero negativo e quindi è diverso da `0`! Confrontare sempre con il numero atteso (`== 2` per il successo, `!= 2` per l'errore) intercetta in un colpo solo sia gli errori di formato (`0` o `1`) sia la riga vuota (`EOF`).
+
+Infine, `sscanf` ha un limite importante da conoscere fin d'ora: se l'utente digita un numero troppo grande per entrare nel tipo di destinazione (per esempio una sequenza di trenta cifre per un `int`), la conversione in `sscanf` provoca **comportamento indefinito** in C23. Quando servirà gestire in modo completamente sicuro anche l'overflow in ingresso, useremo funzioni dedicate come `strtol` e `strtod` (lo vedremo nel capitolo 14).
+
+> **Se vieni da Python** — In Python converti il testo in numero con `int()` o `float()`, che sollevano un'eccezione `ValueError` se il formato è errato. In C non esistono eccezioni: `sscanf` segnala l'esito tramite il proprio valore di ritorno intero, che devi controllare esplicitamente con un `if`.
+
+### Esempio guidato
+
+Il programma seguente calcola la resa chilometrica e il consumo di carburante per passeggero di un viaggio in auto. Legge due righe da `stdin` con `fgets`: dalla prima estrae la distanza percorsa in chilometri e i litri consumati (`double`), dalla seconda estrae il numero di passeggeri (`int`). Controlla sia `fgets` sia `sscanf` e verifica che i valori siano strettamente positivi prima di dividere.
+
+<!-- cod: id=5.2-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    char riga[128];
+    double distanza_km = 0.0;
+    double litri_consumati = 0.0;
+    int passeggeri = 0;
+
+    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||
+        sscanf(riga, "%lf %lf", &distanza_km, &litri_consumati) != 2) {
+        printf("Errore: inserisci distanza e litri sulla prima riga.\n");
+        return 1;
+    }
+
+    if (fgets(riga, (int)sizeof(riga), stdin) == nullptr ||
+        sscanf(riga, "%d", &passeggeri) != 1) {
+        printf("Errore: inserisci il numero di passeggeri sulla seconda riga.\n");
+        return 1;
+    }
+
+    if (distanza_km <= 0.0 || litri_consumati <= 0.0 || passeggeri <= 0) {
+        printf("Errore: tutti i valori devono essere positivi.\n");
+        return 1;
+    }
+
+    double km_per_litro = distanza_km / litri_consumati;
+    double litri_per_persona = litri_consumati / passeggeri;
+
+    printf("Distanza: %.2f km\n", distanza_km);
+    printf("Resa media: %.2f km/L\n", km_per_litro);
+    printf("Consumo pro capite: %.2f L\n", litri_per_persona);
+    return 0;
+}
+```
+
+```input
+450.5 28.0
+4
+```
+
+```output
+Distanza: 450.50 km
+Resa media: 16.09 km/L
+Consumo pro capite: 7.00 L
+```
+
+Osserva come funzionano i controlli del programma:
+
+- Il buffer `riga` viene riutilizzato per la seconda chiamata a `fgets`: una volta estratti `distanza_km` e `litri_consumati` nella prima lettura, il testo precedente non serve più.
+- Nella condizione `fgets(...) == nullptr || sscanf(...) != 2` entra in gioco la valutazione a corto circuito vista nel capitolo 4: se `fgets` restituisce `nullptr`, `sscanf` non viene nemmeno chiamata, evitando di leggere un buffer non aggiornato.
+- Per i due `double` lo specificatore in `sscanf` è `%lf %lf`, mentre nella `printf` finale è `%.2f`.
+- Prima delle divisioni `distanza_km / litri_consumati` e `litri_consumati / passeggeri`, il controllo `<= 0` esclude sia lo zero sia eventuali valori negativi privi di senso fisico.
+
+> **Approfondimento — Perché `%f` in `printf` va bene per `double`, ma in `sscanf` no**
+> Quando passi un `float` a `printf`, una regola storica del C (le *promozioni predefinite degli argomenti* nelle funzioni a numero variabile di argomenti) converte automaticamente quel `float` in `double` prima della chiamata; per questo `printf` riceve sempre un `double` e accetta `%f` per entrambi i tipi. Con `sscanf`, invece, non passi il valore della variabile ma il suo indirizzo tramite `&var`, e sugli indirizzi non avviene alcuna promozione automatica: `sscanf` ha bisogno di sapere esattamente quanti byte scrivere in memoria (4 byte per un `float` con `%f`, 8 byte per un `double` con `%lf`). Passare `&var` di tipo `double` con `%f` fa scrivere i byte nel formato sbagliato e in una porzione parziale della variabile, producendo comportamento indefinito.
+
+### Esercizio 5.2 — Riepilogo di una sessione di ricarica elettrica
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` due righe tramite `fgets` (senza stampare inviti) ed estragga i dati con `sscanf`: la prima riga contiene energia erogata in kWh (`double`) e tariffa in euro/kWh (`double`) separati da spazio; la seconda riga contiene i minuti di sosta (`int`) e il codice tessera (`char`: `'A'` o `'a'` per abbonato con sconto del `10%`, `'O'` o `'o'` per occasionale senza sconto). Verifica ogni chiamata a `fgets` rispetto a `nullptr`, controlla che ciascuna chiamata a `sscanf` restituisca esattamente `2`, verifica che i valori numerici siano non negativi e che il codice tessera sia valido (con `switch`); in caso di errore stampa un messaggio e restituisci `1`. Altrimenti calcola costo lordo, sconto, totale da pagare e potenza media in kW (`energia_kwh / (minuti_sosta / 60.0)` solo se `minuti_sosta > 0`, altrimenti stampa `Potenza media: non calcolabile`). Produci l'output con due cifre decimali esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- abbinamento `fgets` + `sscanf`
+- specificatore `%lf` per `double` e `" %c"` per `char` in `sscanf`
+- idioma `&` davanti alle variabili in `sscanf`
+- controllo esatto del valore restituito da `sscanf`
+- guardia contro la divisione per zero
+
+**Domande guida**
+
+1. Quale specificatore di formato devi usare in `sscanf` per leggere una variabile di tipo `double` e perché differisce da `printf`?
+2. Perché nella seconda chiamata a `sscanf` conviene scrivere uno spazio prima di `%c` nella stringa di formato?
+3. Che cosa controlla la condizione `sscanf(...) != 2` e perché non basta controllare `sscanf(...) == 0`?
+4. In che modo proteggi il calcolo della potenza media quando i minuti di sosta inseriti valgono `0`?
+
+**Esempio di esecuzione**
+
+```input
+24.5 0.60
+90 A
+```
+
+```output
+Energia: 24.50 kWh
+Costo lordo: 14.70 euro
+Sconto: 1.47 euro
+Totale da pagare: 13.23 euro
+Potenza media: 16.33 kW
+```

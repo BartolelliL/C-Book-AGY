@@ -1,0 +1,163 @@
+## 6.2 Il ciclo `do-while`
+
+Con il ciclo `while` la condizione viene controllata prima di entrare nel corpo: se è falsa all'inizio, il corpo non viene eseguito nemmeno una volta. Ci sono però situazioni in cui sai con certezza che il blocco di istruzioni deve essere eseguito **almeno una volta**, e solo al termine del primo passo ha senso decidere se ripetere.
+
+Pensa a quando chiedi un dato all'utente e vuoi ripetere la richiesta finché non arriva un valore valido, oppure a quando mostri un menu interattivo e ripeti finché l'utente non sceglie l'opzione di uscita, oppure ancora a quando estrai le cifre decimali di un numero intero non negativo: anche il numero `0` ha una cifra (lo zero stesso) e richiede quindi almeno un'iterazione.
+
+Per questi casi il C offre il ciclo `do-while`:
+
+<!-- cod: id=6.2-b tipo=frammento -->
+```c
+do {
+    // corpo del ciclo: eseguito sempre almeno una volta
+} while (condizione);
+```
+
+Osserva le due differenze fondamentali rispetto a `while`:
+
+1. **Controllo in coda**: il programma entra subito nel corpo racchiuso tra `{` e `}`, esegue tutte le istruzioni e solo alla fine valuta `condizione`. Se è diversa da zero (vero), torna a `do` per una nuova iterazione; se è zero (falso), prosegue con l'istruzione successiva.
+2. **Punto e virgola finale obbligatorio**: la riga `while (condizione);` deve terminare con `;`. Dimenticarlo provoca un errore di compilazione.
+
+```text
+          +----------------------------+
+          |                            |
+          v                            |
+   [ corpo del ciclo ]                 |
+          |                            |
+          v                            |
+   [ condizione ] --(vero / != 0)------+
+          |
+     (falso / 0)
+          |
+          v
+   [ istruzione successiva ]
+```
+
+### Regola di visibilità delle variabili nella condizione
+
+Nel ciclo `do-while` c'è una regola sintattica molto importante che sorprende spesso chi inizia: **ogni variabile usata dentro `while (condizione);` deve essere dichiarata prima di `do`**, e non all'interno del blocco tra parentesi graffe.
+
+In C le variabili dichiarate dentro un blocco `{ ... }` esistono solo fino alla parentesi graffa di chiusura `}` (lo vedremo nel capitolo 7). Poiché `while (condizione);` si trova *dopo* quella graffa, una variabile dichiarata nel corpo non esiste più quando la condizione viene valutata:
+
+<!-- cod: id=6.2-c tipo=errore -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    do {
+        int scelta = 0;
+        printf("Scelta: %d\n", scelta);
+    } while (scelta != 0);  // ERRORE: scelta non è visibile qui!
+    return 0;
+}
+```
+
+Il compilatore segnala che `scelta` non è dichiarato nella condizione finale. Per correggere il codice basta spostare `int scelta = 0;` subito prima della parola chiave `do`.
+
+Secondo lo standard C23, la valutazione in coda, l'esecuzione garantita della prima iterazione e la visibilità di blocco del corpo di `do-while` hanno comportamento pienamente definito.
+
+### Gestire la fine dell'input in modo sicuro
+
+Quando usi `do-while` per chiedere ripetutamente un dato da `stdin` finché non è valido, c'è un dettaglio critico da non trascurare: **che cosa succede se lo stream si chiude prima che arrivi un dato valido?**
+
+Immagina di eseguire il programma passando un file di testo in ingresso, oppure che l'utente prema la combinazione di fine input (`Ctrl+D` su Linux/macOS, `Ctrl+Z` seguito da Invio su Windows). Se `fgets` restituisce `nullptr` e tu tratti quel caso come un semplice input errato, la variabile `valido` resta `false` e il ciclo ripete `fgets` all'infinito.
+
+La regola difensiva è semplice: controlla sempre `fgets(...) == nullptr` all'interno del corpo e, se accade, segnala l'errore su `stderr` e interrompi il programma con `return EXIT_FAILURE;` (oppure esci dal ciclo in modo esplicito).
+
+> **Se vieni da Python** — Python non possiede un costrutto `do-while` nativo: per ottenere lo stesso effetto si scrive di solito un ciclo `while True:` con un `if ...: break` in fondo. In C `do { ... } while (condizione);` rende esplicita la garanzia di almeno un'esecuzione del corpo prima del controllo finale.
+
+### Esempio guidato
+
+Il programma seguente richiede ripetutamente da `stdin` un codice PIN intero compreso tra `100` e `999` inclusi, usando `do { ... } while (!valido);`. Scarta ogni riga malformata o fuori intervallo, conta i tentativi e termina in modo sicuro se `stdin` si chiude prima di ricevere un PIN valido.
+
+<!-- cod: id=6.2-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    char riga[128];
+    int pin = 0;
+    int tentativi = 0;
+    bool valido = false;
+
+    do {
+        if (fgets(riga, (int)sizeof(riga), stdin) == nullptr) {
+            fprintf(stderr, "Errore: fine dell'input prima di un PIN valido.\n");
+            return EXIT_FAILURE;
+        }
+        ++tentativi;
+
+        char extra = '\0';
+        if (sscanf(riga, "%d %c", &pin, &extra) == 1 &&
+            pin >= 100 && pin <= 999) {
+            valido = true;
+        } else {
+            printf("PIN non valido, riprova.\n");
+        }
+    } while (!valido);
+
+    printf("PIN accettato: %d (tentativi: %d)\n", pin, tentativi);
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+abc
+42
+1050
+735
+```
+
+```output
+PIN non valido, riprova.
+PIN non valido, riprova.
+PIN non valido, riprova.
+PIN accettato: 735 (tentativi: 4)
+```
+
+Osserva i punti chiave del programma:
+
+- Le variabili `riga`, `pin`, `tentativi` e `valido` sono dichiarate *prima* del blocco `do`: in questo modo `valido` è visibile nella condizione finale `while (!valido);`, e `pin` e `tentativi` restano accessibili anche dopo il ciclo per la stampa conclusiva.
+- La variabile `extra`, usata solo per il controllo dei caratteri spuri in `sscanf`, serve unicamente dentro il corpo ed è quindi dichiarata all'interno delle graffe.
+- La prima operazione di ogni iterazione verifica `fgets(...) == nullptr`: se l'input termina in anticipo, il programma scrive su `stderr` e restituisce `EXIT_FAILURE`, evitando qualsiasi ciclo infinito.
+- Nella condizione dell'`if`, grazie alla valutazione a corto circuito di `&&` (capitolo 4), `pin >= 100 && pin <= 999` viene valutato solo se `sscanf` ha effettivamente convertito un singolo intero valido.
+
+> **C23** — I tipi e i valori `bool`, `true`, `false` e `nullptr` sono parole chiave native in C23. Con standard precedenti (C17 o C11) servono `#include <stdbool.h>` per `bool`/`true`/`false` e `NULL` al posto di `nullptr`.
+
+> **Approfondimento — Perché dimenticare il controllo di `nullptr` blocca il `do-while`**
+> Quando uno stream raggiunge la fine dell'input, lo stato di fine file rimane attivo sullo stream stesso. Ogni chiamata successiva a `fgets(..., stdin)` non si ferma più ad aspettare nuovi caratteri: restituisce istantaneamente `nullptr` senza modificare il contenuto del buffer `riga`. Se un ciclo `do { ... } while (!valido);` non intercetta `nullptr`, esegue `sscanf` sullo stesso buffer (o fallisce di nuovo), lascia `valido` a `false` e ripete il ciclo milioni di volte al secondo fino a riempire il terminale di messaggi di errore. Controllare sempre il ritorno di `fgets` elimina questo rischio alla radice.
+
+### Esercizio 6.2 — Analisi delle cifre di un intero non negativo con `do-while`
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una riga contenente un intero `long long` compreso tra `0` e `1'000'000'000` inclusi (controllando fine dell'input, formato esatto con `"%lld %c"` e intervallo; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Usando un ciclo `do-while` che estrae le cifre decimali dalla meno significativa alla più significativa mediante `% 10` e `/= 10`, calcola: il numero totale di cifre (per `0` deve valere `1`), la somma delle cifre, la cifra massima e il numero ottenuto invertendo l'ordine delle cifre (gli zeri iniziali del numero invertito spariscono naturalmente nel valore numerico). Stampa i risultati esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- ciclo `do-while` con controllo in coda
+- garanzia di almeno una iterazione (caso limite `n = 0`)
+- visibilità delle variabili dichiarate prima del blocco `do`
+- estrazione di cifre con `% 10` e `/= 10`
+
+**Domande guida**
+
+1. Perché un ciclo `do-while` gestisce naturalmente il caso limite in cui il numero inserito vale `0` senza richiedere un `if` separato?
+2. Dove devi dichiarare la variabile `residuo` affinché possa essere controllata nella condizione finale `while (residuo > 0);`?
+3. Come aggiorni la variabile `inverso` a ogni iterazione per aggiungere in fondo la nuova cifra appena estratta?
+4. Perché limitare l'ingresso a `1'000'000'000` e usare `long long` per `inverso` impedisce qualsiasi rischio di overflow?
+
+**Esempio di esecuzione**
+
+```input
+40825
+```
+
+```output
+Numero: 40825
+Cifre: 5
+Somma cifre: 19
+Cifra massima: 8
+Numero invertito: 52804
+```

@@ -1,0 +1,67 @@
+{
+  "capitolo": 6,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap06/06_05.md",
+      "gravita": "alta",
+      "tipo": "soluzione_esposta",
+      "certezza": "alta",
+      "problema": "Il box di approfondimento usa come esempio proprio le variabili (`divisori`, `col`, `n`), l'invariante del ciclo interno (`1..(col - 1)`), l'inizializzazione (`col = 1`, `divisori = 0`) e la condizione (`col <= n`) dell'Esercizio 6.5 posto subito sotto, svelando parte della soluzione e la risposta alla domanda guida 2 (esempio non previsto dal blueprint).",
+      "old_text": "— per esempio \"a questo punto `divisori` conta i divisori trovati nell'intervallo `1..(col - 1)`\" — la scelta iniziale (`col = 1`, `divisori = 0`) e la condizione finale (`col <= n`)",
+      "new_text": "— per esempio \"a questo punto `prodotto` contiene il prodotto degli interi nell'intervallo `1..(k - 1)`\" — la scelta iniziale (`k = 1`, `prodotto = 1`) e la condizione finale (`k <= n`)"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap06/06_01.md",
+      "gravita": "alta",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 6.1-a il blocco `input` mostra due righe (`Riga 1: 42` e `Riga 2: 108`), ma l'`output` stampa `Caratteri totali: 22` e `Righe complete (\\n): 1` perché la seconda riga termina con `EOF` senza `'\\n'` finale. Senza una spiegazione esplicita, il lettore che prova il programma da tastiera (premendo Invio dopo `108` e ottenendo `23` e `2`) penserà a un errore nel testo.",
+      "old_text": "- Per ogni carattere letto incrementiamo `caratteri` (compresi gli spazi e i `'\\n'`), poi usiamo due `if` indipendenti per contare i ritorni a capo (`'\\n'`, che delimitano le righe complete terminate da Invio) e le cifre decimali (sfruttando il fatto che in C i codici di `'0'..'9'` sono contigui).",
+      "new_text": "- Per ogni carattere letto incrementiamo `caratteri` (compresi gli spazi e i `'\\n'`), poi usiamo due `if` indipendenti per contare i ritorni a capo (`'\\n'`, che delimitano le righe complete terminate da Invio) e le cifre decimali (sfruttando il fatto che in C i codici di `'0'..'9'` sono contigui). Nota che nell'input di esempio solo la prima riga termina con `'\\n'` mentre la seconda si chiude direttamente con `EOF`, perciò `righe` vale `1` e `caratteri` vale `22`; se dal terminale premi Invio anche dopo `108` prima di segnalare la fine dell'input otterrai `23` caratteri e `2` righe complete."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap06/06_05.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nell'esempio dell'invariante di ciclo (`1 <= i <= n + 1` e conclusione `i == n + 1`), la proprietà è vera solo sotto l'ipotesi `n >= 0` (per `n < 0` l'invariante fallisce già all'inizializzazione perché `1 <= 1 <= n + 1` è falso).",
+      "old_text": "Vediamo un esempio concreto. Supponi di sommare i numeri da `1` a `n` con:",
+      "new_text": "Vediamo un esempio concreto. Supponi di sommare i numeri da `1` a `n` (con `n >= 0`) con:"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap06/06_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Secondo lo standard C23 base (6.5.5), la divisione per zero è comportamento indefinito in generale; la produzione di valori speciali come `NaN` in virgola mobile è garantita solo sulle implementazioni conformi ad Annex F (IEEE 754 / IEC 60559).",
+      "old_text": "Dividere `somma / conteggio` quando `conteggio` vale `0` provocherebbe una divisione per zero (comportamento indefinito per gli interi, oppure valori speciali come `NaN` in virgola mobile).",
+      "new_text": "Dividere `somma / conteggio` quando `conteggio` vale `0` provocherebbe una divisione per zero (comportamento indefinito per gli interi, e anche in virgola mobile secondo lo standard base, dove i sistemi IEEE 754 producono valori speciali come `NaN`)."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap06/06_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Se lo stream `stdin` raggiunge la fine dell'input già alla prima chiamata di `fgets`, il buffer `riga` (`char riga[128];`) non è inizializzato: passare `riga` a `sscanf` provoca comportamento indefinito, non si limita a rileggere lo stesso contenuto precedente.",
+      "old_text": "Se un ciclo `do { ... } while (!valido);` non intercetta `nullptr`, esegue `sscanf` sullo stesso buffer (o fallisce di nuovo), lascia `valido` a `false` e ripete il ciclo milioni di volte al secondo fino a riempire il terminale di messaggi di errore.",
+      "new_text": "Se un ciclo `do { ... } while (!valido);` non intercetta `nullptr`, esegue `sscanf` su un buffer non inizializzato (comportamento indefinito se l'input è vuoto fin dall'inizio) oppure rimasto al contenuto precedente, lascia `valido` a `false` e ripete il ciclo milioni di volte al secondo fino a riempire il terminale di messaggi di errore."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap06/06_04.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "`constexpr` è una parola chiave (specificatore per dichiarare costanti), non una costante; inoltre `#define` non è ancora stato introdotto nel registro (capitolo 19) e in questo esempio `const` è sufficiente in C17/C11.",
+      "old_text": "> **C23** — Le costanti `constexpr` e `nullptr` sono novità del C23; in C17/C11 puoi sostituire `constexpr` con `const` (o `#define`) e `nullptr` con `NULL`.",
+      "new_text": "> **C23** — Le parole chiave `constexpr` e `nullptr` sono novità del C23; in C17/C11 puoi sostituire `constexpr` con `const` e `nullptr` con `NULL`."
+    }
+  ]
+}

@@ -41,17 +41,17 @@
     },
     "5": {
       "fase": "audit",
-      "ciclo": 1,
+      "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": false,
+      "gravi_ciclo": true,
       "audit_applicato": 0,
       "note": []
     },
     "6": {
       "fase": "audit",
-      "ciclo": 1,
+      "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": false,
+      "gravi_ciclo": true,
       "audit_applicato": 0,
       "note": []
     },

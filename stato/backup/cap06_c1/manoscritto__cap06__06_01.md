@@ -1,0 +1,213 @@
+## 6.1 Il ciclo `while`
+
+Nel capitolo 5 hai visto come leggere una singola riga con `fgets` o un singolo carattere con `getchar`. Quando però un programma deve elaborare tutti i dati presenti in ingresso — un testo di cento righe, un elenco di spese, una serie di misurazioni — non conosci quasi mai in anticipo quanti elementi arriveranno. Serve un modo per dire al computer: "finché questa condizione è vera, ripeti questo blocco di istruzioni".
+
+Nel linguaggio C questo meccanismo prende il nome di **ciclo** (*loop*): un costrutto di controllo che ripete un blocco di istruzioni finché una condizione rimane vera. Ogni singola esecuzione del corpo di un ciclo si chiama **iterazione** (*iteration*).
+
+Il costrutto di ripetizione più semplice ed essenziale è il ciclo `while`:
+
+<!-- cod: id=6.1-c tipo=frammento -->
+```c
+while (condizione) {
+    // corpo del ciclo
+}
+```
+
+Il ciclo `while` esegue un *controllo in testa*: prima di entrare nel corpo, valuta `condizione`. Se il risultato è diverso da zero (vero), esegue tutte le istruzioni racchiuse tra le parentesi graffe e poi torna in cima a rivalutare `condizione`. Se invece `condizione` vale zero (falso), il ciclo termina immediatamente e il flusso di controllo prosegue con la prima istruzione dopo la graffa di chiusura. Poiché il controllo avviene prima della prima iterazione, se la condizione è già falsa all'inizio, il corpo del ciclo viene eseguito **zero volte**. Questa semantica è pienamente definita dallo standard C23.
+
+```text
+          +----------------------------+
+          |                            |
+          v                            |
+   [ condizione ] --(vero / != 0)--> [ corpo del ciclo ]
+          |
+     (falso / 0)
+          |
+          v
+   [ istruzione successiva ]
+```
+
+Affinché un ciclo `while` funzioni correttamente e termini, devono essere sempre presenti tre elementi chiari:
+
+1. **Inizializzazione prima del ciclo**: le variabili che compaiono nella condizione devono avere un valore definito prima di raggiungere `while`.
+2. **Condizione di permanenza**: un'espressione che resta vera finché c'è lavoro da svolgere e diventa falsa quando il compito è concluso.
+3. **Aggiornamento verso la terminazione**: almeno un'operazione nel corpo (o nella condizione stessa, come una lettura dallo stream) deve modificare lo stato in modo da avvicinare la condizione al valore falso.
+
+Se dimentichi l'aggiornamento, oppure aggiorni la variabile nella direzione sbagliata, la condizione resta vera per sempre e ottieni un *ciclo infinito*: il programma non termina da solo e dovrai interromperlo manualmente dal terminale (di solito con `Ctrl+C`).
+
+### Leggere fino alla fine dell'input
+
+L'uso più frequente di `while` con l'ingresso standard consiste nel leggere dati fino alla **fine dell'input**, senza dover conoscere in anticipo il numero di righe o di caratteri. Esistono due idiomi fondamentali, entrambi basati sulle funzioni introdotte nel capitolo 5:
+
+- **Lettura riga per riga con `fgets`**:
+  ```text
+  while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) { ... }
+  ```
+  A ogni controllo di testa, `fgets` tenta di leggere la riga successiva da `stdin` dentro il buffer `riga`. Finché riesce a leggere qualcosa, restituisce `riga` (che è diverso da `nullptr`) ed esegue il corpo del ciclo. Quando lo stream termina o si verifica un errore di lettura, `fgets` restituisce `nullptr` e il ciclo si chiude in modo pulito.
+
+- **Lettura carattere per carattere con `getchar`**:
+  ```text
+  while ((c = getchar()) != EOF) { ... }
+  ```
+  Qui `c` **deve** avere tipo `int` (mai `char`), per il motivo visto nel capitolo 5: solo `int` può rappresentare tutti i caratteri possibili e il valore negativo `EOF` senza ambiguità. A ogni iterazione `getchar()` legge il prossimo carattere, lo assegna a `c` e il risultato dell'assegnamento viene confrontato con `EOF`. Quando lo stream finisce, `getchar()` restituisce `EOF` e il ciclo termina. Le regole di precedenza tra `=` e `!=` e la valutazione della condizione sono definite dallo standard C23.
+
+> **C23** — La parola chiave `nullptr` è stata introdotta con il C23. Se compili con uno standard precedente (C17 o C11), sostituisci `nullptr` con la macro `NULL` definita in `<stdio.h>` e `<stdlib.h>`.
+
+### Contatori, accumulatori, minimo e massimo
+
+Molti problemi su sequenze di lunghezza arbitraria si risolvono combinando quattro schemi ricorrenti attorno a un ciclo `while`:
+
+- **Contatore**: una variabile intera inizializzata a `0` prima del ciclo (per esempio `int conteggio = 0;`) e incrementata con `++conteggio;` ogni volta che incontri un elemento o un evento da contare.
+- **Accumulatore**: una variabile numerica inizializzata all'elemento neutro dell'operazione (`0` o `0.0` per una somma, `1` per un prodotto) e aggiornata nel corpo (per esempio `somma += valore;`).
+- **Minimo e massimo**: a differenza di somma e conteggio, non puoi quasi mai inizializzare `minimo` o `massimo` a `0`: se tutti i numeri letti fossero positivi (per esempio `12`, `18`, `25`), un `minimo` inizializzato a `0` rimarrebbe erroneamente `0`. La soluzione sicura consiste nell'inizializzare `minimo` e `massimo` con il **primo elemento valido** (riconoscibile perché `conteggio == 0`), aggiornandoli poi con `if (valore < minimo)` e `if (valore > massimo)` sugli elementi successivi.
+- **Caso di zero elementi letti**: poiché il ciclo `while` può compiere zero iterazioni (input vuoto), dopo il ciclo controlla sempre se `conteggio == 0` prima di stampare minimo, massimo o media. Dividere `somma / conteggio` quando `conteggio` vale `0` provocherebbe una divisione per zero (comportamento indefinito per gli interi, oppure valori speciali come `NaN` in virgola mobile).
+
+### L'errore del punto e virgola dopo `while`
+
+Un errore tanto subdolo quanto frequente è scrivere un punto e virgola subito dopo la parentesi chiusa di `while`:
+
+<!-- cod: id=6.1-d tipo=frammento -->
+```c
+int passi = 0;
+while (passi < 5); {  // ERRORE: il punto e virgola chiude un ciclo a corpo vuoto!
+    ++passi;
+}
+```
+
+In C un punto e virgola da solo è un'*istruzione vuota*. Il compilatore interpreta quel codice come "finché `passi < 5`, non fare nulla": poiché `passi` resta `0`, il ciclo diventa infinito e il blocco `{ ++passi; }` tra parentesi graffe non viene mai raggiunto. Controlla sempre che tra `while (condizione)` e `{` non compaia mai un `;`.
+
+### Esempio guidato
+
+Il primo programma legge un testo qualsiasi da `stdin` carattere per carattere con `while ((c = getchar()) != EOF)` e conta i caratteri totali, le righe (contando i `'\n'`) e le cifre decimali (`'0'..'9'`).
+
+<!-- cod: id=6.1-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    int c = 0;
+    int caratteri = 0;
+    int righe = 0;
+    int cifre = 0;
+
+    while ((c = getchar()) != EOF) {
+        ++caratteri;
+        if (c == '\n') {
+            ++righe;
+        }
+        if (c >= '0' && c <= '9') {
+            ++cifre;
+        }
+    }
+
+    printf("Caratteri totali: %d\n", caratteri);
+    printf("Righe complete (\\n): %d\n", righe);
+    printf("Cifre decimali: %d\n", cifre);
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+Riga 1: 42
+Riga 2: 108
+```
+
+```output
+Caratteri totali: 22
+Righe complete (\n): 1
+Cifre decimali: 7
+```
+
+Analizziamo come lavora questo programma:
+
+- Prima del ciclo inizializziamo `c` e i tre contatori (`caratteri`, `righe`, `cifre`) a `0`. Anche se l'input fosse completamente vuoto, il programma non userebbe mai variabili non inizializzate e stamperebbe tre zeri.
+- La condizione `(c = getchar()) != EOF` legge il carattere successivo, lo salva in `c` (di tipo `int`) e controlla che non sia la fine dell'input.
+- Per ogni carattere letto incrementiamo `caratteri` (compresi gli spazi e i `'\n'`), poi usiamo due `if` indipendenti per contare i ritorni a capo (`'\n'`, che delimitano le righe complete terminate da Invio) e le cifre decimali (sfruttando il fatto che in C i codici di `'0'..'9'` sono contigui).
+
+Il secondo esempio mostra invece la lettura riga per riga con `fgets` e `sscanf`: legge una sequenza di importi in euro fino alla fine dell'input, controllando sia gli errori di formato sia il caso di sequenza vuota.
+
+<!-- cod: id=6.1-b tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    char riga[128];
+    int conteggio = 0;
+    double totale = 0.0;
+
+    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {
+        double importo = 0.0;
+        char extra = '\0';
+        if (sscanf(riga, "%lf %c", &importo, &extra) != 1) {
+            fprintf(stderr, "Errore: importo non valido.\n");
+            return EXIT_FAILURE;
+        }
+        totale += importo;
+        ++conteggio;
+    }
+
+    if (conteggio == 0) {
+        printf("Nessun importo inserito.\n");
+        return EXIT_SUCCESS;
+    }
+
+    printf("Importi letti: %d\n", conteggio);
+    printf("Totale: %.2f euro\n", totale);
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+12.50
+7.25
+20.25
+```
+
+```output
+Importi letti: 3
+Totale: 40.00 euro
+```
+
+Qui `fgets` legge una riga alla volta nel buffer `riga` e termina automaticamente quando `stdin` si chiude. Dentro il ciclo verifichiamo il formato con `"%lf %c"` per rifiutare righe malformate o caratteri extra in coda, esattamente come hai imparato nel capitolo 5. All'uscita dal ciclo, il controllo `if (conteggio == 0)` gestisce in modo pulito il caso limite di input vuoto.
+
+> **Approfondimento — Perché le parentesi attorno a `(c = getchar())` sono obbligatorie**
+> Che cosa succederebbe se scrivessi `while (c = getchar() != EOF)` dimenticando le parentesi interne? Per le regole di precedenza degli operatori del C (capitolo 3), l'operatore `!=` ha precedenza maggiore rispetto all'assegnamento `=`. Il compilatore raggrupperebbe quindi l'espressione come `while (c = (getchar() != EOF))`: prima confronta il carattere letto con `EOF`, ottenendo `1` (vero) oppure `0` (falso), e poi assegna `1` o `0` a `c`! Il ciclo continuerebbe a leggere fino alla fine dello stream, ma dentro il corpo `c` varrebbe sempre `1` invece del carattere letto. Le parentesi in `(c = getchar()) != EOF` forzano prima l'assegnamento del carattere a `c` e solo dopo il confronto con `EOF`.
+
+### Esercizio 6.1 — Statistiche delle temperature giornaliere
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una sequenza di lunghezza arbitraria di temperature in gradi Celsius (`double`, una per riga) usando un ciclo `while (fgets(...) != nullptr)`. Per ogni riga verifica il formato con `sscanf(riga, "%lf %c", &temp, &extra) != 1`: in caso di formato non valido stampa un messaggio di errore su `stderr` e termina con `EXIT_FAILURE`. Durante il ciclo aggiorna il numero di letture, la temperatura minima, la temperatura massima, la somma e il conteggio dei giorni con gelo (`temp <= 0.0`). Al termine dello stream, se non è stata letta alcuna temperatura stampa `Nessuna temperatura inserita.` e restituisci `EXIT_SUCCESS`; altrimenti stampa letture valide, minima, massima, media (tutte con due cifre decimali) e giorni con gelo esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- ciclo `while` con controllo in testa
+- lettura fino alla fine dell'input con `fgets` e `nullptr`
+- inizializzazione sicura di minimo e massimo al primo elemento
+- gestione del caso limite di input vuoto (0 letture)
+
+**Domande guida**
+
+1. Perché non è corretto inizializzare la temperatura minima a `0.0` prima di iniziare il ciclo `while`?
+2. Come puoi riconoscere all'interno del ciclo di star elaborando la prima temperatura valida per inizializzare minima e massima?
+3. Che cosa succederebbe se provassi a calcolare la media senza verificare prima che il conteggio sia maggiore di zero?
+4. Quando termina naturalmente il ciclo `while` basato su `fgets`?
+
+**Esempio di esecuzione**
+
+```input
+12.5
+-1.0
+0.0
+8.5
+```
+
+```output
+Letture valide: 4
+Minima: -1.00 C
+Massima: 12.50 C
+Media: 5.00 C
+Giorni con gelo (<= 0 C): 2
+```
