@@ -822,7 +822,7 @@ Per stampare numeri molto piccoli o molto grandi come `DBL_EPSILON` o `DBL_MAX` 
 
 ### Esempio guidato
 
-Il programma seguente mostra in modo sicuro l'aritmetica modulare su `unsigned int`, previene un overflow di `int` con un controllo preventivo e la promozione a `long long`, mette a confronto `0.1 + 0.2` con `0.3` sia tramite `==` sia tramite `fabs` con tolleranza, e stampa le costanti principali di `<float.h>`.
+Il programma seguente evita un overflow di `int` nel calcolo del numero di celle di una griglia promuovendo a `long long`, mostra in modo sicuro l'aritmetica modulare su `unsigned int`, mette a confronto `0.1 + 0.2` con `0.3` sia tramite `==` sia tramite `fabs` con tolleranza, e stampa le costanti principali di `<float.h>`.
 
 <!-- cod: id=3.6-a tipo=programma -->
 ```c
@@ -832,51 +832,51 @@ Il programma seguente mostra in modo sicuro l'aritmetica modulare su `unsigned i
 #include <stdio.h>
 
 int main(void) {
-    unsigned int max_u = UINT_MAX;
-    unsigned int dopo_wrap = max_u + 1U;
-    unsigned int sotto_zero = 0U - 1U;
-    printf("Unsigned: UINT_MAX + 1U = %u, 0U - 1U = %u\n", dopo_wrap, sotto_zero);
+    int righe = 60'000;
+    int colonne = 45'000;
+    long long celle_totali = (long long)righe * colonne;
+    printf("Griglia %d x %d: %lld celle (INT_MAX = %d)\n",
+           righe, colonne, celle_totali, INT_MAX);
 
-    int x = 1'500'000'000;
-    int y = 1'000'000'000;
-    bool somma_sta_in_int = (x <= INT_MAX - y);
-    long long somma_sicura = (long long)x + y;
-    printf("Somma 1.5B + 1.0B sta in int: %d\n", somma_sta_in_int);
-    printf("Somma esatta in long long: %lld\n", somma_sicura);
+    unsigned int contatore = UINT_MAX - 2U;
+    unsigned int avanzato = contatore + 5U;
+    unsigned int arretrato = 3U - 5U;
+    printf("Contatore unsigned: (UINT_MAX - 2U) + 5U = %u, 3U - 5U = %u\n",
+           avanzato, arretrato);
 
-    double somma_dec = 0.1 + 0.2;
-    double atteso = 0.3;
-    bool uguali_esatti = (somma_dec == atteso);
-    bool uguali_tolleranza = (fabs(somma_dec - atteso) <= 1e-12);
-    printf("0.1 + 0.2 = %.17f\n", somma_dec);
-    printf("0.3       = %.17f\n", atteso);
-    printf("Confronto == : %d, con tolleranza 1e-12: %d\n",
-           uguali_esatti, uguali_tolleranza);
+    constexpr double TOLLERANZA = 1e-9;
+    double misura = 0.1 + 0.2;
+    double riferimento = 0.3;
+    bool confronto_diretto = (misura == riferimento);
+    bool entro_tolleranza = (fabs(misura - riferimento) <= TOLLERANZA);
+    printf("0.1 + 0.2 = %.17f\n", misura);
+    printf("0.3       = %.17f\n", riferimento);
+    printf("Uguali con == : %d | entro 1e-9 : %d\n",
+           confronto_diretto, entro_tolleranza);
 
-    printf("Cifre garantite: float=%d, double=%d\n", FLT_DIG, DBL_DIG);
-    printf("Epsilon: float=%e, double=%e\n", FLT_EPSILON, DBL_EPSILON);
-    printf("Intervallo double: min=%e, max=%e\n", DBL_MIN, DBL_MAX);
+    printf("float  -> cifre=%d, eps=%e, min=%e, max=%e\n",
+           FLT_DIG, FLT_EPSILON, FLT_MIN, FLT_MAX);
+    printf("double -> cifre=%d, eps=%e, min=%e, max=%e\n",
+           DBL_DIG, DBL_EPSILON, DBL_MIN, DBL_MAX);
     return 0;
 }
 ```
 
 ```output
-Unsigned: UINT_MAX + 1U = 0, 0U - 1U = 4294967295
-Somma 1.5B + 1.0B sta in int: 0
-Somma esatta in long long: 2500000000
+Griglia 60000 x 45000: 2700000000 celle (INT_MAX = 2147483647)
+Contatore unsigned: (UINT_MAX - 2U) + 5U = 2, 3U - 5U = 4294967294
 0.1 + 0.2 = 0.30000000000000004
 0.3       = 0.29999999999999999
-Confronto == : 0, con tolleranza 1e-12: 1
-Cifre garantite: float=6, double=15
-Epsilon: float=1.192093e-07, double=2.220446e-16
-Intervallo double: min=2.225074e-308, max=1.797693e+308
+Uguali con == : 0 | entro 1e-9 : 1
+float  -> cifre=6, eps=1.192093e-07, min=1.175494e-38, max=3.402823e+38
+double -> cifre=15, eps=2.220446e-16, min=2.225074e-308, max=1.797693e+308
 ```
 
-Esaminiamo i tre blocchi del programma:
+Esaminiamo i blocchi del programma:
 
-- Su `unsigned int`, `UINT_MAX + 1U` torna a `0` e `0U - 1U` produce `4294967295`: è aritmetica modulare perfettamente definita.
-- Per `x = 1'500'000'000` e `y = 1'000'000'000` (scritti con i separatori di cifre del C23), il controllo preventivo `x <= INT_MAX - y` restituisce `0` senza causare alcun overflow, e `(long long)x + y` calcola il valore esatto `2500000000`.
-- `0.1 + 0.2` e `0.3` differiscono sulla diciassettesima cifra decimale: `==` produce `0`, mentre il confronto con `fabs` e tolleranza `1e-12` produce `1`. Infine `<float.h>` documenta precisione e intervallo di `float` e `double` sulla macchina in uso.
+- Il prodotto di `righe = 60'000` per `colonne = 45'000` (scritti con i separatori di cifre del C23) vale `2700000000`, che supera `INT_MAX` (`2147483647` su `int` a 32 bit): applicare il cast `(long long)` prima della moltiplicazione evita l'overflow e calcola il valore esatto.
+- Su `unsigned int`, aggiungere `5U` a `UINT_MAX - 2U` supera il limite massimo di `3` unità e riparte da `2`, mentre `3U - 5U` scende sotto zero e si avvolge su `4294967294` (`UINT_MAX - 1U`): è aritmetica modulare perfettamente definita.
+- `0.1 + 0.2` e `0.3` differiscono sulla diciassettesima cifra decimale: `==` produce `0`, mentre il confronto con `fabs` e tolleranza `1e-9` produce `1`. Infine `<float.h>` documenta cifre garantite, epsilon e intervallo di `float` e `double` sulla macchina in uso.
 
 > **Approfondimento — Perché i controlli dopo l'overflow non funzionano**
 > Potresti pensare di scrivere `int s = a + b;` e poi controllare se `s < a` per scoprire se è avvenuto un overflow con segno. È un grave errore: siccome lo standard C23 stabilisce che l'overflow con segno non deve mai accadere in un programma valido, un compilatore moderno con le ottimizzazioni attive può assumere che, per `b > 0`, `a + b` sia *sempre* maggiore di `a` e **rimuovere completamente il tuo controllo**! L'unico modo corretto e portabile di proteggersi è verificare i limiti *prima* di eseguire l'operazione, oppure calcolare in un tipo più ampio.

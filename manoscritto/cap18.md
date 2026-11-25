@@ -309,10 +309,15 @@ void rubrica_distruggi(rubrica_t *r) {
 int main(void) {
     rubrica_t rub = {};
     if (!rubrica_init(&rub, 8)) { return 1; }
-    rubrica_imposta(&rub, "roma", 101); rubrica_imposta(&rub, "cane", 102);
-    rubrica_imposta(&rub, "amor", 204); rubrica_imposta(&rub, "roma", 199);
+    if (!rubrica_imposta(&rub, "roma", 101) || !rubrica_imposta(&rub, "cane", 102) ||
+        !rubrica_imposta(&rub, "amor", 204) || !rubrica_imposta(&rub, "roma", 199)) {
+        rubrica_distruggi(&rub);
+        return 1;
+    }
     const voce_t *v1 = rubrica_cerca(&rub, "roma"), *v2 = rubrica_cerca(&rub, "luca");
-    printf("roma -> %d, luca -> %s, len=%zu\n", v1->interno, v2 ? "trovato" : "assente", rub.len);
+    if (v1 != nullptr) {
+        printf("roma -> %d, luca -> %s, len=%zu\n", v1->interno, v2 != nullptr ? "trovato" : "assente", rub.len);
+    }
     printf("rimuovi cane: %s\n", rubrica_rimuovi(&rub, "cane") ? "ok" : "no");
     printf("rimuovi roma: %s, len=%zu\n", rubrica_rimuovi(&rub, "roma") ? "ok" : "no", rub.len);
     rubrica_distruggi(&rub);
@@ -782,12 +787,17 @@ int main(void) {
         ht_distruggi(&citta); ht_distruggi(&mappa); return 1;
     }
     int pop[] = {2750000, 1350000, 850000}; size_t grandi = 0;
-    ht_imposta(&citta, "RM", &pop[0]); ht_imposta(&citta, "MI", &pop[1]); ht_imposta(&citta, "TO", &pop[2]);
-    ht_visita(&citta, conta_grandi, &grandi);
-    printf("MI=%d, citta >= 1M: %zu\n", *(int *)ht_cerca(&citta, "MI"), grandi);
     coord_t p1 = {2, 5}, p2 = {-1, 3}, q = {2, 5};
-    ht_imposta(&mappa, &p1, "Porto"); ht_imposta(&mappa, &p2, "Parco");
-    printf("Zona (2,5): %s\n", (const char *)ht_cerca(&mappa, &q));
+    if (!ht_imposta(&citta, "RM", &pop[0]) || !ht_imposta(&citta, "MI", &pop[1]) ||
+        !ht_imposta(&citta, "TO", &pop[2]) || !ht_imposta(&mappa, &p1, "Porto") ||
+        !ht_imposta(&mappa, &p2, "Parco")) {
+        ht_distruggi(&citta); ht_distruggi(&mappa); return 1;
+    }
+    ht_visita(&citta, conta_grandi, &grandi);
+    const int *pop_mi = ht_cerca(&citta, "MI");
+    if (pop_mi != nullptr) { printf("MI=%d, citta >= 1M: %zu\n", *pop_mi, grandi); }
+    const char *zona = ht_cerca(&mappa, &q);
+    if (zona != nullptr) { printf("Zona (2,5): %s\n", zona); }
     ht_distruggi(&citta); ht_distruggi(&mappa);
     return 0;
 }
@@ -995,19 +1005,42 @@ uint64_t h_str(const void *p) {
     return h;
 }
 bool eq_str(const void *a, const void *b) { return strcmp(a, b) == 0; }
-void dis_item(void *p) { item_t *it = p; ++(*it->cont_dis); free(it->nome); free(it); }
+void dis_item(void *p) {
+    if (p == nullptr) { return; }
+    item_t *it = p; ++(*it->cont_dis); free(it->nome); free(it);
+}
 item_t *crea_item(const char *s, int w, size_t *cre, size_t *dis) {
-    item_t *it = malloc(sizeof(*it)); it->nome = strdup(s); it->peso = w; it->cont_dis = dis; ++(*cre); return it;
+    item_t *it = malloc(sizeof(*it));
+    if (it == nullptr) { return nullptr; }
+    it->nome = strdup(s);
+    if (it->nome == nullptr) { free(it); return nullptr; }
+    it->peso = w; it->cont_dis = dis; ++(*cre); return it;
+}
+bool inserisci_voce(tab_ht_t *t, const char *chiave, void *val, distruggi_fn dv_err) {
+    char *k = (val != nullptr) ? strdup(chiave) : nullptr;
+    if (k == nullptr || ht_inserisci(t, k, val) == -1) {
+        free(k); if (dv_err != nullptr) { dv_err(val); }
+        return false;
+    }
+    return true;
 }
 
 int main(void) {
     size_t cre = 0, dis = 0;
-    tab_ht_t *arch = ht_crea(8, h_str, eq_str, free, dis_item), *ind = ht_crea(8, h_str, eq_str, free, nullptr);
-    item_t *a = crea_item("SensoreA", 12, &cre, &dis), *b = crea_item("MotoreB", 40, &cre, &dis);
-    ht_inserisci(arch, strdup("k1"), a); ht_inserisci(arch, strdup("k2"), b); ht_inserisci(ind, strdup("alias_b"), b);
-    ht_inserisci(arch, strdup("k1"), crea_item("SensoreA2", 15, &cre, &dis));
+    tab_ht_t *arch = ht_crea(8, h_str, eq_str, free, dis_item);
+    tab_ht_t *ind = ht_crea(8, h_str, eq_str, free, nullptr);
+    if (arch == nullptr || ind == nullptr) {
+        ht_distruggi(ind); ht_distruggi(arch); return 1;
+    }
+    item_t *b = crea_item("MotoreB", 40, &cre, &dis);
+    if (!inserisci_voce(arch, "k2", b, dis_item) ||
+        !inserisci_voce(ind, "alias_b", b, nullptr) ||
+        !inserisci_voce(arch, "k1", crea_item("SensoreA", 12, &cre, &dis), dis_item) ||
+        !inserisci_voce(arch, "k1", crea_item("SensoreA2", 15, &cre, &dis), dis_item)) {
+        ht_distruggi(ind); ht_distruggi(arch); return 1;
+    }
     void *estr = nullptr;
-    if (ht_estrai(arch, "k2", &estr)) {
+    if (ht_estrai(arch, "k2", &estr) && estr != nullptr) {
         ht_estrai(ind, "alias_b", nullptr);
         printf("Estratto: %s (%d)\n", ((item_t *)estr)->nome, ((item_t *)estr)->peso);
         dis_item(estr);

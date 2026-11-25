@@ -24,11 +24,11 @@
       "note": []
     },
     "3": {
-      "fase": "p5",
-      "ciclo": 1,
+      "fase": "audit",
+      "ciclo": 2,
       "errori_aperti": false,
       "gravi_ciclo": true,
-      "audit_applicato": 1,
+      "audit_applicato": 0,
       "note": []
     },
     "4": {
@@ -144,11 +144,11 @@
       "note": []
     },
     "18": {
-      "fase": "p5",
-      "ciclo": 1,
+      "fase": "audit",
+      "ciclo": 2,
       "errori_aperti": false,
       "gravi_ciclo": true,
-      "audit_applicato": 1,
+      "audit_applicato": 0,
       "note": []
     },
     "19": {
