@@ -38,10 +38,10 @@ In memoria i campi di una struttura sono disposti esattamente nell'ordine in cui
 
 ```text
 struct rilevazione_meteo
-+------------------+---------+---------------+--------+
-| codice[0..15]    | quota   | temperatura   | attiva |
-| (16 byte)        | (4 byte)| (8 byte)      | (1 byte|
-+------------------+---------+---------------+--------+
++------------------+---------+---------------+----------+
+| codice[0..15]    | quota   | temperatura   | attiva   |
+| (16 byte)        | (4 byte)| (8 byte)      | (1 byte) |
++------------------+---------+---------------+----------+
 ^ indirizzo base della struttura
 ```
 
@@ -467,7 +467,7 @@ Analizziamo i punti salienti dell'esempio:
 - In `deposita` e `preleva` il controllo `c == nullptr` precede ogni accesso `c->saldo`: grazie alla valutazione a corto circuito (capitolo 4), se `c` è nullo `c->saldo` non viene mai valutato.
 - In `main`, `principale` risiede sullo stack e ne passiamo l'indirizzo `&principale` alle funzioni: le modifiche su `c->saldo` e `c->operazioni` aggiornano direttamente `principale`.
 - `stampa_conto` accetta `const conto_t *c`: questo dichiara esplicitamente che la funzione non altera lo stato del conto e consente di chiamarla anche su strutture `const`.
-- `secondo` viene allocato sullo heap con `malloc(sizeof(*secondo))`, inizializzato campo per campo con `->`, passato direttamente alle stesse funzioni (è già un `conto_t *`) e infine liberato con `free(secondo); secondo = nullptr;`.
+- `secondo` viene allocato sullo heap con `malloc(sizeof(*secondo))`, inizializzato campo per campo con `->`, passato direttamente alle stesse funzioni (è già un `conto_t *`) e infine liberato con `free(secondo);`.
 
 > **Approfondimento — Precedenza tra `->` e `&`**
 > Anche l'operatore indirizzo `&` ha precedenza inferiore rispetto a `->` (e a `.`). Per questo l'espressione `&p->saldo` viene raggruppata automaticamente dal compilatore come `&(p->saldo)`: accede prima al campo `saldo` della struttura puntata da `p` e poi ne calcola l'indirizzo (di tipo `double *`). Questa regola è particolarmente utile quando passi i campi di una struttura puntata a funzioni come `sscanf(riga, "%lf", &p->saldo)`.

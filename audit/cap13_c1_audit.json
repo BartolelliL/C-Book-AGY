@@ -1,0 +1,17 @@
+{
+  "capitolo": 13,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap13/13_02.md",
+      "gravita": "media",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Nella tabella degli operatori bit a bit, il carattere `|` non escapato dentro gli span di codice spezza le celle della tabella in Markdown (GFM), compromettendo la resa della riga dell'operatore OR.",
+      "old_text": "| `|` | OR bit a bit | `1` se almeno uno dei due bit è `1` | `1010 | 1100` → `1110` |",
+      "new_text": "| `\\|` | OR bit a bit | `1` se almeno uno dei due bit è `1` | `1010 \\| 1100` → `1110` |"
+    }
+  ]
+}

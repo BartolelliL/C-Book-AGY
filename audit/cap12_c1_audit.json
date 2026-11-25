@@ -1,0 +1,27 @@
+{
+  "capitolo": 12,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap12/12_03.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La spiegazione dell'esempio guidato 12.3-a afferma che `secondo` viene liberato con `free(secondo); secondo = nullptr;`, ma il codice dell'esempio contiene solo `free(secondo);` prima di `return 0;`.",
+      "old_text": "- `secondo` viene allocato sullo heap con `malloc(sizeof(*secondo))`, inizializzato campo per campo con `->`, passato direttamente alle stesse funzioni (è già un `conto_t *`) e infine liberato con `free(secondo); secondo = nullptr;`.",
+      "new_text": "- `secondo` viene allocato sullo heap con `malloc(sizeof(*secondo))`, inizializzato campo per campo con `->`, passato direttamente alle stesse funzioni (è già un `conto_t *`) e infine liberato con `free(secondo);`."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap12/12_01.md",
+      "gravita": "bassa",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Nello schema testuale di `struct rilevazione_meteo` manca la parentesi tonda di chiusura in `(1 byte|`.",
+      "old_text": "+------------------+---------+---------------+--------+\n| codice[0..15]    | quota   | temperatura   | attiva |\n| (16 byte)        | (4 byte)| (8 byte)      | (1 byte|\n+------------------+---------+---------------+--------+",
+      "new_text": "+------------------+---------+---------------+----------+\n| codice[0..15]    | quota   | temperatura   | attiva   |\n| (16 byte)        | (4 byte)| (8 byte)      | (1 byte) |\n+------------------+---------+---------------+----------+"
+    }
+  ]
+}
