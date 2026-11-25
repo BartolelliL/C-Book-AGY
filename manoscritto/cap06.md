@@ -412,7 +412,7 @@ Il suo funzionamento segue esattamente quest'ordine:
 3. Se `condizione` è diversa da zero (vero), esegue il corpo tra le parentesi graffe.
 4. Al termine del corpo esegue `aggiornamento` e torna al passo 2.
 
-Concettualmente, un ciclo `for` corrisponde quasi del tutto a questo `while` (l'unica sottile differenza riguarda `continue`, che vedrai nella prossima sotto-sezione):
+Concettualmente, un ciclo `for` corrisponde quasi del tutto a questo `while` (le due sottili differenze riguardano la visibilità delle variabili dichiarate in `inizializzazione`, spiegata subito sotto, e il comportamento di `continue`, che vedrai nella prossima sotto-sezione):
 
 <!-- cod: id=6.3-c tipo=frammento -->
 ```c
@@ -939,7 +939,7 @@ Numero con piu divisori: 6 (4 divisori)
 
 - Un **ciclo** ripete un blocco di istruzioni finché una condizione rimane vera; ogni esecuzione del corpo è un'**iterazione**.
 - Il ciclo `while (condizione) { ... }` valuta la condizione in testa e può compiere anche zero iterazioni. I due idiomi standard per leggere fino alla fine dell'input sono `while (fgets(riga, (int)sizeof(riga), stdin) != nullptr)` e `while ((c = getchar()) != EOF)` con `c` di tipo `int`.
-- Il ciclo `do { ... } while (condizione);` esegue il corpo almeno una volta, valuta la condizione in coda e termina obbligatoriamente con `;`. Le variabili usate nella condizione finale vanno dichiarate prima del blocco `do` (lo vedremo nel capitolo 7).
+- Il ciclo `do { ... } while (condizione);` esegue il corpo almeno una volta, valuta la condizione in coda e termina obbligatoriamente con `;`. Le variabili usate nella condizione finale vanno dichiarate prima del blocco `do` per la regola di visibilità di blocco (lo vedremo nel capitolo 7).
 - Il ciclo `for (inizializzazione; condizione; aggiornamento) { ... }` raccoglie le tre parti di un conteggio in un'unica intestazione; una variabile dichiarata in `inizializzazione` è visibile solo dentro il ciclo. Per generare sequenze `double` usa sempre un contatore intero invece di un contatore in virgola mobile.
 - L'istruzione `break` interrompe solo il ciclo (o lo `switch`) più interno che la racchiude; `continue` salta il resto dell'iterazione corrente del solo ciclo più interno, eseguendo prima la clausola di aggiornamento nel `for` e tornando subito al test in `while` e `do-while`.
 - I cicli annidati permettono di elaborare tabelle e griglie usando nomi distinti per i contatori e, quando serve uscire da più livelli insieme, una variabile `bool` di controllo.

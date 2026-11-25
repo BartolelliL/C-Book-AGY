@@ -1,0 +1,27 @@
+{
+  "capitolo": 6,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap06/06_03.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Il testo afferma che `continue` è \"l'unica sottile differenza\" tra `for (inizializzazione; condizione; aggiornamento)` e lo schema equivalente `inizializzazione; while (condizione) { ... aggiornamento; }`, ma poco sotto (righe 34–43) spiega che una variabile dichiarata in `inizializzazione` del `for` è visibile solo dentro il ciclo, differenza che non vale per una dichiarazione posta prima del `while` senza un blocco esterno.",
+      "old_text": "Concettualmente, un ciclo `for` corrisponde quasi del tutto a questo `while` (l'unica sottile differenza riguarda `continue`, che vedrai nella prossima sotto-sezione):",
+      "new_text": "Concettualmente, un ciclo `for` corrisponde quasi del tutto a questo `while` (le due sottili differenze riguardano la visibilità delle variabili dichiarate in `inizializzazione`, spiegata subito sotto, e il comportamento di `continue`, che vedrai nella prossima sotto-sezione):"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap06/06_99.md",
+      "gravita": "bassa",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Il rinvio \"(lo vedremo nel capitolo 7)\" segue direttamente la frase sulla dichiarazione prima del blocco `do` senza nominare la visibilità di blocco, risultando privo di referente chiaro per il lettore.",
+      "old_text": "- Il ciclo `do { ... } while (condizione);` esegue il corpo almeno una volta, valuta la condizione in coda e termina obbligatoriamente con `;`. Le variabili usate nella condizione finale vanno dichiarate prima del blocco `do` (lo vedremo nel capitolo 7).",
+      "new_text": "- Il ciclo `do { ... } while (condizione);` esegue il corpo almeno una volta, valuta la condizione in coda e termina obbligatoriamente con `;`. Le variabili usate nella condizione finale vanno dichiarate prima del blocco `do` per la regola di visibilità di blocco (lo vedremo nel capitolo 7)."
+    }
+  ]
+}
