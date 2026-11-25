@@ -1,0 +1,17 @@
+{
+  "capitolo": 15,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap15/15_03.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La descrizione dell'esercizio 15.3 non specifica l'output atteso quando un vettore è vuoto (`NUM (len=0, cap=0): (vuoto)` e `MIS (len=0, cap=0): (vuoto)`), caso verificato dal primo test del blueprint e assente dall'esempio di esecuzione.",
+      "old_text": "Al termine stampa contenuto, lunghezza e capacità di entrambi i vettori leggendo con `vg_leggi` e libera tutto con `vg_free`.",
+      "new_text": "Al termine stampa contenuto, lunghezza e capacità di entrambi i vettori leggendo con `vg_leggi` (stampando `(vuoto)` al posto degli elementi se un vettore ha lunghezza `0`) e libera tutto con `vg_free`."
+    }
+  ]
+}

@@ -627,7 +627,7 @@ Scrivi un programma C che implementi un contenitore generico `typedef struct vet
 - `const void *vg_leggi(const vettore_gen_t *v, size_t pos)` (`nullptr` se fuori limiti)
 - `bool vg_scambia(vettore_gen_t *v, size_t i, size_t j)` (scambia due elementi usando un buffer temporaneo dinamico di `v->dim_elem` byte e `memcpy`)
 
-In `main` crea due `vettore_gen_t`: `v_num` per `int64_t` e `v_mis` per `typedef struct misura { int id; double valore; } misura_t;`. Leggi da `stdin` fino a fine input i comandi `NUM_INS <pos> <val64>`, `NUM_DEL <pos>` (stampa `DEL_NUM: <val>`), `NUM_SWAP <i> <j>`, `MIS_INS <pos> <id> <valore>`, `MIS_DEL <pos>` (stampa `DEL_MIS: #<id>=<valore:.2f>`) e `MIS_SWAP <i> <j>`; se un'operazione fallisce per posizione/indice non valido stampa `ERR` e prosegui. Al termine stampa contenuto, lunghezza e capacità di entrambi i vettori leggendo con `vg_leggi` e libera tutto con `vg_free`.
+In `main` crea due `vettore_gen_t`: `v_num` per `int64_t` e `v_mis` per `typedef struct misura { int id; double valore; } misura_t;`. Leggi da `stdin` fino a fine input i comandi `NUM_INS <pos> <val64>`, `NUM_DEL <pos>` (stampa `DEL_NUM: <val>`), `NUM_SWAP <i> <j>`, `MIS_INS <pos> <id> <valore>`, `MIS_DEL <pos>` (stampa `DEL_MIS: #<id>=<valore:.2f>`) e `MIS_SWAP <i> <j>`; se un'operazione fallisce per posizione/indice non valido stampa `ERR` e prosegui. Al termine stampa contenuto, lunghezza e capacità di entrambi i vettori leggendo con `vg_leggi` (stampando `(vuoto)` al posto degli elementi se un vettore ha lunghezza `0`) e libera tutto con `vg_free`.
 
 **Concetti da tenere a mente**
 
