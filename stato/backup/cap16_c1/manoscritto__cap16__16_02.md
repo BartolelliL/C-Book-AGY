@@ -1,0 +1,200 @@
+## 16.2 Callback e algoritmi parametrizzati
+
+Immagina di aver scritto un ciclo che scorre un array per contare quanti elementi superano una certa soglia. Il giorno dopo ti serve contare quanti elementi sono pari; il giorno seguente vuoi contare quanti prodotti in un catalogo hanno un prezzo inferiore a un budget dato. La struttura del ciclo di scansione è sempre la stessa: cambiano soltanto il tipo dell'elemento e la condizione di verifica. Duplicare lo stesso ciclo decine di volte rende il programma prolisso e moltiplica le occasioni di errore.
+
+In C puoi separare la *struttura dell'algoritmo* (come attraversare i dati) dall'*operazione specifica* da eseguire su ciascun elemento passando quest'ultima come argomento. Una funzione passata in questo modo è detta **callback** (*callback*, funzione di richiamo): è una funzione passata come argomento tramite puntatore a funzione affinché un'altra funzione la invochi al momento opportuno.
+
+### Schemi ricorrenti di funzioni parametrizzate
+
+Combinando i puntatori a funzione con `void *` e `size_t dim_elem` (che hai studiato nel capitolo 15), puoi esprimere in C gli stessi schemi generali usati in molti linguaggi moderni per elaborare sequenze di dati:
+
+- **Visita** (*for-each*): scorre tutti gli elementi e invoca una callback su ciascuno, per esempio per stamparlo o registrarne i dati.
+- **Trasformazione sul posto**: scorre un array modificabile (`void *`) e invoca una callback che aggiorna ogni elemento direttamente in memoria.
+- **Filtraggio tramite predicato**: invoca una callback booleana (`bool (*)(const void *, const void *)`) su ogni elemento e conserva o conta soltanto gli elementi per cui il predicato restituisce `true`.
+- **Riduzione o aggregazione**: mantiene un accumulatore (una somma, un massimo, una struttura di statistiche) e invoca una callback che combina l'accumulatore con ciascun elemento della sequenza.
+
+In tutti questi casi l'algoritmo generico non conosce il tipo concreto degli elementi: riceve un puntatore base (`const void *` per gli algoritmi in sola lettura, `void *` per quelli che modificano), il numero di elementi `n` e la dimensione in byte `dim_elem` di ciascun elemento. Per calcolare l'indirizzo dell'`i`-esimo elemento converte il puntatore base in `const unsigned char *` (oppure `unsigned char *`) e somma `i * dim_elem`, esattamente come nel vettore dinamico generico del capitolo 15.
+
+### Il parametro di contesto `ctx`: compensare l'assenza di chiusure
+
+Supponi di voler usare una funzione generica `conta_se` per contare quanti numeri di un array sono maggiori di una soglia `soglia` scelta a tempo di esecuzione. Se il predicato accettasse soltanto l'elemento:
+
+<!-- cod: id=16.2-b tipo=frammento -->
+```c
+typedef bool (*predicato_semplice_fn)(const void *elem);  // limitato: dove metto la soglia?
+```
+
+non avresti alcun modo pulito per far arrivare il valore di `soglia` dentro il predicato! Qualcuno potrebbe essere tentato di mettere `soglia` in una variabile globale, ma le variabili globali creano dipendenze nascoste e si rompono appena due chiamate usano soglie diverse o si annidano tra loro.
+
+Il motivo è strutturale: a differenza di altri linguaggi, il C non dispone di chiusure che catturino automaticamente le variabili locali dello spazio circostante. Un puntatore a funzione in C è solo l'indirizzo del codice della funzione, senza alcun dato associato.
+
+La soluzione idiomatica e portabile del C è aggiungere alla firma della callback — e alla firma dell'algoritmo che la riceve — un **parametro di contesto** di tipo `const void *ctx` (o `void *ctx` quando la callback deve modificare lo stato contenuto nel contesto):
+
+<!-- cod: id=16.2-c tipo=frammento -->
+```c
+typedef bool (*predicato_fn)(const void *elem, const void *ctx);
+
+size_t conta_se(const void *base, size_t n, size_t dim_elem,
+                predicato_fn pred, const void *ctx);
+```
+
+Il meccanismo è lineare:
+
+```text
+chiamante ──(&soglia)──▶ conta_se(..., pred, ctx) ──(ctx invariato)──▶ pred(elem, ctx)
+                                                                             │
+                                                                             ▼
+                                                              const int *s = ctx;
+```
+
+L'algoritmo generico `conta_se` non ispeziona mai `ctx`: si limita a inoltrarlo invariato a ogni invocazione di `pred(elem, ctx)`. La callback, che conosce il tipo effettivo tanto dell'elemento quanto del contesto, riconverte `elem` e `ctx` ai rispettivi tipi concreti (rispettando `const`). Se una particolare callback non ha bisogno di contesto, il chiamante passa semplicemente `nullptr` e la callback ignora il parametro con `(void)ctx;` per evitare avvisi del compilatore su parametri inutilizzati.
+
+### Controlli di sicurezza e contratto sullo standard
+
+Prima di invocare una callback dentro un algoritmo generico occorre rispettare alcune precauzioni rigorose:
+
+1. **Verifica contro `nullptr`**: controlla sempre che il puntatore alla callback non sia `nullptr` (e che `dim_elem > 0` e, quando `n > 0`, `base != nullptr`). Invocare una callback nulla provoca **comportamento indefinito**.
+2. **Coerenza dei tipi**: secondo lo standard C23, passare un oggetto tramite `void *` o `const void *` e riconvertirlo al tipo originale è perfettamente definito, mentre riconvertire `elem` o `ctx` a un tipo incompatibile con l'oggetto effettivamente passato provoca **comportamento indefinito**.
+3. **Rispetto di `const`**: se l'algoritmo e la callback leggono soltanto i dati o il contesto, usa `const void *`. Questo permette al chiamante di passare anche array e configurazioni dichiarati `const` senza violare il sistema dei tipi.
+
+> **Se vieni da Python** — In Python le funzioni sono oggetti di prima classe e le chiusure (*closure*) catturano automaticamente le variabili locali della funzione che le definisce; in C un puntatore a funzione memorizza solo l'indirizzo del codice e qualsiasi stato aggiuntivo (soglie, intervalli, accumulatori) va passato esplicitamente tramite un parametro `void *ctx` o `const void *ctx`.
+
+### Esempio guidato
+
+Il programma seguente definisce tre algoritmi generici riutilizzabili (`visita_generica`, `conta_se` e `trova_primo`) che operano su array `const void *` tramite callback e parametro `const void *ctx`, senza alcuna variabile globale. Gli stessi algoritmi vengono poi applicati a due tipi completamente diversi: un array di `int` (per stampare i valori e contare quelli sopra una soglia) e un array di `struct prodotto` (per trovare il primo prodotto il cui prezzo rientra in un budget).
+
+<!-- cod: id=16.2-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+typedef void (*visita_fn)(const void *elem, const void *ctx);
+typedef bool (*predicato_fn)(const void *elem, const void *ctx);
+typedef struct prodotto { char nome[24]; double prezzo; } prodotto_t;
+
+void visita_generica(const void *base, size_t n, size_t dim_elem,
+                     visita_fn fn, const void *ctx) {
+    if (fn == nullptr || dim_elem == 0 || (n > 0 && base == nullptr)) { return; }
+    const unsigned char *p = base;
+    for (size_t i = 0; i < n; ++i) {
+        fn(p + i * dim_elem, ctx);
+    }
+}
+
+size_t conta_se(const void *base, size_t n, size_t dim_elem,
+                predicato_fn pred, const void *ctx) {
+    if (pred == nullptr || dim_elem == 0 || (n > 0 && base == nullptr)) { return 0; }
+    const unsigned char *p = base;
+    size_t conteggio = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (pred(p + i * dim_elem, ctx)) { ++conteggio; }
+    }
+    return conteggio;
+}
+
+const void *trova_primo(const void *base, size_t n, size_t dim_elem,
+                        predicato_fn pred, const void *ctx) {
+    if (pred == nullptr || dim_elem == 0 || (n > 0 && base == nullptr)) { return nullptr; }
+    const unsigned char *p = base;
+    for (size_t i = 0; i < n; ++i) {
+        const void *elem = p + i * dim_elem;
+        if (pred(elem, ctx)) { return elem; }
+    }
+    return nullptr;
+}
+
+void stampa_int(const void *elem, const void *ctx) {
+    const int *val = elem;
+    const char *prefisso = ctx;
+    printf("%s%d\n", (prefisso != nullptr) ? prefisso : "", *val);
+}
+
+bool maggiore_di(const void *elem, const void *ctx) {
+    return *(const int *)elem > *(const int *)ctx;
+}
+
+bool entro_budget(const void *elem, const void *ctx) {
+    const prodotto_t *prod = elem;
+    return prod->prezzo <= *(const double *)ctx;
+}
+
+int main(void) {
+    const int valori[] = {4, 15, 8, 23, 42};
+    constexpr size_t n_val = sizeof(valori) / sizeof(valori[0]);
+    visita_generica(valori, n_val, sizeof(valori[0]), stampa_int, "Valore: ");
+
+    int soglia = 10;
+    size_t sopra = conta_se(valori, n_val, sizeof(valori[0]), maggiore_di, &soglia);
+    printf("Elementi > %d: %zu\n", soglia, sopra);
+
+    const prodotto_t catalogo[] = {
+        {"Monitor", 249.90}, {"Tastiera", 59.50}, {"Mouse", 29.90}
+    };
+    constexpr size_t n_cat = sizeof(catalogo) / sizeof(catalogo[0]);
+    double budget = 60.0;
+    const prodotto_t *trovato = trova_primo(catalogo, n_cat, sizeof(catalogo[0]),
+                                            entro_budget, &budget);
+    if (trovato != nullptr) {
+        printf("Primo entro %.2f euro: %s (%.2f)\n", budget, trovato->nome, trovato->prezzo);
+    }
+    return 0;
+}
+```
+
+```output
+Valore: 4
+Valore: 15
+Valore: 8
+Valore: 23
+Valore: 42
+Elementi > 10: 3
+Primo entro 60.00 euro: Tastiera (59.50)
+```
+
+Esamina come lavorano insieme i vari pezzi:
+
+- Tutte e tre le funzioni generiche (`visita_generica`, `conta_se`, `trova_primo`) controllano subito che il puntatore alla callback non sia `nullptr`, che `dim_elem` sia maggiore di `0` e che `base` non sia `nullptr` quando `n > 0`.
+- L'accesso all'`i`-esimo elemento avviene convertendo `base` in `const unsigned char *p` e calcolando `p + i * dim_elem`, così l'algoritmo resta identico sia per `int` (4 byte) sia per `prodotto_t`.
+- In `stampa_int`, il parametro `ctx` trasporta una stringa prefisso (`"Valore: "`); in `maggiore_di`, trasporta `&soglia` (`const int *`); in `entro_budget`, trasporta `&budget` (`const double *`). Nessuna variabile globale è necessaria.
+- `trova_primo` restituisce `const void *`, che in C si converte implicitamente in `const prodotto_t *` nell'inizializzazione di `trovato`, preservando la protezione `const` sull'array `catalogo`.
+
+> **Approfondimento — Perché `void *ctx` è superiore alle variabili globali `static`**
+> Usare una variabile globale `static` per passare una soglia a una callback può sembrare più corto in un programmino di dieci righe, ma introduce tre problemi gravi nei programmi reali. Primo: rende la funzione non rientrante, cioè incapace di funzionare correttamente se una callback ne richiama a sua volta un'altra con una soglia diversa. Secondo: impedisce a più istanze dello stesso algoritmo di coesistere con configurazioni indipendenti. Terzo: nasconde le dipendenze della funzione, rendendo difficile capire leggendo il prototipo di quali dati ha bisogno. Il parametro `void *ctx` (o `const void *ctx`) risolve tutti e tre i problemi rendendo esplicito il flusso dei dati.
+
+### Esercizio 16.2 — Motore generico di filtraggio e riduzione con callback e contesto `ctx`
+
+**Descrizione**
+
+Scrivi un programma C che definisca `typedef bool (*predicato_fn)(const void *elem, const void *ctx);` e `typedef void (*accumula_fn)(void *acc, const void *elem, const void *ctx);` e implementi due algoritmi generici indipendenti dal tipo, senza usare alcuna variabile globale: (1) `size_t filtra_generico(const void *src, size_t n, size_t dim_elem, void *dst, predicato_fn pred, const void *ctx)` che scorre gli `n` elementi di dimensione `dim_elem` in `src` (indirizzandoli tramite `const unsigned char *`), copia con `memcpy` in `dst` quelli per cui `pred(elem, ctx)` restituisce `true` e restituisce il numero di elementi copiati (`0` se i parametri sono invalidi o `n == 0`); (2) `bool riduci_generico(const void *src, size_t n, size_t dim_elem, void *acc, accumula_fn fn, const void *ctx)` che invoca `fn(acc, elem, ctx)` su ciascun elemento in ordine (restituendo `false` se `acc == nullptr`, `fn == nullptr`, `dim_elem == 0` o `n > 0 && src == nullptr`). Applica entrambi gli algoritmi a due tipi distinti: prima a `int32_t` filtrando i valori compresi nell'intervallo chiuso `[min_val, max_val]` (passato via `const void *ctx` con `typedef struct intervallo { int32_t min; int32_t max; } intervallo_t;`) e riducendo i valori filtrati in `typedef struct stat_int { int64_t somma; int32_t max; bool presente; } stat_int_t;`; poi a `typedef struct esame { char codice[16]; int voto; int crediti; } esame_t;` filtrando gli esami con `voto >= voto_min` (passato tramite `&voto_min` come `ctx`) e riducendoli in `typedef struct stat_esami { int64_t somma_pesata; int64_t tot_crediti; } stat_esami_t;` per calcolare la media ponderata (`0.00` se `tot_crediti == 0`). In `main` leggi dalla prima riga `n_int min_val max_val` (`0 <= n_int <= 32`, `min_val <= max_val`), dalla riga successiva (se `n_int > 0`) gli `n_int` interi separati da spazi, poi `n_es voto_min` (`0 <= n_es <= 32`) e le `n_es` righe `<codice> <voto> <crediti>` (`crediti >= 0`), e stampa esattamente il formato mostrato nell'esempio.
+
+**Concetti da tenere a mente**
+
+- callback generiche per predicato (`predicato_fn`) e riduzione (`accumula_fn`) su `void *` / `const void *`
+- passaggio dello stato di configurazione tramite `const void *ctx` senza variabili globali
+- calcolo degli spiazzamenti in byte con `unsigned char *` e copia degli elementi con `memcpy`
+- riutilizzo dello stesso codice di filtraggio e riduzione su `int32_t` e su `struct esame_t`
+
+**Domande guida**
+
+1. Perché `filtra_generico` ha bisogno del parametro `const void *ctx` se vuoi filtrare sia per un intervallo `[min, max]` sia per una soglia `voto_min` senza variabili globali?
+2. Come calcoli in `filtra_generico` l'indirizzo del `k`-esimo elemento sorgente e della posizione di scrittura in `dst`?
+3. Perché in `stat_int_t` conviene avere un campo `bool presente` anziché inizializzare `max` a `0`?
+4. Che cosa controlla `riduci_generico` quando `n == 0` rispetto a quando `n > 0`?
+
+**Esempio di esecuzione**
+
+```input
+5 10 30
+5 10 25 40 30
+3 24
+MAT1 28 9
+FIS1 21 6
+INF1 30 12
+```
+
+```output
+Interi filtrati (3): 10 25 30
+Stat interi: somma=65 max=30
+Esami filtrati (2): MAT1(28) INF1(30)
+Stat esami: crediti=21 media=29.14
+```

@@ -401,7 +401,7 @@ Primo entro 60.00 euro: Tastiera (59.50)
 Esamina come lavorano insieme i vari pezzi:
 
 - Tutte e tre le funzioni generiche (`visita_generica`, `conta_se`, `trova_primo`) controllano subito che il puntatore alla callback non sia `nullptr`, che `dim_elem` sia maggiore di `0` e che `base` non sia `nullptr` quando `n > 0`.
-- L'accesso all'`i`-esimo elemento avviene convertendo `base` in `const unsigned char *p` e calcolando `p + i * dim_elem`, così l'algoritmo resta identico sia per `int` (4 byte) sia per `prodotto_t`.
+- L'accesso all'`i`-esimo elemento avviene convertendo `base` in `const unsigned char *p` e calcolando `p + i * dim_elem`, così l'algoritmo resta identico sia per `int` (tipicamente 4 byte) sia per `prodotto_t`.
 - In `stampa_int`, il parametro `ctx` trasporta una stringa prefisso (`"Valore: "`); in `maggiore_di`, trasporta `&soglia` (`const int *`); in `entro_budget`, trasporta `&budget` (`const double *`). Nessuna variabile globale è necessaria.
 - `trova_primo` restituisce `const void *`, che in C si converte implicitamente in `const prodotto_t *` nell'inizializzazione di `trovato`, preservando la protezione `const` sull'array `catalogo`.
 
@@ -419,7 +419,7 @@ Scrivi un programma C che definisca `typedef bool (*predicato_fn)(const void *el
 - callback generiche per predicato (`predicato_fn`) e riduzione (`accumula_fn`) su `void *` / `const void *`
 - passaggio dello stato di configurazione tramite `const void *ctx` senza variabili globali
 - calcolo degli spiazzamenti in byte con `unsigned char *` e copia degli elementi con `memcpy`
-- riutilizzo dello stesso codice di filtraggio e riduzione su `int32_t` e su `struct esame_t`
+- riutilizzo dello stesso codice di filtraggio e riduzione su `int32_t` e su `esame_t`
 
 **Domande guida**
 
@@ -471,13 +471,13 @@ I quattro parametri hanno un significato diretto:
 
 ### Scrivere comparatori sicuri: il contratto e la trappola della sottrazione
 
-Il comparatore deve rispettare un contratto preciso: restituire un `int` **minore di zero** se `*a` precede `*b`, **zero** se i due elementi sono equivalenti secondo il criterio scelto, oppure **maggiore di zero** se `*a` segue `*b`. Inoltre l'ordinamento definito dal comparatore deve essere coerente (un ordinamento totale stretto debole: se `a < b` allora `b > a`, e se `a < b` e `b < c` allora `a < c`). Un comparatore incoerente provoca **comportamento indefinito** in `qsort` e `bsearch`.
+Il comparatore deve rispettare un contratto preciso: restituire un `int` **minore di zero** se `*a` precede `*b`, **zero** se i due elementi sono equivalenti secondo il criterio scelto, oppure **maggiore di zero** se `*a` segue `*b`. Inoltre l'ordinamento definito dal comparatore deve essere coerente (un ordinamento stretto debole: se `a < b` allora `b > a`, e se `a < b` e `b < c` allora `a < c`). Un comparatore incoerente provoca **comportamento indefinito** in `qsort` e `bsearch`.
 
 Molti esempi datati che circolano in rete scrivono il comparatore per due interi `int` usando una sottrazione:
 
 <!-- cod: id=16.3-c tipo=frammento -->
 ```c
-// ERRORE: MAI scrivere un comparatore cosi'!
+// ERRORE: MAI scrivere un comparatore così!
 int cmp_int_sbagliato(const void *a, const void *b) {
     const int *pa = a;
     const int *pb = b;
@@ -847,7 +847,7 @@ Operazione sconosciuta: pow
 
 Nota come la struttura del programma separa completamente i dati dal controllo:
 
-- Tutte e quattro le operazioni condividono la firma uniforme `bool op_fn(double a, double b, double *ris)`: restituiscono `true` in caso di successo e `false` se l'operazione non è eseguibile (come la divisione per zero).
+- Tutte e quattro le operazioni condividono la firma uniforme descritta da `op_fn` (`bool (double a, double b, double *ris)`): restituiscono `true` in caso di successo e `false` se l'operazione non è eseguibile (come la divisione per zero).
 - `TABELLA_OP` è ordinata alfabeticamente (`"add"`, `"div"`, `"mul"`, `"sub"`), prerequisito indispensabile affinché `bsearch` funzioni correttamente.
 - `STAMPATORI` è indicizzata da `stile_out_t` e la `static_assert` assicura che la tabella resti sempre allineata con l'`enum`. Prima di invocare `STAMPATORI[stile]`, il codice controlla sia `stile < STILE_CONTEGGIO` sia `STAMPATORI[stile] != nullptr`.
 

@@ -1,0 +1,57 @@
+{
+  "capitolo": 16,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap16/16_02.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nella sezione 'Concetti da tenere a mente' dell'esercizio 16.2 si scrive `struct esame_t`, ma `esame_t` è un alias definito con `typedef` per `struct esame`, non un tag di struttura; in C `struct esame_t` indica un tipo distinto e incompleto.",
+      "old_text": "- riutilizzo dello stesso codice di filtraggio e riduzione su `int32_t` e su `struct esame_t`",
+      "new_text": "- riutilizzo dello stesso codice di filtraggio e riduzione su `int32_t` e su `esame_t`"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap16/16_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Il testo afferma che `int` occupa 4 byte come fatto assoluto, ma secondo lo standard C23 `sizeof(int)` è dipendente dall'implementazione (almeno 2 byte, tipicamente 4 byte sui sistemi moderni).",
+      "old_text": "così l'algoritmo resta identico sia per `int` (4 byte) sia per `prodotto_t`.",
+      "new_text": "così l'algoritmo resta identico sia per `int` (tipicamente 4 byte) sia per `prodotto_t`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap16/16_03.md",
+      "gravita": "media",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Nel commento del frammento 16.3-c compare l'apostrofo al posto della lettera accentata (`cosi'` invece di `così`), in violazione della convenzione sulle lettere accentate.",
+      "old_text": "// ERRORE: MAI scrivere un comparatore cosi'!",
+      "new_text": "// ERRORE: MAI scrivere un comparatore così!"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap16/16_03.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "L'espressione 'ordinamento totale stretto debole' mescola due nozioni distinte (un ordinamento totale e un ordinamento stretto debole); il contratto del comparatore di `qsort` e `bsearch` corrisponde a un ordinamento stretto debole.",
+      "old_text": "un ordinamento totale stretto debole: se `a < b` allora `b > a`, e se `a < b` e `b < c` allora `a < c`",
+      "new_text": "un ordinamento stretto debole: se `a < b` allora `b > a`, e se `a < b` e `b < c` allora `a < c`"
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap16/16_04.md",
+      "gravita": "bassa",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Scrivere `bool op_fn(double a, double b, double *ris)` usa l'alias di tipo puntatore a funzione `op_fn` come se fosse il nome di una funzione in un prototipo, generando confusione rispetto al `typedef bool (*op_fn)(...)` definito nel codice.",
+      "old_text": "Tutte e quattro le operazioni condividono la firma uniforme `bool op_fn(double a, double b, double *ris)`:",
+      "new_text": "Tutte e quattro le operazioni condividono la firma uniforme descritta da `op_fn` (`bool (double a, double b, double *ris)`):"
+    }
+  ]
+}

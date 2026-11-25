@@ -638,11 +638,14 @@ int main(void) {
     printf("Espressione 1: %s\n", parentesi_bilanciate("{[a+b]*(c-d)}") ? "valida" : "non valida");
     printf("Espressione 2: %s\n", parentesi_bilanciate("([)]") ? "valida" : "non valida");
     coda_q_t q = {};
-    coda_enqueue(&q, 10);
-    coda_enqueue(&q, 20);
+    if (!coda_enqueue(&q, 10) || !coda_enqueue(&q, 20)) {
+        int scarto = 0;
+        while (coda_dequeue(&q, &scarto)) {}
+        return EXIT_FAILURE;
+    }
     int v = 0;
     while (coda_dequeue(&q, &v)) { printf("Servita richiesta %d\n", v); }
-    coda_enqueue(&q, 30);
+    if (!coda_enqueue(&q, 30)) { return EXIT_FAILURE; }
     if (coda_dequeue(&q, &v)) { printf("Nuovo ciclo: servita %d\n", v); }
     return 0;
 }
@@ -761,7 +764,7 @@ La forma ricorsiva dell'albero rende naturali tre visite fondamentali, che si di
 - **Pre-ordine** (nodo, `sx`, `dx`): elabora la radice prima dei sottoalberi; è utile per copiare o salvare la struttura dell'albero.
 - **Post-ordine** (`sx`, `dx`, nodo): elabora entrambi i figli prima del nodo padre.
 
-Nelle **ricerche per intervallo** `[lo, hi]` puoi sfruttare l'invariante per evitare di esplorare interi sottoalberi inutili (*potatura*): durante una visita in-ordine scendi in `rad->sx` solo se `rad->chiave > lo` (altrimenti tutto il sottoalbero sinistro è minore di `lo`), stampi `rad` se `lo <= rad->chiave <= hi` e scendi in `rad->dx` solo se `rad->chiave < hi` (altrimenti tutto il sottoalbero destro è maggiore di `hi`).
+Nelle **ricerche per intervallo** `[lo, hi]` puoi sfruttare l'invariante per evitare di esplorare interi sottoalberi inutili (*potatura*): durante una visita in-ordine scendi in `rad->sx` solo se `rad->chiave > lo` (altrimenti tutto il sottoalbero sinistro è minore di `lo`), stampi `rad` se `rad->chiave >= lo && rad->chiave <= hi` e scendi in `rad->dx` solo se `rad->chiave < hi` (altrimenti tutto il sottoalbero destro è maggiore di `hi`).
 
 ### Rimozione nei tre casi
 
@@ -949,7 +952,7 @@ Per eliminare l'ambiguità si definisce il **possesso della memoria** (*ownershi
 
 ### I tre contratti di possesso per un contenitore generico
 
-Quando progetti un contenitore generico su `void *` (come una lista generica o, presto, una tabella hash), puoi scegliere tra tre contratti ben distinti:
+Quando progetti un contenitore generico su `void *` — come una lista generica o una tabella hash (lo vedremo nel capitolo 18) — puoi scegliere tra tre contratti ben distinti:
 
 1. **Trasferimento di possesso**: il chiamante alloca l'oggetto sullo heap e lo consegna al contenitore; da quel momento il contenitore diventa il proprietario e si occupa di liberarlo alla rimozione o alla distruzione. Il chiamante non deve più chiamare `free` su quel puntatore.
 2. **Copia (clonazione)**: il contenitore duplica il dato al momento dell'inserimento (per esempio con `strdup` o una callback di copia) e possiede la propria copia; il chiamante resta proprietario dell'originale e può modificarlo o liberarlo liberamente.

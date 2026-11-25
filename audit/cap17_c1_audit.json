@@ -1,0 +1,37 @@
+{
+  "capitolo": 17,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap17/17_04.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Il testo scrive `lo <= rad->chiave <= hi` in formato codice (tra backtick) accanto a espressioni C reali (`rad->chiave > lo` e `rad->chiave < hi`). In C i confronti concatenati non controllano l'appartenenza a un intervallo: `lo <= rad->chiave <= hi` viene valutato come `(lo <= rad->chiave) <= hi`, confrontando `0` o `1` con `hi`. Scriverlo così può indurre lo studente (soprattutto se proviene da Python) a copiarlo nel codice dell'esercizio 17.4.",
+      "old_text": "stampi `rad` se `lo <= rad->chiave <= hi` e scendi in `rad->dx` solo se `rad->chiave < hi`",
+      "new_text": "stampi `rad` se `rad->chiave >= lo && rad->chiave <= hi` e scendi in `rad->dx` solo se `rad->chiave < hi`"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap17/17_03.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 17.3-a, `main` chiama `coda_enqueue` (che alloca nodi con `malloc` e restituisce `bool`) senza controllarne il valore di ritorno, in contrasto con la disciplina difensiva sulle allocazioni adottata in tutti gli altri esempi del capitolo.",
+      "old_text": "    coda_q_t q = {};\n    coda_enqueue(&q, 10);\n    coda_enqueue(&q, 20);\n    int v = 0;\n    while (coda_dequeue(&q, &v)) { printf(\"Servita richiesta %d\\n\", v); }\n    coda_enqueue(&q, 30);\n    if (coda_dequeue(&q, &v)) { printf(\"Nuovo ciclo: servita %d\\n\", v); }\n    return 0;",
+      "new_text": "    coda_q_t q = {};\n    if (!coda_enqueue(&q, 10) || !coda_enqueue(&q, 20)) {\n        int scarto = 0;\n        while (coda_dequeue(&q, &scarto)) {}\n        return EXIT_FAILURE;\n    }\n    int v = 0;\n    while (coda_dequeue(&q, &v)) { printf(\"Servita richiesta %d\\n\", v); }\n    if (!coda_enqueue(&q, 30)) { return EXIT_FAILURE; }\n    if (coda_dequeue(&q, &v)) { printf(\"Nuovo ciclo: servita %d\\n\", v); }\n    return 0;"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap17/17_05.md",
+      "gravita": "bassa",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il rinvio in avanti al concetto di 'tabella hash' (introdotto nel capitolo 18) usa la forma informale 'o, presto, una tabella hash' invece della forma prescritta `(lo vedremo nel capitolo 18)`.",
+      "old_text": "Quando progetti un contenitore generico su `void *` (come una lista generica o, presto, una tabella hash), puoi scegliere tra tre contratti ben distinti:",
+      "new_text": "Quando progetti un contenitore generico su `void *` — come una lista generica o una tabella hash (lo vedremo nel capitolo 18) — puoi scegliere tra tre contratti ben distinti:"
+    }
+  ]
+}
