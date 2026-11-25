@@ -235,7 +235,7 @@ Secondo lo standard C23, l'inizializzazione esplicita di ogni puntatore `secchi[
 
 ### Esempio guidato
 
-Il programma seguente realizza una piccola rubrica telefonica aziendale (`nome -> numero interno`) basata su una tabella hash a `8` secchi fissi con concatenamento. Inserisce quattro contatti (tra cui `"anna"` e `"piero"`, oppure altre coppie che collidono nello stesso secchio), aggiorna un interno esistente, cerca contatti presenti e assenti, rimuove nodi da una catena e distrugge la tabella in modo pulito.
+Il programma seguente realizza una piccola rubrica telefonica aziendale (`nome -> numero interno`) basata su una tabella hash a `8` secchi fissi con concatenamento. Inserisce tre contatti (tra cui `"roma"` e `"cane"`, che collidono sullo stesso secchio), aggiorna un interno esistente, cerca contatti presenti e assenti, rimuove nodi da una catena e distrugge la tabella in modo pulito.
 
 <!-- cod: id=18.2-a tipo=programma -->
 ```c
@@ -921,7 +921,7 @@ Secondo lo standard C23, il rilascio controllato tramite `distruggi_chiave` e `d
 
 ### Esempio guidato
 
-Il programma seguente mostra una tabella hash generica con distruttori configurabili. `archivio` possiede sia le chiavi stringa (`free`) sia i record dinamici (`distruggi_item`), mentre `indice` è una tabella secondaria in prestito (`distruggi_valore = nullptr`). I contatori `creati` e `distrutti` confermano che aggiornamento, estrazione, rimozione e distruzione ordinata liberano ogni record esattamente una volta.
+Il programma seguente mostra una tabella hash generica con distruttori configurabili. `arch` possiede sia le chiavi stringa (`free`) sia i record dinamici (`dis_item`), mentre `ind` è una tabella secondaria in prestito (`dv = nullptr`). I contatori `cre` e `dis` confermano che aggiornamento, estrazione, rimozione e distruzione ordinata liberano ogni record esattamente una volta.
 
 <!-- cod: id=18.5-a tipo=programma -->
 ```c

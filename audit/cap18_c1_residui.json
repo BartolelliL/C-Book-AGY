@@ -1,0 +1,43 @@
+{
+  "capitolo": 18,
+  "ciclo": 1,
+  "residui": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap18/18_05.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 18.5-a la funzione crea_item chiama malloc e dereferenzia subito it->nome = strdup(s) senza verificare che malloc e strdup abbiano avuto successo (violazione di CONVENZIONI.md §4.4 e potenziale dereferenziazione nulla). Inoltre main non controlla i valori di ritorno di ht_crea, crea_item, strdup e ht_inserisci, contraddicendo il contratto di possesso in caso di fallimento appena enunciato nella regola 18.R5.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap18/18_02.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In main dell'esempio 18.2-a i valori di ritorno di rubrica_imposta non vengono controllati e il puntatore v1 restituito da rubrica_cerca(&rub, \"roma\") viene dereferenziato direttamente (v1->interno) senza verificare v1 != nullptr.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap18/18_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In main dell'esempio 18.4-a i valori di ritorno di ht_imposta non vengono controllati e i puntatori restituiti da ht_cerca(&citta, \"MI\") e ht_cerca(&mappa, &q) vengono dereferenziati o passati a printf(\"%s\") senza verificare che siano diversi da nullptr.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    }
+  ],
+  "applicate": [
+    "p2",
+    "p5"
+  ]
+}

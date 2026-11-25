@@ -1,0 +1,229 @@
+## 18.5 Regole di possesso della memoria nella tabella hash
+
+Nella sotto-sezione 18.4 la tabella hash generica non liberava né le chiavi né i valori, perché vivevano tutti nello stack di `main`. Nei programmi reali, però, chiavi e valori sono quasi sempre allocati dinamicamente sullo heap — spesso strutture con stringhe o buffer annidati — e possono avere cicli di vita diversi. Riprendendo il concetto di **possesso della memoria** introdotto nel capitolo 17, una tabella hash generica matura deve esprimere con precisione chirurgica chi è responsabile di liberare ciascun blocco.
+
+### Due distruttori indipendenti: possesso separato di chiavi e valori
+
+In una tabella hash le chiavi e i valori non condividono necessariamente lo stesso proprietario. Pensa a questi quattro casi reali:
+
+| `distruggi_chiave` | `distruggi_valore` | Significato |
+|---|---|---|
+| non nullo | non nullo | La tabella possiede sia le chiavi sia i valori (archivio proprietario) |
+| non nullo | `nullptr` | Possesso misto: la tabella possiede le chiavi, ma prende in prestito i valori (es. un indice secondario di alias) |
+| `nullptr` | non nullo | Chiavi statiche o condivise (es. letterali stringa), valori posseduti dalla tabella |
+| `nullptr` | `nullptr` | Vista completamente in prestito: la tabella possiede solo i propri nodi e l'array `secchi` |
+
+Per supportare tutte e quattro le combinazioni con un'unica struttura, si passa al costruttore `ht_crea` una coppia di callback indipendenti di tipo `typedef void (*distruggi_fn)(void *ptr);`: `distruggi_chiave` e `distruggi_valore`. Quando una callback vale `nullptr`, la tabella opera in modalità prestito su quella componente e non la libera mai.
+
+### Contratti di ciclo di vita per ogni operazione
+
+Una volta introdotti i due distruttori, ogni funzione della tabella deve rispettare un contratto senza ambiguità:
+
+1. **Fallimento di inserimento**: se `ht_inserisci` fallisce per memoria esaurita (nel ridimensionamento o nell'allocazione del nodo) e restituisce `-1`, la tabella **non** acquisisce il possesso né di `chiave` né di `valore` e non chiama alcun distruttore. Il chiamante sa con certezza di doverli liberare lui stesso, evitando sia perdite di memoria sia doppie liberazioni.
+2. **Aggiornamento di una chiave già presente**: se `chiave` è già in tabella, il nodo esistente viene aggiornato con il nuovo `valore`. Qui ci sono due risorse da gestire:
+   - il vecchio `curr->valore` va liberato se `t->distruggi_valore != nullptr` **e** `curr->valore != valore` (la seconda guardia protegge l'auto-aggiornamento: se il chiamante reinserisce lo stesso puntatore a valore, liberarlo prima di riassegnarlo produrrebbe uso dopo la liberazione);
+   - la `chiave` appena passata è ridondante perché il nodo conserva già `curr->chiave`, quindi va liberata se `t->distruggi_chiave != nullptr` **e** `curr->chiave != chiave`.
+3. **Rimozione distruttiva ed estrazione (`ht_estrai`)**: a volte vuoi togliere una voce dalla tabella *senza* distruggere il valore, per prenderne nuovamente il possesso nel chiamante. La funzione `ht_estrai(tab_ht_t *t, const void *chiave, void **val_out)` scollega il nodo, libera la chiave se `distruggi_chiave != nullptr`, e poi: se `val_out != nullptr`, scrive il puntatore del valore in `*val_out` trasferendone il possesso al chiamante; altrimenti, se `val_out == nullptr`, chiama `distruggi_valore` (se non nullo). In questo modo `ht_rimuovi(t, chiave)` si riduce a una sola riga: `return ht_estrai(t, chiave, nullptr);`.
+4. **Distruzione della tabella (`ht_distruggi`)**: per ogni nodo di ogni secchio salva `prossimo = curr->prox`, chiama `distruggi_chiave(curr->chiave)` se non nullo, chiama `distruggi_valore(curr->valore)` se non nullo, libera `curr`, e infine libera `t->secchi` e `t`.
+
+### Tabelle con possesso misto e ordine di distruzione
+
+Un caso particolarmente istruttivo è l'accoppiamento di una tabella principale proprietaria (`tab_prop`, con `distruggi_chiave` e `distruggi_valore` entrambi non nulli) con una tabella secondaria di alias (`tab_alias`, proprietaria delle proprie chiavi alias ma con `distruggi_valore = nullptr`, quindi in prestito sui valori di `tab_prop`).
+
+Questa architettura richiede due discipline ferree:
+
+- Ogni volta che `tab_prop` sostituisce, rimuove o estrae una risorsa, gli eventuali alias in `tab_alias` che puntavano a quel vecchio puntatore vanno rimossi **prima** (o comunque prima di qualunque accesso a `tab_alias`), altrimenti `tab_alias` conserverebbe puntatori pendenti verso memoria già liberata.
+- Alla chiusura del programma, `tab_alias` (la tabella in prestito) deve essere distrutta **prima** di `tab_prop` (la tabella proprietaria).
+
+### Immutabilità delle chiavi e ponte verso il capitolo 19
+
+Esiste un'ultima regola aurea: **non modificare mai una chiave mentre è inserita in una tabella hash**. Se alteri il contenuto di una chiave (per esempio un carattere della stringa o un campo della `struct`), il suo valore di `hash_fn` cambia, ma il nodo resta fisicamente fermo nel vecchio secchio. Le ricerche e le rimozioni successive cercheranno nel nuovo secchio, non troveranno il nodo e lo lasceranno irraggiungibile fino alla distruzione della tabella. Se devi cambiare una chiave, estrai prima il valore con `ht_estrai`, modifica la chiave e reinserisci la coppia.
+
+Fin qui hai dichiarato `struct nodo_ht` e `struct tab_ht` nello stesso file di `main`, quindi il chiamante potrebbe ancora leggere o alterare direttamente `t->secchi` o `t->len`. Nel prossimo capitolo vedrai come spostare l'implementazione in un file `.c` separato e nascondere i campi interni in una libreria su più file (lo vedremo nel capitolo 19).
+
+Riassumiamo la regola precisa:
+
+- Il possesso di chiavi e valori in una tabella hash generica si esprime con due callback distruttore indipendenti `distruggi_chiave` e `distruggi_valore` (ciascuna `nullptr` per la modalità prestito).
+- Se un inserimento fallisce per memoria esaurita, la tabella non acquisisce il possesso e lascia al chiamante la responsabilità di liberare chiave e valore. Su aggiornamento di una chiave esistente occorre liberare il vecchio valore (solo se `distruggi_valore != nullptr` e `vecchio != nuovo`) e la chiave ridondante (solo se `distruggi_chiave != nullptr` e `nuova_chiave != nodo->chiave`).
+- Non si deve mai modificare una chiave mentre è inserita nella tabella, perché cambiarne l'hash la rende irraggiungibile.
+
+Secondo lo standard C23, il rilascio controllato tramite `distruggi_chiave` e `distruggi_valore` è definito; al contrario, liberare lo stesso oggetto sia nel chiamante sia nella tabella (o su auto-aggiornamento) provoca **doppia liberazione** (**comportamento indefinito**), mentre distruggere una tabella proprietaria prima di una tabella in prestito lascia **puntatori pendenti**.
+
+### Esempio guidato
+
+Il programma seguente mostra una tabella hash generica con distruttori configurabili. `archivio` possiede sia le chiavi stringa (`free`) sia i record dinamici (`distruggi_item`), mentre `indice` è una tabella secondaria in prestito (`distruggi_valore = nullptr`). I contatori `creati` e `distrutti` confermano che aggiornamento, estrazione, rimozione e distruzione ordinata liberano ogni record esattamente una volta.
+
+<!-- cod: id=18.5-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef uint64_t (*hash_fn)(const void *);
+typedef bool (*uguali_fn)(const void *, const void *);
+typedef void (*distruggi_fn)(void *);
+typedef struct nodo { void *k; void *v; uint64_t h; struct nodo *prox; } nodo_t;
+typedef struct { nodo_t **sec; size_t cap, len; hash_fn hf; uguali_fn eq; distruggi_fn dk, dv; } tab_ht_t;
+typedef struct { char *nome; int peso; size_t *cont_dis; } item_t;
+
+tab_ht_t *ht_crea(size_t cap, hash_fn hf, uguali_fn eq, distruggi_fn dk, distruggi_fn dv) {
+    tab_ht_t *t = malloc(sizeof(*t));
+    if (t == nullptr) { return nullptr; }
+    t->sec = malloc(cap * sizeof(*t->sec));
+    if (t->sec == nullptr) { free(t); return nullptr; }
+    for (size_t i = 0; i < cap; ++i) { t->sec[i] = nullptr; }
+    t->cap = cap; t->len = 0; t->hf = hf; t->eq = eq; t->dk = dk; t->dv = dv;
+    return t;
+}
+
+int ht_inserisci(tab_ht_t *t, void *k, void *v) {
+    uint64_t h = t->hf(k); size_t idx = (size_t)(h % t->cap);
+    for (nodo_t *c = t->sec[idx]; c != nullptr; c = c->prox) {
+        if (c->h == h && t->eq(c->k, k)) {
+            if (t->dv != nullptr && c->v != v) { t->dv(c->v); }
+            c->v = v;
+            if (t->dk != nullptr && c->k != k) { t->dk(k); }
+            return 0;
+        }
+    }
+    nodo_t *n = malloc(sizeof(*n));
+    if (n == nullptr) { return -1; }
+    *n = (nodo_t){.k = k, .v = v, .h = h, .prox = t->sec[idx]};
+    t->sec[idx] = n; ++t->len; return 1;
+}
+
+bool ht_estrai(tab_ht_t *t, const void *k, void **val_out) {
+    uint64_t h = t->hf(k); size_t idx = (size_t)(h % t->cap);
+    nodo_t **cur = &t->sec[idx];
+    while (*cur != nullptr && ((*cur)->h != h || !t->eq((*cur)->k, k))) { cur = &(*cur)->prox; }
+    if (*cur == nullptr) { return false; }
+    nodo_t *d = *cur; *cur = d->prox;
+    if (t->dk != nullptr) { t->dk(d->k); }
+    if (val_out != nullptr) { *val_out = d->v; }
+    else if (t->dv != nullptr) { t->dv(d->v); }
+    free(d); --t->len; return true;
+}
+
+void ht_distruggi(tab_ht_t *t) {
+    if (t == nullptr) { return; }
+    for (size_t i = 0; i < t->cap; ++i) {
+        for (nodo_t *c = t->sec[i]; c != nullptr; ) {
+            nodo_t *p = c->prox;
+            if (t->dk != nullptr) { t->dk(c->k); }
+            if (t->dv != nullptr) { t->dv(c->v); }
+            free(c); c = p;
+        }
+    }
+    free(t->sec); free(t);
+}
+
+uint64_t h_str(const void *p) {
+    uint64_t h = 14695981039346656037ULL;
+    for (const unsigned char *s = p; *s != '\0'; ++s) { h ^= *s; h *= 1099511628211ULL; }
+    return h;
+}
+bool eq_str(const void *a, const void *b) { return strcmp(a, b) == 0; }
+void dis_item(void *p) { item_t *it = p; ++(*it->cont_dis); free(it->nome); free(it); }
+item_t *crea_item(const char *s, int w, size_t *cre, size_t *dis) {
+    item_t *it = malloc(sizeof(*it)); it->nome = strdup(s); it->peso = w; it->cont_dis = dis; ++(*cre); return it;
+}
+
+int main(void) {
+    size_t cre = 0, dis = 0;
+    tab_ht_t *arch = ht_crea(8, h_str, eq_str, free, dis_item), *ind = ht_crea(8, h_str, eq_str, free, nullptr);
+    item_t *a = crea_item("SensoreA", 12, &cre, &dis), *b = crea_item("MotoreB", 40, &cre, &dis);
+    ht_inserisci(arch, strdup("k1"), a); ht_inserisci(arch, strdup("k2"), b); ht_inserisci(ind, strdup("alias_b"), b);
+    ht_inserisci(arch, strdup("k1"), crea_item("SensoreA2", 15, &cre, &dis));
+    void *estr = nullptr;
+    if (ht_estrai(arch, "k2", &estr)) {
+        ht_estrai(ind, "alias_b", nullptr);
+        printf("Estratto: %s (%d)\n", ((item_t *)estr)->nome, ((item_t *)estr)->peso);
+        dis_item(estr);
+    }
+    ht_distruggi(ind); ht_distruggi(arch);
+    printf("Bilancio item: creati=%zu distrutti=%zu\n", cre, dis);
+    return 0;
+}
+```
+
+```output
+Estratto: MotoreB (40)
+Bilancio item: creati=3 distrutti=3
+```
+
+Osserva come ogni passaggio mantiene il bilancio esatto:
+
+- `arch` riceve `free` come `dk` (perché le chiavi sono stringhe allocate con `strdup`) e `dis_item` come `dv`. `ind` riceve `free` per le proprie chiavi alias ma `nullptr` per i valori, che prende in prestito da `arch`.
+- Quando `k1` viene aggiornata con `SensoreA2`, `ht_inserisci` chiama `dis_item` sul vecchio `SensoreA` e `free` sulla nuova chiave `"k1"` ridondante.
+- Con `ht_estrai(arch, "k2", &estr)`, la tabella libera la chiave `"k2"` e il nodo, ma **non** distrugge `MotoreB`: ne restituisce il puntatore in `estr`. Prima di liberare `estr` con `dis_item(estr)`, rimuoviamo `"alias_b"` da `ind` per non lasciare puntatori pendenti.
+- Alla fine `ht_distruggi(ind)` viene chiamata prima di `ht_distruggi(arch)` e il bilancio finale conferma `creati=3 distrutti=3`.
+
+> **Approfondimento — Perché una chiave in tabella deve restare immutabile**
+> Supponi di inserire una chiave stringa `"alfa"` in una tabella hash: l'hash la colloca nel secchio `3`. Se poi il chiamante conserva un puntatore a quella stessa stringa e ne modifica il contenuto in `"beta"`, l'hash di `"beta"` corrisponderà a un secchio diverso (per esempio `6`), mentre il nodo resterà intrappolato nel secchio `3` con il vecchio valore `nodo->hash`. Da quel momento `ht_cerca(t, "beta")` cercherà nel secchio `6` senza trovarla, e `ht_cerca(t, "alfa")` cercherà nel secchio `3` ma fallirà il confronto `uguali`. Per evitare questo errore difficile da diagnosticare, una chiave non va mai modificata finché risiede nella tabella.
+
+### Esercizio 18.5 — Tabella hash generica con possesso configurabile, indice di alias in prestito ed estrazione del possesso
+
+**Descrizione**
+
+Scrivi un programma C che estenda la tabella hash generica con regole di possesso configurabili tramite due callback distruttore indipendenti: `distruggi_chiave` e `distruggi_valore` (`typedef void (*distruggi_fn)(void *ptr);`, ciascuna `nullptr` in modalità prestito). Implementa:
+
+- `tab_ht_t *ht_crea(size_t cap, hash_fn h, uguali_fn u, distruggi_fn d_chiave, distruggi_fn d_valore)`
+- `int ht_inserisci(tab_ht_t *t, void *chiave, void *valore)` (su chiave esistente libera `curr->valore` se `d_valore != nullptr && curr->valore != valore`, aggiorna il valore, libera `chiave` se `d_chiave != nullptr && curr->chiave != chiave` e restituisce `0`; su chiave nuova ridimensiona se `(len + 1) * 4 > cap * 3`, inserisce e restituisce `1`; su fallimento di allocazione NON libera né `chiave` né `valore` e restituisce `-1`)
+- `void *ht_cerca(const tab_ht_t *t, const void *chiave)`
+- `bool ht_estrai(tab_ht_t *t, const void *chiave, void **val_out)` (scollega il nodo, libera la chiave se `d_chiave != nullptr`, e se `val_out != nullptr` trasferisce il valore in `*val_out` senza distruggerlo, altrimenti chiama `d_valore`)
+- `bool ht_rimuovi(tab_ht_t *t, const void *chiave)` (chiama `ht_estrai(t, chiave, nullptr)`)
+- `size_t ht_rimuovi_per_valore(tab_ht_t *t, const void *valore)` (rimuove tutte le voci che puntano a `valore`)
+- `void ht_distruggi(tab_ht_t *t)`
+
+Modella chiavi tracciate `typedef struct chiave_str { char *testo; size_t *cont_dist; } chiave_str_t;` e risorse annidate `typedef struct risorsa { char *etichetta; int32_t punteggio; size_t *cont_dist; } risorsa_t;` (senza variabili globali: i distruttori incrementano `*cont_dist` prima di liberare `testo`/`etichetta` e la struct).
+
+In `main` crea due tabelle: `tab_prop` proprietaria di chiavi e valori (`distruggi_kstr`, `distruggi_risorsa`) e `tab_alias` con possesso misto (proprietaria delle chiavi `distruggi_kstr`, valori in prestito `nullptr`). Leggi da `stdin` i comandi `PUT <chiave> <etichetta> <punteggio>` (su aggiornamento rimuove prima da `tab_alias` eventuali alias del vecchio valore per non lasciare puntatori pendenti), `ALIAS <alias> <chiave>`, `GET <chiave>`, `GET_ALIAS <alias>`, `DEL <chiave>`, `EXTRACT <chiave>` (estrae la risorsa da `tab_prop`, pulisce eventuali alias, la stampa e la libera esplicitamente nel chiamante) e `BILANCIO`. Prima di uscire distruggi `tab_alias` PRIMA di `tab_prop` e stampa il bilancio finale di chiavi e valori creati/distrutti.
+
+**Concetti da tenere a mente**
+
+- callback distruttore indipendenti `distruggi_chiave` e `distruggi_valore` (possesso vs prestito)
+- gestione sicura dell'aggiornamento su chiave duplicata senza perdite di memoria né doppie liberazioni
+- estrazione con trasferimento di possesso al chiamante (`ht_estrai`) rispetto alla rimozione distruttiva
+- coerenza tra tabella proprietaria e tabella di alias in prestito (pulizia degli alias e ordine di distruzione)
+
+**Domande guida**
+
+1. Perché `tab_alias` usa `distruggi_kstr` come `distruggi_chiave` ma `nullptr` come `distruggi_valore`?
+2. Che cosa succederebbe se durante `PUT` su una chiave già presente in `tab_prop` non rimuovessi prima da `tab_alias` gli alias che puntavano alla vecchia risorsa?
+3. In che modo `ht_estrai` differisce da `ht_rimuovi` rispetto al possesso della chiave e del valore?
+4. Perché nel controllo di aggiornamento dentro `ht_inserisci` conviene verificare `curr->valore != valore` e `curr->chiave != chiave` prima di chiamare i distruttori?
+
+**Esempio di esecuzione**
+
+```input
+PUT srv1 WebApp 90
+PUT srv2 Database 80
+ALIAS main srv1
+ALIAS prod srv1
+GET_ALIAS main
+PUT srv1 WebAppV2 95
+GET_ALIAS main
+ALIAS prod srv2
+EXTRACT srv2
+GET_ALIAS prod
+BILANCIO
+DEL srv1
+```
+
+```output
+PUT srv1: INSERITO
+PUT srv2: INSERITO
+ALIAS main -> srv1: INSERITO
+ALIAS prod -> srv1: INSERITO
+GET_ALIAS main: WebApp (90)
+PUT srv1: AGGIORNATO (alias_invalidati=2)
+GET_ALIAS main: NON TROVATO
+ALIAS prod -> srv2: INSERITO
+EXTRACT srv2: Database (80) (alias_invalidati=1)
+GET_ALIAS prod: NON TROVATO
+BILANCIO chiavi=6/5 valori=3/2
+DEL srv1: OK (alias_invalidati=0)
+FINE chiavi=6/6 valori=3/3
+```

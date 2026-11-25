@@ -1,0 +1,57 @@
+{
+  "capitolo": 18,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap18/18_05.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 18.5-a la funzione crea_item chiama malloc e dereferenzia subito it->nome = strdup(s) senza verificare che malloc e strdup abbiano avuto successo (violazione di CONVENZIONI.md §4.4 e potenziale dereferenziazione nulla). Inoltre main non controlla i valori di ritorno di ht_crea, crea_item, strdup e ht_inserisci, contraddicendo il contratto di possesso in caso di fallimento appena enunciato nella regola 18.R5.",
+      "old_text": null,
+      "new_text": null
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap18/18_02.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio guidato parla di quattro contatti tra cui \"anna\" e \"piero\" (con la formulazione provvisoria \"oppure altre coppie che collidono nello stesso secchio\"), ma il codice 18.2-a inserisce tre contatti distinti (\"roma\", \"cane\" e \"amor\", poi aggiorna \"roma\") e non contiene né \"anna\" né \"piero\".",
+      "old_text": "Il programma seguente realizza una piccola rubrica telefonica aziendale (`nome -> numero interno`) basata su una tabella hash a `8` secchi fissi con concatenamento. Inserisce quattro contatti (tra cui `\"anna\"` e `\"piero\"`, oppure altre coppie che collidono nello stesso secchio), aggiorna un interno esistente, cerca contatti presenti e assenti, rimuove nodi da una catena e distrugge la tabella in modo pulito.",
+      "new_text": "Il programma seguente realizza una piccola rubrica telefonica aziendale (`nome -> numero interno`) basata su una tabella hash a `8` secchi fissi con concatenamento. Inserisce tre contatti (tra cui `\"roma\"` e `\"cane\"`, che collidono sullo stesso secchio), aggiorna un interno esistente, cerca contatti presenti e assenti, rimuove nodi da una catena e distrugge la tabella in modo pulito."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap18/18_02.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In main dell'esempio 18.2-a i valori di ritorno di rubrica_imposta non vengono controllati e il puntatore v1 restituito da rubrica_cerca(&rub, \"roma\") viene dereferenziato direttamente (v1->interno) senza verificare v1 != nullptr.",
+      "old_text": null,
+      "new_text": null
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap18/18_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In main dell'esempio 18.4-a i valori di ritorno di ht_imposta non vengono controllati e i puntatori restituiti da ht_cerca(&citta, \"MI\") e ht_cerca(&mappa, &q) vengono dereferenziati o passati a printf(\"%s\") senza verificare che siano diversi da nullptr.",
+      "old_text": null,
+      "new_text": null
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap18/18_05.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio guidato cita gli identificatori archivio, distruggi_item, indice, distruggi_valore, creati e distrutti, mentre nel codice 18.5-a e nella spiegazione seguente gli identificatori effettivi sono arch, dis_item, ind, dv, cre e dis.",
+      "old_text": "Il programma seguente mostra una tabella hash generica con distruttori configurabili. `archivio` possiede sia le chiavi stringa (`free`) sia i record dinamici (`distruggi_item`), mentre `indice` è una tabella secondaria in prestito (`distruggi_valore = nullptr`). I contatori `creati` e `distrutti` confermano che aggiornamento, estrazione, rimozione e distruzione ordinata liberano ogni record esattamente una volta.",
+      "new_text": "Il programma seguente mostra una tabella hash generica con distruttori configurabili. `arch` possiede sia le chiavi stringa (`free`) sia i record dinamici (`dis_item`), mentre `ind` è una tabella secondaria in prestito (`dv = nullptr`). I contatori `cre` e `dis` confermano che aggiornamento, estrazione, rimozione e distruzione ordinata liberano ogni record esattamente una volta."
+    }
+  ]
+}

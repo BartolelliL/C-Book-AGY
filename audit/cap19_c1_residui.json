@@ -1,0 +1,31 @@
+{
+  "capitolo": 19,
+  "ciclo": 1,
+  "residui": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap19/19_05.md",
+      "gravita": "alta",
+      "tipo": "soluzione_esposta",
+      "certezza": "media",
+      "problema": "I blocchi 19.5-a (tabella_hash.h) e 19.5-b (tabella_hash.c) dell'esempio guidato coincidono alla lettera con due dei tre file della soluzione di riferimento dell'Esercizio 19.5 (stessi nomi di file, tipi, enum ht_esito_t, ht_config_t e implementazioni complete di tutte le funzioni), contravvenendo a CONVENZIONI.md §5.10. Poiché il blueprint stesso richiede la libreria opaca completa nell'esempio guidato, la patch ha certezza media per valutare se differenziare l'esempio guidato oppure formulare l'esercizio in modo esplicito sul riuso/estensione della libreria.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "certezza media: richiede verifica"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap19/19_05.md",
+      "gravita": "bassa",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In tabella_hash.c (blocco 19.5-b, dentro ht_inserisci) il raddoppio t->cap * 2 viene passato a ht_ridimensiona senza verificare prima t->cap > SIZE_MAX / 2, a differenza di quanto insegnato nel capitolo 18.3 per prevenire il wraparound di size_t prima della chiamata.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    }
+  ],
+  "applicate": [
+    "p2"
+  ]
+}
