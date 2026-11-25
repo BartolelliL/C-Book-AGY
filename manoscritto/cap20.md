@@ -52,7 +52,7 @@ Al termine dell'uso devi chiudere lo stream con `fclose(fp)`. Questa funzione sv
 
 Infine, `<stdio.h>` fornisce due funzioni portabili per operare sui nomi dei file sul disco:
 
-- `rename(vecchio, nuovo)`: rinomina il file `vecchio` in `nuovo` e restituisce `0` in caso di successo o un valore diverso da zero in caso di errore.
+- `rename(vecchio, nuovo)`: rinomina il file `vecchio` in `nuovo` e restituisce `0` in caso di successo o un valore diverso da zero in caso di errore (se `nuovo` esiste già, il comportamento è dipendente dall'implementazione: su Linux e macOS lo sostituisce, su Windows può fallire se non viene prima rimosso).
 - `remove(percorso)`: elimina il file `percorso` dal filesystem e restituisce `0` in caso di successo o diverso da zero in caso di errore.
 
 Combinare `rename` e `remove` permette uno schema molto solido di aggiornamento sicuro: invece di sovrascrivere direttamente un file importante con `"w"` (che lo troncherebbe subito a zero byte, lasciandolo vuoto o troncato se il programma fallisse a metà scrittura), scrivi prima l'intero contenuto su un file temporaneo, verifichi `fflush` e `fclose(fp) == 0`, e solo se tutto è riuscito promuovi il file temporaneo al nome definitivo con `rename`. Se qualcosa fallisce prima della rinomina, elimini il file temporaneo con `remove` e l'eventuale versione precedente resta intatta.
@@ -160,7 +160,7 @@ Analizziamo i passaggi fondamentali dell'esempio:
 - Il separatore di 14 trattini usa `fputc('-', fp)` seguito da `fputc('\n', fp)`, mentre l'intestazione usa `fputs` con `'\n'` esplicito perché `fputs` non aggiunge ritorni a capo automatici.
 - Dopo `fflush(fp) == 0`, controlliamo anche `fclose(fp) != 0` e non usiamo più `fp` dopo la chiusura.
 - In `main`, solo dopo che `scrivi_rapporto(tmp)` ha restituito `true`, il file temporaneo viene promosso a `fin` con `rename(tmp, fin) == 0`. Se la creazione o la rinomina fallisce, `remove(tmp)` ripulisce l'eventuale file parziale.
-- La funzione `aggiungi_nota` riapre `fin` in modalità `"a"`, accodando la riga finale senza toccare quelle esistenti. Infine `stampa_file` lo rilegge e `remove(fin)` lo cancella dal disco.
+- La funzione `aggiungi_nota` riapre `fin` in modalità `"a"`, accodando la riga finale senza toccare quelle esistenti. Infine `stampa_file` lo rilegge controllando con `ferror(fp) == 0` che non ci siano stati errori di lettura (approfondiremo `ferror` nella sotto-sezione 20.2) e `remove(fin)` lo cancella dal disco.
 
 > **Approfondimento — Perché controllare il valore restituito da `fclose`**
 > Quando scrivi su un file con `fprintf` o `fputs`, nella maggior parte dei casi i byte non raggiungono subito il disco: vengono copiati nel buffer in RAM dello stream. Di conseguenza tutte le chiamate a `fprintf` possono restituire successo anche se il disco è pieno o la connessione di rete del filesystem è caduta. Lo svuotamento effettivo verso il sistema operativo avviene spesso soltanto al momento di `fclose(fp)`. Ignorare il valore restituito da `fclose` su uno stream di scrittura significa rischiare di perdere silenziosamente gli ultimi dati scritti.
@@ -353,7 +353,7 @@ Riepilogo: valide=2 commenti=1 troncate=1
 Osserva come si comporta il programma sulle diverse righe del file:
 
 - Il ciclo `while (fgets(buf, (int)sizeof(buf), fp) != nullptr)` si arresta non appena `fgets` tenta di leggere oltre l'ultima riga. In quel momento `feof(fp)` vale diverso da zero (`1` nella stampa booleana) e `ferror(fp)` vale `0`.
-- Quando `fgets` legge la riga `descrizione=valore_molto_piu_lungo_del_buffer\n` in un buffer di `24` byte, `buf` contiene i primi `23` caratteri senza `'\n'`. La variabile `int extra = fgetc(fp)` legge il 24° carattere (`'_'`), che non è né `'\n'` né `EOF`: il ciclo interno consuma il resto della riga fino a `'\n'`, incrementa `troncate` e passa alla riga successiva (`soglia=42`) senza spezzarla.
+- Quando `fgets` legge la riga `descrizione=valore_molto_piu_lungo_del_buffer\n` in un buffer di `24` byte, `buf` contiene i primi `23` caratteri senza `'\n'`. La variabile `int extra = fgetc(fp)` legge il 24° carattere (`'o'`), che non è né `'\n'` né `EOF`: il ciclo interno consuma il resto della riga fino a `'\n'`, incrementa `troncate` e passa alla riga successiva (`soglia=42`) senza spezzarla.
 - La chiamata `(void)fputc('!', fp)` tenta una scrittura su uno stream aperto con `"r"`: fallisce e imposta l'indicatore di errore (`ferror(fp) != 0`).
 - La chiamata `clearerr(fp)` azzera entrambi gli indicatori (`feof` e `ferror` tornano entrambi a `0`). Infine lo stream viene chiuso e il file temporaneo rimosso.
 
@@ -733,7 +733,7 @@ int main(void) {
     }
     sensore_t s = {};
     decodifica(raw, &s);
-    printf("Prima: id=%" PRIu32 " sigla=%s temp=%d\n", s.id, s.sigla, s.temp_dec);
+    printf("Prima: id=%" PRIu32 " sigla=%s temp=%" PRId32 "\n", s.id, s.sigla, s.temp_dec);
 
     s.temp_dec += 25;
     codifica(&s, raw);
@@ -995,8 +995,10 @@ bool staz_salva(const elenco_stazioni_t *e, const char *percorso, uint16_t versi
     scrivi_u16_be(hdr + 4, versione);
     scrivi_u32_be(hdr + 6, (uint32_t)e->len);
     scrivi_u32_be(hdr + 10, csum);
-    return fseek(fp, 0L, SEEK_SET) == 0 && fwrite(hdr, 1, sizeof(hdr), fp) == sizeof(hdr) &&
-           fclose(fp) == 0;
+    bool ok = (fseek(fp, 0L, SEEK_SET) == 0 &&
+               fwrite(hdr, 1, sizeof(hdr), fp) == sizeof(hdr));
+    if (fclose(fp) != 0) { ok = false; }
+    return ok;
 }
 
 bool staz_carica(elenco_stazioni_t *e, const char *percorso, uint16_t *ver_out) {
@@ -1177,7 +1179,7 @@ LOAD ERRORE: TRONCATO
 
 - Un file su disco si gestisce tramite un puntatore `FILE *` (tipo opaco in `<stdio.h>`, mai copiato per valore) restituito da `fopen`. Nei **file di testo** (`"r"`, `"w"`, `"a"`, `"r+"`, `"w+"`, `"a+"`, `"wx"`) si scrive con `fprintf`, `fputs` (che non aggiunge `'\n'`) e `fputc`, svuotando il buffer quando necessario con `fflush(fp)` e controllando sempre sia `fopen != nullptr` sia `fclose(fp) == 0`. `rename` e `remove` consentono aggiornamenti sicuri tramite file temporaneo e pulizia finale.
 - Per leggere file di testo si usa `fgets` (gestendo eventuali righe più lunghe del buffer) oppure `fgetc` (salvando sempre il risultato in `int` per distinguere `EOF` da ogni byte `0..255`), controllando nel ciclo il valore restituito dalla lettura e mai `while (!feof(fp))`. Solo al termine del ciclo si interrogano `ferror(fp)` e `feof(fp)` per distinguere un errore di I/O dalla fine regolare del file; `clearerr(fp)` azzera entrambi gli indicatori.
-- I **file binari** si aprono aggiungendo `"b"` alla modalità (`"rb"`, `"wb"`, `"r+b"`, `"w+b"`...) per evitare traduzioni dei fine riga. `fread(buf, 1, sizeof(buf), fp)` e `fwrite` permettono di elaborare file di qualunque dimensione a blocchi conoscendo il numero esatto di byte trasferiti anche sull'ultimo blocco parziale. Sugli stream di aggiornamento, prima di passare da scrittura a lettura (o viceversa, se non si è a `EOF`) occorre sempre chiamare `fflush`, `fseek` o `rewind`.
+- I **file binari** si aprono aggiungendo `"b"` alla modalità (`"rb"`, `"wb"`, `"r+b"`, `"w+b"`...) per evitare traduzioni dei fine riga. `fread(buf, 1, sizeof(buf), fp)` e `fwrite` permettono di elaborare file di qualunque dimensione a blocchi conoscendo il numero esatto di byte trasferiti anche sull'ultimo blocco parziale. Sugli stream di aggiornamento, prima di passare da scrittura a lettura occorre chiamare `fflush`, `fseek` o `rewind`, mentre per passare da lettura (non a `EOF`) a scrittura occorre chiamare `fseek` o `rewind`.
 - L'**accesso casuale** nei file binari si realizza con `fseek` (`SEEK_SET`, `SEEK_CUR`, `SEEK_END`), `ftell` (controllando `-1L`) e `rewind`, consentendo di leggere e aggiornare in loco record di dimensione fissa. `tmpfile()` crea file binari temporanei in `"wb+"` eliminati automaticamente alla chiusura.
 - La **serializzazione** binaria portabile evita di scrivere `struct` grezze con `fwrite`: codifica ogni campo esplicitamente con tipi a larghezza fissa (`<stdint.h>`), ordine dei byte fissato tramite spostamenti e maschere, prefissi di lunghezza per le stringhe e un'intestazione con numero magico, versione del formato, conteggio e checksum, validando ogni lunghezza prima di allocare memoria. Tecniche più complete per diagnosticare gli errori di sistema e gestire il rilascio di più risorse su molti percorsi di errore saranno approfondite nei prossimi capitoli (lo vedremo nel capitolo 21).
 

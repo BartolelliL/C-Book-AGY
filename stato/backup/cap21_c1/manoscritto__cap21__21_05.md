@@ -1,0 +1,177 @@
+## 21.5 Preprocessore: macro con argomenti, `__FILE__` e `__LINE__`
+
+Nel capitolo 19 hai usato `#define` per costanti simboliche e protezioni di inclusione. Il preprocessore permette anche di definire **macro con argomenti** (*function-like macros*), che a prima vista assomigliano a funzioni:
+
+<!-- cod: id=21.5-c tipo=frammento -->
+```c
+#define QUADRATO(x) ((x) * (x))
+```
+
+In realtà una macro non è una funzione: prima ancora che il compilatore veda il codice C, il preprocessore effettua una **sostituzione testuale** pura. Questa differenza è potente, ma nasconde quattro trappole classiche che devi conoscere bene.
+
+### Le trappole delle macro con argomenti
+
+1. **Lo spazio tra nome e parentesi**: in `#define DOPPIO(x) ((x) * 2)` la parentesi `(` deve seguire il nome senza spazi. Se scrivi `#define DOPPIO (x) ((x) * 2)`, definisci una macro *senza argomenti* che si espande letteralmente in `(x) ((x) * 2)` causando errori di compilazione.
+2. **Parentesi mancanti attorno ai parametri**: se definisci `#define QUADRATO(x) x * x` e scrivi `QUADRATO(a + 1)`, il preprocessore produce `a + 1 * a + 1`, cioè `a + a + 1` invece di `(a + 1) * (a + 1)`.
+3. **Parentesi mancanti attorno al corpo intero**: se definisci `#define SOMMA(a, b) (a) + (b)` e scrivi `SOMMA(2, 3) * 4`, ottieni `(2) + (3) * 4`, cioè `14` invece di `20`. Regola: parentesizza **ogni occorrenza di ogni parametro** e **l'intero corpo** della macro.
+4. **Valutazione multipla degli argomenti con effetti collaterali**: anche se parentesizzata in modo perfetto, una macro che usa il proprio parametro due volte espande l'espressione dell'argomento due volte. Osserva il frammento seguente:
+
+<!-- cod: id=21.5-b tipo=frammento -->
+```c
+// TRAPPOLA: MAX_ERRATO valuta due volte l'argomento più grande
+#define MAX_ERRATO(a, b) (((a) > (b)) ? (a) : (b))
+
+int x = 5;
+int y = 3;
+int m = MAX_ERRATO(++x, y); // si espande in (((++x) > (y)) ? (++x) : (y))
+                            // x viene incrementato DUE volte (diventa 7)!
+```
+
+Inoltre una macro non effettua alcun controllo sui tipi dei parametri e non compare con un proprio frame nel debugger.
+
+### Quando usare `static inline` e quando usare una macro
+
+Per qualsiasi calcolo riutilizzabile che agisce su valori di tipo noto (come un massimo, un minimo o una saturazione in un intervallo), preferisci sempre una funzione `static inline` nel file di intestazione (capitolo 19): valuta ogni argomento esattamente una volta, controlla i tipi e permette comunque al compilatore di espanderne il corpo in linea senza costi di chiamata.
+
+Riserva le macro con argomenti solo a ciò che una funzione C non può fare:
+
+- **`ARRAY_LEN(arr)`**: calcolare il numero di elementi di un vero array tramite `(sizeof(arr) / sizeof((arr)[0]))`. Una funzione non potrebbe farlo perché un array passato a una funzione decade a puntatore (capitolo 10); per la stessa ragione, non applicare mai `ARRAY_LEN` a un puntatore.
+- **Catturare il punto di chiamata** con `__FILE__`, `__LINE__` e `__func__`.
+- Costrutti avanzati di metaprogrammazione del preprocessore come blocchi `do { ... } while (0)`, stringificazione `#`, concatenazione di token `##` e macro variadiche (lo vedremo nel capitolo 24).
+
+### Posizione del chiamante: `__FILE__`, `__LINE__` e `__func__`
+
+Il C mette a disposizione tre strumenti standard per registrare automaticamente dove si è verificato un evento nel codice sorgente:
+
+- `__FILE__`: macro predefinita che si espande in un letterale stringa con il nome del file sorgente corrente;
+- `__LINE__`: macro predefinita che si espande nella costante intera corrispondente al numero di riga corrente;
+- `__func__`: identificatore predefinito (non una macro, bensì un array locale implicito `static const char __func__[]`) contenente il nome della funzione in cui appare.
+
+Combinandoli in una macro che chiama una funzione diagnostica, ogni invocazione registra in automatico il file, la riga e la funzione del chiamante.
+
+### Attributi standard C23: `[[nodiscard]]`, `[[maybe_unused]]`, `[[noreturn]]`
+
+Nel capitolo 4 hai conosciuto il primo **attributo** standard del C23 (`[[fallthrough]]`). Per rendere più robusti i contratti tra moduli, il C23 definisce altri tre attributi fondamentali:
+
+- `[[nodiscard]]` (anche con motivazione `[[nodiscard("controlla l'esito")]]`): applicato a una funzione o a un tipo (`struct`/`enum`), chiede al compilatore di emettere un avviso se il chiamante scarta il valore di ritorno senza usarlo. È ideale per funzioni che restituiscono codici di errore o puntatori appena allocati.
+- `[[maybe_unused]]`: applicato a un parametro, una variabile o una funzione `static`, indica al compilatore che quell'entità potrebbe legittimamente non essere usata (per esempio un parametro di debug disabilitato con `NDEBUG`), evitando avvisi spuri con `-Wall -Wextra`.
+- `[[noreturn]]`: applicato a una funzione (come `exit` o `abort` nella libreria standard), dichiara che la funzione non restituisce mai il controllo al chiamante. Questo consente al compilatore di segnalare codice morto e di non avvisare se manca un `return` dopo la chiamata. Secondo lo standard C23, se una funzione annotata `[[noreturn]]` ritorna effettivamente al chiamante, il programma incorre in **comportamento indefinito**.
+
+> **C23** — Gli attributi `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]` nella sintassi con doppie parentesi quadre sono stati introdotti dal C23. Con compilatori più vecchi puoi omettere `[[nodiscard]]`, silenziare un parametro inutilizzato con `(void)param;` nel corpo della funzione, e per funzioni che non ritornano affidarti alla documentazione o alle estensioni del compilatore.
+
+### Esempio guidato
+
+Il programma seguente definisce `ARRAY_LEN` e una macro diagnostica `REGISTRA_EVENTO` che cattura `__FILE__`, `__LINE__` e `__func__`; confronta l'helper sicuro `static inline massimo_i32` con il comportamento della macro problematica vista sopra; infine applica `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]`.
+
+<!-- cod: id=21.5-a tipo=programma -->
+```c
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
+#define REGISTRA_EVENTO(msg) traccia_punto((msg), __FILE__, __LINE__, __func__)
+
+static inline int32_t massimo_i32(int32_t a, int32_t b) {
+    return (a > b) ? a : b;
+}
+
+[[nodiscard]] static bool traccia_punto(const char *msg, const char *file,
+                                        int riga, const char *func) {
+    if (msg == nullptr || file == nullptr || func == nullptr) {
+        return false;
+    }
+    printf("Evento \"%s\" in %s (file valido=%s, riga>0=%s)\n",
+           msg, func, (file[0] != '\0') ? "SI" : "NO", (riga > 0) ? "SI" : "NO");
+    return true;
+}
+
+static void stampa_config(int soglia, [[maybe_unused]] const char *note) {
+    printf("Soglia attiva: %d\n", soglia);
+}
+
+[[noreturn]] static void interrompi_fatale(const char *motivo) {
+    fprintf(stderr, "Errore fatale: %s\n", motivo);
+    exit(EXIT_FAILURE);
+}
+
+static void verifica_sensori(void) {
+    const int32_t letture[] = {12, 45, 31, 18};
+    printf("Numero letture: %zu\n", ARRAY_LEN(letture));
+
+    int32_t cont = 10;
+    int32_t picco = massimo_i32(++cont, 8);
+    printf("massimo_i32(++cont, 8) = %d (cont=%d)\n", picco, cont);
+
+    if (!REGISTRA_EVENTO("controllo completato")) {
+        interrompi_fatale("impossibile registrare l'evento");
+    }
+}
+
+int main(void) {
+    stampa_config(40, "versione diagnostica");
+    verifica_sensori();
+    return 0;
+}
+```
+
+```output
+Soglia attiva: 40
+Numero letture: 4
+massimo_i32(++cont, 8) = 11 (cont=11)
+Evento "controllo completato" in verifica_sensori (file valido=SI, riga>0=SI)
+```
+
+Osserva come interagiscono i vari strumenti:
+
+- `ARRAY_LEN(letture)` calcola `4` direttamente a tempo di compilazione sul vero array `letture`.
+- `massimo_i32(++cont, 8)` incrementa `cont` una sola volta (`11`), cosa che una macro `MAX(a, b)` non avrebbe garantito.
+- `REGISTRA_EVENTO("controllo completato")` si espande dentro `verifica_sensori`, quindi `__func__` vale `"verifica_sensori"`, `__FILE__` contiene il nome del file sorgente e `__LINE__` la riga esatta della chiamata.
+- `traccia_punto` è marcata `[[nodiscard]]`, per cui il suo esito viene controllato nell'`if`; il parametro `note` di `stampa_config` è marcato `[[maybe_unused]]` per compilare pulito con `-Wextra`; `interrompi_fatale` è annotata `[[noreturn]]` e termina con `exit(EXIT_FAILURE)`.
+
+> **Approfondimento — Perché `__FILE__` e `__LINE__` richiedono una macro**
+> Se inserissi `__FILE__` e `__LINE__` direttamente nel corpo di una funzione di logging (per esempio dentro `traccia_punto`), il preprocessore li espanderebbe nella posizione in cui `traccia_punto` è definita: ogni messaggio riporterebbe sempre lo stesso file e lo stesso numero di riga, rendendo inutile la diagnostica. Facendoli espandere da una macro nel punto di chiamata, invece, ogni invocazione passa alla funzione le coordinate esatte della riga in cui è avvenuto l'errore.
+
+### Esercizio 21.5 — Sistema diagnostico con macro con argomenti (`__FILE__`, `__LINE__`, `__func__`), `static inline` e attributi C23
+
+**Descrizione**
+
+Realizza un modulo diagnostico su tre file (`diagnostica.h`, `diagnostica.c`, `main.c`) che combini macro con argomenti sicure, una funzione `static inline` al posto di una macro soggetta a valutazione multipla, `__FILE__`, `__LINE__`, `__func__` e gli attributi standard C23 `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]`.
+
+1. In `diagnostica.h` (protetto da `DIAGNOSTICA_H`) definisci: le macro `#define ARRAY_LEN(arr) (sizeof(arr) / sizeof((arr)[0]))` e `#define VERIFICA_PASSO(reg, cond, codice) diag_registra((reg), (cond), (codice), __FILE__, __LINE__, __func__)`; la funzione `static inline int32_t satura_i32(int32_t x, int32_t lo, int32_t hi)` (limita `x` a `[lo, hi]` valutando ogni argomento una sola volta); `typedef struct registro_diag { size_t ok; size_t falliti; int primo_codice_err; int prima_riga_err; char primo_file[32]; char prima_func[32]; } registro_diag_t;`; e i prototipi con attributi C23: `[[nodiscard]] bool diag_registra(registro_diag_t *reg, bool cond, int codice, const char *file, int riga, const char *func);`, `[[nodiscard]] bool diag_stampa_riepilogo(const registro_diag_t *reg, [[maybe_unused]] const char *etichetta_debug);` e `[[noreturn]] void diag_errore_fatale(const char *motivo, const char *file, int riga);`.
+2. In `diagnostica.c` implementa le tre funzioni: `diag_registra` aggiorna `ok`/`falliti` e al primo fallimento salva `codice`, `riga`, il solo nome base di `file` (dopo l'ultimo `'/'` o `'\\'`) e `func`; `diag_errore_fatale` scrive su `stderr` e chiama `exit(EXIT_FAILURE)`.
+3. In `main.c` definisci una funzione helper `esegui_verifica(registro_diag_t *reg, int32_t val, int32_t lo, int32_t hi)` che invoca `VERIFICA_PASSO(reg, val >= lo && val <= hi, 101)` (usando il valore `[[nodiscard]]`) e leggi da `stdin` i comandi `ARRAY` (usa `ARRAY_LEN` su un array locale di 5 `int32_t`), `CHECK <val> <lo> <hi>`, `CLAMP <val> <lo> <hi>` (invoca `satura_i32(++c, lo, hi)` dimostrando che `c` viene incrementato una sola volta) e `REPORT` (chiama `diag_stampa_riepilogo` controllandone il ritorno `[[nodiscard]]`), chiamando `diag_errore_fatale` in caso di comando non riconosciuto.
+
+**Concetti da tenere a mente**
+
+- parentesizzazione completa delle macro con argomenti e uso di `ARRAY_LEN` su veri array
+- cattura automatica di `__FILE__`, `__LINE__` e `__func__` nel punto di chiamata tramite macro
+- scelta di `static inline` al posto di una macro quando un argomento può avere effetti collaterali (`++c`)
+- uso degli attributi C23 `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]`
+
+**Domande guida**
+
+1. Perché `VERIFICA_PASSO` deve essere una macro con argomenti e non una funzione normale affinché `__LINE__` e `__func__` indichino il punto di chiamata?
+2. Che cosa succederebbe a `satura_i32(++c, 0, 50)` se fosse scritta come macro `#define SATURA(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))`?
+3. Perché `ARRAY_LEN(arr)` funziona su un array locale `int32_t soglie[5]` ma produce un risultato errato se applicata a un parametro puntatore `int32_t *p`?
+4. Quale contratto comunica al compilatore l'attributo `[[noreturn]]` su `diag_errore_fatale` e quale comportamento si verifica se una funzione `[[noreturn]]` ritorna?
+
+**Esempio di esecuzione**
+
+```input
+ARRAY
+CHECK 15 0 20
+CHECK 25 0 20
+CHECK -3 0 20
+CLAMP 99 0 50
+REPORT
+```
+
+```output
+ARRAY_LEN: 5
+CHECK 15 [0..20]: OK
+CHECK 25 [0..20]: FALLITO
+CHECK -3 [0..20]: FALLITO
+CLAMP(++99, 0, 50) -> 50 (c=100)
+REPORT: ok=1 falliti=2 primo_err=101 file=main.c func=esegui_verifica riga_valida=SI
+```

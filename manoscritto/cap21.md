@@ -73,7 +73,7 @@ Ciascuna macro calcola il risultato matematico esatto (come se disponesse di pre
 - `false` se il valore memorizzato in `*result` coincide con il risultato matematico esatto (nessun overflow);
 - `true` se si è verificato un overflow: in questo caso `*result` contiene comunque il risultato troncato modulo $2^N$ (dove $N$ è la larghezza in bit del tipo di `*result`), **senza alcun comportamento indefinito**.
 
-Nota bene la convenzione del valore di ritorno: `true` segnala che c'è stato un errore di overflow, così puoi scrivere in modo naturale `if (ckd_mul(&byte_tot, n, sizeof(int64_t))) { ... }`. Un altro vantaggio notevole è che `a`, `b` e `*result` possono avere tipi interi diversi (purché interi standard diversi da `bool` e dai tipi carattere `char`): la macro esegue il calcolo sul valore matematico esatto e verifica se rientra nell'intervallo del tipo di destinazione.
+Nota bene la convenzione del valore di ritorno: `true` segnala che c'è stato un errore di overflow, così puoi scrivere in modo naturale `if (ckd_mul(&byte_tot, n, sizeof(int64_t))) { ... }`. Un altro vantaggio notevole è che `a`, `b` e `*result` possono avere tipi interi diversi (purché tipi interi diversi da `bool`, dal tipo `char` semplice e dalle enumerazioni): la macro esegue il calcolo sul valore matematico esatto e verifica se rientra nell'intervallo del tipo di destinazione.
 
 > **C23** — L'intestazione `<stdckdint.h>` e le macro `ckd_add`, `ckd_sub`, `ckd_mul` sono state introdotte dallo standard C23. Con compilatori più vecchi (C11/C17) occorre scrivere funzioni ausiliarie che confrontino gli operandi con i limiti di `<limits.h>` o `<stdint.h>` prima di eseguire l'operazione (per esempio verificando `b > 0 && a > INT64_MAX - b` prima di `a + b`), oppure ricorrere alle estensioni specifiche del compilatore.
 
@@ -160,7 +160,7 @@ Osserva i punti chiave dell'esempio:
 - Per la radice quadrata di `-4.0`, la funzione `radice_sicura` controlla esplicitamente il dominio (`x < 0.0`), imposta `errno = EDOM` e restituisce `false`: in questo modo la segnalazione tramite `EDOM` è garantita in modo portabile anche sulle piattaforme dove `sqrt` segnala gli errori di dominio solo tramite `NaN` ed eccezioni in virgola mobile. L'output mostrato sopra è quello su `stdout`; su `stderr` comparirà inoltre la riga prodotta da `perror`, il cui testo esatto dipende dal sistema operativo.
 
 > **Approfondimento — Perché salvare subito `int err = errno;`**
-> Dopo il fallimento di una funzione come `fopen` o `strtoll`, qualunque chiamata successiva alla libreria standard può sovrascrivere `errno`, perfino se ha successo (lo standard C consente alle funzioni di libreria di modificare `errno` a un valore non nullo anche quando non falliscono, purché non lo azzerino). Se chiamassi `fclose` su un altro stream o `fprintf` prima di leggere `errno`, rischieresti di stampare un codice estraneo o azzerato. Copiare immediatamente `int err = errno;` in una variabile locale elimina questa fonte di errori sottili.
+> Dopo il fallimento di una funzione come `fopen` o `strtoll`, qualunque chiamata successiva alla libreria standard può sovrascrivere `errno`, perfino se ha successo (lo standard C consente alle funzioni di libreria di modificare `errno` a un valore non nullo anche quando non falliscono, purché non lo azzerino). Se chiamassi `fclose` su un altro stream o `fprintf` prima di leggere `errno`, rischieresti di stampare un codice estraneo che non corrisponde più al guasto originario. Copiare immediatamente `int err = errno;` in una variabile locale elimina questa fonte di errori sottili.
 
 ### Esercizio 21.1 — Calcolatrice controllata a 64 bit con `<stdckdint.h>`, `errno` e propagazione di codici di errore
 
@@ -706,7 +706,7 @@ Dopo che hai passato `ap` a una funzione come `vsnprintf`, lo stato di `ap` dive
 
 ### Esempio guidato
 
-Il programma seguente mostra tre funzioni variadiche: `somma_pesata` (contatore iniziale con promozione da `bool` e `float`), `unisci_con_spazio` (sequenza terminata da sentinella `nullptr` che percorre due volte gli argomenti usando `va_copy`) e `stampa_log` (wrapper che inoltra `va_list` a `vprintf` e `vfprintf`).
+Il programma seguente mostra tre funzioni variadiche: `somma_variadica` (contatore iniziale con passaggio di `double` e `float`), `unisci_stringhe` (sequenza terminata da sentinella `nullptr` che unisce le stringhe con `'-'` percorrendo due volte gli argomenti tramite `va_copy`) e `log_messaggio` (wrapper che inoltra `va_list` a `vprintf` e `vfprintf`).
 
 <!-- cod: id=21.4-a tipo=programma -->
 ```c
@@ -915,6 +915,7 @@ Il programma seguente definisce `ARRAY_LEN` e una macro diagnostica `REGISTRA_EV
 
 <!-- cod: id=21.5-a tipo=programma -->
 ```c
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -951,7 +952,7 @@ static void verifica_sensori(void) {
 
     int32_t cont = 10;
     int32_t picco = massimo_i32(++cont, 8);
-    printf("massimo_i32(++cont, 8) = %d (cont=%d)\n", picco, cont);
+    printf("massimo_i32(++cont, 8) = %" PRId32 " (cont=%" PRId32 ")\n", picco, cont);
 
     if (!REGISTRA_EVENTO("controllo completato")) {
         interrompi_fatale("impossibile registrare l'evento");
@@ -1202,7 +1203,7 @@ Arresto: SIGINT (completati=2, somma=325)
 - Il modello **goto cleanup** centralizza il rilascio di più risorse in un'unica etichetta finale `cleanup:`: tutte le risorse vanno inizializzate a `nullptr` prima del primo salto, i salti vanno sempre in avanti e il rilascio avviene in ordine inverso all'acquisizione (ricordando di azzerare `fp = nullptr` dopo una `fclose` anticipata e di rimuovere eventuali file parziali in caso di errore).
 - Un'**asserzione** con `assert` (`<assert.h>`) verifica a tempo di esecuzione precondizioni e invarianti interni durante lo sviluppo, terminando con `abort()` se la condizione è falsa. Con `NDEBUG` definito, `assert` viene disabilitata e l'espressione non è valutata: non inserire mai effetti collaterali dentro `assert` e usa sempre `if` e codici di ritorno per gli errori esterni.
 - Una **funzione variadica** (`...`) accede agli argomenti tramite `va_list`, `va_start`, `va_arg`, `va_copy` e `va_end` (`<stdarg.h>`), rispettando le promozioni predefinite (`bool`, `char`, `short` -> `int`; `float` -> `double`) e chiudendo ogni `va_list` su tutti i percorsi di uscita. `vprintf`, `vfprintf` e `vsnprintf` permettono di inoltrare `va_list` per logging e formattazione dinamica a due passaggi.
-- Le macro con argomenti effettuano sostituzione testuale: richiedono parentesi su ogni parametro e sull'intero corpo, nessun spazio prima di `(` e nessuna valutazione multipla di argomenti con effetti collaterali; quando possibile vanno sostituite da funzioni `static inline`. `__FILE__`, `__LINE__` e `__func__` registrano la posizione del chiamante (tecniche avanzate del preprocessore saranno approfondite più avanti, lo vedremo nel capitolo 24), mentre gli attributi C23 `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]` rafforzano i contratti verificati dal compilatore.
+- Le macro con argomenti effettuano sostituzione testuale: richiedono parentesi su ogni parametro e sull'intero corpo, nessuno spazio prima di `(` e nessuna valutazione multipla di argomenti con effetti collaterali; quando possibile vanno sostituite da funzioni `static inline`. `__FILE__`, `__LINE__` e `__func__` registrano la posizione del chiamante (tecniche avanzate del preprocessore saranno approfondite più avanti, lo vedremo nel capitolo 24), mentre gli attributi C23 `[[nodiscard]]`, `[[maybe_unused]]` e `[[noreturn]]` rafforzano i contratti verificati dal compilatore.
 - Prevenire il comportamento indefinito richiede avvisi severi (`-Wall -Wextra -Wpedantic -g`), sanitizer (`-fsanitize=address,undefined`) e un **debugger** (l'interazione tra UB e ottimizzazioni del compilatore sarà ripresa in dettaglio, lo vedremo nel capitolo 25). `volatile` impedisce l'eliminazione o la messa in cache degli accessi a memoria esterna o a flag di segnale, ma non sincronizza thread; in `<signal.h>`, un gestore registrato con `signal` può accedere in sicurezza solo a oggetti statici `volatile sig_atomic_t`, mai a `printf`, `malloc` o `free`.
 
 ## Errori comuni

@@ -1,0 +1,57 @@
+{
+  "capitolo": 21,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap21/21_04.md",
+      "gravita": "alta",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Il paragrafo introduttivo dell'esempio guidato `21.4-a` cita tre nomi di funzioni (`somma_pesata`, `unisci_con_spazio`, `stampa_log`) e comportamenti (`promozione da bool`, unione con spazio) che non corrispondono al codice immediatamente seguente, dove le funzioni si chiamano `somma_variadica`, `unisci_stringhe` (che unisce con `'-'`) e `log_messaggio`.",
+      "old_text": "Il programma seguente mostra tre funzioni variadiche: `somma_pesata` (contatore iniziale con promozione da `bool` e `float`), `unisci_con_spazio` (sequenza terminata da sentinella `nullptr` che percorre due volte gli argomenti usando `va_copy`) e `stampa_log` (wrapper che inoltra `va_list` a `vprintf` e `vfprintf`).",
+      "new_text": "Il programma seguente mostra tre funzioni variadiche: `somma_variadica` (contatore iniziale con passaggio di `double` e `float`), `unisci_stringhe` (sequenza terminata da sentinella `nullptr` che unisce le stringhe con `'-'` percorrendo due volte gli argomenti tramite `va_copy`) e `log_messaggio` (wrapper che inoltra `va_list` a `vprintf` e `vfprintf`)."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap21/21_05.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato `21.5-a`, le variabili `picco` e `cont` hanno tipo `int32_t`, ma vengono stampate con `%d` anziché con la macro portabile `PRId32` di `<inttypes.h>`, violando la portabilità rispetto allo standard C23 sulle piattaforme dove `int32_t` non coincide con `int`.",
+      "old_text": "#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\n#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))\n#define REGISTRA_EVENTO(msg) traccia_punto((msg), __FILE__, __LINE__, __func__)\n\nstatic inline int32_t massimo_i32(int32_t a, int32_t b) {\n    return (a > b) ? a : b;\n}\n\n[[nodiscard]] static bool traccia_punto(const char *msg, const char *file,\n                                        int riga, const char *func) {\n    if (msg == nullptr || file == nullptr || func == nullptr) {\n        return false;\n    }\n    printf(\"Evento \\\"%s\\\" in %s (file valido=%s, riga>0=%s)\\n\",\n           msg, func, (file[0] != '\\0') ? \"SI\" : \"NO\", (riga > 0) ? \"SI\" : \"NO\");\n    return true;\n}\n\nstatic void stampa_config(int soglia, [[maybe_unused]] const char *note) {\n    printf(\"Soglia attiva: %d\\n\", soglia);\n}\n\n[[noreturn]] static void interrompi_fatale(const char *motivo) {\n    fprintf(stderr, \"Errore fatale: %s\\n\", motivo);\n    exit(EXIT_FAILURE);\n}\n\nstatic void verifica_sensori(void) {\n    const int32_t letture[] = {12, 45, 31, 18};\n    printf(\"Numero letture: %zu\\n\", ARRAY_LEN(letture));\n\n    int32_t cont = 10;\n    int32_t picco = massimo_i32(++cont, 8);\n    printf(\"massimo_i32(++cont, 8) = %d (cont=%d)\\n\", picco, cont);",
+      "new_text": "#include <inttypes.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n\n#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))\n#define REGISTRA_EVENTO(msg) traccia_punto((msg), __FILE__, __LINE__, __func__)\n\nstatic inline int32_t massimo_i32(int32_t a, int32_t b) {\n    return (a > b) ? a : b;\n}\n\n[[nodiscard]] static bool traccia_punto(const char *msg, const char *file,\n                                        int riga, const char *func) {\n    if (msg == nullptr || file == nullptr || func == nullptr) {\n        return false;\n    }\n    printf(\"Evento \\\"%s\\\" in %s (file valido=%s, riga>0=%s)\\n\",\n           msg, func, (file[0] != '\\0') ? \"SI\" : \"NO\", (riga > 0) ? \"SI\" : \"NO\");\n    return true;\n}\n\nstatic void stampa_config(int soglia, [[maybe_unused]] const char *note) {\n    printf(\"Soglia attiva: %d\\n\", soglia);\n}\n\n[[noreturn]] static void interrompi_fatale(const char *motivo) {\n    fprintf(stderr, \"Errore fatale: %s\\n\", motivo);\n    exit(EXIT_FAILURE);\n}\n\nstatic void verifica_sensori(void) {\n    const int32_t letture[] = {12, 45, 31, 18};\n    printf(\"Numero letture: %zu\\n\", ARRAY_LEN(letture));\n\n    int32_t cont = 10;\n    int32_t picco = massimo_i32(++cont, 8);\n    printf(\"massimo_i32(++cont, 8) = %\" PRId32 \" (cont=%\" PRId32 \")\\n\", picco, cont);"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap21/21_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Secondo lo standard C23 (7.20.1 §1), le macro di `<stdckdint.h>` ammettono `signed char` e `unsigned char`, escludendo invece `bool`, il tipo `char` semplice, i tipi `enum` e i tipi interi a precisione di bit; la formulazione \"dai tipi carattere `char`\" è imprecisa e omette le enumerazioni.",
+      "old_text": "(purché interi standard diversi da `bool` e dai tipi carattere `char`)",
+      "new_text": "(purché tipi interi diversi da `bool`, dal tipo `char` semplice e dalle enumerazioni)"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap21/21_01.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Nel box di approfondimento si precisa correttamente che le funzioni di libreria non azzerano mai `errno`, ma nella frase immediatamente successiva si scrive \"un codice estraneo o azzerato\", creando una piccola contraddizione interna.",
+      "old_text": "Se chiamassi `fclose` su un altro stream o `fprintf` prima di leggere `errno`, rischieresti di stampare un codice estraneo o azzerato.",
+      "new_text": "Se chiamassi `fclose` su un altro stream o `fprintf` prima di leggere `errno`, rischieresti di stampare un codice estraneo che non corrisponde più al guasto originario."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap21/21_99.md",
+      "gravita": "bassa",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Errore grammaticale in italiano: davanti a `s` impura (`spazio`) si scrive `nessuno spazio`, non `nessun spazio`.",
+      "old_text": "nessun spazio prima di `(` e nessuna valutazione multipla",
+      "new_text": "nessuno spazio prima di `(` e nessuna valutazione multipla"
+    }
+  ]
+}

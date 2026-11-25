@@ -1,0 +1,67 @@
+{
+  "capitolo": 20,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap20/20_05.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "In `staz_salva` (`formato_stazioni.c`), l'espressione `return fseek(...) == 0 && fwrite(...) == sizeof(hdr) && fclose(fp) == 0;` sfrutta la valutazione a corto circuito: se `fseek` o `fwrite` falliscono, `fclose(fp)` non viene mai chiamata e lo stream rimane aperto (perdita di risorsa), contraddicendo la regola insegnata in 20.1.",
+      "old_text": "    return fseek(fp, 0L, SEEK_SET) == 0 && fwrite(hdr, 1, sizeof(hdr), fp) == sizeof(hdr) &&\n           fclose(fp) == 0;",
+      "new_text": "    bool ok = (fseek(fp, 0L, SEEK_SET) == 0 &&\n               fwrite(hdr, 1, sizeof(hdr), fp) == sizeof(hdr));\n    if (fclose(fp) != 0) { ok = false; }\n    return ok;"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap20/20_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato `20.4-a`, il campo `s.temp_dec` ha tipo `int32_t` ma viene stampato con `%d` invece di `PRId32` (a differenza della stampa successiva nello stesso `main`), scelta non portabile se `int32_t` non coincide con `int`.",
+      "old_text": "    printf(\"Prima: id=%\" PRIu32 \" sigla=%s temp=%d\\n\", s.id, s.sigla, s.temp_dec);",
+      "new_text": "    printf(\"Prima: id=%\" PRIu32 \" sigla=%s temp=%\" PRId32 \"\\n\", s.id, s.sigla, s.temp_dec);"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap20/20_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nel commento all'esempio guidato `20.2-a` si afferma che il 24° carattere della riga `descrizione=valore_molto_piu_lungo_del_buffer\\n` è `'_'`, ma i primi 23 caratteri sono `descrizione=valore_molt` e il 24° carattere letto da `fgetc(fp)` è `'o'`.",
+      "old_text": "La variabile `int extra = fgetc(fp)` legge il 24° carattere (`'_'`), che non è né `'\\n'` né `EOF`",
+      "new_text": "La variabile `int extra = fgetc(fp)` legge il 24° carattere (`'o'`), che non è né `'\\n'` né `EOF`"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap20/20_99.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nel riepilogo si indica che per passare da lettura a scrittura su uno stream di aggiornamento si può chiamare anche `fflush`; secondo lo standard C23 (7.23.5.3 §7), `fflush` è ammessa solo nel passaggio da scrittura a lettura (invocarla dopo una lettura è comportamento indefinito), mentre da lettura non a `EOF` a scrittura occorre una funzione di posizionamento (`fseek` o `rewind`), come spiegato correttamente in 20.3.",
+      "old_text": "Sugli stream di aggiornamento, prima di passare da scrittura a lettura (o viceversa, se non si è a `EOF`) occorre sempre chiamare `fflush`, `fseek` o `rewind`.",
+      "new_text": "Sugli stream di aggiornamento, prima di passare da scrittura a lettura occorre chiamare `fflush`, `fseek` o `rewind`, mentre per passare da lettura (non a `EOF`) a scrittura occorre chiamare `fseek` o `rewind`."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap20/20_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nella descrizione di `rename(vecchio, nuovo)` manca la precisazione dello standard C23 (7.23.4.2) secondo cui, se il file di destinazione esiste già, il comportamento è dipendente dall'implementazione (su Linux/macOS lo sovrascrive, su Windows può fallire), dettaglio rilevante dato lo schema di aggiornamento sicuro spiegato nel paragrafo successivo e la portabilità multipiattaforma del libro.",
+      "old_text": "- `rename(vecchio, nuovo)`: rinomina il file `vecchio` in `nuovo` e restituisce `0` in caso di successo o un valore diverso da zero in caso di errore.",
+      "new_text": "- `rename(vecchio, nuovo)`: rinomina il file `vecchio` in `nuovo` e restituisce `0` in caso di successo o un valore diverso da zero in caso di errore (se `nuovo` esiste già, il comportamento è dipendente dall'implementazione: su Linux e macOS lo sostituisce, su Windows può fallire se non viene prima rimosso)."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap20/20_01.md",
+      "gravita": "bassa",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "L'esempio guidato `20.1-a` e l'esercizio 20.1 utilizzano `ferror(fp)`, che però viene spiegata solo nella sotto-sezione 20.2. Un breve cenno nel commento all'esempio evita spaesamento al lettore.",
+      "old_text": "- La funzione `aggiungi_nota` riapre `fin` in modalità `\"a\"`, accodando la riga finale senza toccare quelle esistenti. Infine `stampa_file` lo rilegge e `remove(fin)` lo cancella dal disco.",
+      "new_text": "- La funzione `aggiungi_nota` riapre `fin` in modalità `\"a\"`, accodando la riga finale senza toccare quelle esistenti. Infine `stampa_file` lo rilegge controllando con `ferror(fp) == 0` che non ci siano stati errori di lettura (approfondiremo `ferror` nella sotto-sezione 20.2) e `remove(fin)` lo cancella dal disco."
+    }
+  ]
+}
