@@ -160,19 +160,19 @@
       "note": []
     },
     "20": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": []
     },
     "21": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": []
     },
     "22": {

@@ -1,0 +1,23 @@
+## Riepilogo
+
+- Un file su disco si gestisce tramite un puntatore `FILE *` (tipo opaco in `<stdio.h>`, mai copiato per valore) restituito da `fopen`. Nei **file di testo** (`"r"`, `"w"`, `"a"`, `"r+"`, `"w+"`, `"a+"`, `"wx"`) si scrive con `fprintf`, `fputs` (che non aggiunge `'\n'`) e `fputc`, svuotando il buffer quando necessario con `fflush(fp)` e controllando sempre sia `fopen != nullptr` sia `fclose(fp) == 0`. `rename` e `remove` consentono aggiornamenti sicuri tramite file temporaneo e pulizia finale.
+- Per leggere file di testo si usa `fgets` (gestendo eventuali righe più lunghe del buffer) oppure `fgetc` (salvando sempre il risultato in `int` per distinguere `EOF` da ogni byte `0..255`), controllando nel ciclo il valore restituito dalla lettura e mai `while (!feof(fp))`. Solo al termine del ciclo si interrogano `ferror(fp)` e `feof(fp)` per distinguere un errore di I/O dalla fine regolare del file; `clearerr(fp)` azzera entrambi gli indicatori.
+- I **file binari** si aprono aggiungendo `"b"` alla modalità (`"rb"`, `"wb"`, `"r+b"`, `"w+b"`...) per evitare traduzioni dei fine riga. `fread(buf, 1, sizeof(buf), fp)` e `fwrite` permettono di elaborare file di qualunque dimensione a blocchi conoscendo il numero esatto di byte trasferiti anche sull'ultimo blocco parziale. Sugli stream di aggiornamento, prima di passare da scrittura a lettura occorre chiamare `fflush`, `fseek` o `rewind`, mentre per passare da lettura (non a `EOF`) a scrittura occorre chiamare `fseek` o `rewind`.
+- L'**accesso casuale** nei file binari si realizza con `fseek` (`SEEK_SET`, `SEEK_CUR`, `SEEK_END`), `ftell` (controllando `-1L`) e `rewind`, consentendo di leggere e aggiornare in loco record di dimensione fissa. `tmpfile()` crea file binari temporanei in `"wb+"` eliminati automaticamente alla chiusura.
+- La **serializzazione** binaria portabile evita di scrivere `struct` grezze con `fwrite`: codifica ogni campo esplicitamente con tipi a larghezza fissa (`<stdint.h>`), ordine dei byte fissato tramite spostamenti e maschere, prefissi di lunghezza per le stringhe e un'intestazione con numero magico, versione del formato, conteggio e checksum, validando ogni lunghezza prima di allocare memoria. Tecniche più complete per diagnosticare gli errori di sistema e gestire il rilascio di più risorse su molti percorsi di errore saranno approfondite nei prossimi capitoli (lo vedremo nel capitolo 21).
+
+## Errori comuni
+
+- **Scrivere il ciclo di lettura come `while (!feof(fp))` invece di controllare il valore restituito da `fgets` o `fgetc`**: `feof(fp)` diventa vero solo dopo che una lettura ha già fallito oltre la fine del file, facendo elaborare due volte l'ultima riga o leggere dati non inizializzati (e bloccando il ciclo in caso di errore di lettura).
+- **Salvare il valore restituito da `fgetc` in una variabile `char` anziché in `int`**: su piattaforme con `char` senza segno `c != EOF` è sempre vero (ciclo infinito), mentre con `char` con segno il byte `0xFF` viene confuso con `EOF` interrompendo la lettura.
+- **Dimenticare di controllare `fopen != nullptr` o `fclose(fp) == 0` in scrittura, oppure omettere `"b"` aprendo un file binario**: un errore di disco pieno può manifestarsi solo dentro `fclose`, e l'assenza di `"b"` corrompe i file binari sui sistemi che traducono i fine riga.
+- **Alternare lettura e scrittura su uno stream aperto in aggiornamento (`"r+b"`, `"w+b"`) senza interporre `fseek`, `rewind` o `fflush`**: provoca comportamento indefinito per disallineamento dei buffer interni dello stream.
+- **Serializzare una `struct` direttamente con `fwrite(&s, sizeof(s), 1, fp)`**: genera file non portabili dipendenti da ordine dei byte, allineamento e padding non specificato, e salva indirizzi di puntatori non validi a un successivo caricamento.
+
+## Prima di proseguire
+
+- [ ] So aprire, scrivere, svuotare e chiudere un file di testo controllando `fopen`, `fflush`, `fclose`, e aggiornare file in modo sicuro con `rename` e `remove`.
+- [ ] So leggere file di testo con `fgets` e `fgetc` (in `int`), gestire righe più lunghe del buffer, evitare `while (!feof(fp))` e diagnosticare errori con `ferror`, `feof` e `clearerr`.
+- [ ] So elaborare file binari a blocchi con `"rb"`/`"wb"`, `fread(buf, 1, sizeof(buf), fp)` e `fwrite`, rispettando la regola di alternanza su stream di aggiornamento.
+- [ ] So implementare l'accesso casuale e l'aggiornamento in loco su archivi binari a record fissi usando `fseek`, `ftell`, `rewind` e `tmpfile`.
+- [ ] So progettare un formato binario portabile e versionato con codifica esplicita dei byte, prefisso di lunghezza per le stringhe, numero magico, checksum e controlli difensivi sui limiti prima di allocare memoria.

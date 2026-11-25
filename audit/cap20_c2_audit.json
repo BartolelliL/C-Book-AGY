@@ -1,0 +1,17 @@
+{
+  "capitolo": 20,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap20/20_99.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Negli Errori comuni si menziona `fflush` genericamente per alternare lettura e scrittura su uno stream di aggiornamento, ma come precisato nel Riepilogo (corretto al ciclo 1) e in 20.3, `fflush` è ammessa solo nel passaggio da scrittura a lettura: invocarla dopo una lettura è comportamento indefinito secondo C23 (7.23.5.2 §2 e 7.23.5.3 §7).",
+      "old_text": "- **Alternare lettura e scrittura su uno stream aperto in aggiornamento (`\"r+b\"`, `\"w+b\"`) senza interporre `fseek`, `rewind` o `fflush`**: provoca comportamento indefinito per disallineamento dei buffer interni dello stream.",
+      "new_text": "- **Alternare lettura e scrittura su uno stream aperto in aggiornamento (`\"r+b\"`, `\"w+b\"`) senza interporre `fseek`, `rewind` o (solo dopo una scrittura) `fflush`**: provoca comportamento indefinito per disallineamento dei buffer interni dello stream."
+    }
+  ]
+}
