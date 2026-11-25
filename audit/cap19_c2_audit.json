@@ -1,0 +1,17 @@
+{
+  "capitolo": 19,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap19/19_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "La frase afferma che 'a differenza delle variabili, i prototipi di funzione a livello di file hanno già collegamento esterno per default', contraddicendo quanto spiegato correttamente poco sopra (anche le variabili a livello di file hanno collegamento esterno per default in C23). Il motivo per cui serve 'extern' sulle variabili negli header, mentre sui prototipi è superfluo, è che una dichiarazione di variabile a livello di file senza 'extern' è una definizione (o definizione provvisoria), mentre un prototipo di funzione senza corpo è sempre una pura dichiarazione.",
+      "old_text": "Ricorda inoltre che, a differenza delle variabili, i prototipi di funzione a livello di file hanno già collegamento esterno per default, quindi scrivere `extern` davanti a un prototipo è lecito ma superfluo.",
+      "new_text": "Ricorda inoltre che, a differenza delle variabili a livello di file (dove omettere `extern` produce una definizione provvisoria anziché una pura dichiarazione), un prototipo di funzione senza corpo è sempre una pura dichiarazione con collegamento esterno predefinito: scrivere `extern` davanti a un prototipo è quindi lecito ma superfluo."
+    }
+  ]
+}

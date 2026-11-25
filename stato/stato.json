@@ -152,11 +152,11 @@
       "note": []
     },
     "19": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": [
         "P5 ciclo 1: problemi non risolti, vedi audit/cap19_c1_p5.json"
       ]
@@ -194,11 +194,11 @@
       "note": []
     },
     "24": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": []
     },
     "25": {
@@ -225,7 +225,7 @@
     "approvato": true
   },
   "p6": {
-    "unito": false,
+    "unito": true,
     "audit": false,
     "applicato": false,
     "p5_capitoli": [],
