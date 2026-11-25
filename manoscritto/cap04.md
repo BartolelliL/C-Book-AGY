@@ -306,7 +306,7 @@ Analizziamo che cosa accade nei tre controlli:
 > }
 > ```
 >
-> il compilatore valuta prima `somma / n >= 6`. Quando `n` vale `0`, la divisione intera per zero viene eseguita prima ancora di raggiungere `n != 0`, provocando **comportamento indefinito** (spesso l'arresto immediato del programma). Metti sempre per prima la condizione che rende sicura la valutazione del resto dell'espressione.
+> il programma valuta prima `somma / n >= 6`. Quando `n` vale `0`, la divisione intera per zero viene eseguita prima ancora di raggiungere `n != 0`, provocando **comportamento indefinito** (spesso l'arresto immediato del programma). Metti sempre per prima la condizione che rende sicura la valutazione del resto dell'espressione.
 
 ### Esercizio 4.2 — Controlli difensivi con valutazione a corto circuito
 
@@ -324,7 +324,7 @@ Scrivi un programma C che includa `<stdio.h>` e `<math.h>` (compilato con `-lm`)
 **Domande guida**
 
 1. Perché nel controllo del sensore A la divisione `somma_a / campioni_a` non viene mai eseguita anche se `campioni_a` vale `0`?
-2. Che cosa succederebbe se invertissi i due operandi scrivendo `somma_a / campioni_a >= 50 && campioni_a > 0`?
+2. Che cosa succederebbe se nel controllo del sensore A invertissi i due operandi di `&&`, verificando la media prima di controllare che `campioni_a` sia positivo?
 3. In che modo la catena di condizioni con `&&` su `a` e `delta` protegge la chiamata a `sqrt(delta)` da un argomento negativo?
 4. Perché per verificare se la tensione corrisponde al valore nominale non puoi confrontare i due valori con `==`, ma devi controllare la loro distanza assoluta rispetto alla tolleranza tramite `fabs`?
 
@@ -400,7 +400,7 @@ switch (modalita) {
 }
 ```
 
-Le parentesi graffe limitano la variabile `sconto` a quel solo ramo e impediscono al programma di saltare oltre la sua inizializzazione entrando in un `case` successivo, evitando errori di compilazione e ambiguità.
+Le parentesi graffe limitano la variabile `sconto` a quel solo ramo e impediscono al programma di saltare oltre la sua inizializzazione entrando in un `case` successivo (dove resterebbe visibile ma non inizializzata), evitando inoltre conflitti di nomi tra rami ed errori di compilazione negli standard precedenti al C23.
 
 > **Se vieni da Python** — In Python il costrutto `match`/`case` non ha fall-through tra i rami: una volta completato un ramo, l'esecuzione esce automaticamente dal blocco. Nello `switch` del C, invece, l'esecuzione prosegue nel `case` successivo se non termini il ramo con `break;` (e in C23, quando vuoi davvero proseguire dopo delle istruzioni, lo dichiari con `[[fallthrough]];`).
 
@@ -517,7 +517,7 @@ Come funziona la valutazione? Prima viene valutata `condizione`. Tra `condizione
 
 Che tipo ha il risultato di `?:`? Se `expr_vero` ed `expr_falso` hanno tipi aritmetici diversi (per esempio un `int` e un `double`), il C determina il tipo risultante applicando le **conversioni aritmetiche usuali** che hai visto nel capitolo 3: per esempio `flag ? 10 : 2.5` produce sempre un `double` (`10.0` oppure `2.5`), indipendentemente da quale ramo viene scelto a tempo di esecuzione.
 
-Un punto critico a cui fare molta attenzione è la **precedenza degli operatori**: `?:` ha una precedenza molto bassa, superiore soltanto agli operatori di assegnamento (`=`, `+=`, ...), e ha associatività da destra a sinistra. Di conseguenza, quando inserisci `?:` dentro un'espressione aritmetica o di confronto, devi **sempre racchiuderlo tra parentesi tonde**:
+Un punto critico a cui fare molta attenzione è la **precedenza degli operatori**: `?:` ha una precedenza molto bassa — tra gli operatori visti finora, superiore soltanto agli operatori di assegnamento (`=`, `+=`, ...) — e ha associatività da destra a sinistra. Di conseguenza, quando inserisci `?:` dentro un'espressione aritmetica o di confronto, devi **sempre racchiuderlo tra parentesi tonde**:
 
 <!-- cod: id=4.4-b tipo=frammento -->
 ```c
@@ -529,7 +529,7 @@ Senza parentesi, il compilatore raggrupperebbe `base + consegna_rapida` come con
 Riassumiamo la regola precisa secondo lo standard C23:
 
 - L'operatore condizionale `condizione ? expr_vero : expr_falso` è un'espressione: valuta `condizione` e poi valuta esclusivamente `expr_vero` (se `condizione` è diversa da zero) oppure `expr_falso` (se `condizione` vale zero).
-- Ha precedenza molto bassa (superiore solo agli assegnamenti) e associatività da destra a sinistra, perciò va racchiuso tra parentesi quando compare dentro espressioni più ampie.
+- Ha precedenza molto bassa (tra gli operatori visti finora, superiore solo agli assegnamenti) e associatività da destra a sinistra, perciò va racchiuso tra parentesi quando compare dentro espressioni più ampie.
 - La valutazione esclusiva di uno solo dei due rami, il punto di sequenza dopo `condizione`, la precedenza e la determinazione del tipo risultante di `?:` sono comportamento completamente **definito** dallo standard C23.
 
 Quando conviene usare `?:`? In tre situazioni tipiche in cui rende il codice più corto e più leggibile:

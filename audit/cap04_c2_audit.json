@@ -1,0 +1,57 @@
+{
+  "capitolo": 4,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap04/04_02.md",
+      "gravita": "alta",
+      "tipo": "soluzione_esposta",
+      "certezza": "alta",
+      "problema": "La seconda domanda guida dell'esercizio 4.2 contiene ancora alla lettera la condizione C risolutiva (`somma_a / campioni_a >= 50 && campioni_a > 0`), semplicemente con i due operandi scambiati: ciò svela di fatto l'espressione booleana che era stata rimossa dalla descrizione nel ciclo 1 e viola la regola secondo cui le domande guida indirizzano il ragionamento e mai il codice.",
+      "old_text": "2. Che cosa succederebbe se invertissi i due operandi scrivendo `somma_a / campioni_a >= 50 && campioni_a > 0`?",
+      "new_text": "2. Che cosa succederebbe se nel controllo del sensore A invertissi i due operandi di `&&`, verificando la media prima di controllare che `campioni_a` sia positivo?"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap04/04_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (ISO/IEC 9899:2024 §6.8.1 e §6.8.4.2) una dichiarazione subito dopo un'etichetta `case` è sintatticamente valida e saltare oltre l'inizializzazione di una variabile automatica non-VLA entrando in un `case` successivo non provoca un errore di compilazione (a differenza del C++ o degli standard C precedenti per la dichiarazione dopo l'etichetta): la variabile resta invece visibile nel ramo successivo con valore non inizializzato, e un errore di compilazione insorge solo con standard pre-C23 o con nomi duplicati nello stesso blocco.",
+      "old_text": "Le parentesi graffe limitano la variabile `sconto` a quel solo ramo e impediscono al programma di saltare oltre la sua inizializzazione entrando in un `case` successivo, evitando errori di compilazione e ambiguità.",
+      "new_text": "Le parentesi graffe limitano la variabile `sconto` a quel solo ramo e impediscono al programma di saltare oltre la sua inizializzazione entrando in un `case` successivo (dove resterebbe visibile ma non inizializzata), evitando inoltre conflitti di nomi tra rami ed errori di compilazione negli standard precedenti al C23."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap04/04_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nell'approfondimento della sezione 4.2 si afferma che «il compilatore valuta prima `somma / n >= 6`», confondendo il tempo di compilazione con il tempo di esecuzione: è il programma (durante l'esecuzione) a valutare l'espressione e a eseguire la divisione per zero.",
+      "old_text": "> il compilatore valuta prima `somma / n >= 6`. Quando `n` vale `0`,",
+      "new_text": "> il programma valuta prima `somma / n >= 6`. Quando `n` vale `0`,"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap04/04_04.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "L'affermazione che la precedenza di `?:` è «superiore soltanto agli operatori di assegnamento» non è strettamente vera nello standard C23 completo, che include anche l'operatore virgola (`,`) a precedenza ancora più bassa; precisare «tra gli operatori visti finora» mantiene la correttezza tecnica senza anticipare operatori non ancora introdotti.",
+      "old_text": "`?:` ha una precedenza molto bassa, superiore soltanto agli operatori di assegnamento (`=`, `+=`, ...), e ha associatività da destra a sinistra.",
+      "new_text": "`?:` ha una precedenza molto bassa — tra gli operatori visti finora, superiore soltanto agli operatori di assegnamento (`=`, `+=`, ...) — e ha associatività da destra a sinistra."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap04/04_04.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nel riepilogo della regola 4.R4 ricompare l'affermazione «superiore solo agli assegnamenti», imprecisa rispetto all'intero standard C23 per via dell'operatore virgola (`,`); conviene precisare «tra gli operatori visti finora» coerentemente con il paragrafo precedente.",
+      "old_text": "- Ha precedenza molto bassa (superiore solo agli assegnamenti) e associatività da destra a sinistra, perciò va racchiuso tra parentesi quando compare dentro espressioni più ampie.",
+      "new_text": "- Ha precedenza molto bassa (tra gli operatori visti finora, superiore solo agli assegnamenti) e associatività da destra a sinistra, perciò va racchiuso tra parentesi quando compare dentro espressioni più ampie."
+    }
+  ]
+}
