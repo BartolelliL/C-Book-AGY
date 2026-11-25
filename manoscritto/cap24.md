@@ -557,30 +557,34 @@ static void analizza_sezione(ctx_parser_t *ctx, const char *const *righe, size_t
     }
 }
 
-static void esegui_parse(const char *nome, const char *const *righe, size_t n) {
-    ctx_parser_t ctx = {.messaggio = nullptr, .riga = 0, .buf_lavoro = nullptr};
+static void esegui_parse(ctx_parser_t *ctx, const char *nome,
+                         const char *const *righe, size_t n) {
+    ctx->messaggio = nullptr;
+    ctx->riga = 0;
+    ctx->buf_lavoro = nullptr;
     volatile int fase = 0;
 
     printf("Analisi %s:\n", nome);
-    if (setjmp(ctx.env) == 0) {
+    if (setjmp(ctx->env) == 0) {
         fase = 1;
-        analizza_sezione(&ctx, righe, n);
+        analizza_sezione(ctx, righe, n);
         fase = 2;
-        free(ctx.buf_lavoro);
+        free(ctx->buf_lavoro);
         printf("Esito %s: COMPLETATO (fase=%d)\n", nome, fase);
     } else {
-        free(ctx.buf_lavoro);
+        free(ctx->buf_lavoro);
         printf("Esito %s: ERRORE alla riga %d (fase=%d): %s\n",
-               nome, ctx.riga, fase, ctx.messaggio);
+               nome, ctx->riga, fase, ctx->messaggio);
     }
 }
 
 int main(void) {
     const char *ok_cfg[] = {"porta=8080", "timeout=30"};
     const char *ko_cfg[] = {"porta=8080", "timeout=-5", "retry=3"};
+    ctx_parser_t ctx = {};
 
-    esegui_parse("cfg_valida", ok_cfg, 2);
-    esegui_parse("cfg_errata", ko_cfg, 3);
+    esegui_parse(&ctx, "cfg_valida", ok_cfg, 2);
+    esegui_parse(&ctx, "cfg_errata", ko_cfg, 3);
     return 0;
 }
 ```
@@ -597,9 +601,9 @@ Esito cfg_errata: ERRORE alla riga 2 (fase=1): valore negativo non ammesso
 
 Nota come ogni regola dello standard è rispettata:
 
-- `setjmp(ctx.env)` appare nella forma ammessa `if (setjmp(ctx.env) == 0)`.
+- `setjmp(ctx->env)` appare nella forma ammessa `if (setjmp(ctx->env) == 0)`.
 - `fase` è qualificata `volatile int` perché viene modificata (`fase = 1;`) dopo `setjmp` e riletta nel ramo `else` dopo `longjmp`.
-- `ctx.buf_lavoro` è salvato nella struttura `ctx` prima di poter scatenare qualsiasi errore, quindi `free(ctx.buf_lavoro)` nel ramo `else` rilascia il blocco allocato dentro `analizza_sezione` senza alcuna perdita di memoria.
+- `ctx` è definita in `main` e passata per puntatore a `esegui_parse` (quindi non è un oggetto automatico locale della funzione che chiama `setjmp`): i suoi campi modificati prima del salto (`ctx->buf_lavoro`, `ctx->riga`, `ctx->messaggio`) restano definiti dopo `longjmp`, e `free(ctx->buf_lavoro)` nel ramo `else` rilascia il blocco allocato dentro `analizza_sezione` senza alcuna perdita di memoria.
 - La terza riga di `cfg_errata` (`retry=3`) non viene mai eseguita: il salto non locale interrompe immediatamente l'intera catena di chiamate.
 
 > **Approfondimento — Quando preferire codici di ritorno e `goto cleanup`**

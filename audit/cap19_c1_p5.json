@@ -1,0 +1,12 @@
+{
+  "capitolo": 19,
+  "ciclo": 1,
+  "sorgente": "capitolo",
+  "risolti": ["p3"],
+  "non_risolti": [
+    {
+      "id": "p1",
+      "motivo": "Scelta editoriale e strutturale di competenza dell'utente: il blueprint stato/blueprint/cap19.json richiede esplicitamente nell'esempio guidato 19.5 la libreria opaca completa (tabella_hash.h e tabella_hash.c con ht_config_t, ht_esito_t e tutte le operazioni), che coincide con due dei tre file della soluzione di riferimento dell'Esercizio 19.5 (mentre main.c è un esercizio distinto con doppio indice proprietario/in prestito). Differenziare l'esempio guidato contraddirebbe il blueprint; modificare il blueprint o riformulare l'esercizio sul solo riuso/estensione della libreria richiede una decisione dell'utente."
+    }
+  ]
+}
