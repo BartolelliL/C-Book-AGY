@@ -167,7 +167,7 @@ Nella grande maggioranza dei programmi la scelta predefinita è `double`: offre 
 
 Per memorizzare un singolo simbolo (una lettera, una cifra, un segno di punteggiatura) si usa il tipo `char`. Secondo lo standard C23, `char` occupa sempre esattamente 1 byte (`sizeof(char) == 1`, con almeno 8 bit per byte). Il fatto che il tipo `char` semplice sia con segno (`signed`) oppure senza segno (`unsigned`) è invece *dipendente dall'implementazione*.
 
-I letterali di carattere si scrivono racchiusi tra **apici singoli**: `'A'`, `'7'`, `'?'`. Fai molta attenzione a non confonderli con le stringhe, che usano invece i **doppi apici** (`"A"`): `'A'` è un singolo `char`, mentre `"A"` è una sequenza di caratteri terminata da un carattere speciale (lo vedremo nel capitolo 9). Scrivere `char sezione = "S";` invece di `char sezione = 'S';` è un errore molto comune che il compilatore segnala subito.
+I letterali di carattere si scrivono racchiusi tra **apici singoli**: `'A'`, `'7'`, `'?'`. Fai molta attenzione a non confonderli con le stringhe, che usano invece i **doppi apici** (`"A"`): `'A'` rappresenta un singolo carattere, mentre `"A"` è una sequenza di caratteri terminata da un carattere speciale (lo vedremo nel capitolo 9). Scrivere `char sezione = "S";` invece di `char sezione = 'S';` è un errore molto comune che il compilatore segnala subito.
 
 ### Valori booleani: `bool`, `true` e `false`
 
@@ -254,7 +254,7 @@ Attivo (1=vero, 0=falso): 1
 
 Nelle sotto-sezioni precedenti hai già usato `%d`, `%ld`, `%f` e `%c` dentro `printf` per stampare variabili di tipi diversi. Ora è il momento di capire con precisione come funziona questo meccanismo, quali codici esistono per ogni tipo e come controllare l'aspetto dell'output (cifre decimali, colonne allineate, simbolo percentuale).
 
-Un **specificatore di formato** (*format specifier*) è un segnaposto introdotto da `%` in funzioni come `printf` (e `sscanf`, che incontrerai nel capitolo 5) che indica come interpretare o stampare un valore. Quando chiami `printf`, il primo argomento è una *stringa di formato*: `printf` la legge da sinistra a destra, stampa i caratteri normali così come sono e, ogni volta che incontra uno specificatore di formato, prende il successivo argomento dalla lista dopo la virgola, lo converte in testo secondo lo specificatore e lo inserisce in quella posizione.
+Uno **specificatore di formato** (*format specifier*) è un segnaposto introdotto da `%` in funzioni come `printf` (e `sscanf`, che incontrerai nel capitolo 5) che indica come interpretare o stampare un valore. Quando chiami `printf`, il primo argomento è una *stringa di formato*: `printf` la legge da sinistra a destra, stampa i caratteri normali così come sono e, ogni volta che incontra uno specificatore di formato, prende il successivo argomento dalla lista dopo la virgola, lo converte in testo secondo lo specificatore e lo inserisce in quella posizione.
 
 Puoi inserire più specificatori nella stessa chiamata a `printf`: il primo specificatore si abbina al primo argomento dopo la stringa di formato, il secondo al secondo argomento e così via, nello stesso identico ordine.
 
@@ -393,7 +393,7 @@ const int SPETTATORI_PRENOTATI = 84;
 
 Una costante dichiarata con `const` va sempre inizializzata al momento della dichiarazione, perché dopo non potrai più assegnarle alcun valore. Se provi a scrivere un assegnamento successivo su `SPETTATORI_PRENOTATI`, il compilatore rifiuta di compilare il programma segnalando che stai tentando di modificare un oggetto di sola lettura.
 
-Secondo lo standard C23, modificare direttamente un oggetto definito `const` è un errore di compilazione; aggirare il divieto con tecniche avanzate (che incontrerai solo nei capitoli sui puntatori) provoca invece **comportamento indefinito**.
+Secondo lo standard C23, modificare direttamente un oggetto definito `const` è un errore di compilazione; aggirare il divieto con tecniche avanzate (lo vedremo nel capitolo 10) provoca invece **comportamento indefinito**.
 
 ### Lo specificatore `constexpr` in C23
 
@@ -472,7 +472,7 @@ int main(void) {
 Questo file non produce alcun eseguibile: il compilatore blocca la traduzione segnalando che non è possibile assegnare un nuovo valore a una variabile di sola lettura (`POSTI_MASSIMI`). Lo stesso rifiuto avverrebbe con `const int POSTI_MASSIMI = 120;`.
 
 > **Approfondimento — Controlli più severi di `constexpr` in C23**
-> Con una variabile normale o anche con `const`, se scrivi `const int limite = 3.7;`, il compilatore converte silenziosamente `3.7` in `3` troncando la parte decimale (al massimo emettendo un avviso se hai abilitato opzioni aggiuntive). Con `constexpr int LIMITE = 3.7;`, invece, lo standard C23 impone un errore di compilazione vero e proprio: l'inizializzatore di un oggetto `constexpr` deve essere esattamente rappresentabile nel tipo scelto, senza perdita di valore né di precisione. È una rete di sicurezza molto utile contro errori di battitura nei parametri di configurazione.
+> Con una variabile normale o anche con `const`, se scrivi `const int limite = 3.7;`, il compilatore converte silenziosamente `3.7` in `3` troncando la parte decimale (al massimo emettendo un avviso se hai abilitato opzioni aggiuntive). Con `constexpr int LIMITE = 3.7;`, invece, lo standard C23 impone un errore di compilazione vero e proprio: un intero `constexpr` richiede un'espressione costante intera e, in generale, l'inizializzatore di un oggetto `constexpr` deve essere esattamente rappresentabile nel tipo scelto, senza cambi di segno né perdita di valore o precisione. È una rete di sicurezza molto utile contro errori di battitura nei parametri di configurazione.
 
 ### Esercizio 2.4 — Parametri di configurazione di una stampante 3D
 
@@ -650,7 +650,7 @@ double     : 8 byte
 - **Leggere una variabile locale senza averla prima inizializzata**: il suo contenuto è indeterminato e leggerla provoca comportamento indefinito; assegna sempre un valore iniziale nella dichiarazione.
 - **Usare uno specificatore di formato non coerente con il tipo dell'argomento in `printf`**: passare un `double`, un `long long` o il risultato di `sizeof` a `%d` (invece di `%f`, `%lld` o `%zu`) causa comportamento indefinito; compila sempre con `-Wall -Wextra -Wpedantic -Werror` per intercettarlo subito.
 - **Usare i doppi apici (`"A"`) invece degli apici singoli (`'A'`) per un `char`**: `"A"` è una stringa, non un carattere singolo, e genera un errore o un avviso di tipo incompatibile.
-- **Tentare di riassegnare una costante `const` o `constexpr`, oppure dichiararla senza inizializzatore**: il compilatore rifiuta qualsiasi modifica successiva e richiede un valore iniziale alla dichiarazione.
+- **Tentare di riassegnare una costante `const` o `constexpr`, oppure dichiararla senza inizializzatore**: il compilatore rifiuta qualsiasi modifica successiva; omettere l'inizializzatore è un errore di compilazione con `constexpr` e lascia una variabile locale `const` inutilizzabile con valore indeterminato.
 - **Riscrivere il tipo di dato davanti al nome quando vuoi solo aggiornare una variabile**: scrivere di nuovo `int punti_vita = 75;` nello stesso blocco provoca un errore di ridefinizione invece di un assegnamento.
 - **Dare per scontato che `int` o `long` occupino sempre lo stesso numero di byte su qualunque macchina**: le dimensioni oltre i minimi garantiti dipendono dall'implementazione; usa sempre `sizeof` e le costanti di `<limits.h>`.
 

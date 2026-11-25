@@ -142,7 +142,7 @@ Osserva le tre parole dell'intestazione `int main(void)`:
 
 - `int` indica il tipo di valore che `main` restituirà al termine dell'esecuzione: un numero intero;
 - `main` è il nome obbligatorio della funzione di ingresso;
-- `void` dentro le parentesi tonde specifica esplicitamente che questa versione di `main` non riceve argomenti (vedremo come ricevere argomenti da riga di comando più avanti nel libro).
+- `void` dentro le parentesi tonde specifica esplicitamente che questa versione di `main` non riceve argomenti; esiste anche una seconda forma che riceve argomenti da riga di comando (lo vedremo nel capitolo 14).
 
 La forma standard senza argomenti da riga di comando è `int main(void)`. Secondo lo standard C23 questa firma è completamente definita per gli ambienti ospitati, mentre varianti diffuse in vecchi manuali come `void main()` non sono conformi allo standard e non vanno mai usate.
 
@@ -190,7 +190,7 @@ Analizziamo il programma riga per riga:
 Se provassi a scambiare l'ordine delle righe 4 e 6, anche l'output sullo schermo cambierebbe ordine; se dimenticassi anche un solo `;`, il compilatore rifiuterebbe il file senza generare l'eseguibile.
 
 > **Approfondimento — Perché scrivere sempre `int main(void)` e `return 0;`**
-> In alcuni vecchi tutorial capita di incontrare `void main()` oppure `int main()` senza `return 0;`. La forma `void main()` non è conforme allo standard C per gli ambienti ospitati: il sistema operativo si aspetta un codice di uscita intero da `main`, e compilatori rigorosi con `-Wpedantic -Werror` rifiutano questa firma. Quanto a `return 0;`, è vero che lo standard C23 inserisce implicitamente un ritorno `0` se l'esecuzione raggiunge la `}` finale di `main`, ma questa eccezione vale *solo* per `main` e non per le altre funzioni che scriverai dal capitolo 7 in poi. Scrivere sempre `return 0;` ti abitua fin dall'inizio a rendere esplicito ciò che ogni funzione restituisce.
+> In alcuni vecchi tutorial capita di incontrare `void main()` oppure `int main(void)` senza `return 0;`. La forma `void main()` non è conforme allo standard C per gli ambienti ospitati: il sistema operativo si aspetta un codice di uscita intero da `main`, e compilatori rigorosi con `-Wpedantic -Werror` rifiutano questa firma. Quanto a `return 0;`, è vero che lo standard C23 inserisce implicitamente un ritorno `0` se l'esecuzione raggiunge la `}` finale di `main`, ma questa eccezione vale *solo* per `main` e non per le altre funzioni che scriverai dal capitolo 7 in poi. Scrivere sempre `return 0;` ti abitua fin dall'inizio a rendere esplicito ciò che ogni funzione restituisce.
 
 ### Esercizio 1.2 — Biglietto del museo
 
@@ -246,7 +246,7 @@ printf("pronto\n");
 
 In entrambi i casi hai il controllo totale su ogni singolo carattere stampato.
 
-Come fa però il C a distinguere tra un carattere normale e un comando speciale come "vai a capo"? E come fai a scrivere virgolette doppie `"` *dentro* una stringa, se le virgolette doppie servono già a chiudere la stringa stessa? Se scrivessi `"Titolo: "Odissea""`, il compilatore penserebbe che la stringa termini prima di `Odissea` e segnalerebbe un errore di sintassi. Inoltre, alcuni caratteri di controllo — come il ritorno a capo o la tabulazione — non possono essere inseriti premendo Invio dentro una stringa letterale senza spezzare la riga del codice sorgente.
+Come fa però il C a distinguere tra un carattere normale e un comando speciale come "vai a capo"? E come fai a scrivere virgolette doppie `"` *dentro* una stringa, se le virgolette doppie servono già a chiudere la stringa stessa? Se scrivessi `"Titolo: "Odissea""`, il compilatore penserebbe che la stringa termini prima di `Odissea` e segnalerebbe un errore di sintassi. Inoltre, i caratteri di controllo non si possono scrivere in modo diretto e affidabile dentro una stringa letterale: premere Invio spezza la riga del sorgente causando un errore di sintassi, mentre una tabulazione reale si confonderebbe con normali spazi.
 
 Per risolvere entrambi i problemi, il C introduce la **sequenza di escape** (*escape sequence*): una coppia di caratteri introdotta dalla barra rovesciata `\` usata in stringhe e caratteri per rappresentare simboli speciali come l'a capo. Quando il compilatore incontra `\` dentro una stringa, non lo tratta come una normale barra rovesciata, ma lo combina con il carattere immediatamente successivo per produrre un singolo carattere speciale.
 
@@ -262,7 +262,7 @@ Le cinque sequenze di escape essenziali che userai più spesso sono:
 
 La regola definita dallo standard C23 è chiara: all'interno di una stringa letterale, queste sequenze di escape standard hanno un significato fisso e portabile su ogni sistema. Al contrario, scrivere una barra rovesciata seguita da un carattere che non forma una sequenza di escape riconosciuta (per esempio `\p` o `\c`, errore frequente quando si incolla un percorso di file di Windows senza raddoppiare le barre) viola la grammatica del linguaggio e non è portabile: con `-Wall -Wextra -Wpedantic -Werror` il compilatore lo segnala subito e blocca la compilazione. Per stampare una sola barra rovesciata `\` nel risultato finale, nel codice sorgente devi sempre scriverne due (`\\`).
 
-Un'ultima attenzione riguarda il carattere `%`. Dentro la stringa passata a `printf`, il simbolo `%` ha un ruolo speciale perché introduce gli specificatori di formato usati per stampare valori numerici o testuali (lo vedremo nel capitolo 2). Per questo motivo, in una chiamata a `printf`, non scrivere mai un `%` isolato seguito da lettere casuali: se davvero ti serve stampare un simbolo di percentuale letterale con `printf`, lo vedremo insieme agli specificatori nel prossimo capitolo.
+Un'ultima attenzione riguarda il carattere `%`. Dentro la stringa passata a `printf`, il simbolo `%` ha un ruolo speciale perché introduce gli specificatori di formato usati per stampare valori (lo vedremo nel capitolo 2), inclusa la sequenza apposita per stampare il simbolo di percentuale stesso. Per questo motivo, nella stringa di formato di `printf`, non scrivere mai un `%` isolato (nemmeno seguito da uno spazio o da `\n`).
 
 > **Se vieni da Python** — In Python la funzione `print()` aggiunge automaticamente un ritorno a capo al termine di ogni chiamata, a meno che tu non specifichi `end=""`. In C, `printf()` stampa letteralmente solo ciò che scrivi: se vuoi andare a capo devi inserire esplicitamente `\n`, e dimenticarlo è uno degli errori più frequenti quando si passa da Python al C.
 

@@ -1,0 +1,118 @@
+## 2.2 I tipi fondamentali: `int`, `double`, `char` e `bool`
+
+Un programma non lavora soltanto con numeri interi. Per catalogare un libro in una biblioteca, per esempio, ti servono informazioni molto diverse: l'anno di pubblicazione è un intero, il peso in chilogrammi ha una parte frazionaria, la sezione è una singola lettera (`'S'` per scienze, `'N'` per narrativa) e la disponibilità al prestito è un semplice sì o no. In memoria, però, il computer memorizza tutto come sequenze di bit (zero e uno). Come fa il programma a sapere se una certa sequenza di bit rappresenta il numero `65`, la lettera `'A'` oppure un pezzo di un numero con la virgola?
+
+La risposta è il **tipo di dato** (*data type*): l'insieme di valori rappresentabili e di operazioni lecite su un oggetto o su un'espressione. In C ogni variabile deve dichiarare esplicitamente il proprio tipo di dato. Grazie a questa informazione il compilatore stabilisce quanti byte riservare in memoria, come interpretare i bit contenuti in quei byte e quali operazioni permettere o rifiutare.
+
+### Interi: `int` e i modificatori di tipo
+
+Il tipo principale per i numeri interi (positivi, negativi e zero) è `int`. Quando però un programma ha bisogno di intervalli più ampi oppure sa in anticipo che un valore non sarà mai negativo (come un conteggio), il C mette a disposizione cinque modificatori da anteporre o combinare con `int`:
+
+- `short` (o `short int`): intero con intervallo almeno pari a quello di 16 bit;
+- `long` (o `long int`): intero con intervallo almeno pari a quello di 32 bit;
+- `long long` (o `long long int`): intero con intervallo almeno pari a quello di 64 bit;
+- `signed`: intero con segno (è il comportamento predefinito per `short`, `int`, `long` e `long long`);
+- `unsigned`: intero senza segno, capace di rappresentare solo valori maggiori o uguali a zero, raddoppiando così il valore positivo massimo a parità di bit.
+
+Secondo lo standard C23, le ampiezze minime garantite sono: almeno 8 bit per `char`, almeno 16 bit per `short` e `int`, almeno 32 bit per `long` e almeno 64 bit per `long long`. Le dimensioni esatte oltre questi minimi sono *dipendenti dall'implementazione* (cambiano a seconda del sistema operativo e dell'architettura, come verificherai nella sotto-sezione 2.5). Per scrivere letterali interi grandi senza confondere gli zeri, puoi usare i suffissi `L` (per `long`), `LL` (per `long long`), `U` (per `unsigned`) e i separatori di cifre con apice singolo:
+
+<!-- cod: id=2.2-b tipo=frammento -->
+```c
+long popolazione = 59'000'000L;
+unsigned int tentativi = 3U;
+```
+
+> **C23** — L'apice singolo come separatore di cifre nei letterali numerici (come `1'000'000` o `59'000'000L`) è una novità dello standard C23: migliora la leggibilità del codice sorgente e non altera in alcun modo il valore del numero né ciò che viene stampato. Se compili con uno standard più vecchio (C17 o C11), rimuovi semplicemente gli apici singoli (`1000000`).
+
+### Numeri con parte frazionaria: `double` e `float`
+
+Per rappresentare numeri reali con parte frazionaria, come `3.14` o `0.85`, il C usa numeri in *virgola mobile* (ne studierai il funzionamento e i limiti di precisione nel capitolo 3). I due tipi principali sono `double` (doppia precisione) e `float` (precisione singola).
+
+Nella grande maggioranza dei programmi la scelta predefinita è `double`: offre una precisione molto più elevata e un intervallo più ampio rispetto a `float`. Inoltre in C i letterali con il punto decimale come `1.25` hanno automaticamente tipo `double` (per scrivere un letterale `float` occorre il suffisso `f`, come `1.25f`). Ricorda che nel codice sorgente C il separatore decimale è sempre il punto `.`, mai la virgola.
+
+### Singoli caratteri: `char`
+
+Per memorizzare un singolo simbolo (una lettera, una cifra, un segno di punteggiatura) si usa il tipo `char`. Secondo lo standard C23, `char` occupa sempre esattamente 1 byte (`sizeof(char) == 1`, con almeno 8 bit per byte). Il fatto che il tipo `char` semplice sia con segno (`signed`) oppure senza segno (`unsigned`) è invece *dipendente dall'implementazione*.
+
+I letterali di carattere si scrivono racchiusi tra **apici singoli**: `'A'`, `'7'`, `'?'`. Fai molta attenzione a non confonderli con le stringhe, che usano invece i **doppi apici** (`"A"`): `'A'` è un singolo `char`, mentre `"A"` è una sequenza di caratteri terminata da un carattere speciale (lo vedremo nel capitolo 9). Scrivere `char sezione = "S";` invece di `char sezione = 'S';` è un errore molto comune che il compilatore segnala subito.
+
+### Valori booleani: `bool`, `true` e `false`
+
+Quando un dato può assumere soltanto due stati — vero o falso, acceso o spento, disponibile o in prestito — il tipo corretto è `bool`, insieme ai due valori `true` e `false`. Una variabile di tipo `bool` può contenere esclusivamente `0` (`false`) oppure `1` (`true`).
+
+> **C23** — In C23 `bool`, `true` e `false` sono parole chiave predefinite del linguaggio e si usano direttamente senza includere alcun header aggiuntivo. Con compilatori configurati su standard precedenti (C17 o C11) occorre invece aggiungere `#include <stdbool.h>` in cima al file.
+
+> **Se vieni da Python** — Tre differenze immediate rispetto a Python: primo, in Python gli interi crescono senza un limite fisso, mentre in C ogni tipo intero ha uno spazio finito in byte; secondo, in Python non esiste un tipo `char` distinto da una stringa lunga 1; terzo, i valori booleani in Python hanno l'iniziale maiuscola (`True` e `False`), mentre in C23 sono tutti minuscoli (`true` e `false`).
+
+### Esempio guidato
+
+Il programma seguente descrive un volume di una biblioteca dichiarando una variabile per ciascun tipo fondamentale: un `int` per l'anno di pubblicazione, un `long` con separatore di cifre per il codice di catalogo, un `double` per il peso in chilogrammi, un `char` per la sezione e un `bool` per la disponibilità al prestito.
+
+<!-- cod: id=2.2-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    int anno_pubblicazione = 2024;
+    long codice_catalogo = 1'045'280L;
+    double peso_kg = 0.65;
+    char sezione = 'S';
+    bool disponibile = true;
+
+    printf("Anno: %d\n", anno_pubblicazione);
+    printf("Codice catalogo: %ld\n", codice_catalogo);
+    printf("Peso (kg): %f\n", peso_kg);
+    printf("Sezione: %c\n", sezione);
+    printf("Disponibile (1=vero, 0=falso): %d\n", disponibile);
+    return 0;
+}
+```
+
+```output
+Anno: 2024
+Codice catalogo: 1045280
+Peso (kg): 0.650000
+Sezione: S
+Disponibile (1=vero, 0=falso): 1
+```
+
+Osserva alcuni dettagli importanti dell'esecuzione:
+
+- Il valore `1'045'280L` viene stampato come `1045280`: gli apici singoli servono solo a rendere leggibile il codice sorgente e spariscono in compilazione. Per un `long` usiamo `%ld` (studierai la tabella completa nella prossima sotto-sezione).
+- Con `%f` il numero `0.65` viene stampato per impostazione predefinita con sei cifre decimali (`0.650000`). Nella sotto-sezione 2.3 vedrai come scegliere quante cifre decimali mostrare.
+- La variabile `sezione` usa gli apici singoli (`'S'`) e viene stampata con `%c`.
+- La variabile `disponibile` ha tipo `bool` e valore `true`: quando la passi a `printf` con `%d`, viene visualizzata come `1` (mentre `false` verrebbe visualizzato come `0`).
+
+> **Approfondimento — Perché preferire `double` a `float` e come funziona `char`**
+> Un `float` occupa in genere 4 byte e garantisce circa 6-7 cifre decimali significative, mentre un `double` occupa di solito 8 byte e arriva a circa 15-17 cifre significative. Sui computer moderni i calcoli in `double` hanno prestazioni analoghe a quelli in `float` e evitano errori di arrotondamento rapidi; inoltre, quando passi un `float` a `printf`, il C lo converte comunque automaticamente in `double`. Conviene usare `float` solo quando devi memorizzare milioni di numeri e lo spazio in memoria è critico.
+> Quanto a `char`, in C è tecnicamente un piccolo tipo intero: ogni carattere è rappresentato da un codice numerico. Nella codifica ASCII (usata dai sistemi comuni), per esempio, `'A'` corrisponde al numero `65`, `'B'` a `66` e `'0'` a `48`. È per questo che `char` appartiene alla famiglia dei tipi interi, pur essendo usato principalmente per rappresentare singoli simboli.
+
+### Esercizio 2.2 — Scheda di un satellite meteorologico
+
+**Descrizione**
+
+Scrivi un programma C che memorizzi i dati di un satellite meteorologico in cinque variabili inizializzate con il tipo più adatto: `codice_orbita` (`long`, valore `1'450'000` scritto con il separatore di cifre del C23), `anno_lancio` (`int`, valore `2025`), `quota_km` (`double`, valore `824.5`), `classe_orbita` (`char`, valore `'P'`) e `attivo` (`bool`, valore `true`). Stampa i cinque dati su righe separate esattamente come mostrato nell'esempio di esecuzione (usando `%f` per `quota_km` e `%d` per `attivo`).
+
+**Concetti da tenere a mente**
+
+- tipo di dato
+- tipi `int`, `long`, `double`, `char` e `bool` (C23)
+- letterali di carattere tra apici singoli
+- separatore di cifre C23
+
+**Domande guida**
+
+1. Quale differenza sintattica distingue un carattere singolo da una stringa letterale?
+2. Perché in C23 puoi usare `bool`, `true` e `false` senza includere nessun header dedicato?
+3. L'uso del separatore di cifre con apice singolo nel letterale numerico modifica in qualche modo ciò che viene stampato a schermo?
+4. Quale valore numerico stampa `printf` quando visualizza una variabile `bool` con valore `true` usando `%d`?
+
+**Esempio di esecuzione**
+
+```output
+Codice orbita: 1450000
+Anno di lancio: 2025
+Quota (km): 824.500000
+Classe: P
+Attivo (1=vero, 0=falso): 1
+```

@@ -1,0 +1,47 @@
+{
+  "capitolo": 1,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap01/01_03.md",
+      "gravita": "alta",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Affermazione illogica e imprecisa rispetto al C23 (§6.4.5): non si inserisce una tabulazione premendo Invio, e in C un ritorno a capo letterale dentro una stringa è un errore di sintassi, mentre una tabulazione letterale è ammessa dalla grammatica ma visivamente indistinguibile dagli spazi.",
+      "old_text": "Inoltre, alcuni caratteri di controllo — come il ritorno a capo o la tabulazione — non possono essere inseriti premendo Invio dentro una stringa letterale senza spezzare la riga del codice sorgente.",
+      "new_text": "Inoltre, i caratteri di controllo non si possono scrivere in modo diretto e affidabile dentro una stringa letterale: premere Invio spezza la riga del sorgente causando un errore di sintassi, mentre una tabulazione reale si confonderebbe con normali spazi."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap01/01_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (§7.23.6.1) qualunque specifica di conversione non valida nella stringa di formato di printf causa comportamento indefinito (e un errore con -Wformat -Werror), anche quando % è a fine stringa o seguito da spazio o \\n (es. \"50%\\n\"), non solo quando è \"seguito da lettere casuali\". Inoltre uniforma il rinvio in avanti al formato di CONVENZIONI.md §4.9 ed evita di anticipare i valori testuali (%s, cap. 9) come argomento del capitolo 2.",
+      "old_text": "Dentro la stringa passata a `printf`, il simbolo `%` ha un ruolo speciale perché introduce gli specificatori di formato usati per stampare valori numerici o testuali (lo vedremo nel capitolo 2). Per questo motivo, in una chiamata a `printf`, non scrivere mai un `%` isolato seguito da lettere casuali: se davvero ti serve stampare un simbolo di percentuale letterale con `printf`, lo vedremo insieme agli specificatori nel prossimo capitolo.",
+      "new_text": "Dentro la stringa passata a `printf`, il simbolo `%` ha un ruolo speciale perché introduce gli specificatori di formato usati per stampare valori (lo vedremo nel capitolo 2), inclusa la sequenza apposita per stampare il simbolo di percentuale stesso. Per questo motivo, nella stringa di formato di `printf`, non scrivere mai un `%` isolato (nemmeno seguito da uno spazio o da `\\n`)."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap01/01_02.md",
+      "gravita": "media",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Rinvio in avanti generico (\"più avanti nel libro\") non conforme a CONVENZIONI.md §4.9, che richiede la forma esatta \"(lo vedremo nel capitolo X)\"; argc/argv è introdotto nel capitolo 14.",
+      "old_text": "- `void` dentro le parentesi tonde specifica esplicitamente che questa versione di `main` non riceve argomenti (vedremo come ricevere argomenti da riga di comando più avanti nel libro).",
+      "new_text": "- `void` dentro le parentesi tonde specifica esplicitamente che questa versione di `main` non riceve argomenti; esiste anche una seconda forma che riceve argomenti da riga di comando (lo vedremo nel capitolo 14)."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap01/01_02.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Il box usa `int main()` (senza `void`) senza spiegarlo, benché il titolo sia \"Perché scrivere sempre `int main(void)` e `return 0;`\" e il resto del box discuta soltanto `void main()` e l'omissione di `return 0;` (inoltre in C23 `int main()` equivale a `int main(void)`).",
+      "old_text": "In alcuni vecchi tutorial capita di incontrare `void main()` oppure `int main()` senza `return 0;`.",
+      "new_text": "In alcuni vecchi tutorial capita di incontrare `void main()` oppure `int main(void)` senza `return 0;`."
+    }
+  ]
+}

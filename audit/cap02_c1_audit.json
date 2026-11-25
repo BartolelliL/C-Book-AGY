@@ -1,0 +1,57 @@
+{
+  "capitolo": 2,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap02/02_99.md",
+      "gravita": "alta",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (a differenza del C++) il compilatore non impone un inizializzatore alla dichiarazione di un oggetto `const` (§6.7.3): l'inizializzatore è obbligatorio per vincolo del linguaggio con `constexpr` (§6.7.1), mentre una variabile locale `const` non inizializzata è sintatticamente ammessa ma resta inutilizzabile con rappresentazione indeterminata.",
+      "old_text": "- **Tentare di riassegnare una costante `const` o `constexpr`, oppure dichiararla senza inizializzatore**: il compilatore rifiuta qualsiasi modifica successiva e richiede un valore iniziale alla dichiarazione.",
+      "new_text": "- **Tentare di riassegnare una costante `const` o `constexpr`, oppure dichiararla senza inizializzatore**: il compilatore rifiuta qualsiasi modifica successiva; omettere l'inizializzatore è un errore di compilazione con `constexpr` e lascia una variabile locale `const` inutilizzabile con valore indeterminato."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap02/02_03.md",
+      "gravita": "media",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Errore di articolo indeterminativo davanti a s impura: \"Un **specificatore di formato**\" invece di \"Uno **specificatore di formato**\".",
+      "old_text": "Un **specificatore di formato** (*format specifier*) è un segnaposto introdotto da `%`",
+      "new_text": "Uno **specificatore di formato** (*format specifier*) è un segnaposto introdotto da `%`"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap02/02_02.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (§6.4.4.4), a differenza del C++, una costante di carattere senza prefisso come `'A'` ha tipo `int`, non `char` (`sizeof('A') == sizeof(int)`): affermare che `'A'` \"è un singolo `char`\" è tecnicamente inesatto.",
+      "old_text": "Fai molta attenzione a non confonderli con le stringhe, che usano invece i **doppi apici** (`\"A\"`): `'A'` è un singolo `char`, mentre `\"A\"` è una sequenza di caratteri terminata da un carattere speciale (lo vedremo nel capitolo 9).",
+      "new_text": "Fai molta attenzione a non confonderli con le stringhe, che usano invece i **doppi apici** (`\"A\"`): `'A'` rappresenta un singolo carattere, mentre `\"A\"` è una sequenza di caratteri terminata da un carattere speciale (lo vedremo nel capitolo 9)."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap02/02_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (§6.7.1 e §6.6) `constexpr int LIMITE = 3.7;` è rifiutato anzitutto perché un intero `constexpr` richiede un'espressione costante intera (anche `3.0` sarebbe rifiutato, pur senza perdita di valore); a questo si affianca il vincolo generale di rappresentabilità esatta senza cambi di segno, valore o precisione.",
+      "old_text": "Con `constexpr int LIMITE = 3.7;`, invece, lo standard C23 impone un errore di compilazione vero e proprio: l'inizializzatore di un oggetto `constexpr` deve essere esattamente rappresentabile nel tipo scelto, senza perdita di valore né di precisione.",
+      "new_text": "Con `constexpr int LIMITE = 3.7;`, invece, lo standard C23 impone un errore di compilazione vero e proprio: un intero `constexpr` richiede un'espressione costante intera e, in generale, l'inizializzatore di un oggetto `constexpr` deve essere esattamente rappresentabile nel tipo scelto, senza cambi di segno né perdita di valore o precisione."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap02/02_04.md",
+      "gravita": "media",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Rinvio in avanti privo del numero di capitolo, non conforme a CONVENZIONI.md §4.9 che richiede la forma \"(lo vedremo nel capitolo X)\"; `const` con i puntatori è introdotto nel capitolo 10.",
+      "old_text": "Secondo lo standard C23, modificare direttamente un oggetto definito `const` è un errore di compilazione; aggirare il divieto con tecniche avanzate (che incontrerai solo nei capitoli sui puntatori) provoca invece **comportamento indefinito**.",
+      "new_text": "Secondo lo standard C23, modificare direttamente un oggetto definito `const` è un errore di compilazione; aggirare il divieto con tecniche avanzate (lo vedremo nel capitolo 10) provoca invece **comportamento indefinito**."
+    }
+  ]
+}
