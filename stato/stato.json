@@ -8,19 +8,19 @@
   "n_capitoli": 26,
   "capitoli": {
     "1": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": []
     },
     "2": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 2,
       "errori_aperti": false,
-      "gravi_ciclo": true,
-      "audit_applicato": 0,
+      "gravi_ciclo": false,
+      "audit_applicato": 2,
       "note": []
     },
     "3": {

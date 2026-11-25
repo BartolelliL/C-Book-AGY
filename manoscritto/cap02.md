@@ -336,7 +336,7 @@ Pioggia anno:     780 mm
 
 Osserva come ogni specificatore controlla l'aspetto della riga corrispondente:
 
-- Nella prima riga `%-10c` stampa `'N'` allineato a sinistra in un campo largo 10 caratteri, lasciando nove spazi prima di `(settore)`.
+- Nella riga `Zona`, `%-10c` stampa `'N'` allineato a sinistra in un campo largo 10 caratteri, lasciando nove spazi prima di `(settore)`.
 - `%7.1f` riserva 7 caratteri totali per `18.4` (che occupa 4 caratteri, punto incluso), quindi aggiunge 3 spazi davanti.
 - `%7.2f` stampa `1013.25`: poiché il numero occupa già esattamente 7 caratteri, non servono spazi aggiuntivi e le due righe risultano allineate sul bordo destro della colonna numerica.
 - `%7d%%` allinea `64` a destra in 7 caratteri e stampa subito dopo un singolo `%` grazie alla coppia `%%`.
@@ -410,7 +410,7 @@ Un oggetto definito con `constexpr` è una costante il cui valore è garantito n
 1. il compilatore può usare quel valore in contesti che richiedono una costante nota in compilazione (come la dimensione di un array, che vedremo nel capitolo 8);
 2. l'inizializzatore deve essere un'espressione costante e deve essere rappresentabile *esattamente* nel tipo dichiarato, senza troncamenti silenziosi.
 
-> **C23** — Lo specificatore `constexpr` per gli oggetti è una novità dello standard C23. Se compili con compilatori configurati su standard precedenti (C17 o C11), usa `const` al posto di `constexpr`.
+> **C23** — Lo specificatore `constexpr` per gli oggetti è una novità dello standard C23. Se compili con compilatori configurati su standard precedenti (C17 o C11), per definire valori di sola lettura usa `const` al posto di `constexpr` (tenendo presente però che in C17 e C11 un oggetto `const` non è una costante a tempo di compilazione).
 
 ### Quando usare `constexpr` e quando `const`
 

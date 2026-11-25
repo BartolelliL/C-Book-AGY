@@ -1,0 +1,37 @@
+{
+  "capitolo": 1,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap01/01_01.md",
+      "gravita": "bassa",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "La domanda guida 1 usa il termine «file di intestazione» (introdotto dal glossario nel capitolo 19 e mai menzionato nella prosa del capitolo 1, che usa sempre «header»). Sostituirlo con «header» elimina l'avviso di progressione ed evita confusione al principiante.",
+      "old_text": "1. Quale file di intestazione devi includere per rendere disponibile la funzione di stampa?",
+      "new_text": "1. Quale header devi includere per rendere disponibile la funzione di stampa?"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap01/01_01.md",
+      "gravita": "bassa",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Su Windows l'aggiunta automatica dell'estensione .exe con `-o ciao` dipende dal compilatore/driver (MinGW gcc la aggiunge, mentre LLVM clang con target MSVC genera un file privo di estensione .exe, facendo fallire il successivo `.\\ciao.exe`). Consigliare esplicitamente `-o ciao.exe` su Windows funziona con entrambi i compilatori.",
+      "old_text": "- `-o ciao`: indica il nome del file eseguibile da creare (su Windows verrà creato `ciao.exe`).",
+      "new_text": "- `-o ciao`: indica il nome del file eseguibile da creare (su Windows conviene indicare esplicitamente `-o ciao.exe`)."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap01/01_03.md",
+      "gravita": "bassa",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La spiegazione dell'esempio guidato numera «prima riga», «seconda riga», «righe 3–5» e «ultima riga» riferendosi alle sei righe stampate, mentre nella sotto-sezione 1.2 i numeri di riga indicavano le righe del file sorgente. Chiarire che ci si riferisce alle sei righe stampate evita ambiguità.",
+      "old_text": "Osserva con attenzione ciascuna riga dell'esempio:",
+      "new_text": "Osserva con attenzione ciascuna delle sei righe stampate dall'esempio:"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "capitolo": 2,
+  "ciclo": 2,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap02/02_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Subito dopo aver spiegato che `constexpr` può essere usato in contesti che richiedono una costante nota a tempo di compilazione (come la dimensione di un array), il box C23 suggerisce senza distinzioni di usare `const` al posto di `constexpr` in C17/C11. In C17 e C11, però, un oggetto `const` non è un'espressione costante a tempo di compilazione: va precisato che `const` sostituisce `constexpr` solo per definire valori di sola lettura.",
+      "old_text": "> **C23** — Lo specificatore `constexpr` per gli oggetti è una novità dello standard C23. Se compili con compilatori configurati su standard precedenti (C17 o C11), usa `const` al posto di `constexpr`.",
+      "new_text": "> **C23** — Lo specificatore `constexpr` per gli oggetti è una novità dello standard C23. Se compili con compilatori configurati su standard precedenti (C17 o C11), per definire valori di sola lettura usa `const` al posto di `constexpr` (tenendo presente però che in C17 e C11 un oggetto `const` non è una costante a tempo di compilazione)."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap02/02_03.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La spiegazione dice «Nella prima riga `%-10c` stampa `'N'`», ma la prima riga stampata dall'esempio è l'intestazione `=== BOLLETTINO METEO ===`, mentre `%-10c` compare nella riga `Zona`.",
+      "old_text": "- Nella prima riga `%-10c` stampa `'N'` allineato a sinistra in un campo largo 10 caratteri, lasciando nove spazi prima di `(settore)`.",
+      "new_text": "- Nella riga `Zona`, `%-10c` stampa `'N'` allineato a sinistra in un campo largo 10 caratteri, lasciando nove spazi prima di `(settore)`."
+    }
+  ]
+}

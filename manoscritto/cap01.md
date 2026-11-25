@@ -54,7 +54,7 @@ Se usi `clang`, sostituisci semplicemente `gcc` con `clang`: le opzioni sono ide
 - `-Wpedantic`: segnala qualsiasi estensione non prevista dallo standard C23;
 - `-Werror`: trasforma ogni avviso in un errore, impedendo di generare l'eseguibile finché il codice non è pulito;
 - `ciao.c`: è il file di codice sorgente in ingresso;
-- `-o ciao`: indica il nome del file eseguibile da creare (su Windows verrà creato `ciao.exe`).
+- `-o ciao`: indica il nome del file eseguibile da creare (su Windows conviene indicare esplicitamente `-o ciao.exe`).
 
 Una volta terminata la compilazione senza segnalazioni, puoi avviare l'eseguibile dalla stessa cartella:
 
@@ -110,7 +110,7 @@ Scrivi un programma C completo che stampi esattamente la riga `Laboratorio di in
 
 **Domande guida**
 
-1. Quale file di intestazione devi includere per rendere disponibile la funzione di stampa?
+1. Quale header devi includere per rendere disponibile la funzione di stampa?
 2. Quale azione devi ripetere ogni volta che modifichi il codice sorgente prima di rieseguire il programma?
 3. Perché è importante includere un ritorno a capo al termine del messaggio stampato?
 
@@ -294,7 +294,7 @@ Sabato	18:00	Sala Video
 \//============================\\/
 ```
 
-Osserva con attenzione ciascuna riga dell'esempio:
+Osserva con attenzione ciascuna delle sei righe stampate dall'esempio:
 
 - Alla prima riga, `/\\` nel codice sorgente produce `/\` nell'output: la barra normale `/` non ha bisogno di escape, mentre la barra rovesciata `\` deve essere scritta come `\\`. Lo stesso vale in fondo alla riga per `//\\` (che stampa `//\`) seguito da `\n` per andare a capo.
 - Alla seconda riga, `\"Il pianeta silenzioso\"` stampa le virgolette doppie attorno al titolo senza chiudere prematuramente la stringa letterale.
