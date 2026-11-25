@@ -1,0 +1,17 @@
+{
+  "capitolo": 25,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap25/25_05.md",
+      "gravita": "bassa",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Il termine inglese 'fuzzing' è ripetuto identico tra parentesi subito dopo se stesso ('**fuzzing** (*fuzzing*)'), un refuso evidente al lettore.",
+      "old_text": "Per scoprire questi errori esiste una tecnica complementare chiamata **fuzzing** (*fuzzing*): una tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti.",
+      "new_text": "Per scoprire questi errori esiste una tecnica complementare chiamata **fuzzing**: una tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti."
+    }
+  ]
+}

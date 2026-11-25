@@ -1,0 +1,25 @@
+{
+  "capitolo": 24,
+  "ciclo": 1,
+  "residui": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap24/24_03.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 24.3-a, la variabile automatica locale ctx (di tipo ctx_parser_t) dentro esegui_parse non è qualificata volatile, ma i suoi campi (ctx.buf_lavoro, ctx.riga, ctx.messaggio) vengono modificati tra setjmp(ctx.env) e longjmp (da funzioni static nella stessa unità di traduzione) e poi letti nel ramo else dopo longjmp. Per ISO C23 §7.13.2.1p3 qualunque oggetto automatico locale non-volatile della funzione chiamante setjmp modificato tra setjmp e longjmp assume valore indeterminato (comportamento indefinito alla lettura, e con inlining/ottimizzazioni i campi possono essere tenuti in registri e sovrascritti da longjmp). Occorre spostare ctx fuori da esegui_parse (ad esempio passandolo per puntatore da main) oppure qualificare volatile i campi modificati, e ricompilare l'esempio.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    }
+  ],
+  "applicate": [
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "p6",
+    "p7"
+  ]
+}

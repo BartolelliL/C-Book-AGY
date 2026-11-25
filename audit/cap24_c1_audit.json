@@ -1,0 +1,77 @@
+{
+  "capitolo": 24,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap24/24_03.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 24.3-a, la variabile automatica locale ctx (di tipo ctx_parser_t) dentro esegui_parse non è qualificata volatile, ma i suoi campi (ctx.buf_lavoro, ctx.riga, ctx.messaggio) vengono modificati tra setjmp(ctx.env) e longjmp (da funzioni static nella stessa unità di traduzione) e poi letti nel ramo else dopo longjmp. Per ISO C23 §7.13.2.1p3 qualunque oggetto automatico locale non-volatile della funzione chiamante setjmp modificato tra setjmp e longjmp assume valore indeterminato (comportamento indefinito alla lettura, e con inlining/ottimizzazioni i campi possono essere tenuti in registri e sovrascritti da longjmp). Occorre spostare ctx fuori da esegui_parse (ad esempio passandolo per puntatore da main) oppure qualificare volatile i campi modificati, e ricompilare l'esempio.",
+      "old_text": null,
+      "new_text": null
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap24/24_02.md",
+      "gravita": "alta",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "La frase afferma erroneamente che in C un letterale stringa ha tipo const char * (prima di contraddirsi tra parentesi) e usa 'puntatore costante' (che indica char * const) invece di 'puntatore a caratteri costanti' (const char *). In C23 un letterale stringa ha tipo char[N] e decade sempre a char *.",
+      "old_text": "- Nella macro `MOSTRA(x)` sono presenti sia `const char *` sia `char *`: in C un array `char etichetta[]` decade a `char *`, mentre un letterale stringa o un puntatore costante ha tipo `const char *` (o `char *` per i letterali stringa in C, motivo per cui coprire entrambi i rami rende la macro sicura con qualsiasi stringa).",
+      "new_text": "- Nella macro `MOSTRA(x)` sono presenti sia `const char *` sia `char *`: in C sia un array `char etichetta[]` sia un letterale stringa come `\"testo costante\"` decadono a `char *` (a differenza del C++, in C i letterali stringa non sono `const` nel tipo, pur essendo comportamento indefinito modificarli), mentre un puntatore a caratteri costanti ha tipo `const char *`; coprire entrambi i rami rende la macro sicura con qualsiasi stringa."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap24/24_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Per ISO C23 §7.13.1.1p4, il confronto di setjmp con una costante intera e l'uso come operando di ! sono ammessi solo quando l'espressione risultante costituisce l'intera espressione di controllo di un'istruzione di selezione o iterazione (ad esempio bool ok = !setjmp(env); è comportamento indefinito). La formulazione attuale può far credere che !setjmp(env) o setjmp(env) == 0 siano validi in qualsiasi espressione.",
+      "old_text": "1. **Contesti sintattici ammessi per `setjmp`**: `setjmp` può comparire **soltanto** come intera espressione di controllo di `if`, `switch`, `while`, `do-while` o `for`, oppure confrontata con una costante intera tramite un operatore relazionale o di uguaglianza (es. `if (setjmp(env) == 0)`), oppure come operando di `!`, oppure come istruzione il cui valore viene scartato.",
+      "new_text": "1. **Contesti sintattici ammessi per `setjmp`**: `setjmp` può comparire **soltanto** come intera espressione di controllo di `if`, `switch`, `while`, `do-while` o `for` — direttamente, oppure confrontata con una costante intera tramite un operatore relazionale o di uguaglianza (es. `if (setjmp(env) == 0)`), oppure come operando di `!` (sempre come intera espressione di controllo) — oppure come intera espressione di un'istruzione il cui valore viene scartato."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap24/24_03.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Il testo cita la funzione inesistente analizza_config al posto di esegui_parse, che è la funzione effettivamente definita nell'esempio 24.3-a e nominata poco dopo nella stessa frase.",
+      "old_text": "Il programma seguente simula un parser di configurazione su tre livelli di chiamata (`analizza_config` → `analizza_sezione` → `analizza_coppia`).",
+      "new_text": "Il programma seguente simula un parser di configurazione su tre livelli di chiamata (`esegui_parse` → `analizza_sezione` → `analizza_coppia`)."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap24/24_02.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Nella domanda guida 1 si indica 'nonostante s compaia sia in _Generic sia nella chiamata', ma ad avere l'effetto collaterale su evals e a comparire in entrambi i punti dell'espansione della macro è l'intero primo argomento traccia_eval(&evals, s), non la variabile s.",
+      "old_text": "1. Perché chiamare `LIMITA(traccia_eval(&evals, s), lo, hi)` incrementa `evals` una sola volta invece di due, nonostante `s` compaia sia in `_Generic` sia nella chiamata?",
+      "new_text": "1. Perché chiamare `LIMITA(traccia_eval(&evals, s), lo, hi)` incrementa `evals` una sola volta invece di due, nonostante `traccia_eval(&evals, s)` compaia sia in `_Generic` sia nella chiamata?"
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap24/24_03.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La domanda guida 3 nomina la funzione valuta_stringa, che non compare mai nella descrizione dell'esercizio 24.3.",
+      "old_text": "3. Che cosa succederebbe alla memoria allocata con `malloc` dentro `valuta_stringa` se `longjmp` saltasse fuori dalla ricorsione senza il registro risorse di `frame_err_t`?",
+      "new_text": "3. Che cosa succederebbe alla memoria allocata con `malloc` per la copia di lavoro dell'espressione se `longjmp` saltasse fuori dalla ricorsione senza il registro risorse di `frame_err_t`?"
+    },
+    {
+      "id": "p7",
+      "file": "manoscritto/cap24/24_04.md",
+      "gravita": "bassa",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Scrivere 'azzera pos->next = pos' è impreciso: lista_rimuovi non azzera il puntatore, ma lo reimposta perché punti al nodo stesso.",
+      "old_text": "se usi `LISTA_PER_OGNI` e nel corpo del ciclo chiami `lista_rimuovi(pos)` (che azzera `pos->next = pos`)",
+      "new_text": "se usi `LISTA_PER_OGNI` e nel corpo del ciclo chiami `lista_rimuovi(pos)` (che reimposta `pos->next = pos`)"
+    }
+  ]
+}

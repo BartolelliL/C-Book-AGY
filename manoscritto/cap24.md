@@ -415,7 +415,7 @@ Valutazioni di prossimo_int: 1
 Osserva i dettagli fondamentali del modulo:
 
 - In `stampa_gen.h` tutte le funzioni sono dichiarate `inline`; in `stampa_gen.c` le corrispondenti dichiarazioni `extern inline` emettono le definizioni esterne una sola volta per l'intero eseguibile.
-- Nella macro `MOSTRA(x)` sono presenti sia `const char *` sia `char *`: in C un array `char etichetta[]` decade a `char *`, mentre un letterale stringa o un puntatore costante ha tipo `const char *` (o `char *` per i letterali stringa in C, motivo per cui coprire entrambi i rami rende la macro sicura con qualsiasi stringa).
+- Nella macro `MOSTRA(x)` sono presenti sia `const char *` sia `char *`: in C sia un array `char etichetta[]` sia un letterale stringa come `"testo costante"` decadono a `char *` (a differenza del C++, in C i letterali stringa non sono `const` nel tipo, pur essendo comportamento indefinito modificarli), mentre un puntatore a caratteri costanti ha tipo `const char *`; coprire entrambi i rami rende la macro sicura con qualsiasi stringa.
 - L'output conferma che `prossimo_int` è stata invocata una sola volta (`Valutazioni di prossimo_int: 1`), dimostrando che `(x)` dentro `_Generic((x), ...)` non è valutato.
 
 > **Approfondimento — Conversioni di tipo nell'espressione di controllo di `_Generic`**
@@ -436,7 +436,7 @@ Realizza su tre file (`num_gen.h`, `num_gen.c`, `main.c`) una mini-libreria nume
 
 **Domande guida**
 
-1. Perché chiamare `LIMITA(traccia_eval(&evals, s), lo, hi)` incrementa `evals` una sola volta invece di due, nonostante `s` compaia sia in `_Generic` sia nella chiamata?
+1. Perché chiamare `LIMITA(traccia_eval(&evals, s), lo, hi)` incrementa `evals` una sola volta invece di due, nonostante `traccia_eval(&evals, s)` compaia sia in `_Generic` sia nella chiamata?
 2. Che errore rischia il collegatore se dichiari `inline int32_t limita_i32(...)` in `num_gen.h` senza fornire `extern inline int32_t limita_i32(...)` in `num_gen.c`?
 3. Come fa `CERCA_I32(arr, n, val)` a restituire `int32_t *` quando riceve un array mutabile e `const int32_t *` quando riceve un puntatore a dati costanti senza mai rimuovere `const`?
 4. Perché nelle funzioni `somma_sat_i32` e `somma_sat_i64` conviene rilevare l'overflow con `ckd_add` prima di saturare al massimo o al minimo?
@@ -492,7 +492,7 @@ if (setjmp(env) == 0) {
 
 Poiché `setjmp` e `longjmp` manipolano direttamente lo stato basso-livello della CPU e dello stack, lo standard C23 impone vincoli severi la cui violazione provoca **comportamento indefinito**:
 
-1. **Contesti sintattici ammessi per `setjmp`**: `setjmp` può comparire **soltanto** come intera espressione di controllo di `if`, `switch`, `while`, `do-while` o `for`, oppure confrontata con una costante intera tramite un operatore relazionale o di uguaglianza (es. `if (setjmp(env) == 0)`), oppure come operando di `!`, oppure come istruzione il cui valore viene scartato. Scrivere `int rc = setjmp(env);` è vietato dallo standard e provoca comportamento indefinito. Se vuoi sapere quale errore si è verificato, memorizza il codice e la posizione in una `struct` di contesto prima di chiamare `longjmp(env, 1)`.
+1. **Contesti sintattici ammessi per `setjmp`**: `setjmp` può comparire **soltanto** come intera espressione di controllo di `if`, `switch`, `while`, `do-while` o `for` — direttamente, oppure confrontata con una costante intera tramite un operatore relazionale o di uguaglianza (es. `if (setjmp(env) == 0)`), oppure come operando di `!` (sempre come intera espressione di controllo) — oppure come intera espressione di un'istruzione il cui valore viene scartato. Scrivere `int rc = setjmp(env);` è vietato dallo standard e provoca comportamento indefinito. Se vuoi sapere quale errore si è verificato, memorizza il codice e la posizione in una `struct` di contesto prima di chiamare `longjmp(env, 1)`.
 2. **Validità del frame di destinazione**: è vietato chiamare `longjmp` verso un `jmp_buf` salvato da una funzione che è già ritornata. Quel frame dello stack non esiste più e saltarci dentro corrompe immediatamente il programma.
 3. **Regola di `volatile` per le variabili locali**: quando il compilatore ottimizza la funzione che chiama `setjmp`, può tenere le variabili automatiche locali nei registri della CPU; al momento del `longjmp`, i registri vengono ripristinati allo stato che avevano al momento di `setjmp`. Pertanto, **qualunque variabile automatica locale non-`volatile` nella funzione che ha invocato `setjmp`, se viene modificata tra `setjmp` e `longjmp`, assume valore indeterminato dopo il salto** e leggerla provoca comportamento indefinito. Ogni variabile locale che modifichi dopo `setjmp` e leggi nel blocco di recupero va qualificata `volatile`.
 
@@ -511,7 +511,7 @@ Collegando tra loro più strutture di contesto tramite un puntatore `prec` (una 
 
 ### Esempio guidato
 
-Il programma seguente simula un parser di configurazione su tre livelli di chiamata (`analizza_config` → `analizza_sezione` → `analizza_coppia`). Un contesto `ctx_parser_t` contiene `jmp_buf`, codice d'errore, riga incriminata e il puntatore a un buffer dinamico allocato durante il parsing. Quando il livello più profondo incontra un valore negativo o una riga malformata, invoca `segnala_errore` (`longjmp`), risalendo direttamente al chiamante `esegui_parse`, dove la variabile `volatile int fase` mantiene il proprio valore aggiornato e il buffer tracciato viene sempre liberato.
+Il programma seguente simula un parser di configurazione su tre livelli di chiamata (`esegui_parse` → `analizza_sezione` → `analizza_coppia`). Un contesto `ctx_parser_t` contiene `jmp_buf`, codice d'errore, riga incriminata e il puntatore a un buffer dinamico allocato durante il parsing. Quando il livello più profondo incontra un valore negativo o una riga malformata, invoca `segnala_errore` (`longjmp`), risalendo direttamente al chiamante `esegui_parse`, dove la variabile `volatile int fase` mantiene il proprio valore aggiornato e il buffer tracciato viene sempre liberato.
 
 <!-- cod: id=24.3-a tipo=programma -->
 ```c
@@ -622,7 +622,7 @@ Realizza su tre file (`errore_jmp.h`, `errore_jmp.c`, `main.c`) un meccanismo di
 
 1. Perché in C23 scrivere `int rc = setjmp(f.env);` è comportamento indefinito e come si aggira il limite salvando il codice d'errore dentro `frame_err_t`?
 2. Quale rischio si corre se dentro la funzione che chiama `setjmp` modifichi una variabile locale non-`volatile` `fase` prima di un `longjmp` e poi la leggi nel ramo `else`?
-3. Che cosa succederebbe alla memoria allocata con `malloc` dentro `valuta_stringa` se `longjmp` saltasse fuori dalla ricorsione senza il registro risorse di `frame_err_t`?
+3. Che cosa succederebbe alla memoria allocata con `malloc` per la copia di lavoro dell'espressione se `longjmp` saltasse fuori dalla ricorsione senza il registro risorse di `frame_err_t`?
 4. Perché `err_pop` deve essere chiamato sia sul percorso normale sia prima di rilanciare un errore al frame esterno?
 
 **Esempio di esecuzione**
@@ -717,7 +717,7 @@ Per attraversare la lista si usano in genere tre macro:
          (pos) = (tmp), (tmp) = (pos)->next)
 ```
 
-Fai molta attenzione quando rimuovi o liberi nodi durante il ciclo: se usi `LISTA_PER_OGNI` e nel corpo del ciclo chiami `lista_rimuovi(pos)` (che azzera `pos->next = pos`) oppure `free` sull'oggetto ospitante, il passo finale `(pos) = (pos)->next` entra in un ciclo infinito o esegue un uso dopo la liberazione (**comportamento indefinito**). In questi casi devi usare `LISTA_PER_OGNI_SICURO`, che salva in anticipo il nodo successivo nella variabile `tmp` prima che il corpo del ciclo modifichi o liberi `pos`.
+Fai molta attenzione quando rimuovi o liberi nodi durante il ciclo: se usi `LISTA_PER_OGNI` e nel corpo del ciclo chiami `lista_rimuovi(pos)` (che reimposta `pos->next = pos`) oppure `free` sull'oggetto ospitante, il passo finale `(pos) = (pos)->next` entra in un ciclo infinito o esegue un uso dopo la liberazione (**comportamento indefinito**). In questi casi devi usare `LISTA_PER_OGNI_SICURO`, che salva in anticipo il nodo successivo nella variabile `tmp` prima che il corpo del ciclo modifichi o liberi `pos`.
 
 > **Se vieni da Python** — In Python le liste sono collezioni di riferimenti gestite dal runtime; in C le liste intrusive con `offsetof` incorporano i collegamenti direttamente negli oggetti per evitare allocazioni extra e permettere l'appartenenza simultanea a più liste.
 

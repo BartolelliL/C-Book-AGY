@@ -192,19 +192,19 @@
       "note": []
     },
     "24": {
-      "fase": "audit",
+      "fase": "p5",
       "ciclo": 1,
       "errori_aperti": false,
-      "gravi_ciclo": false,
-      "audit_applicato": 0,
+      "gravi_ciclo": true,
+      "audit_applicato": 1,
       "note": []
     },
     "25": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 1,
       "errori_aperti": false,
       "gravi_ciclo": false,
-      "audit_applicato": 0,
+      "audit_applicato": 1,
       "note": []
     },
     "26": {

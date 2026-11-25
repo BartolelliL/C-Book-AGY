@@ -810,7 +810,7 @@ RIEPILOGO: test=0/1 falliti=1 ass_ok=1 ass_ko=1
 
 ## 25.5 Fuzzing a seme fisso e strumenti professionali di analisi
 
-I test automatici scritti a mano controllano i casi a cui hai pensato tu. I difetti più subdoli, però, si nascondono spesso in combinazioni di operazioni a cui nessuno pensa: un inserimento seguito da tre rimozioni, un ridimensionamento esattamente sul bordo della capacità, un carattere inatteso dentro un parser. Per scoprire questi errori esiste una tecnica complementare chiamata **fuzzing** (*fuzzing*): una tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti.
+I test automatici scritti a mano controllano i casi a cui hai pensato tu. I difetti più subdoli, però, si nascondono spesso in combinazioni di operazioni a cui nessuno pensa: un inserimento seguito da tre rimozioni, un ridimensionamento esattamente sul bordo della capacità, un carattere inatteso dentro un parser. Per scoprire questi errori esiste una tecnica complementare chiamata **fuzzing**: una tecnica di verifica automatica che sottopone un programma a grandi quantità di input generati casualmente per scoprirne difetti.
 
 In C la libreria standard `<stdlib.h>` fornisce un generatore di numeri pseudocasuali semplice e sempre disponibile:
 

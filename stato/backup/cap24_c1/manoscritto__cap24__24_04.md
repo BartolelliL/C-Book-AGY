@@ -1,0 +1,221 @@
+## 24.4 Liste intrusive con `offsetof`
+
+Nel capitolo 17 hai implementato liste concatenate in cui ogni elemento viene avvolto dentro un nodo ausiliario `struct nodo { void *dato; struct nodo *prev; struct nodo *next; }`. Questo schema funziona bene per contenitori generici, ma ha due costi strutturali: ogni inserimento richiede una `malloc` separata per il nodo wrapper (anche quando l'oggetto esiste già sullo stack o in un pool), e se vuoi rimuovere un oggetto che già possiedi in memoria devi prima cercarlo nella lista per trovarne il nodo wrapper.
+
+Nei sistemi operativi, nei motori di simulazione e nei programmi a bassa latenza si usa invece la **lista intrusiva** (*intrusive list*): una lista concatenata i cui puntatori di collegamento sono incorporati direttamente dentro le strutture ospitanti e recuperati con `offsetof`.
+
+```text
+Lista non intrusiva (2 blocchi per elemento):
+  [ nodo: prev | next | dato ] ---> [ oggetto: id | nome | ... ]
+
+Lista intrusiva (1 solo blocco per elemento):
+  [ oggetto: id | nome | nodo_intrusivo(prev | next) | ... ]
+                          ^
+                          |  indirizzo noto durante l'iterazione;
+                          |  sottraendo offsetof(oggetto, link)
+                          +-- si risale all'inizio dell'oggetto
+```
+
+### Lista circolare doppiamente concatenata con testa sentinella
+
+Il tipo di collegamento è una piccola struct di due puntatori:
+
+<!-- cod: id=24.4-b tipo=frammento -->
+```c
+typedef struct nodo_intrusivo {
+    struct nodo_intrusivo *prev;
+    struct nodo_intrusivo *next;
+} nodo_intrusivo_t;
+```
+
+Una lista intrusiva circolare usa una **testa sentinella** dello stesso tipo `nodo_intrusivo_t` che non appartiene ad alcun oggetto reale. Quando la lista è vuota, la sentinella punta a sé stessa (`testa->prev = testa; testa->next = testa;`). Questo elimina tutti i casi speciali per lista vuota, inserimento in testa, inserimento in coda e rimozione dell'ultimo elemento:
+
+- **Inserimento in testa** (`O(1)`): inserisce il nodo subito dopo `testa`.
+- **Inserimento in coda** (`O(1)`): inserisce il nodo subito prima di `testa` (cioè dopo `testa->prev`).
+- **Rimozione** (`O(1)`): scollega `n` collegando direttamente `n->prev->next = n->next` e `n->next->prev = n->prev`, senza nemmeno conoscere quale sia la testa della lista. Riportando infine `n->prev = n; n->next = n;`, il nodo torna nello stato isolato e un'eventuale seconda chiamata a `lista_rimuovi(n)` risulta innocua.
+
+### Recuperare la struttura ospitante con `offsetof`
+
+Quando scorri la lista, il puntatore `pos` di tipo `nodo_intrusivo_t *` punta al campo incorporato dentro la struct ospitante, non all'inizio della struct. Come risali all'oggetto intero? Con `offsetof(tipo, campo)` (da `<stddef.h>`, introdotto nel capitolo 13), che restituisce la distanza esatta in byte tra l'inizio di `tipo` e il campo `campo`. Convertendo `ptr` in `unsigned char *` e sottraendo questo scostamento in byte ottieni l'indirizzo esatto della struct ospitante:
+
+<!-- cod: id=24.4-c tipo=frammento -->
+```c
+#define CONTENITORE_DI(ptr, tipo, campo) \
+    ((tipo *)((unsigned char *)(ptr) - offsetof(tipo, campo)))
+
+#define CONTENITORE_DI_CONST(ptr, tipo, campo) \
+    ((const tipo *)((const unsigned char *)(ptr) - offsetof(tipo, campo)))
+```
+
+Rispetto allo standard C23, `offsetof` e l'aritmetica su `unsigned char *` (o `const unsigned char *`) all'interno dello stesso oggetto `struct` sono completamente definiti. Tuttavia, applicare `CONTENITORE_DI` a un puntatore che **non** punta realmente al campo `campo` di una vera istanza di `tipo` — per esempio applicarlo per errore alla testa sentinella `testa` oppure al campo di una struct diversa — provoca **comportamento indefinito**.
+
+### Più liste simultanee e iterazione sicura
+
+Uno dei vantaggi più potenti delle liste intrusive è che una stessa `struct` può incorporare due o più campi `nodo_intrusivo_t` distinti (ad esempio `link_tutti` e `link_pronti`) e appartenere contemporaneamente a più liste indipendenti con una sola allocazione e senza interferenze tra i puntatori.
+
+Per attraversare la lista si usano in genere tre macro:
+
+<!-- cod: id=24.4-d tipo=frammento -->
+```c
+#define LISTA_PER_OGNI(pos, testa) \
+    for (nodo_intrusivo_t *(pos) = (testa)->next; (pos) != (testa); (pos) = (pos)->next)
+
+#define LISTA_PER_OGNI_CONST(pos, testa) \
+    for (const nodo_intrusivo_t *(pos) = (testa)->next; (pos) != (testa); (pos) = (pos)->next)
+
+#define LISTA_PER_OGNI_SICURO(pos, tmp, testa)                      \
+    for (nodo_intrusivo_t *(pos) = (testa)->next, *(tmp) = (pos)->next; \
+         (pos) != (testa);                                          \
+         (pos) = (tmp), (tmp) = (pos)->next)
+```
+
+Fai molta attenzione quando rimuovi o liberi nodi durante il ciclo: se usi `LISTA_PER_OGNI` e nel corpo del ciclo chiami `lista_rimuovi(pos)` (che azzera `pos->next = pos`) oppure `free` sull'oggetto ospitante, il passo finale `(pos) = (pos)->next` entra in un ciclo infinito o esegue un uso dopo la liberazione (**comportamento indefinito**). In questi casi devi usare `LISTA_PER_OGNI_SICURO`, che salva in anticipo il nodo successivo nella variabile `tmp` prima che il corpo del ciclo modifichi o liberi `pos`.
+
+> **Se vieni da Python** — In Python le liste sono collezioni di riferimenti gestite dal runtime; in C le liste intrusive con `offsetof` incorporano i collegamenti direttamente negli oggetti per evitare allocazioni extra e permettere l'appartenenza simultanea a più liste.
+
+### Esempio guidato
+
+Il programma seguente gestisce una lista intrusiva circolare di sensori allocati interamente sullo stack (zero chiamate a `malloc`). Dopo aver inserito tre sensori e averli stampati risalendo alla struct ospitante tramite `CONTENITORE_DI`, rimuove in `O(1)` i sensori inattivi durante l'attraversamento con `LISTA_PER_OGNI_SICURO` e stampa l'elenco residuo.
+
+<!-- cod: id=24.4-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+typedef struct nodo_intrusivo {
+    struct nodo_intrusivo *prev;
+    struct nodo_intrusivo *next;
+} nodo_intrusivo_t;
+
+#define CONTENITORE_DI(ptr, tipo, campo) \
+    ((tipo *)((unsigned char *)(ptr) - offsetof(tipo, campo)))
+
+#define LISTA_PER_OGNI(pos, testa) \
+    for (nodo_intrusivo_t *(pos) = (testa)->next; (pos) != (testa); (pos) = (pos)->next)
+
+#define LISTA_PER_OGNI_SICURO(pos, tmp, testa)                          \
+    for (nodo_intrusivo_t *(pos) = (testa)->next, *(tmp) = (pos)->next; \
+         (pos) != (testa);                                              \
+         (pos) = (tmp), (tmp) = (pos)->next)
+
+static void lista_init(nodo_intrusivo_t *n) {
+    n->prev = n;
+    n->next = n;
+}
+
+static void lista_inserisci_coda(nodo_intrusivo_t *testa, nodo_intrusivo_t *n) {
+    n->prev = testa->prev;
+    n->next = testa;
+    testa->prev->next = n;
+    testa->prev = n;
+}
+
+static void lista_rimuovi(nodo_intrusivo_t *n) {
+    n->prev->next = n->next;
+    n->next->prev = n->prev;
+    lista_init(n);
+}
+
+typedef struct sensore {
+    int id;
+    const char *nome;
+    bool attivo;
+    nodo_intrusivo_t link;
+} sensore_t;
+
+static void stampa_sensori(const char *titolo, nodo_intrusivo_t *testa) {
+    printf("%s:", titolo);
+    LISTA_PER_OGNI(pos, testa) {
+        sensore_t *s = CONTENITORE_DI(pos, sensore_t, link);
+        printf(" #%d:%s(%s)", s->id, s->nome, s->attivo ? "ON" : "OFF");
+    }
+    printf("\n");
+}
+
+int main(void) {
+    nodo_intrusivo_t elenco;
+    lista_init(&elenco);
+
+    sensore_t s1 = {.id = 1, .nome = "Temp", .attivo = true};
+    sensore_t s2 = {.id = 2, .nome = "Press", .attivo = false};
+    sensore_t s3 = {.id = 3, .nome = "Umid", .attivo = true};
+    lista_init(&s1.link);
+    lista_init(&s2.link);
+    lista_init(&s3.link);
+
+    lista_inserisci_coda(&elenco, &s1.link);
+    lista_inserisci_coda(&elenco, &s2.link);
+    lista_inserisci_coda(&elenco, &s3.link);
+    stampa_sensori("Tutti", &elenco);
+
+    LISTA_PER_OGNI_SICURO(pos, tmp, &elenco) {
+        sensore_t *s = CONTENITORE_DI(pos, sensore_t, link);
+        if (!s->attivo) {
+            lista_rimuovi(&s->link);
+        }
+    }
+    stampa_sensori("Attivi", &elenco);
+    return 0;
+}
+```
+
+```output
+Tutti: #1:Temp(ON) #2:Press(OFF) #3:Umid(ON)
+Attivi: #1:Temp(ON) #3:Umid(ON)
+```
+
+Osserva i punti chiave:
+
+- Nessuna chiamata a `malloc` o `free`: i tre oggetti `sensore_t` vivono sullo stack, ma partecipano a una lista dinamica completa grazie al campo `link` incorporato.
+- In `sensore_t`, `link` è l'ultimo campo: `CONTENITORE_DI(pos, sensore_t, link)` sottrae `offsetof(sensore_t, link)` all'indirizzo di `link` e recupera esattamente l'inizio della struttura `sensore_t`.
+- Nel ciclo di filtro, `LISTA_PER_OGNI_SICURO` permette di scollegare `s2.link` in `O(1)` senza perdere il puntatore a `s3.link`.
+
+> **Approfondimento — Liste intrusive nei sistemi operativi e nei sistemi embedded**
+> Il kernel Linux e numerosi sistemi embedded fondano le proprie code interne proprio sulle liste intrusive. Eliminare l'allocazione separata dei nodi riduce la frammentazione dello heap, evita di dover gestire fallimenti di `malloc` quando si sposta un oggetto da una coda a un'altra e permette di sfruttare meglio la cache del processore tenendo vicini i byte dell'oggetto (lo vedremo nel capitolo 25). Inoltre, un singolo descrittore di processo può appartenere nello stesso istante alla lista globale dei task e alla coda di attesa di un dispositivo senza alcuna duplicazione.
+
+### Esercizio 24.4 — Schedulatore di lavori con doppia lista intrusiva circolare basata su `offsetof`
+
+**Descrizione**
+
+Realizza su tre file (`lista_intr.h`, `lista_intr.c`, `main.c`) una **lista intrusiva** circolare doppiamente concatenata e applicala a uno schedulatore in cui ogni lavoro appartiene contemporaneamente a due liste distinte senza allocare nodi wrapper separati. (1) In `lista_intr.h` (protetto da `LISTA_INTR_H`) definisci `typedef struct nodo_intrusivo { struct nodo_intrusivo *prev; struct nodo_intrusivo *next; } nodo_intrusivo_t;`, le macro `CONTENITORE_DI(ptr, tipo, campo)` e `CONTENITORE_DI_CONST(ptr, tipo, campo)` (tramite `offsetof` e `unsigned char *`/`const unsigned char *`), le macro di attraversamento `LISTA_PER_OGNI(pos, testa)`, `LISTA_PER_OGNI_CONST(pos, testa)` e `LISTA_PER_OGNI_SICURO(pos, tmp, testa)`, e dichiara `void lista_init(nodo_intrusivo_t *n);`, `bool lista_vuota(const nodo_intrusivo_t *testa);`, `bool lista_collegato(const nodo_intrusivo_t *n);`, `void lista_inserisci_testa(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);`, `void lista_inserisci_coda(nodo_intrusivo_t *testa, nodo_intrusivo_t *n);`, `void lista_rimuovi(nodo_intrusivo_t *n);` e `size_t lista_conta(const nodo_intrusivo_t *testa);`. (2) In `lista_intr.c` implementa le operazioni in tempo `O(1)` (`lista_rimuovi` scollega il nodo e lo riporta allo stato isolato `prev = next = n`). (3) In `main.c` definisci `typedef struct lavoro { uint32_t id; char nome[16]; int prio; bool pronto; nodo_intrusivo_t link_tutti; nodo_intrusivo_t link_pronti; } lavoro_t;` e mantieni le due liste `lista_tutti` e `coda_pronti`. Gestisci da `stdin` i comandi `ADD <id> <nome> <prio>` (inserisce sempre in coda a `lista_tutti` e in `coda_pronti` in testa se `prio >= 10` o in coda altrimenti), `PAUSE <id>` (rimuove in `O(1)` da `coda_pronti`), `RESUME <id>` (reinserisce in `coda_pronti` con la stessa regola di priorità), `DEL <id>` (rimuove da entrambe le liste e libera), `PURGE_PAUSED` (rimuove e libera in un solo passaggio tutti i lavori in pausa usando `LISTA_PER_OGNI_SICURO`) e `SHOW`, liberando tutti i lavori residui prima di terminare.
+
+**Concetti da tenere a mente**
+
+- incorporamento di due campi `nodo_intrusivo_t` nella stessa struct `lavoro_t` per appartenere a due liste con una sola allocazione
+- recupero del puntatore alla struct ospitante tramite `offsetof` in `CONTENITORE_DI` e `CONTENITORE_DI_CONST`
+- rimozione `O(1)` con `lista_rimuovi` senza conoscere la testa della lista
+- iterazione sicura con `LISTA_PER_OGNI_SICURO` quando il corpo del ciclo rimuove e libera nodi
+
+**Domande guida**
+
+1. Perché un oggetto `lavoro_t` può essere inserito contemporaneamente in `lista_tutti` e in `coda_pronti` senza interferenze tra i puntatori `prev` e `next`?
+2. Come fa `CONTENITORE_DI(pos, lavoro_t, link_pronti)` a risalire all'inizio di `lavoro_t` anche se `link_pronti` non è il primo campo della struct?
+3. Che cosa succederebbe in `PURGE_PAUSED` se usassi `LISTA_PER_OGNI` anziché `LISTA_PER_OGNI_SICURO` per scollegare e liberare con `free` i lavori in pausa?
+4. Perché in una lista circolare con sentinella un nodo scollegato viene riportato a `n->prev = n; n->next = n;`?
+
+**Esempio di esecuzione**
+
+```input
+ADD 1 Backup 5
+ADD 2 Rete 12
+ADD 3 Log 3
+SHOW
+PAUSE 2
+SHOW
+RESUME 2
+PAUSE 3
+PURGE_PAUSED
+DEL 1
+SHOW
+```
+
+```output
+TUTTI(3): #1:Backup(P) #2:Rete(P) #3:Log(P)
+PRONTI(3): #2:Rete #1:Backup #3:Log
+TUTTI(3): #1:Backup(P) #2:Rete(S) #3:Log(P)
+PRONTI(2): #1:Backup #3:Log
+PURGE_PAUSED: rimossi=1
+DEL #1: OK
+TUTTI(1): #2:Rete(P)
+PRONTI(1): #2:Rete
+```
