@@ -28,7 +28,7 @@ Per imporre un allineamento esplicito il C23 mette a disposizione lo specificato
 
 > **C23** — In C23 `alignas` e `alignof` sono parole chiave native del linguaggio e non richiedono alcun header. Nei compilatori più vecchi (C11/C17) si usavano le parole chiave `_Alignas` e `_Alignof`, oppure le macro `alignas` e `alignof` definite nell'header `<stdalign.h>`, che in C23 è superato e non va incluso.
 
-Ma quale allineamento devi scegliere se il tuo buffer deve poter ospitare *qualsiasi* tipo standard del C, senza sapere in anticipo quale? Qui entra in gioco `max_align_t`, un tipo definito in `<stddef.h>`. Il suo requisito di allineamento, espresso da `alignof(max_align_t)`, rappresenta il **più grande allineamento fondamentale** supportato dalla piattaforma (spesso 8 o 16 byte sulle architetture moderne). È esattamente la stessa garanzia offerta da `malloc`, `calloc` e `realloc`: ogni blocco restituito da queste funzioni è allineato almeno a `alignof(max_align_t)`, risultando quindi adatto a qualunque oggetto con allineamento fondamentale.
+Ma quale allineamento devi scegliere se il tuo buffer deve poter ospitare *qualsiasi* tipo standard del C, senza sapere in anticipo quale? Qui entra in gioco `max_align_t`, un tipo definito in `<stddef.h>`. Il suo requisito di allineamento, espresso da `alignof(max_align_t)`, rappresenta il **più grande allineamento fondamentale** supportato dalla piattaforma (spesso 8 o 16 byte sulle architetture moderne). È un riferimento analogo alla garanzia offerta da `malloc`, `calloc` e `realloc`: ogni blocco restituito da queste funzioni è opportunamente allineato per qualunque oggetto con allineamento fondamentale la cui dimensione non superi quella richiesta (in particolare, per richieste di almeno `sizeof(max_align_t)` byte è allineato almeno ad `alignof(max_align_t)`).
 
 Dichiarare un buffer statico in questo modo:
 
@@ -247,7 +247,7 @@ Buffer statico alignas(max_align_t):
 base                                   base + usati           base + cap
 ```
 
-Ogni allocazione nell'arena lavora in tempo costante ($O(1)$) e segue quattro passaggi precisi:
+Ogni allocazione nell'arena lavora in tempo costante ($O(1)$, notazione che formalizzeremo nel capitolo 23) e segue quattro passaggi precisi:
 
 1. Controlla che `a != nullptr`, `dim > 0` e che l'allineamento richiesto `allin` sia una potenza di due non nulla (nell'allocazione generica `arena_alloca` si usa `alignof(max_align_t)`).
 2. Calcola lo spiazzamento di **padding** necessario rispetto all'indirizzo effettivo corrente `curr = (uintptr_t)(a->base + a->usati)`. Il resto rispetto ad `allin` è `resto = (size_t)(curr & (uintptr_t)(allin - 1))`; se `resto != 0`, servono `pad = allin - resto` byte di allineamento, altrimenti `pad = 0`.
@@ -503,7 +503,7 @@ Secondo lo standard C23, le regole sul tipo effettivo degli oggetti allocati din
 
 ### Esempio guidato
 
-Il programma seguente su tre file (`pool_entita.h`, `pool_entita.c`, `main.c`) implementa un allocatore a pool per gestire le particelle di una piccola simulazione. Alloca quattro particelle fino a riempire il pool, ne libera due in ordine sparso, alloca due nuove particelle che riciclano esattamente gli slot liberati in tempo costante $O(1)$ e stampa ad ogni passo il numero di blocchi occupati e liberi.
+Il programma seguente su tre file (`pool_entita.h`, `pool_entita.c`, `main.c`) implementa un allocatore a pool per gestire le particelle di una piccola simulazione. Alloca quattro particelle fino a riempire il pool, ne libera due in ordine sparso, alloca una nuova particella che ricicla esattamente l'ultimo slot liberato in tempo costante $O(1)$ e stampa ad ogni passo il numero di blocchi occupati e liberi.
 
 <!-- cod: id=22.3-a tipo=programma gruppo=pool_particelle file=pool_entita.h -->
 ```c
@@ -799,6 +799,7 @@ Il programma seguente mostra prima una `struct` con campo array flessibile (`mes
 
 <!-- cod: id=22.4-a tipo=programma -->
 ```c
+#include <inttypes.h>
 #include <stdckdint.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -876,7 +877,7 @@ int main(void) {
     m->id = 7;
     m->len = n - 1;
     memcpy(m->testo, testo, n);
-    printf("Messaggio #%u (%zu char): %s\n", m->id, m->len, m->testo);
+    printf("Messaggio #%" PRIu32 " (%zu char): %s\n", m->id, m->len, m->testo);
     free(m);
 
     unsigned char *buf = malloc(256);
@@ -1013,7 +1014,7 @@ uint32_t bit = 0;
 memcpy(&bit, &f, sizeof(bit));
 ```
 
-`memcpy` copia la rappresentazione in byte e aggiorna legalmente il tipo effettivo della destinazione, rispettando strict aliasing; inoltre tutti i compilatori moderni riconoscono questo idioma e lo traducono in un singolo spostamento di registro senza alcuna chiamata a funzione. Che dire invece del *type punning* tramite `union` (scrivere in un campo `float` e leggere da un campo `uint32_t`)? In C la lettura di un campo non attivo di una `union` reinterpreta la rappresentazione dei byte (dipendendo comunque da dimensione, padding ed endianness della piattaforma), ma può creare problemi di portabilità (per esempio con i bit di padding o in codice condiviso con C++): per questo `memcpy` resta la tecnica più pulita, esplicita e universale.
+`memcpy` copia la rappresentazione in byte nell'oggetto di destinazione (che mantiene il proprio tipo dichiarato `uint32_t`), rispettando strict aliasing; inoltre tutti i compilatori moderni riconoscono questo idioma e lo traducono in un singolo spostamento di registro senza alcuna chiamata a funzione. Che dire invece del *type punning* tramite `union` (scrivere in un campo `float` e leggere da un campo `uint32_t`)? In C la lettura di un campo non attivo di una `union` reinterpreta la rappresentazione dei byte (dipendendo comunque da dimensione, padding ed endianness della piattaforma), ma può creare problemi di portabilità (per esempio con i bit di padding o in codice condiviso con C++): per questo `memcpy` resta la tecnica più pulita, esplicita e universale.
 
 Strict aliasing permette al compilatore di escludere l'aliasing tra puntatori di **tipi incompatibili** (come `float *` e `uint32_t *`), ma non aiuta quando due puntatori hanno lo **stesso tipo** (come `double *dst` e `const double *a`). Qui interviene il qualificatore `restrict` (introdotto nel capitolo 14): qualificando i parametri come `double *restrict dst, const double *restrict a`, prometti al compilatore che le aree di memoria a cui accedi tramite quei puntatori **non si sovrappongono**. Così il compilatore può ottimizzare il ciclo esattamente come fa per tipi incompatibili. Come per strict aliasing, violare la promessa di `restrict` (passando aree sovrapposte) provoca **comportamento indefinito** (approfondiremo l'interazione tra comportamento indefinito e ottimizzazioni nel capitolo 25).
 

@@ -1,0 +1,37 @@
+{
+  "capitolo": 23,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap23/23_04.md",
+      "gravita": "alta",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Nella descrizione dell'esercizio 23.4 il comando è specificato solo come `SUGG <pref> <k>`, ma nell'esempio di esecuzione compare `SUGG *` senza `<k>` (dove la soluzione di riferimento assume `k = 32` quando omesso). Occorre indicare esplicitamente che `<k>` è opzionale con valore predefinito `32`.",
+      "old_text": "`SUGG <pref> <k>` (`*` per `\"\"`, `1 <= k <= 32`),",
+      "new_text": "`SUGG <pref> [<k>]` (`*` per `\"\"`, `1 <= k <= 32`, predefinito `32` se `<k>` è omesso),"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap23/23_03.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato `23.3-a`, se `malloc` fallisce alla prima iterazione (`ok == false`), `a` o `b` resta `nullptr`, ma le `printf` successive dereferenziano `a->chiave` e `b->chiave` senza verificare prima `if (!ok)` (comportamento indefinito).",
+      "old_text": "    for (size_t i = 0; i < 6 && ok; ++i) {\n        a = inserisci_singole(a, cresc[i], &ok);\n        b = inserisci_singole(b, decr[i], &ok);\n    }\n    printf(\"Crescente: radice=%d altezza=%d inordine:\", a->chiave, h_nodo(a));",
+      "new_text": "    for (size_t i = 0; i < 6 && ok; ++i) {\n        a = inserisci_singole(a, cresc[i], &ok);\n        b = inserisci_singole(b, decr[i], &ok);\n    }\n    if (!ok) {\n        distruggi(a);\n        distruggi(b);\n        return EXIT_FAILURE;\n    }\n    printf(\"Crescente: radice=%d altezza=%d inordine:\", a->chiave, h_nodo(a));"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap23/23_02.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "L'introduzione all'esempio guidato `23.2-a` cita una funzione `heap_costruisci`, ma il codice non definisce tale funzione (esegue il ciclo di heapify bottom-up direttamente in `main`).",
+      "old_text": "Il programma seguente implementa un min-heap binario di `int` su array dinamico con `risali` (*sift-up*), `scendi` (*sift-down*) e `heap_costruisci` (heapify bottom-up `O(n)`).",
+      "new_text": "Il programma seguente implementa un min-heap binario di `int` su array dinamico con `risali` (*sift-up*), `scendi` (*sift-down*) e la costruzione bottom-up (*heapify* `O(n)`)."
+    }
+  ]
+}

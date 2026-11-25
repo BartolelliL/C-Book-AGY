@@ -239,7 +239,7 @@ Per rendere la struttura riutilizzabile con qualsiasi tipo di dato — interi, s
 
 ### Esempio guidato
 
-Il programma seguente implementa un min-heap binario di `int` su array dinamico con `risali` (*sift-up*), `scendi` (*sift-down*) e `heap_costruisci` (heapify bottom-up `O(n)`). Verifica la proprietà di min-heap dopo ogni operazione ed estrae gli elementi uno alla volta in ordine crescente.
+Il programma seguente implementa un min-heap binario di `int` su array dinamico con `risali` (*sift-up*), `scendi` (*sift-down*) e la costruzione bottom-up (*heapify* `O(n)`). Verifica la proprietà di min-heap dopo ogni operazione ed estrae gli elementi uno alla volta in ordine crescente.
 
 <!-- cod: id=23.2-a tipo=programma -->
 ```c
@@ -568,6 +568,11 @@ int main(void) {
         a = inserisci_singole(a, cresc[i], &ok);
         b = inserisci_singole(b, decr[i], &ok);
     }
+    if (!ok) {
+        distruggi(a);
+        distruggi(b);
+        return EXIT_FAILURE;
+    }
     printf("Crescente: radice=%d altezza=%d inordine:", a->chiave, h_nodo(a));
     stampa_inordine(a);
     printf("\nDecrescente: radice=%d altezza=%d inordine:", b->chiave, h_nodo(b));
@@ -820,7 +825,7 @@ Realizza su tre file (`trie.h`, `trie.c`, `main.c`) un **trie** come **tipo opac
    - `bool trie_rimuovi(trie_t *t, const char *parola);` (rimuove la parola, decrementa `parole_sottoalbero` lungo il cammino e libera con `free` ogni nodo non radice divenuto privo di figli e non terminale)
    - `size_t trie_num_parole(const trie_t *t);`
    - `size_t trie_num_nodi(const trie_t *t);` (include la radice)
-2. In `main.c` leggi da `stdin` i comandi `ADD <parola> <peso>`, `FIND <parola>`, `COUNT <pref>` (`*` rappresenta il prefisso vuoto `""`), `SUGG <pref> <k>` (`*` per `""`, `1 <= k <= 32`), `DEL <parola>` e `NODES`, producendo esattamente l'output dell'esempio.
+2. In `main.c` leggi da `stdin` i comandi `ADD <parola> <peso>`, `FIND <parola>`, `COUNT <pref>` (`*` rappresenta il prefisso vuoto `""`), `SUGG <pref> [<k>]` (`*` per `""`, `1 <= k <= 32`, predefinito `32` se `<k>` è omesso), `DEL <parola>` e `NODES`, producendo esattamente l'output dell'esempio.
 
 **Concetti da tenere a mente**
 

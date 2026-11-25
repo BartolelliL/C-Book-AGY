@@ -1,0 +1,67 @@
+{
+  "capitolo": 22,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap22/22_05.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Secondo lo standard C23 (§6.5.1), un oggetto con tipo dichiarato (come `uint32_t bit`) mantiene sempre il proprio tipo dichiarato come tipo effettivo; `memcpy` imposta il tipo effettivo solo quando copia verso un oggetto privo di tipo dichiarato (come memoria restituita da `malloc`), e in quel caso gli assegna il tipo effettivo della sorgente, non della destinazione.",
+      "old_text": "`memcpy` copia la rappresentazione in byte e aggiorna legalmente il tipo effettivo della destinazione, rispettando strict aliasing;",
+      "new_text": "`memcpy` copia la rappresentazione in byte nell'oggetto di destinazione (che mantiene il proprio tipo dichiarato `uint32_t`), rispettando strict aliasing;"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap22/22_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C23 (§7.24.3), `malloc`, `calloc` e `realloc` garantiscono un puntatore opportunamente allineato per qualunque oggetto con allineamento fondamentale la cui dimensione non superi quella richiesta (non necessariamente almeno `alignof(max_align_t)` per richieste piccole come `malloc(1)`).",
+      "old_text": "È esattamente la stessa garanzia offerta da `malloc`, `calloc` e `realloc`: ogni blocco restituito da queste funzioni è allineato almeno a `alignof(max_align_t)`, risultando quindi adatto a qualunque oggetto con allineamento fondamentale.",
+      "new_text": "È un riferimento analogo alla garanzia offerta da `malloc`, `calloc` e `realloc`: ogni blocco restituito da queste funzioni è opportunamente allineato per qualunque oggetto con allineamento fondamentale la cui dimensione non superi quella richiesta (in particolare, per richieste di almeno `sizeof(max_align_t)` byte è allineato almeno ad `alignof(max_align_t)`)."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap22/22_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato `22.4-a` il campo `m->id` ha tipo `uint32_t` ma viene stampato con `%u` anziché con la macro portabile `PRIu32` di `<inttypes.h>`: in C23 `uint32_t` non è garantito coincidere con `unsigned int`. Occorre includere `<inttypes.h>` (insieme alla patch `p4`).",
+      "old_text": "#include <stdckdint.h>\n#include <stddef.h>",
+      "new_text": "#include <inttypes.h>\n#include <stdckdint.h>\n#include <stddef.h>"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap22/22_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Stampa `m->id` (`uint32_t`) con `PRIu32` invece di `%u` per piena portabilità rispetto allo standard C23 (abbinata a `p3`).",
+      "old_text": "    printf(\"Messaggio #%u (%zu char): %s\\n\", m->id, m->len, m->testo);",
+      "new_text": "    printf(\"Messaggio #%\" PRIu32 \" (%zu char): %s\\n\", m->id, m->len, m->testo);"
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap22/22_03.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "L'introduzione all'esempio guidato dice che il programma 'alloca due nuove particelle che riciclano esattamente gli slot liberati', ma `main.c` ne alloca una sola (`nuova`, che ricicla `attive[3]`, terminando con `occ=3 lib=1`).",
+      "old_text": "Alloca quattro particelle fino a riempire il pool, ne libera due in ordine sparso, alloca due nuove particelle che riciclano esattamente gli slot liberati in tempo costante $O(1)$ e stampa ad ogni passo il numero di blocchi occupati e liberi.",
+      "new_text": "Alloca quattro particelle fino a riempire il pool, ne libera due in ordine sparso, alloca una nuova particella che ricicla esattamente l'ultimo slot liberato in tempo costante $O(1)$ e stampa ad ogni passo il numero di blocchi occupati e liberi."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap22/22_02.md",
+      "gravita": "bassa",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "La notazione O (`O(1)`) viene introdotta formalmente nel capitolo 23 (sotto-sezione 23.1); alla prima occorrenza nel capitolo 22 conviene aggiungere un breve rinvio in avanti.",
+      "old_text": "Ogni allocazione nell'arena lavora in tempo costante ($O(1)$) e segue quattro passaggi precisi:",
+      "new_text": "Ogni allocazione nell'arena lavora in tempo costante ($O(1)$, notazione che formalizzeremo nel capitolo 23) e segue quattro passaggi precisi:"
+    }
+  ]
+}
