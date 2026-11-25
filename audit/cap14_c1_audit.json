@@ -1,0 +1,57 @@
+{
+  "capitolo": 14,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap14/14_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Secondo lo standard C23 (7.24.1.5p10), per strtod la segnalazione di overflow tramite errno = ERANGE e ±HUGE_VAL è definita, mentre in caso di underflow è dipendente dall'implementazione se errno venga impostato a ERANGE. L'affermazione attuale presenta tutto come comportamento definito senza distinguere il caso di underflow.",
+      "old_text": "Secondo lo standard C23, il comportamento di `argc`, `argv[argc] == nullptr`, delle funzioni `strto*` e della segnalazione tramite `errno`, `ERANGE` e `HUGE_VAL` è definito.",
+      "new_text": "Secondo lo standard C23, il comportamento di `argc`, `argv[argc] == nullptr`, delle funzioni `strto*` e della segnalazione di overflow tramite `errno`, `ERANGE` e `HUGE_VAL` è definito (per `strtod`, in caso di underflow è invece dipendente dall'implementazione se `errno` venga impostato a `ERANGE`)."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap14/14_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "La formulazione dice 'ogni oggetto in memoria che viene modificato tramite p', ma la regola di restrict in C23 (6.7.3.1) si applica a ogni oggetto acceduto tramite p che venga modificato in qualsiasi modo durante il blocco: altrimenti non si spiegherebbe perché qualificare con restrict un puntatore a dati costanti come `const double *restrict a` nella riga successiva.",
+      "old_text": "Quel qualificatore `restrict` (introdotto in C99 e confermato in C23) si applica solo a puntatori a oggetti (`T *restrict p`) e rappresenta una **promessa al compilatore**: durante l'esecuzione del blocco (o della funzione) in cui `p` è dichiarato, ogni oggetto in memoria che viene modificato tramite `p` non sarà letto né scritto attraverso nessun altro puntatore che non derivi da `p`.",
+      "new_text": "Quel qualificatore `restrict` (introdotto in C99 e confermato in C23) si applica solo a puntatori a oggetti (`T *restrict p`) e rappresenta una **promessa al compilatore**: durante l'esecuzione del blocco (o della funzione) in cui `p` è dichiarato, ogni oggetto in memoria acceduto tramite `p` che venga modificato nel corso del blocco non sarà letto né scritto attraverso nessun altro puntatore che non derivi da `p`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap14/14_99.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Stessa imprecisione del riepilogo su restrict rispetto a C23 6.7.3.1: la promessa vale per gli oggetti acceduti tramite p e modificati durante il blocco (anche attraverso un altro puntatore, come nei parametri const T *restrict).",
+      "old_text": "Il qualificatore `restrict` (`T *restrict p`) promette al compilatore l'assenza di sovrapposizione per gli oggetti modificati tramite `p`; violare questa promessa provoca comportamento indefinito.",
+      "new_text": "Il qualificatore `restrict` (`T *restrict p`) promette al compilatore che nessun oggetto acceduto tramite `p` e modificato durante il blocco sia raggiunto da un altro puntatore non derivato da `p`; violare questa promessa provoca comportamento indefinito."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap14/14_05.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La descrizione dell'esercizio 14.5 non specifica che cosa stampare quando MARK o DEL ricevono un indice fuori dai limiti (`MARK non valido` / `DEL non valido`) né il testo `nessuna` quando non c'è una voce evidenziata, rendendo ambiguo il comportamento atteso dai test.",
+      "old_text": "In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>`, `DEL <idx>` e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata, chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`.",
+      "new_text": "In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>` (se l'indice è fuori dai limiti stampa `MARK non valido`), `DEL <idx>` (se l'indice è fuori dai limiti stampa `DEL non valido`) e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata (oppure `nessuna`), chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap14/14_05.md",
+      "gravita": "bassa",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "La notazione O (`O(n)`) viene introdotta nel capitolo 23 secondo la macro-scaletta e qui compare senza spiegazione (e con sintassi LaTeX `$O(n)$`).",
+      "old_text": "1. **Calcolo della lunghezza in tempo lineare ($O(n)$):** per sapere quanti elementi contiene la sequenza occorre scorrerla fino alla sentinella (proprio come fa `strlen`).",
+      "new_text": "1. **Calcolo della lunghezza in tempo lineare:** per sapere quanti elementi contiene la sequenza occorre scorrerla fino alla sentinella (proprio come fa `strlen`), con un costo proporzionale al numero di elementi."
+    }
+  ]
+}

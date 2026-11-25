@@ -1,0 +1,47 @@
+{
+  "capitolo": 15,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap15/15_05.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 15.5-a i campi `a.codice` e `b.codice` hanno tipo `uint32_t`, ma vengono stampati con `%u` anziché con la macro portabile `PRIu32` di `<inttypes.h>` (già usata sulla stessa riga per `punti_a` e `punti_b`). Secondo lo standard C23 `uint32_t` non è garantito coincidere con `unsigned int` e passare un tipo incompatibile a `%u` provoca comportamento indefinito.",
+      "old_text": "    printf(\"Prima voce: ts=%\" PRIu64 \" #%u [%s] punti=%\" PRIu32 \"\\n\",\n           a.istante, a.codice, NOMI_LIVELLO[a.livello], punti_a);\n    printf(\"Seconda voce: ts=%\" PRIu64 \" #%u [%s] punti=%\" PRIu32 \"\\n\",\n           b.istante, b.codice, NOMI_LIVELLO[b.livello], punti_b);",
+      "new_text": "    printf(\"Prima voce: ts=%\" PRIu64 \" #%\" PRIu32 \" [%s] punti=%\" PRIu32 \"\\n\",\n           a.istante, a.codice, NOMI_LIVELLO[a.livello], punti_a);\n    printf(\"Seconda voce: ts=%\" PRIu64 \" #%\" PRIu32 \" [%s] punti=%\" PRIu32 \"\\n\",\n           b.istante, b.codice, NOMI_LIVELLO[b.livello], punti_b);"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap15/15_02.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "L'introduzione dell'esempio guidato dichiara `uint8_t trama[12]`, ma il codice dell'esempio 15.2-a e la spiegazione successiva usano `uint8_t trama[10]` (10 byte).",
+      "old_text": "Il programma seguente lavora su un buffer binario `uint8_t trama[12]` che contiene deliberatamente byte `0x00`.",
+      "new_text": "Il programma seguente lavora su un buffer binario `uint8_t trama[10]` che contiene deliberatamente byte `0x00`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap15/15_02.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La descrizione dell'esercizio 15.2 non specifica l'output atteso quando `DUMP` viene chiamato su buffer vuoto (`DUMP (0): (vuoto)`) né quando `INS`, `DEL`, `FILL` o `CMP` falliscono i controlli sui limiti (`<CMD> rifiutato`), casi verificati dai test del blueprint e assenti dall'esempio di esecuzione.",
+      "old_text": "In `main` leggi da `stdin` fino a fine input comandi (con valori di byte decimali in `0..255`): `INS <pos> <k> <b0> ... <bk-1>` (`0 <= k <= 16`), `DEL <pos> <n>`, `FILL <pos> <n> <val>`, `FIND <da> <val>`, `CMP <p1> <p2> <n>` e `DUMP`, stampando gli esiti esattamente come nell'esempio di esecuzione.",
+      "new_text": "In `main` leggi da `stdin` fino a fine input comandi (con valori di byte decimali in `0..255`): `INS <pos> <k> <b0> ... <bk-1>` (`0 <= k <= 16`), `DEL <pos> <n>`, `FILL <pos> <n> <val>`, `FIND <da> <val>`, `CMP <p1> <p2> <n>` e `DUMP` (che stampa `DUMP (0): (vuoto)` se il buffer è vuoto; se un'operazione `INS`, `DEL`, `FILL` o `CMP` viene rifiutata per limiti non validi stampa `<CMD> rifiutato`), stampando gli esiti esattamente come nell'esempio di esecuzione."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap15/15_02.md",
+      "gravita": "bassa",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Errore di articolo in italiano: `i n byte` invece di `gli n byte` (usato correttamente subito dopo nella stessa frase).",
+      "old_text": "- usa **`memcpy`** solo quando sei certo che i `n` byte di sorgente e gli `n` byte di destinazione **non si sovrappongono**",
+      "new_text": "- usa **`memcpy`** solo quando sei certo che gli `n` byte di sorgente e gli `n` byte di destinazione **non si sovrappongono**"
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+## 14.5 Valori sentinella e puntatori pendenti
+
+In questa ultima sotto-sezione uniamo due temi che ricorrono continuamente nella gestione di strutture dinamiche: come segnalare la fine di una sequenza di puntatori senza un contatore separato, e come evitare che un puntatore resti agganciato a memoria non più valida.
+
+### Valori sentinella
+
+Un **valore sentinella** (*sentinel value*) è un valore speciale, come `nullptr` o `'\0'`, posto al termine di una sequenza per segnalarne la fine senza un contatore separato. Ne conosci già due esempi fondamentali:
+
+- il terminatore nullo `'\0'` alla fine di ogni stringa C;
+- il puntatore nullo `argv[argc] == nullptr` al termine degli argomenti da riga di comando.
+
+Puoi applicare lo stesso schema a qualsiasi tabella dinamica di stringhe `char **voci`: se garantisci che dopo l'ultima stringa valida ci sia sempre un elemento uguale a `nullptr`, qualunque funzione che riceve `voci` può scandire, contare o liberare tutti gli elementi con un semplice ciclo `for (size_t i = 0; voci[i] != nullptr; ++i)` senza dover passare la lunghezza come parametro separato.
+
+Questa comodità ha due costi precisi che vanno sempre considerati:
+
+1. **Calcolo della lunghezza in tempo lineare ($O(n)$):** per sapere quanti elementi contiene la sequenza occorre scorrerla fino alla sentinella (proprio come fa `strlen`).
+2. **Obbligo dello slot extra (`+ 1`):** ogni volta che allochi o riallochi la sequenza per `n` elementi validi devi riservare spazio per `n + 1` puntatori (e quando aggiungi un elemento a `n` già presenti, `realloc` deve richiedere `n + 2` puntatori: gli `n` vecchi, il nuovo e la sentinella `nullptr`). Dimenticare lo slot della sentinella provoca un accesso fuori dai limiti.
+
+### Puntatori pendenti
+
+Un **puntatore pendente** (*dangling pointer*) è un puntatore che conserva l'indirizzo di un oggetto la cui durata di vita è terminata o che è stato liberato. Secondo lo standard C23, dereferenziare, confrontare in modo ordinato o anche solo leggere il valore ormai indeterminato di un puntatore pendente dopo `free` o `realloc` provoca **comportamento indefinito**.
+
+Esistono quattro cause principali di puntatori pendenti. I frammenti seguenti mostrano ciascun errore — **non vanno mai scritti così** — insieme alla relativa correzione.
+
+**1. Restituire l'indirizzo di una variabile locale sullo stack.** Quando la funzione termina, il suo record sullo stack viene distrutto e l'indirizzo restituito punta a memoria non più valida:
+
+<!-- cod: id=14.5-b tipo=frammento -->
+```c
+// ERRORE (comportamento indefinito): restituisce l'indirizzo di una variabile locale
+int *crea_sbagliato(int v) {
+    int locale = v;
+    return &locale; // locale termina la durata di vita all'uscita dalla funzione!
+}
+// CORREZIONE: alloca sullo heap con malloc/calloc (chi chiama poi esegue free),
+// oppure scrivi il risultato in un parametro passato dal chiamante.
+```
+
+**2. Conservare fuori da un blocco l'indirizzo di una variabile dichiarata nel blocco.** La durata di vita di `temporanea` termina alla graffa chiusa:
+
+<!-- cod: id=14.5-c tipo=frammento -->
+```c
+// ERRORE (comportamento indefinito): puntatore a variabile di blocco interno
+int *p = nullptr;
+{
+    int temporanea = 10;
+    p = &temporanea;
+}
+// Qui p è un puntatore pendente: leggere *p è comportamento indefinito!
+// CORREZIONE: dichiara la variabile nello stesso ambito in cui vive p (o più esterno).
+```
+
+**3. Non azzerare un puntatore (o un suo alias) dopo `free`.** Dopo `free(a)`, sia `a` sia qualsiasi altra copia `b = a` diventano puntatori pendenti:
+
+<!-- cod: id=14.5-d tipo=frammento -->
+```c
+// ERRORE (comportamento indefinito): uso dopo la liberazione tramite puntatore o alias
+int *a = malloc(sizeof(*a));
+int *b = a;
+free(a);
+// Qui sia a sia b sono puntatori pendenti: accedere a *a o *b è comportamento indefinito!
+// CORREZIONE: azzera il puntatore subito dopo free (meglio tramite funzione int **),
+// ed evita di mantenere alias non necessari oltre la durata di vita del blocco.
+```
+
+**4. Conservare un puntatore diretto a un elemento dentro un array ridimensionato con `realloc`.** Se `realloc` sposta il blocco in una nuova posizione dello heap, il vecchio blocco viene liberato e ogni puntatore a suoi elementi diventa pendente:
+
+<!-- cod: id=14.5-e tipo=frammento -->
+```c
+// ERRORE (comportamento indefinito): puntatore invalidato da realloc
+int *dati = malloc(2 * sizeof(*dati));
+int *primo = &dati[0];
+int *tmp = realloc(dati, 100 * sizeof(*dati));
+if (tmp != nullptr) {
+    dati = tmp;
+    // Se realloc ha spostato il blocco, primo è ora un puntatore pendente!
+}
+// CORREZIONE: salva l'indice (size_t idx_primo = 0;) e accedi come dati[idx_primo].
+```
+
+### Strategie di prevenzione
+
+Per tenere lontani i puntatori pendenti dal tuo codice, adotta tre abitudini sistematiche:
+
+- Usa funzioni di rilascio con `T **` che chiamano `free(*p); *p = nullptr;`, azzerando il puntatore del chiamante nello stesso punto in cui liberi la memoria.
+- Dentro array dinamici che possono crescere con `realloc`, identifica gli elementi tramite **indici `size_t`** anziché tramite puntatori diretti agli elementi.
+- Compila e prova regolarmente i tuoi programmi con **AddressSanitizer** (`-fsanitize=address,undefined`, visto nel capitolo 11), che intercetta subito uso dopo la liberazione, accessi fuori dai limiti e uso di variabili di stack fuori ambito.
+
+> **Se vieni da Python** — In Python il *garbage collector* impedisce i puntatori pendenti mantenendo vivi gli oggetti finché esistono riferimenti; in C la durata di vita è gestita esplicitamente e un puntatore a memoria liberata o spostata da `realloc` diventa subito un puntatore pendente.
+
+### Esempio guidato
+
+Il programma seguente gestisce una lista dinamica di comandi `char **comandi` terminata dal valore sentinella `nullptr`. Per ricordare quale comando è attualmente attivo memorizza un indice `size_t attivo_idx` (e non un `char **` o un `char *` diretto dentro l'array), così il riferimento resta valido anche dopo ripetute chiamate a `realloc`. Al termine `libera_comandi` distrugge tutto e azzera `comandi` a `nullptr`.
+
+<!-- cod: id=14.5-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+size_t conta_comandi(char *const *lista) {
+    if (lista == nullptr) {
+        return 0;
+    }
+    size_t n = 0;
+    while (lista[n] != nullptr) {
+        ++n;
+    }
+    return n;
+}
+
+bool aggiungi_comando(char ***lista, const char *testo) {
+    if (lista == nullptr || testo == nullptr) {
+        return false;
+    }
+    size_t n = conta_comandi(*lista);
+    char *copia = strdup(testo);
+    if (copia == nullptr) {
+        return false;
+    }
+    char **tmp = realloc(*lista, (n + 2) * sizeof(*tmp));
+    if (tmp == nullptr) {
+        free(copia);
+        return false;
+    }
+    *lista = tmp;
+    (*lista)[n] = copia;
+    (*lista)[n + 1] = nullptr;
+    return true;
+}
+
+void libera_comandi(char ***lista) {
+    if (lista == nullptr || *lista == nullptr) {
+        return;
+    }
+    for (size_t i = 0; (*lista)[i] != nullptr; ++i) {
+        free((*lista)[i]);
+    }
+    free(*lista);
+    *lista = nullptr;
+}
+
+int main(void) {
+    char **comandi = nullptr;
+
+    if (!aggiungi_comando(&comandi, "avvia") ||
+        !aggiungi_comando(&comandi, "controlla")) {
+        libera_comandi(&comandi);
+        return EXIT_FAILURE;
+    }
+
+    size_t attivo_idx = 1; // Indice sicuro invece di char **attivo = &comandi[1]
+    printf("Comando attivo prima di realloc: %s\n", comandi[attivo_idx]);
+
+    if (!aggiungi_comando(&comandi, "salva") ||
+        !aggiungi_comando(&comandi, "chiudi")) {
+        libera_comandi(&comandi);
+        return EXIT_FAILURE;
+    }
+
+    printf("Totale comandi: %zu\n", conta_comandi(comandi));
+    for (size_t i = 0; comandi[i] != nullptr; ++i) {
+        printf("[%zu] %s%s\n", i, comandi[i], (i == attivo_idx) ? " <- attivo" : "");
+    }
+
+    libera_comandi(&comandi);
+    printf("Dopo rilascio: comandi nullo = %d\n", comandi == nullptr);
+    return EXIT_SUCCESS;
+}
+```
+
+```output
+Comando attivo prima di realloc: controlla
+Totale comandi: 4
+[0] avvia
+[1] controlla <- attivo
+[2] salva
+[3] chiudi
+Dopo rilascio: comandi nullo = 1
+```
+
+Osserva come l'esempio mette in pratica tutti i concetti della sotto-sezione:
+
+- `conta_comandi` riceve `char *const *` (nel pieno rispetto delle regole di `const` della sotto-sezione 14.4) e conta gli elementi fermandosi alla sentinella `nullptr`.
+- In `aggiungi_comando`, `realloc` chiede sempre `(n + 2) * sizeof(*tmp)`: gli `n` puntatori esistenti, il nuovo puntatore in posizione `n` e la sentinella `nullptr` in posizione `n + 1`. Nota che qui compare `char ***lista` solo perché `comandi` non è ancora racchiuso in una `struct`: nell'esercizio 14.5 vedrai come incapsulare `char **voci` in una `struct elenco` elimini il terzo asterisco!
+- Dopo le due nuove chiamate a `aggiungi_comando` (ciascuna con `realloc`), `comandi[attivo_idx]` continua a individuare esattamente `"controlla"`, senza alcun rischio di puntatore pendente.
+- `libera_comandi(&comandi)` libera prima ogni stringa fino alla sentinella, poi libera l'array e imposta `*lista = nullptr`, così `comandi` nel `main` non resta mai pendente.
+
+> **Approfondimento — Perché un indice `size_t` è immune allo spostamento di `realloc`**
+> Quando `realloc` ingrandisce un blocco sullo heap e non trova spazio adiacente libero, alloca un nuovo blocco altrove, copia i byte e libera il vecchio. L'indirizzo assoluto del blocco cambia, rendendo immediatamente pendente qualsiasi puntatore che vi puntava dentro; la posizione relativa `idx` dell'elemento rispetto all'inizio del blocco, invece, rimane identica e `comandi[idx]` calcola sempre l'indirizzo corretto sulla nuova base.
+
+### Esercizio 14.5 — Elenco dinamico terminato da sentinella `nullptr` con segnalibro per indice immune a `realloc`
+
+**Descrizione**
+
+Scrivi un programma C che definisca `typedef struct elenco { char **voci; bool ha_evid; size_t idx_evid; } elenco_t;` dove `voci` è un array dinamico di `char *` **sempre terminato dal valore sentinella `nullptr`** (senza campo lunghezza separato) e la voce evidenziata è tracciata tramite l'indice `idx_evid` anziché tramite un puntatore diretto che diventerebbe un puntatore pendente dopo `realloc` o dopo una rimozione. Implementa quattro funzioni:
+
+1. `size_t conta_voci(char *const *voci)` che conta le stringhe scorrendo fino alla sentinella `nullptr` (`0` se `voci == nullptr`);
+2. `bool aggiungi_voce(elenco_t *e, const char *testo)` che calcola `n = conta_voci(e->voci)`, duplica `testo` con `strdup`, rialloca `e->voci` per `n + 2` puntatori (`n + 1` stringhe + la sentinella `nullptr`), inserisce la copia in `e->voci[n]` e scrive `e->voci[n + 1] = nullptr`;
+3. `bool rimuovi_voce(elenco_t *e, size_t pos)` che controlla `pos < conta_voci(e->voci)`, libera `e->voci[pos]`, sposta a sinistra i puntatori successivi fino a includere la sentinella `nullptr` e aggiorna il segnalibro (`ha_evid = false` se `idx_evid == pos`, `--idx_evid` se `idx_evid > pos`);
+4. `void libera_elenco(elenco_t *e)` che scorre fino alla sentinella liberando ogni stringa, libera `e->voci` e azzera `e->voci = nullptr`, `e->ha_evid = false`, `e->idx_evid = 0`.
+
+In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>`, `DEL <idx>` e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata, chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`.
+
+**Concetti da tenere a mente**
+
+- array dinamico di puntatori `char **` terminato dal valore sentinella `nullptr`
+- riserva dello slot aggiuntivo (`n + 2`) per mantenere sempre la sentinella finale dopo `realloc`
+- uso di un indice `size_t` al posto di un puntatore diretto per evitare puntatori pendenti dopo `realloc`
+- azzeramento sistematico di `e->voci = nullptr` dopo `free` per prevenire uso dopo la liberazione
+
+**Domande guida**
+
+1. Perché in `aggiungi_voce` devi richiedere spazio per `n + 2` puntatori a `realloc` invece di `n + 1`?
+2. Che cosa accadrebbe se la voce evidenziata fosse salvata come `char **ptr_evid = &e.voci[1]` e subito dopo arrivasse un comando `ADD` che fa spostare `e.voci` a `realloc`?
+3. Come deve essere aggiornato `idx_evid` quando viene rimossa una voce con posizione minore di `idx_evid` rispetto a quando viene rimossa esattamente la voce evidenziata?
+4. Perché `libera_elenco` deve liberare tutte le stringhe fino alla sentinella prima di chiamare `free(e->voci)` e impostare `e->voci = nullptr`?
+
+**Esempio di esecuzione**
+
+```input
+ADD alfa
+ADD beta
+ADD gamma
+MARK 1
+ADD delta
+DEL 0
+LIST
+DEL 0
+LIST
+```
+
+```output
+[0] beta *
+[1] gamma
+[2] delta
+[0] gamma
+[1] delta
+Totale finale: 2
+Evidenziata: nessuna
+Puntatore azzerato: 1
+```

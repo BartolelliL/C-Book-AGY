@@ -1,0 +1,180 @@
+## 14.4 Correttezza di `const` e qualificatore `restrict`
+
+Quando i puntatori diventano multipli o attraversano funzioni di libreria ad alte prestazioni, due qualificatori di tipo diventano centrali per scrivere interfacce chiare e veloci: `const` (introdotto nel capitolo 10 per i puntatori singoli) e `restrict`.
+
+### `const` su più livelli di puntatori
+
+Per leggere senza ambiguità una dichiarazione con più asterischi e uno o più `const`, si applica la regola della lettura da destra a sinistra a partire dal nome della variabile:
+
+- `const char **p`: `p` è un puntatore a un puntatore a `const char`. Puoi cambiare `*p` (dove punta il puntatore intermedio), ma non `**p` (i caratteri puntati).
+- `char *const *p`: `p` è un puntatore a un puntatore **costante** a `char`. Non puoi cambiare `*p`, ma puoi modificare i caratteri `**p`.
+- `const char *const *p`: `p` è un puntatore a un puntatore **costante** a `const char`. Non puoi modificare né `*p` né i caratteri `**p`.
+
+In C la conversione implicita che aggiunge `const` a un puntatore è permessa **solo sul primo livello puntato**:
+
+- `T *` si converte implicitamente in `const T *`.
+- `T **` si converte implicitamente in `T *const *` (aggiunge `const` al primo livello puntato).
+- `T **` **non** si converte implicitamente in `const T **` né in `const T *const *`.
+
+A prima vista questo divieto sembra un fastidio: se ho un `char **v` (per esempio `argv`), perché non posso passarlo a una funzione che promette di non modificare i caratteri con `const char **p`? La risposta è che permettere `T ** -> const T **` aprirebbe un buco di sicurezza dei tipi che consentirebbe di modificare un oggetto `const` senza alcun cast esplicito. Guarda che cosa accadrebbe se la conversione fosse legale:
+
+<!-- cod: id=14.4-c tipo=frammento -->
+```c
+// Esempio dimostrativo (NON compila in C): perché char ** -> const char ** è vietata
+const char c = 'X';
+char *p = nullptr;
+const char **pp = &p; // Se questa riga fosse lecita...
+*pp = &c;             // ...ora p (che è char *, non const!) punterebbe al const char c!
+*p = 'Y';             // Modifica di un oggetto const senza alcun cast: comportamento indefinito!
+```
+
+Il compilatore blocca alla radice questo scenario vietando la conversione implicita da `char **` a `const char **`. Per progettare API *const-correct* per array di stringhe hai due scelte pulite:
+
+- Se l'array contiene stringhe che non vanno modificate, dichiaralo fin dall'origine come `const char *v[]`: il suo nome decade a `const char **` e si converte implicitamente in `const char *const *` (aggiungendo `const` sul primo livello puntato).
+- Se invece la funzione deve accettare un `char **` (come `argv` o un array dinamico di stringhe sullo heap) senza modificare i puntatori dell'array, usa il parametro `char *const *`.
+
+### Il qualificatore `restrict`
+
+Osserva le firme della libreria standard che usi ogni giorno:
+
+- `char *strcpy(char *restrict s1, const char *restrict s2);`
+- `int snprintf(char *restrict s, size_t n, const char *restrict format, ...);`
+- `long int strtol(const char *restrict nptr, char **restrict endptr, int base);`
+
+Quel qualificatore `restrict` (introdotto in C99 e confermato in C23) si applica solo a puntatori a oggetti (`T *restrict p`) e rappresenta una **promessa al compilatore**: durante l'esecuzione del blocco (o della funzione) in cui `p` è dichiarato, ogni oggetto in memoria che viene modificato tramite `p` non sarà letto né scritto attraverso nessun altro puntatore che non derivi da `p`.
+
+In pratica, scrivere `void somma_vettori(double *restrict dst, const double *restrict a, const double *restrict b, size_t n)` dichiara che il buffer di destinazione `dst` non si sovrappone in memoria ad `a` né a `b`. Grazie a questa garanzia il compilatore può ottimizzare i cicli con molta più libertà, mantenendo i valori nei registri della CPU o eseguendo più operazioni in parallelo senza dover rileggere `a[i]` e `b[i]` dalla memoria dopo ogni scrittura su `dst[i]`.
+
+La promessa però è vincolante: secondo lo standard C23, violare `restrict` — per esempio passando due puntatori che raggiungono aree sovrapposte mentre almeno uno dei due modifica i dati — provoca **comportamento indefinito**. Per questo devi usare `restrict` solo quando il contratto della funzione richiede buffer disgiunti; devi invece evitarlo nelle trasformazioni *in-place* o quando sorgente e destinazione possono coincidere o sovrapporsi.
+
+### Esempio guidato
+
+Prima verifichiamo che il compilatore rifiuti la conversione illegale da `char **` a `const char **`: questo programma di tipo `errore` dimostra il vincolo di `const` sul secondo livello.
+
+<!-- cod: id=14.4-b tipo=errore -->
+```c
+#include <stdio.h>
+
+void stampa_errata(const char **v, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        printf("%s\n", v[i]);
+    }
+}
+
+int main(void) {
+    char s1[] = "alfa";
+    char *elenco[1] = {s1};
+    stampa_errata(elenco, 1); // Errore di compilazione: char ** non si converte in const char **
+    return 0;
+}
+```
+
+Il compilatore segnala l'incompatibilità tra il tipo dell'argomento (`char **`) e quello del parametro (`const char **`). Il programma eseguibile seguente mostra invece la progettazione corretta: una funzione `stampa_etichette` che accetta `const char *const *` (chiamata su un array `const char *`), una funzione vettoriale `scala_disgiunto` con `restrict` che opera su buffer separati e una trasformazione *in-place* `scala_sul_posto` senza `restrict`.
+
+<!-- cod: id=14.4-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+void stampa_etichette(const char *const *v, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+        printf("[%zu] %s\n", i, v[i]);
+    }
+}
+
+void scala_disgiunto(double *restrict dst, const double *restrict src, size_t n, double fattore) {
+    for (size_t i = 0; i < n; ++i) {
+        dst[i] = src[i] * fattore;
+    }
+}
+
+void scala_sul_posto(double *dati, size_t n, double fattore) {
+    for (size_t i = 0; i < n; ++i) {
+        dati[i] *= fattore;
+    }
+}
+
+int main(void) {
+    const char *nomi[3] = {"temperatura", "pressione", "umidita"};
+    stampa_etichette(nomi, 3);
+
+    double ingresso[4] = {2.0, 4.0, 6.0, 8.0};
+    double uscita[4] = {0.0, 0.0, 0.0, 0.0};
+
+    scala_disgiunto(uscita, ingresso, 4, 1.5);
+    printf("Dopo scala_disgiunto:");
+    for (size_t i = 0; i < 4; ++i) {
+        printf(" %.1f", uscita[i]);
+    }
+    printf("\n");
+
+    scala_sul_posto(ingresso, 4, 0.5);
+    printf("Dopo scala_sul_posto:");
+    for (size_t i = 0; i < 4; ++i) {
+        printf(" %.1f", ingresso[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
+```
+
+```output
+[0] temperatura
+[1] pressione
+[2] umidita
+Dopo scala_disgiunto: 3.0 6.0 9.0 12.0
+Dopo scala_sul_posto: 1.0 2.0 3.0 4.0
+```
+
+Nota perché ogni chiamata qui è completamente legale e chiara:
+
+- `nomi` ha tipo `const char *[3]`, che decade a `const char **` e si converte implicitamente in `const char *const *` (aggiungendo `const` solo sul primo livello puntato).
+- `scala_disgiunto` riceve `uscita` e `ingresso`, due array completamente separati: la promessa di `restrict` è rispettata. Chiamare `scala_disgiunto(ingresso, ingresso, 4, 1.5)` violerebbe invece il contratto di `restrict` provocando comportamento indefinito.
+- Per modificare un buffer direttamente sul posto usiamo `scala_sul_posto`, che riceve un singolo puntatore senza `restrict`.
+
+> **Approfondimento — Che cos'è l'aliasing dei puntatori**
+> Si parla di *aliasing* quando due puntatori diversi raggiungono la stessa area di memoria. Senza `restrict`, il compilatore deve assumere in modo prudente che una scrittura attraverso `dst[i]` possa alterare il valore che verrà letto subito dopo da `src[i]`, rinunciando a tenere `src[i]` nei registri della CPU. Con `restrict` elimini questo dubbio a tempo di compilazione, lasciando al compilatore il via libera per generare codice macchina più efficiente.
+
+### Esercizio 14.4 — Filtro di segnale con `restrict`, gestione sicura della sovrapposizione e `const` a due livelli
+
+**Descrizione**
+
+Scrivi un programma C che elabori un buffer dinamico di `cap` campioni `double` (`1 <= cap <= 100`) rispettando rigorosamente i contratti di `restrict` e `const`. Implementa quattro funzioni prima di `main`:
+
+1. `bool fette_sovrapposte(size_t off_a, size_t off_b, size_t len)` che restituisce `true` se gli intervalli `[off_a, off_a + len)` e `[off_b, off_b + len)` condividono almeno un indice;
+2. `void media_mobile_restrict(double *restrict dst, const double *restrict src, size_t n)` che richiede buffer disgiunti e calcola per `n == 1` `dst[0] = src[0]`, mentre per `n >= 2` calcola `dst[0] = (src[0] + src[1]) / 2.0`, `dst[i] = (src[i - 1] + src[i] + src[i + 1]) / 3.0` per `0 < i < n - 1` e `dst[n - 1] = (src[n - 2] + src[n - 1]) / 2.0`;
+3. `bool applica_filtro(double *buf, size_t cap, size_t off_dst, size_t off_src, size_t len, bool *usato_tmp)` che controlla i limiti (`len >= 1`, `off_dst <= cap - len`, `off_src <= cap - len`), chiama direttamente `media_mobile_restrict` con `*usato_tmp = false` se le fette sono disgiunte, oppure alloca un buffer temporaneo `tmp`, calcola `media_mobile_restrict(tmp, buf + off_src, len)`, copia `tmp` in `buf + off_dst`, libera `tmp` e imposta `*usato_tmp = true` se le fette si sovrappongono;
+4. `double energia_fette(const double *const *fette, const size_t *lunghezze, size_t k)` che riceve un array di puntatori a dati costanti (`const double *const *`) e somma i quadrati di tutti i campioni delle `k` fette.
+
+In `main` leggi dalla prima riga `cap`, dalla seconda riga i `cap` campioni `double`, e poi fino a fine input comandi `FILTRA <off_dst> <off_src> <len>` stampando `FILTRA [<src>..+<len>] -> [<dst>..+<len>] (tmp=<si|no>)`. Al termine stampa il buffer finale (`%.2f`) e l'energia totale calcolata chiamando `energia_fette` sulle due metà `{buf, buf + cap / 2}` esattamente come nell'esempio.
+
+**Concetti da tenere a mente**
+
+- contratto del qualificatore `restrict`: assenza di sovrapposizione tra `dst` e `src`
+- prevenzione del comportamento indefinito tramite rilevazione della sovrapposizione e buffer temporaneo
+- `const`-correctness a due livelli con `const double *const *`
+- gestione sicura dei limiti con aritmetica priva di overflow (`off <= cap - len`)
+
+**Domande guida**
+
+1. Perché chiamare `media_mobile_restrict(buf + 1, buf, 4)` direttamente senza buffer temporaneo violerebbe il contratto di `restrict` e produrrebbe comportamento indefinito?
+2. Come stabilisce `fette_sovrapposte` se due sotto-intervalli di lunghezza `len` dentro lo stesso buffer si intersecano?
+3. Che cosa impedisce di modificare ciascuno dei due `const` presenti nella firma `const double *const *fette`?
+4. Perché conviene controllare `off_dst <= cap - len` (dopo aver verificato `len <= cap`) invece di scrivere `off_dst + len <= cap`?
+
+**Esempio di esecuzione**
+
+```input
+6
+0 6 0 6 0 6
+FILTRA 3 0 3
+FILTRA 1 0 4
+```
+
+```output
+FILTRA [0..+3] -> [3..+3] (tmp=no)
+FILTRA [0..+4] -> [1..+4] (tmp=si)
+Buffer: 0.00 3.00 2.00 3.00 1.50 3.00
+Energia totale: 33.25
+```

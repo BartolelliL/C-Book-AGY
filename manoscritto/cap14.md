@@ -471,7 +471,7 @@ Come si rileva invece un **overflow** (numero troppo grande per il tipo) o un **
 2. **Dopo** la chiamata, controlla `errno == ERANGE`: in caso di overflow `strtol` restituisce `LONG_MAX` o `LONG_MIN` (e analogamente le altre varianti intere restituiscono il limite del proprio tipo), mentre `strtod` restituisce `+HUGE_VAL` o `-HUGE_VAL` (definita in `<math.h>`).
 3. Se il tuo programma deve memorizzare il risultato di `strtol` in un tipo più stretto come `int`, dopo aver verificato `errno != ERANGE` controlla anche `val >= INT_MIN && val <= INT_MAX` prima del cast.
 
-Secondo lo standard C23, il comportamento di `argc`, `argv[argc] == nullptr`, delle funzioni `strto*` e della segnalazione tramite `errno`, `ERANGE` e `HUGE_VAL` è definito. Nessuna funzione della libreria standard azzera `errno` in caso di successo; inoltre, passare un puntatore nullo come primo argomento (`nptr`) a una funzione `strto*` provoca comportamento indefinito.
+Secondo lo standard C23, il comportamento di `argc`, `argv[argc] == nullptr`, delle funzioni `strto*` e della segnalazione di overflow tramite `errno`, `ERANGE` e `HUGE_VAL` è definito (per `strtod`, in caso di underflow è invece dipendente dall'implementazione se `errno` venga impostato a `ERANGE`). Nessuna funzione della libreria standard azzera `errno` in caso di successo; inoltre, passare un puntatore nullo come primo argomento (`nptr`) a una funzione `strto*` provoca comportamento indefinito.
 
 > **Se vieni da Python** — In Python gli argomenti da riga di comando si leggono da `sys.argv` (una lista di stringhe) e `int()`/`float()` sollevano eccezioni; in C `argc`/`argv` sono un contatore e un array terminato da `nullptr` e la conversione sicura richiede `strtol`/`strtod` con controllo esplicito di `endptr`, `errno` ed `ERANGE`.
 
@@ -657,7 +657,7 @@ Osserva le firme della libreria standard che usi ogni giorno:
 - `int snprintf(char *restrict s, size_t n, const char *restrict format, ...);`
 - `long int strtol(const char *restrict nptr, char **restrict endptr, int base);`
 
-Quel qualificatore `restrict` (introdotto in C99 e confermato in C23) si applica solo a puntatori a oggetti (`T *restrict p`) e rappresenta una **promessa al compilatore**: durante l'esecuzione del blocco (o della funzione) in cui `p` è dichiarato, ogni oggetto in memoria che viene modificato tramite `p` non sarà letto né scritto attraverso nessun altro puntatore che non derivi da `p`.
+Quel qualificatore `restrict` (introdotto in C99 e confermato in C23) si applica solo a puntatori a oggetti (`T *restrict p`) e rappresenta una **promessa al compilatore**: durante l'esecuzione del blocco (o della funzione) in cui `p` è dichiarato, ogni oggetto in memoria acceduto tramite `p` che venga modificato nel corso del blocco non sarà letto né scritto attraverso nessun altro puntatore che non derivi da `p`.
 
 In pratica, scrivere `void somma_vettori(double *restrict dst, const double *restrict a, const double *restrict b, size_t n)` dichiara che il buffer di destinazione `dst` non si sovrappone in memoria ad `a` né a `b`. Grazie a questa garanzia il compilatore può ottimizzare i cicli con molta più libertà, mantenendo i valori nei registri della CPU o eseguendo più operazioni in parallelo senza dover rileggere `a[i]` e `b[i]` dalla memoria dopo ogni scrittura su `dst[i]`.
 
@@ -810,7 +810,7 @@ Puoi applicare lo stesso schema a qualsiasi tabella dinamica di stringhe `char *
 
 Questa comodità ha due costi precisi che vanno sempre considerati:
 
-1. **Calcolo della lunghezza in tempo lineare ($O(n)$):** per sapere quanti elementi contiene la sequenza occorre scorrerla fino alla sentinella (proprio come fa `strlen`).
+1. **Calcolo della lunghezza in tempo lineare:** per sapere quanti elementi contiene la sequenza occorre scorrerla fino alla sentinella (proprio come fa `strlen`), con un costo proporzionale al numero di elementi.
 2. **Obbligo dello slot extra (`+ 1`):** ogni volta che allochi o riallochi la sequenza per `n` elementi validi devi riservare spazio per `n + 1` puntatori (e quando aggiungi un elemento a `n` già presenti, `realloc` deve richiedere `n + 2` puntatori: gli `n` vecchi, il nuovo e la sentinella `nullptr`). Dimenticare lo slot della sentinella provoca un accesso fuori dai limiti.
 
 ### Puntatori pendenti
@@ -997,7 +997,7 @@ Scrivi un programma C che definisca `typedef struct elenco { char **voci; bool h
 3. `bool rimuovi_voce(elenco_t *e, size_t pos)` che controlla `pos < conta_voci(e->voci)`, libera `e->voci[pos]`, sposta a sinistra i puntatori successivi fino a includere la sentinella `nullptr` e aggiorna il segnalibro (`ha_evid = false` se `idx_evid == pos`, `--idx_evid` se `idx_evid > pos`);
 4. `void libera_elenco(elenco_t *e)` che scorre fino alla sentinella liberando ogni stringa, libera `e->voci` e azzera `e->voci = nullptr`, `e->ha_evid = false`, `e->idx_evid = 0`.
 
-In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>`, `DEL <idx>` e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata, chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`.
+In `main` elabora fino a fine input i comandi `ADD <parola>` (`%31s`), `MARK <idx>` (se l'indice è fuori dai limiti stampa `MARK non valido`), `DEL <idx>` (se l'indice è fuori dai limiti stampa `DEL non valido`) e `LIST` (stampa `[<i>] <parola>` con ` *` se evidenziata, oppure `(vuoto)`). Al termine stampa il conteggio finale, l'eventuale voce evidenziata (oppure `nessuna`), chiama `libera_elenco(&e)` e stampa `Puntatore azzerato: 1` verificando `e.voci == nullptr`.
 
 **Concetti da tenere a mente**
 
@@ -1043,7 +1043,7 @@ Puntatore azzerato: 1
 - Un **puntatore a puntatore** (`T **pp = &p;`) memorizza l'indirizzo di una variabile puntatore `T *p`: con `*pp` si legge o si modifica `p` nel chiamante, mentre con `**pp` si accede all'oggetto di tipo `T` puntato da `p`. È lo strumento standard per riallocare un array tramite parametro di uscita, scambiare puntatori in tempo costante, avanzare un cursore di lettura (`const char **`) e liberare memoria azzerando il puntatore del chiamante (`free(*p); *p = nullptr;`). Verifica sempre `pp != nullptr` e, quando serve, `*pp != nullptr` prima di dereferenziare.
 - Le **matrici dinamiche** di `R` righe e `C` colonne si rappresentano sullo heap in due modi principali: per righe (`T **m`, con `R + 1` allocazioni, accesso `m[i][j]`, scambio di righe in tempo costante e pulizia parziale obbligatoria in caso di fallimento) oppure in un unico blocco contiguo (`T *dati = calloc(R * C, sizeof(*dati))`, previo controllo `R <= SIZE_MAX / C`, con accesso `dati[i * C + j]`, una sola `free` e migliore località in memoria, tema che riprenderemo nel capitolo 25). Un array bidimensionale statico `T a[R][C]` decade a `T (*)[C]`, non a `T **`.
 - Con la firma `int main(int argc, char *argv[])` il programma riceve `argc` argomenti da riga di comando e la garanzia che `argv[argc] == nullptr`. Per convertire stringhe in numeri in modo rigoroso si usano `strtol`, `strtoul`, `strtoll`, `strtoull` e `strtod` (`<stdlib.h>`), azzerando sempre `errno = 0` (`<errno.h>`) prima della chiamata e verificando `endptr != s`, `*endptr == '\0'` e `errno != ERANGE` (oltre a `±HUGE_VAL` di `<math.h>` per `strtod`).
-- In C la conversione implicita che aggiunge `const` è consentita solo sul primo livello puntato: `T *` → `const T *` e `T **` → `T *const *` sono valide, mentre `T **` → `const T **` è vietata per prevenire modifiche non sicure a oggetti `const`. Il qualificatore `restrict` (`T *restrict p`) promette al compilatore l'assenza di sovrapposizione per gli oggetti modificati tramite `p`; violare questa promessa provoca comportamento indefinito.
+- In C la conversione implicita che aggiunge `const` è consentita solo sul primo livello puntato: `T *` → `const T *` e `T **` → `T *const *` sono valide, mentre `T **` → `const T **` è vietata per prevenire modifiche non sicure a oggetti `const`. Il qualificatore `restrict` (`T *restrict p`) promette al compilatore che nessun oggetto acceduto tramite `p` e modificato durante il blocco sia raggiunto da un altro puntatore non derivato da `p`; violare questa promessa provoca comportamento indefinito.
 - Un **valore sentinella** (`'\0'` nelle stringhe, `nullptr` negli array di puntatori) chiude una sequenza senza contatore separato, al costo di una scansione lineare per la lunghezza e di uno slot aggiuntivo (`+ 1`). Un **puntatore pendente** nasce quando l'oggetto puntato termina la durata di vita (uscita da funzione o blocco, `free`, spostamento da parte di `realloc`): usarne il valore è comportamento indefinito. Si previene azzerando i puntatori dopo `free`, usando indici `size_t` dentro array ridimensionabili e verificando con AddressSanitizer.
 
 ## Errori comuni
