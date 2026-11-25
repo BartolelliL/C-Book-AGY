@@ -1,0 +1,139 @@
+## 3.4 Conversioni di tipo implicite ed esplicite
+
+Nel codice reale gli operandi di un'espressione non hanno sempre lo stesso tipo: potresti sommare un `int` a un `double`, combinare due variabili `short`, oppure dover dividere due contatori interi ottenendo una media con la virgola. Per gestire queste situazioni il C applica regole precise di conversione, che possono avvenire in modo automatico oppure su tua richiesta esplicita.
+
+### Conversione implicita: promozioni intere e conversioni aritmetiche usuali
+
+Quando un'espressione combina valori di tipi diversi, il compilatore esegue una **conversione implicita** (*implicit conversion*): una trasformazione automatica di un valore da un tipo a un altro applicata secondo le regole dello standard C23. Il meccanismo procede in due fasi:
+
+1. **Promozioni intere**: prima di eseguire qualunque operazione aritmetica, i tipi interi più stretti di `int` — cioè `char`, `short` e `bool` — vengono promossi automaticamente a `int` (se `int` può rappresentarne tutti i valori). Quindi, se `a` e `b` sono due variabili `short`, l'espressione `a + b` viene calcolata in `int` e ha tipo `int`, come puoi verificare con `sizeof(a + b)`.
+2. **Conversioni aritmetiche usuali**: se dopo le promozioni i due operandi hanno ancora tipi diversi, il C li porta a un tipo comune scegliendo quello più ampio o più espressivo:
+   - se uno degli operandi è `double`, l'altro viene convertito a `double` (per esempio `3 + 2.5` diventa `3.0 + 2.5` e produce `5.5`);
+   - analogamente, `float` prevale sui tipi interi;
+   - tra interi con segno diversi, il tipo più stretto viene promosso al più ampio (`int` verso `long`, `long` verso `long long`).
+
+### Conversioni negli assegnamenti e perdita di informazioni
+
+Una conversione implicita avviene anche quando assegni un'espressione a una variabile di tipo diverso: il valore a destra viene convertito nel tipo della variabile a sinistra.
+
+- Da `int` a `double` (per esempio `double x = 5;`): il valore `5` diventa `5.0` senza perdita di precisione per gli interi ordinari.
+- Da `double` a `int` (per esempio `int n = 3.9;`): la parte frazionaria viene **troncata verso lo zero** (non arrotondata!), quindi `3.9` diventa `3` e `-3.9` diventa `-3`.
+- Da un tipo intero più ampio a uno più stretto (per esempio da `long long` a `short`): se il valore non entra nel tipo di destinazione, perdi informazioni (per gli interi con segno il risultato dipende dall'implementazione o può generare risultati inattesi).
+
+Ancora più grave è il caso in cui converti un `double` o un `float` verso un tipo intero quando la sua parte intera è **fuori dall'intervallo rappresentabile** dal tipo di destinazione (per esempio convertire `1e20` in `int`): secondo lo standard C23 questa operazione provoca **comportamento indefinito**. Prima di convertire un numero in virgola mobile a intero, assicurati sempre che rientri nei limiti del tipo scelto.
+
+### Cast esplicito
+
+A volte la conversione automatica non basta. Supponi di avere due variabili intere `somma = 23` e `conteggio = 3` e di volerne calcolare la media esatta. Scrivere `double media = somma / conteggio;` produce `7.0`, perché la divisione tra due `int` è intera e tronca a `7` prima ancora dell'assegnamento.
+
+Per forzare una conversione nel punto esatto che desideri, usa il **cast esplicito** (*explicit cast*): l'operatore `(tipo)` posto davanti a un'espressione con cui richiedi esplicitamente la conversione verso un tipo specifico.
+
+<!-- cod: id=3.4-b tipo=frammento -->
+```c
+int somma = 23;
+int conteggio = 3;
+double media = (double)somma / conteggio;  // corretto: 23.0 / 3 -> 7.666667
+```
+
+Fai molta attenzione alla **precedenza** del cast esplicito: `(tipo)` è un operatore unario e ha precedenza **superiore** a `*`, `/` e `%`. Per questo motivo:
+
+- `(double)somma / conteggio` converte prima `somma` in `double` (`23.0`), poi la conversione aritmetica usuale promuove anche `conteggio` a `double` (`3.0`), eseguendo la divisione in virgola mobile (`7.666667`).
+- `(double)(somma / conteggio)` è invece un **cast tardivo** (un errore classico): le parentesi forzano prima la divisione intera `23 / 3` (`7`), e il cast trasforma solo il risultato già troncato in `7.0`!
+
+Il cast esplicito serve anche a documentare intenzioni deliberate, come `(int)prezzo` quando vuoi esplicitamente scartare i centesimi, così che chi legge il codice capisca che il troncamento è voluto e non accidentale.
+
+### Il pericolo delle espressioni miste tra `signed` e `unsigned`
+
+Un'insidia tipica delle conversioni implicite riguarda la combinazione di interi con segno (`signed`, come `int`) e senza segno (`unsigned`, come `unsigned int` o `size_t`). Se confronti o sommi un `int` negativo come `-1` con un `unsigned int` come `1U`, il C converte `-1` a `unsigned int`: invece di rimanere negativo, `-1` si trasforma in `UINT_MAX` (un numero enorme, oltre quattro miliardi su sistemi con `int` a 32 bit)! Di conseguenza, l'espressione `-1 < 1U` risulta **falsa (`0`)**.
+
+Compilare con `-Wextra` (come facciamo sempre) attiva un avviso del compilatore sui confronti tra `signed` e `unsigned`, aiutandoti a individuare subito queste trappole. La regola migliore è non mescolare tipi con segno e senza segno nella stessa espressione.
+
+### Esempio guidato
+
+Il programma seguente calcola la media di tre voti interi (`7`, `8` e `8`), mette a confronto `somma / 3`, il cast tardivo `(double)(somma / 3)` e il cast corretto `(double)somma / 3`, mostra il troncamento esplicito da `double` a `int` e verifica con `sizeof` la promozione intera di due variabili `short`.
+
+<!-- cod: id=3.4-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+int main(void) {
+    int voto_1 = 7;
+    int voto_2 = 8;
+    int voto_3 = 8;
+    int somma = voto_1 + voto_2 + voto_3;
+
+    int media_intera = somma / 3;
+    double media_tardiva = (double)(somma / 3);
+    double media_reale = (double)somma / 3;
+
+    double prezzo = 19.85;
+    int euro_interi = (int)prezzo;
+
+    short a = 300;
+    short b = 450;
+    int somma_short = a + b;
+    size_t dim_short = sizeof(a);
+    size_t dim_espressione = sizeof(a + b);
+
+    printf("Somma voti: %d\n", somma);
+    printf("Media intera (somma / 3): %d\n", media_intera);
+    printf("Cast tardivo ((double)(somma / 3)): %.2f\n", media_tardiva);
+    printf("Cast corretto ((double)somma / 3): %.2f\n", media_reale);
+    printf("Troncamento di %.2f a int: %d\n", prezzo, euro_interi);
+    printf("Somma short: %d (sizeof(short)=%zu, sizeof(a+b)=%zu)\n",
+           somma_short, dim_short, dim_espressione);
+    return 0;
+}
+```
+
+```output
+Somma voti: 23
+Media intera (somma / 3): 7
+Cast tardivo ((double)(somma / 3)): 7.00
+Cast corretto ((double)somma / 3): 7.67
+Troncamento di 19.85 a int: 19
+Somma short: 750 (sizeof(short)=2, sizeof(a+b)=4)
+```
+
+Osserva i risultati:
+
+- `somma / 3` produce `7` e `(double)(somma / 3)` produce `7.00`, perdendo per sempre la parte decimale. Solo `(double)somma / 3` porta `somma` a `23.0` prima della divisione e ottiene `7.67` (arrotondato a due cifre da `%.2f`).
+- `(int)prezzo` tronca `19.85` a `19`, senza arrotondare a `20`.
+- `sizeof(a)` vale `2` (su piattaforme desktop comuni con `short` a 2 byte), ma `sizeof(a + b)` vale `4` (`sizeof(int)`): è la prova concreta che la promozione intera trasforma `a` e `b` in `int` prima di sommarli.
+
+> **Approfondimento — Conversioni tra `signed` e `unsigned` di pari ampiezza**
+> Nelle conversioni aritmetiche usuali, quando un operando `signed` e uno `unsigned` hanno lo stesso rango (per esempio `int` e `unsigned int`), il tipo `signed` viene convertito al corrispondente tipo `unsigned`. Il valore negativo viene ridotto modulo $2^N$ (dove $N$ è il numero di bit del tipo), diventando un intero positivo enorme. Se invece il tipo `signed` è strettamente più ampio e può contenere tutti i valori del tipo `unsigned` (per esempio `long long` e `unsigned int` su sistemi a 64 bit), è il tipo `unsigned` a essere promosso al tipo `signed`. Proprio perché il risultato dipende anche dalle dimensioni dei tipi sulla piattaforma, la scelta più sicura è mantenere coerente il segno degli operandi.
+
+### Esercizio 3.4 — Percentuali e seggi di un sondaggio scolastico
+
+**Descrizione**
+
+In un sondaggio scolastico hanno risposto `favorevoli = 118`, `contrari = 39` e `astenuti = 18` studenti (tutti `int`). Inoltre due classi contribuiscono a una raccolta fondi con due variabili `short`: `quota_a = 1200` e `quota_b = 350`. Scrivi un programma C che calcoli: il totale delle risposte; la percentuale intera dei favorevoli (`favorevoli * 100 / totale`); il risultato errato del cast tardivo `(double)(favorevoli / totale) * 100.0`; le percentuali corrette in `double` di favorevoli, contrari e astenuti usando un cast esplicito prima della divisione (stampate con due cifre decimali); la quota teorica di seggi su un comitato di `15` membri (`(double)favorevoli / totale * 15.0`, con due cifre decimali) e i seggi interi ottenuti troncando con `(int)`; la somma `quota_a + quota_b` in `int` e la dimensione in byte dell'espressione `quota_a + quota_b` con `sizeof` per osservare la promozione intera. Stampa l'output esattamente come nell'esempio di esecuzione (riferito alle piattaforme desktop comuni con `int` a 4 byte).
+
+**Concetti da tenere a mente**
+
+- conversione implicita e promozioni intere
+- cast esplicito `(double)` e `(int)`
+- precedenza del cast rispetto alla divisione
+- troncamento verso lo zero da `double` a `int`
+
+**Domande guida**
+
+1. Perché `(double)(favorevoli / totale)` restituisce `0.00` anche se poi moltiplichi per `100.0`?
+2. Come fa il cast `(double)favorevoli / totale` a trasformare l'intera divisione in una divisione in virgola mobile?
+3. Che cosa succede alla parte decimale di `quota_comitato` quando applichi un cast esplicito a `int`?
+4. Perché `sizeof(quota_a + quota_b)` è uguale a `sizeof(int)` anche se entrambi gli operandi sono `short`?
+
+**Esempio di esecuzione**
+
+```output
+Totale risposte: 175
+Percentuale intera favorevoli: 67%
+Cast tardivo (errato): 0.00%
+Favorevoli: 67.43%
+Contrari: 22.29%
+Astenuti: 10.29%
+Quota comitato (15 seggi): 10.11 -> seggi assegnati: 10
+Somma quote short: 1550 (dimensione espressione: 4 byte)
+```

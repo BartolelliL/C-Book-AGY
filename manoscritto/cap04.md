@@ -238,7 +238,7 @@ Se `flag` vale `false`, `++contatore` non viene mai eseguito; se `flag` vale `tr
 
 ### Esempio guidato
 
-Il programma seguente valuta i risultati di due studenti usando la valutazione a corto circuito come guardia contro la divisione intera per zero (`numero_prove > 0 && punti_totali / numero_prove >= 60`). Per il primo studente `numero_prove` è `0` e la divisione non viene eseguita; per il secondo `numero_prove` è `4` e la media viene calcolata in sicurezza. Infine il programma mostra una guardia analoga su `sqrt` per verificare la diagonale di un pannello (ricorda di collegare la libreria matematica con `-lm` in compilazione).
+Il programma seguente valuta i risultati di due studenti usando la valutazione a corto circuito come guardia contro la divisione intera per zero (`numero_prove > 0 && punti_totali / numero_prove >= 60`). Per il primo studente `numero_prove` è `0` e la divisione non viene eseguita; per il secondo `numero_prove` è `4` e la media viene calcolata in sicurezza. Infine il programma mostra una guardia analoga su `sqrt` per verificare il lato di un pannello quadrato a partire dalla sua area (ricorda di collegare la libreria matematica con `-lm` in compilazione).
 
 <!-- cod: id=4.2-a tipo=programma -->
 ```c
@@ -312,7 +312,7 @@ Analizziamo che cosa accade nei tre controlli:
 
 **Descrizione**
 
-Scrivi un programma C che includa `<stdio.h>` e `<math.h>` (compilato con `-lm`) ed esegua tre controlli difensivi basati sulla valutazione a corto circuito. Primo: per il sensore A (`int campioni_a = 0;`, `int somma_a = 420;`) e il sensore B (`int campioni_b = 6;`, `int somma_b = 390;`), usa la condizione con guardia `campioni > 0 && somma / campioni >= 50` per stampare se ciascun sensore ha `media sufficiente`, `media insufficiente` oppure `nessun campione disponibile` (senza mai dividere per zero). Secondo: dati i coefficienti `double a = 1.0;`, `double b = -5.0;`, `double c = 6.0;`, calcola `double delta = b * b - 4.0 * a * c;` e usa `if (fabs(a) > 1e-12 && delta >= 0.0 && sqrt(delta) > 0.0)` per verificare la presenza di due radici reali distinte, calcolandole e stampandole con due cifre decimali (dalla minore alla maggiore). Terzo: verifica se `double tensione = 0.1 + 0.2;` coincide con `double nominale = 0.3;` entro una tolleranza di `1e-9` usando `fabs` e stampa l'esito esattamente come nell'esempio di esecuzione.
+Scrivi un programma C che includa `<stdio.h>` e `<math.h>` (compilato con `-lm`) ed esegua tre controlli difensivi basati sulla valutazione a corto circuito. Primo: per il sensore A (`campioni_a = 0`, `somma_a = 420`) e il sensore B (`campioni_b = 6`, `somma_b = 390`), tutti `int`, usa una condizione con guardia per verificare se il numero di campioni è positivo e la media intera è almeno `50`, stampando se ciascun sensore ha `media sufficiente` (con il valore della media intera), `media insufficiente` (con il valore della media intera) oppure `nessun campione disponibile` (senza mai dividere per zero). Secondo: dati i coefficienti `double` di un'equazione di secondo grado `a = 1.0`, `b = -5.0`, `c = 6.0`, calcola il discriminante `delta` e usa un singolo `if` con guardie a corto circuito per verificare nell'ordine che `a` abbia valore assoluto maggiore di `1e-12`, che `delta` sia non negativo e che la radice quadrata di `delta` sia strettamente positiva; in tal caso calcola e stampa le due radici reali distinte con due cifre decimali (dalla minore alla maggiore). Terzo: verifica se `tensione = 0.1 + 0.2` (`double`) coincide con `nominale = 0.3` (`double`) entro una tolleranza di `1e-9` usando `fabs` e stampa l'esito esattamente come nell'esempio di esecuzione.
 
 **Concetti da tenere a mente**
 
@@ -326,7 +326,7 @@ Scrivi un programma C che includa `<stdio.h>` e `<math.h>` (compilato con `-lm`)
 1. Perché nel controllo del sensore A la divisione `somma_a / campioni_a` non viene mai eseguita anche se `campioni_a` vale `0`?
 2. Che cosa succederebbe se invertissi i due operandi scrivendo `somma_a / campioni_a >= 50 && campioni_a > 0`?
 3. In che modo la catena di condizioni con `&&` su `a` e `delta` protegge la chiamata a `sqrt(delta)` da un argomento negativo?
-4. Perché per verificare se la tensione corrisponde al valore nominale usi `fabs(tensione - nominale) <= 1e-9` invece di `tensione == nominale`?
+4. Perché per verificare se la tensione corrisponde al valore nominale non puoi confrontare i due valori con `==`, ma devi controllare la loro distanza assoluta rispetto alla tolleranza tramite `fabs`?
 
 **Esempio di esecuzione**
 
@@ -592,7 +592,7 @@ Esaminiamo le scelte fatte nel programma:
 
 **Descrizione**
 
-In una gara di salto in lungo un atleta registra due salti validi (`double salto_1 = 6.45;` e `double salto_2 = 6.78;` in metri), con vento a favore `double vento_ms = 1.6;` e `bool categoria_junior = true;`. Scrivi un programma C che usi l'operatore condizionale `?:` per inizializzare direttamente sette variabili `const`: `miglior_salto` (massimo tra i due salti), `peggior_salto` (minimo tra i due salti), `scarto` (differenza non negativa tra i due salti calcolata con `?:`), `soglia_qualifica` (`6.50` per junior, `7.10` altrimenti), `esito_vento` (`'V'` se `vento_ms <= 2.0`, `'I'` altrimenti), `punti_base` (`100` se `miglior_salto >= soglia_qualifica`, `60` altrimenti) e `punti_totali` (`punti_base + (esito_vento == 'V' ? 15 : 0)`, con parentesi esplicite attorno a `?:`). Usa poi un'istruzione `if / else` leggibile (senza annidare `?:`) per stampare l'esito finale di qualificazione. Produci l'output esatto dell'esempio di esecuzione.
+In una gara di salto in lungo un atleta registra due salti validi (`double salto_1 = 6.45;` e `double salto_2 = 6.78;` in metri), con vento a favore `double vento_ms = 1.6;` e `bool categoria_junior = true;`. Scrivi un programma C che usi l'operatore condizionale `?:` per inizializzare direttamente sette variabili `const`: `miglior_salto` (massimo tra i due salti), `peggior_salto` (minimo tra i due salti), `scarto` (differenza non negativa tra i due salti calcolata con `?:`), `soglia_qualifica` (`6.50` per junior, `7.10` altrimenti), `esito_vento` (`'V'` se `vento_ms <= 2.0`, `'I'` altrimenti), `punti_base` (`100` se `miglior_salto >= soglia_qualifica`, `60` altrimenti) e `punti_totali` (ottenuto sommando a `punti_base` un bonus di `15` punti se `esito_vento` vale `'V'`, altrimenti `0`, racchiudendo `?:` tra parentesi tonde esplicite). Usa poi un'istruzione `if / else` leggibile (senza annidare `?:`) per stampare `Esito: Qualificato per la finale` se `miglior_salto` raggiunge o supera `soglia_qualifica`, altrimenti `Esito: Non qualificato`. Produci l'output esatto dell'esempio di esecuzione.
 
 **Concetti da tenere a mente**
 
@@ -604,7 +604,7 @@ In una gara di salto in lungo un atleta registra due salti validi (`double salto
 **Domande guida**
 
 1. Perché puoi inizializzare direttamente una variabile `const` usando `?:` mentre non potresti farlo direttamente con un'istruzione `if / else`?
-2. Che cosa cambierebbe nel risultato di `punti_base + (esito_vento == 'V' ? 15 : 0)` se togliessi le parentesi tonde attorno all'operatore condizionale?
+2. Che cosa cambierebbe nel calcolo di `punti_totali` se togliessi le parentesi tonde attorno all'operatore condizionale sommato a `punti_base`?
 3. Come puoi calcolare la differenza non negativa tra `salto_1` e `salto_2` usando una sola espressione `?:` senza ricorrere a `fabs`?
 4. In quali casi conviene comunque usare `if / else` invece di combinare più operatori `?:` annidati?
 

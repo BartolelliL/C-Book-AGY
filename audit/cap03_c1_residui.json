@@ -1,0 +1,26 @@
+{
+  "capitolo": 3,
+  "ciclo": 1,
+  "residui": [
+    {
+      "id": "p3",
+      "file": "manoscritto/cap03/03_06.md",
+      "gravita": "alta",
+      "tipo": "soluzione_esposta",
+      "certezza": "alta",
+      "problema": "L'esempio guidato 3.6-a ricalca quasi alla lettera la soluzione dell'esercizio 3.6: esegue esattamente gli stessi controlli con la stessa struttura e perfino sette nomi di variabili identici (`max_u`, `dopo_wrap`, `sotto_zero`, `somma_dec`, `atteso`, `uguali_esatti`, `uguali_tolleranza`). L'esempio guidato va differenziato (per esempio usando altri valori e operazioni, nomi di variabili diversi e un contesto distinto per overflow e confronto in virgola mobile) pur mantenendo i concetti previsti dal blueprint.",
+      "old_text": null,
+      "new_text": null,
+      "motivo_residuo": "nessuna sostituzione esatta proposta"
+    }
+  ],
+  "applicate": [
+    "p1",
+    "p2",
+    "p4",
+    "p5",
+    "p6",
+    "p7",
+    "p8"
+  ]
+}

@@ -123,7 +123,7 @@ Analizziamo i passaggi chiave:
 - Nell'ultima `printf`, per stampare il carattere letterale `%` si scrive `%%`, come hai visto nel capitolo 2. Il controllo `quoziente_neg * 2 + resto_neg` restituisce esattamente `-7`, confermando l'identità dello standard C23.
 
 > **Approfondimento — Perché la divisione tra interi tronca verso lo zero**
-> In matematica esistono almeno due modi convenzionali di definire la divisione euclidea con numeri negativi: troncare verso lo zero (come fa il C dal C99 in poi, e quindi anche il C23) oppure arrotondare verso meno infinito (come fa Python con `//`). Il C ha scelto il troncamento verso lo zero perché coincide direttamente con l'istruzione di divisione intera della stragrande maggioranza dei processori moderni, garantendo prestazioni ottimali senza istruzioni correttive. L'identità `(a / b) * b + a % b == a` rimane così valida in modo uniforme per tutti i segni di `a` e `b`, con l'unica accortezza che `a % b` può essere negativo quando lo è `a`.
+> In informatica esistono almeno due modi convenzionali di definire la divisione intera con resto sui numeri negativi: troncare verso lo zero (come fa il C dal C99 in poi, e quindi anche il C23) oppure arrotondare verso meno infinito (come fa Python con `//`). Il C ha scelto il troncamento verso lo zero perché coincide direttamente con l'istruzione di divisione intera della stragrande maggioranza dei processori moderni, garantendo prestazioni ottimali senza istruzioni correttive. L'identità `(a / b) * b + a % b == a` rimane così valida in modo uniforme per tutti i segni di `a` e `b`, con l'unica accortezza che `a % b` può essere negativo quando lo è `a`.
 
 ### Esercizio 3.1 — Confezionamento di libri in scatole e bancali
 
@@ -224,7 +224,7 @@ i = i++ + 1;              // VIETATO: comportamento indefinito!
 printf("%d %d\n", i, i++); // VIETATO: comportamento indefinito!
 ```
 
-La regola pratica è lineare e infallibile: **in una singola espressione, modifica una variabile al massimo una volta, e se la modifichi non leggerla altrove nella stessa espressione**. Spezzare l'operazione in due istruzioni separate rende il programma portabile, leggibile e completamente definito.
+La regola pratica è lineare e infallibile: **in una singola espressione, modifica una variabile al massimo una volta e, se la modifichi con `++`, `--` o un assegnamento, non leggerla in un'altra parte dell'espressione (al di fuori del normale calcolo del nuovo valore a destra di `=`)**. Spezzare l'operazione in due istruzioni separate rende il programma portabile, leggibile e completamente definito.
 
 ### Esempio guidato
 
@@ -284,7 +284,7 @@ Osserva come si comporta ciascun blocco:
 
 **Descrizione**
 
-Un ciclista inizia una gara con `punti = 50` e `tappe = 0`. Scrivi un programma C che aggiorni `punti` e `tappe` in sequenza usando assegnamenti composti e l'operatore di incremento: nella prima tappa incrementa `tappe` e aggiungi `30` punti; nella seconda tappa raddoppia `punti` e incrementa `tappe`; nella terza tappa sottrai `15` punti, dividi `punti` per `3` con divisione intera e incrementa `tappe`. Successivamente, partendo da `bonus_pre = 10` e `bonus_post = 10`, calcola `val_pre = ++bonus_pre` e `val_post = bonus_post++` in istruzioni separate. Infine calcola `senza_parentesi = 10 + 4 * 3 - 6 / 2` e `con_parentesi = (10 + 4) * 3 - 6 / 2`. Stampa il riepilogo esattamente come nell'esempio di esecuzione.
+Un ciclista inizia una gara con `punti = 50` e `tappe = 0`. Scrivi un programma C che aggiorni `punti` e `tappe` in sequenza usando assegnamenti composti e l'operatore di incremento: nella prima tappa incrementa `tappe` e aggiungi `30` punti; nella seconda tappa raddoppia `punti` e incrementa `tappe`; nella terza tappa sottrai `15` punti, dividi `punti` per `3` con divisione intera e incrementa `tappe`. Successivamente, partendo da `bonus_pre = 10` e `bonus_post = 10`, salva in due nuove variabili rispettivamente il risultato del pre-incremento di `bonus_pre` e del post-incremento di `bonus_post`, in istruzioni separate. Infine calcola `senza_parentesi = 10 + 4 * 3 - 6 / 2` e `con_parentesi = (10 + 4) * 3 - 6 / 2`. Stampa il riepilogo esattamente come nell'esempio di esecuzione.
 
 **Concetti da tenere a mente**
 
@@ -580,7 +580,7 @@ Osserva i risultati:
 
 **Descrizione**
 
-In un sondaggio scolastico hanno risposto `favorevoli = 118`, `contrari = 39` e `astenuti = 18` studenti (tutti `int`). Inoltre due classi contribuiscono a una raccolta fondi con due variabili `short`: `quota_a = 1200` e `quota_b = 350`. Scrivi un programma C che calcoli: il totale delle risposte; la percentuale intera dei favorevoli (`favorevoli * 100 / totale`); il risultato errato del cast tardivo `(double)(favorevoli / totale) * 100.0`; le percentuali corrette in `double` di favorevoli, contrari e astenuti usando un cast esplicito prima della divisione (stampate con due cifre decimali); la quota teorica di seggi su un comitato di `15` membri (`(double)favorevoli / totale * 15.0`, con due cifre decimali) e i seggi interi ottenuti troncando con `(int)`; la somma `quota_a + quota_b` in `int` e la dimensione in byte dell'espressione `quota_a + quota_b` con `sizeof` per osservare la promozione intera. Stampa l'output esattamente come nell'esempio di esecuzione (riferito alle piattaforme desktop comuni con `int` a 4 byte).
+In un sondaggio scolastico hanno risposto `favorevoli = 118`, `contrari = 39` e `astenuti = 18` studenti (tutti `int`). Inoltre due classi contribuiscono a una raccolta fondi con due variabili `short`: `quota_a = 1200` e `quota_b = 350`. Scrivi un programma C che calcoli: il totale delle risposte; la percentuale intera dei favorevoli ottenuta moltiplicando per `100` e dividendo per il totale con divisione intera; il risultato errato del cast tardivo applicando il cast a `double` solo dopo la divisione intera tra favorevoli e totale e moltiplicando poi per `100.0`; le percentuali corrette in `double` di favorevoli, contrari e astenuti usando un cast esplicito prima della divisione (stampate con due cifre decimali); la quota teorica di seggi dei favorevoli su un comitato di `15` membri in `double` (con due cifre decimali) e i seggi interi ottenuti troncando con `(int)`; la somma di `quota_a` e `quota_b` in `int` e la dimensione in byte dell'espressione di somma tramite `sizeof` per osservare la promozione intera. Stampa l'output esattamente come nell'esempio di esecuzione (riferito alle piattaforme desktop comuni con `int` a 4 byte).
 
 **Concetti da tenere a mente**
 
@@ -591,9 +591,9 @@ In un sondaggio scolastico hanno risposto `favorevoli = 118`, `contrari = 39` e 
 
 **Domande guida**
 
-1. Perché `(double)(favorevoli / totale)` restituisce `0.00` anche se poi moltiplichi per `100.0`?
-2. Come fa il cast `(double)favorevoli / totale` a trasformare l'intera divisione in una divisione in virgola mobile?
-3. Che cosa succede alla parte decimale di `quota_comitato` quando applichi un cast esplicito a `int`?
+1. Perché applicare il cast a `double` solo dopo la divisione intera tra `favorevoli` e `totale` produce `0.00` anche moltiplicando poi per `100.0`?
+2. In che modo posizionare il cast a `double` prima della divisione cambia il tipo dell'operazione eseguita dal compilatore?
+3. Che cosa succede alla parte decimale della quota teorica di seggi quando applichi un cast esplicito a `int`?
 4. Perché `sizeof(quota_a + quota_b)` è uguale a `sizeof(int)` anche se entrambi gli operandi sono `short`?
 
 **Esempio di esecuzione**
@@ -885,7 +885,7 @@ Esaminiamo i tre blocchi del programma:
 
 **Descrizione**
 
-Scrivi un programma C che includa `<stdio.h>`, `<limits.h>`, `<float.h>` e `<math.h>` ed esegua tre verifiche numeriche senza provocare alcun comportamento indefinito. Primo: dati `int a = 2'000'000'000;` e `int b = 500'000'000;`, verifica senza eseguire `a + b` in `int` se la somma rientra in `int` (`bool somma_sicura_int = (a <= INT_MAX - b);`) e calcola la somma esatta in `long long` tramite cast esplicito. Secondo: a partire da `unsigned int max_u = UINT_MAX;`, calcola `max_u + 1U` e `0U - 1U` per mostrare l'aritmetica modulare degli interi senza segno. Terzo: calcola `double somma_dec = 0.1 + 0.1 + 0.1;` e `double atteso = 0.3;`, stampali con `%.17f`, calcola `bool uguali_esatti = (somma_dec == atteso);`, `double errore = fabs(somma_dec - atteso);` e `bool uguali_tolleranza = (errore <= 1e-12);`, e stampa infine `FLT_DIG`, `DBL_DIG`, `FLT_EPSILON` e `DBL_EPSILON` (usando `%e` per gli epsilon e per `errore`). L'esempio di esecuzione è riferito alle piattaforme desktop comuni con `int` a 32 bit e virgola mobile IEEE 754.
+Scrivi un programma C che includa `<stdio.h>`, `<limits.h>`, `<float.h>` e `<math.h>` ed esegua tre verifiche numeriche senza provocare alcun comportamento indefinito. Primo: a partire dai due valori interi `a = 2'000'000'000` e `b = 500'000'000`, verifica con un controllo preventivo (senza mai calcolare `a + b` in `int`) se la loro somma rientra nell'intervallo di `int` memorizzando l'esito in una variabile `bool`, poi calcola la somma esatta in `long long` tramite cast esplicito. Secondo: partendo dal valore massimo rappresentabile da `unsigned int` (`UINT_MAX`), aggiungi `1U` e sottrai `1U` da `0U` per osservare l'aritmetica modulare degli interi senza segno. Terzo: somma `0.1 + 0.1 + 0.1` in un `double` e confrontalo con `0.3`, stampando entrambi i valori con `%.17f`; salva in variabili l'esito del confronto diretto con `==`, l'errore assoluto tramite `fabs` e l'esito del confronto con tolleranza `1e-12`, poi stampa `FLT_DIG`, `DBL_DIG`, `FLT_EPSILON` e `DBL_EPSILON` (usando `%e` per l'errore assoluto e per gli epsilon). Stampa l'output esattamente come nell'esempio di esecuzione (riferito alle piattaforme desktop comuni con `int` a 32 bit e virgola mobile IEEE 754).
 
 **Concetti da tenere a mente**
 
@@ -897,7 +897,7 @@ Scrivi un programma C che includa `<stdio.h>`, `<limits.h>`, `<float.h>` e `<mat
 
 **Domande guida**
 
-1. Perché per controllare se `a + b` supera `INT_MAX` devi confrontare `a` con `INT_MAX - b` anziché calcolare prima `a + b`?
+1. Come puoi riformulare il controllo su `a`, `b` e `INT_MAX` per verificare se la somma rientra in `int` senza mai calcolare `a + b`?
 2. Perché castare `a` in `long long` prima di sommare `b` evita l'overflow che avverrebbe scrivendo `(long long)(a + b)`?
 3. In che cosa il comportamento di `UINT_MAX + 1U` differisce profondamente da quello di `INT_MAX + 1`?
 4. Perché `0.1 + 0.1 + 0.1 == 0.3` può risultare falso in C e quale ruolo svolge `fabs` nel confronto con tolleranza?

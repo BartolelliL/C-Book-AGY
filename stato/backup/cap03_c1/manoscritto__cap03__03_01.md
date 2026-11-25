@@ -1,0 +1,139 @@
+## 3.1 Operatori aritmetici, divisione intera e resto
+
+Ogni volta che un programma esegue un calcolo — sommare due prezzi, convertire chilometri in metri, verificare se un numero è pari — sta valutando un'**espressione** (*expression*): una combinazione di operandi (costanti o variabili) e operatori che il programma valuta per produrre un valore o un effetto collaterale. Anche un singolo letterale come `42` o il nome di una variabile come `totale` è già un'espressione, ma la vera forza nasce combinando più operandi tramite operatori.
+
+Gli operatori aritmetici binari del C sono cinque:
+
+| Operatore | Significato | Esempio | Risultato |
+|---|---|---|---|
+| `+` | addizione | `8 + 3` | `11` |
+| `-` | sottrazione | `8 - 3` | `5` |
+| `*` | moltiplicazione | `8 * 3` | `24` |
+| `/` | divisione | `8 / 3` | `2` |
+| `%` | modulo (resto intero) | `8 % 3` | `2` |
+
+Accanto a questi cinque operatori binari (che agiscono su due operandi), esistono anche gli operatori unari `+` e `-`, che agiscono su un singolo operando: `-x` inverte il segno di `x`, mentre `+x` ne mantiene il valore inalterato.
+
+### Divisione intera contro divisione in virgola mobile
+
+Osserva la riga della divisione nella tabella precedente: in C `8 / 3` vale `2`, non `2.666...`. Questo è uno dei punti più importanti del linguaggio: il comportamento dell'operatore `/` dipende dal tipo di dato degli operandi.
+
+- Se **entrambi** gli operandi sono interi (come `7` e `2`, oppure due variabili `int`), `/` esegue la **divisione intera**: calcola il quoziente e **tronca** la parte frazionaria verso lo zero. Quindi `7 / 2` vale `3`, e `-7 / 2` vale `-3` (non `-4`).
+- Se **almeno uno** degli operandi è in **virgola mobile** (*floating point*, cioè `float` o `double`, la rappresentazione binaria approssimata dei numeri reali tramite mantissa ed esponente), `/` esegue la **divisione in virgola mobile**: `7.0 / 2.0` vale `3.5`, e anche `7.0 / 2` o `7 / 2.0` valgono `3.5`.
+
+La scelta del tipo di divisione avviene prima che il risultato venga eventualmente assegnato a una variabile. Se scrivi:
+
+<!-- cod: id=3.1-b tipo=frammento -->
+```c
+double meta = 7 / 2;  // attenzione: 7 / 2 vale 3, poi viene convertito in 3.0!
+```
+
+la variabile `meta` riceve `3.0` e non `3.5`, perché `7` e `2` sono entrambi `int`: la divisione intera tronca subito a `3`, e solo dopo il valore `3` diventa `3.0` per entrare nel `double`. Per ottenere `3.5` occorre che almeno uno dei due operandi sia già in virgola mobile (`7.0 / 2.0`), oppure usare una conversione esplicita come vedrai nella sotto-sezione 3.4.
+
+### L'operatore modulo (`%`)
+
+Quando esegui una divisione intera, la parte scartata non va perduta se usi l'operatore **modulo** `%`, che restituisce il resto della divisione intera. A differenza di `/`, l'operatore `%` accetta **solo operandi interi**: applicarlo a un `double` o a un `float` provoca un errore di compilazione (per il resto in virgola mobile esiste la funzione `fmod`, che vedrai nella sotto-sezione 3.5).
+
+L'operatore `%` è uno strumento utilissimo in molte situazioni concrete:
+
+- **Scomporre quantità**: trasformare un numero totale di secondi in ore, minuti e secondi, oppure suddividere oggetti in confezioni intere contando quelli rimasti sfusi.
+- **Verificare la divisibilità**: un intero `n` è multiplo di `k` (con `k != 0`) se e solo se `n % k` vale `0`; in particolare un numero è pari quando `n % 2` vale `0`.
+- **Cicli periodici**: mantenere un contatore dentro un intervallo fisso da `0` a `N - 1`.
+
+Quando compaiono numeri negativi, lo standard C23 definisce una regola precisa e priva di ambiguità: per ogni coppia di interi `a` e `b` (con `b != 0` e con quoziente rappresentabile), vale sempre l'identità:
+
+```text
+(a / b) * b + (a % b) == a
+```
+
+Poiché `a / b` tronca verso lo zero, ne segue che `a % b` ha sempre lo **stesso segno del dividendo `a`** (se il resto è diverso da zero). Per esempio, `-7 / 2` vale `-3` e `-7 % 2` vale `-1`, infatti `(-3) * 2 + (-1) == -7`. Allo stesso modo, `7 / -2` vale `-3` e `7 % -2` vale `1`, perché `(-3) * (-2) + 1 == 7`.
+
+### Divisione per zero e comportamento indefinito
+
+Che cosa accade se provi a dividere un intero per zero (`a / 0` oppure `a % 0`)? Nello standard C23 la divisione e il modulo per zero su interi provocano **comportamento indefinito** (*undefined behavior*): una situazione per cui lo standard C non pone alcun vincolo, e il programma può produrre qualunque risultato, bloccarsi o interrompersi in modo anomalo. Lo stesso accade nel caso limite `INT_MIN / -1` (e `INT_MIN % -1`), perché il risultato matematico `-INT_MIN` supera `INT_MAX` e non è rappresentabile in `int`.
+
+Non scrivere mai divisioni o moduli in cui il divisore possa valere zero: dal capitolo 4 imparerai a proteggere queste operazioni con controlli condizionali prima di eseguirle.
+
+> **Se vieni da Python** — In Python l'operatore `/` esegue sempre la divisione in virgola mobile (quindi `7 / 2` vale `3.5`) e `//` esegue la divisione intera arrotondando verso meno infinito (`-7 // 2` vale `-4` e `-7 % 2` vale `1`). In C non esiste `//` (che introduce un commento): `/` cambia comportamento in base al tipo degli operandi, tronca verso lo zero sui negativi (`-7 / 2` vale `-3`) e `%` mantiene il segno del dividendo (`-7 % 2` vale `-1`).
+
+### Esempio guidato
+
+Il programma seguente converte una durata di `3725` secondi in ore, minuti e secondi usando `/` e `%`, mette a confronto la divisione intera `7 / 2` con la divisione in virgola mobile `7.0 / 2.0` e verifica la regola del segno su `-7 / 2` e `-7 % 2`.
+
+<!-- cod: id=3.1-a tipo=programma -->
+```c
+#include <stdio.h>
+
+int main(void) {
+    constexpr int SECONDI_TOTALI = 3725;
+    constexpr int SECONDI_IN_ORA = 3600;
+    constexpr int SECONDI_IN_MINUTO = 60;
+
+    int ore = SECONDI_TOTALI / SECONDI_IN_ORA;
+    int secondi_residui = SECONDI_TOTALI % SECONDI_IN_ORA;
+    int minuti = secondi_residui / SECONDI_IN_MINUTO;
+    int secondi = secondi_residui % SECONDI_IN_MINUTO;
+
+    int div_intera = 7 / 2;
+    double div_reale = 7.0 / 2.0;
+
+    int quoziente_neg = -7 / 2;
+    int resto_neg = -7 % 2;
+    int verifica = quoziente_neg * 2 + resto_neg;
+
+    printf("%d secondi = %d h, %d min, %d s\n",
+           SECONDI_TOTALI, ore, minuti, secondi);
+    printf("Divisione intera 7 / 2 = %d\n", div_intera);
+    printf("Divisione reale 7.0 / 2.0 = %.1f\n", div_reale);
+    printf("Negativi: -7 / 2 = %d, -7 %% 2 = %d (verifica: %d)\n",
+           quoziente_neg, resto_neg, verifica);
+    return 0;
+}
+```
+
+```output
+3725 secondi = 1 h, 2 min, 5 s
+Divisione intera 7 / 2 = 3
+Divisione reale 7.0 / 2.0 = 3.5
+Negativi: -7 / 2 = -3, -7 % 2 = -1 (verifica: -7)
+```
+
+Analizziamo i passaggi chiave:
+
+- `SECONDI_TOTALI / SECONDI_IN_ORA` calcola quante ore intere stanno in `3725` secondi (`1`), mentre `SECONDI_TOTALI % SECONDI_IN_ORA` estrae i secondi avanzati (`125`).
+- Su questi `125` secondi residui si ripete lo stesso schema con `60`: `125 / 60` produce `2` minuti e `125 % 60` produce i `5` secondi finali.
+- Il confronto tra `7 / 2` (`3`) e `7.0 / 2.0` (`3.5`) evidenzia subito l'effetto del tipo degli operandi sullo stesso simbolo `/`.
+- Nell'ultima `printf`, per stampare il carattere letterale `%` si scrive `%%`, come hai visto nel capitolo 2. Il controllo `quoziente_neg * 2 + resto_neg` restituisce esattamente `-7`, confermando l'identità dello standard C23.
+
+> **Approfondimento — Perché la divisione tra interi tronca verso lo zero**
+> In matematica esistono almeno due modi convenzionali di definire la divisione euclidea con numeri negativi: troncare verso lo zero (come fa il C dal C99 in poi, e quindi anche il C23) oppure arrotondare verso meno infinito (come fa Python con `//`). Il C ha scelto il troncamento verso lo zero perché coincide direttamente con l'istruzione di divisione intera della stragrande maggioranza dei processori moderni, garantendo prestazioni ottimali senza istruzioni correttive. L'identità `(a / b) * b + a % b == a` rimane così valida in modo uniforme per tutti i segni di `a` e `b`, con l'unica accortezza che `a % b` può essere negativo quando lo è `a`.
+
+### Esercizio 3.1 — Confezionamento di libri in scatole e bancali
+
+**Descrizione**
+
+Un magazzino deve spedire `535` libri. Ogni scatola contiene esattamente `12` libri e ogni bancale completo ospita `8` scatole. Inoltre, un campione di `8` libri pesa complessivamente `3.0` kg. Scrivi un programma C che usi costanti e gli operatori aritmetici `/`, `%` e `*` per calcolare e stampare: il numero di scatole complete e i libri rimasti sfusi; il numero di bancali completi e le scatole rimaste fuori dai bancali; il totale dei libri caricati sui bancali completi; il peso medio in chilogrammi di un singolo libro calcolato con divisione in virgola mobile (stampato con tre cifre decimali). Stampa l'output esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- espressione
+- divisione intera
+- operatore modulo `%`
+- differenza tra divisione intera e divisione in virgola mobile
+
+**Domande guida**
+
+1. Quali due operatori ti permettono di ricavare sia il numero di scatole complete sia i libri rimanenti da un totale intero?
+2. Come usi il numero di scatole complete appena ottenuto per ricavare bancali completi e scatole avanzate?
+3. Cosa otterresti se calcolassi il peso medio dividendo due interi invece di due valori `double`?
+4. Quale specificatore di formato mostra il peso medio con esattamente tre cifre dopo la virgola?
+
+**Esempio di esecuzione**
+
+```output
+Libri totali: 535
+Scatole complete: 44 (libri sfusi: 7)
+Bancali completi: 5 (scatole avanzate: 4)
+Libri su bancali completi: 480
+Peso medio di un libro: 0.375 kg
+```
