@@ -31,7 +31,7 @@ double kmh_a_ms(double kmh) {
 
 Osserva i quattro elementi che compongono questa definizione:
 
-1. **Tipo di ritorno** (`double`): indica il tipo del valore che la funzione restituisce al punto in cui viene chiamata. Può essere qualunque tipo del linguaggio (`int`, `double`, `long`, `bool`, `char`, ecc.) oppure `void` quando la funzione esegue soltanto un'azione senza restituire alcun valore.
+1. **Tipo di ritorno** (`double`): indica il tipo del valore che la funzione restituisce al punto in cui viene chiamata. Può essere uno dei tipi di valore che conosci (`int`, `double`, `long`, `bool`, `char`, ecc.) oppure `void` quando la funzione esegue soltanto un'azione senza restituire alcun valore.
 2. **Nome della funzione** (`kmh_a_ms`): segue le stesse regole degli identificatori delle variabili. In questo libro i nomi di funzione sono in `snake_case` italiano senza accenti e descrivono chiaramente che cosa fa la funzione.
 3. **Lista dei parametri** (`(double kmh)`): racchiusa tra parentesi tonde, elenca i dati che la funzione si aspetta di ricevere, separati da virgole e preceduti ciascuno dal proprio tipo. Anche se due parametri hanno lo stesso tipo, il tipo va ripetuto per entrambi: si scrive `(double kmh, double limite)`, mai `(double kmh, limite)`. Se la funzione non accetta alcun parametro, tra le parentesi si scrive `void`, come in `int main(void)`.
 4. **Corpo della funzione** (`{ ... }`): il blocco di istruzioni eseguito a ogni chiamata. A differenza di una dichiarazione, l'intestazione della definizione non termina mai con un punto e virgola: inserire `;` subito prima della graffa di apertura provoca un errore di compilazione.
@@ -286,7 +286,7 @@ Osserva i punti chiave dell'esempio:
 - Per `passo_a - passo_b` (`-650`, di tipo `int`) si usa `abs`, mentre per `vetta_a - vetta_b` (`-3300L`, di tipo `long`) si usa `labs`, evitando conversioni rischiose verso `int`.
 
 > **Approfondimento — Perché `abs(INT_MIN)` è comportamento indefinito**
-> In C23 gli interi con segno sono rappresentati in complemento a due (lo vedremo nel dettaglio nel capitolo 13). In questa rappresentazione l'intervallo è asimmetrico: per un `int` a 32 bit, `INT_MIN` vale `-2'147'483'648` mentre `INT_MAX` vale `2'147'483'647`. Il valore assoluto matematico di `INT_MIN` sarebbe `+2'147'483'648`, che supera `INT_MAX` di una unità e non entra in un `int`. Lo stesso vale per `labs(LONG_MIN)` e `llabs(LLONG_MIN)`. Poiché il risultato provoca overflow su un intero con segno, lo standard dichiara la chiamata **comportamento indefinito**. Prima di invocare `abs`, `labs` o `llabs` su dati esterni, verifica sempre che l'argomento rientri in un intervallo sicuro (oppure controlla esplicitamente `x != INT_MIN`).
+> In C23 la rappresentazione binaria degli interi con segno (la vedremo nel dettaglio nel capitolo 13) ha un intervallo asimmetrico: per un `int` a 32 bit, `INT_MIN` vale `-2'147'483'648` mentre `INT_MAX` vale `2'147'483'647`. Il valore assoluto matematico di `INT_MIN` sarebbe `+2'147'483'648`, che supera `INT_MAX` di una unità e non entra in un `int`. Lo stesso vale per `labs(LONG_MIN)` e `llabs(LLONG_MIN)`. Poiché il risultato provoca overflow su un intero con segno, lo standard dichiara la chiamata **comportamento indefinito**. Prima di invocare `abs`, `labs` o `llabs` su dati esterni, verifica sempre che l'argomento rientri in un intervallo sicuro (oppure controlla esplicitamente `x != INT_MIN`).
 
 ### Esercizio 7.2 — Percorso di un rover con prototipi, passaggio per valore e `abs`/`labs`/`llabs`
 
@@ -519,7 +519,7 @@ Lo standard C23 definisce con precisione la ricorsione e garantisce l'indipenden
 
 Quando conviene allora usare la ricorsione rispetto a un ciclo iterativo del capitolo 6? Un ciclo occupa memoria costante e non ha il costo delle chiamate di funzione ripetute: per compiti lineari come il fattoriale o il massimo comune divisore l'iterazione è spesso altrettanto semplice e più leggera in memoria. La ricorsione diventa invece uno strumento prezioso quando il problema stesso ha una forma ramificata o gerarchica (come alberi, espressioni matematiche o scomposizioni *divide et impera*, che incontrerai dal capitolo 17 in poi) oppure quando la risalita della pila delle chiamate permette di produrre risultati in ordine inverso senza memoria aggiuntiva esplicita.
 
-> **Se vieni da Python** — In Python una ricorsione troppo profonda viene intercettata dall'interprete e solleva un'eccezione `RecursionError` controllata. In C non esiste alcun limite gestito dal linguaggio: superare lo spazio della pila delle chiamate provoca comportamento indefinito e l'arresto immediato del programma.
+> **Se vieni da Python** — In Python una ricorsione troppo profonda viene intercettata dall'interprete e solleva un'eccezione `RecursionError` controllata. In C non esiste alcun limite gestito dal linguaggio: superare lo spazio della pila delle chiamate provoca comportamento indefinito (in genere l'arresto immediato del programma).
 
 ### Esempio guidato
 
@@ -564,7 +564,7 @@ MCD(105, 42) = 21
 
 Analizziamo come funzionano le due funzioni:
 
-- In `fattoriale`, il caso base `if (n <= 1) { return 1; }` gestisce sia `0!` sia `1!` senza ulteriori chiamate. Nel passo ricorsivo il cast `(long long)n` garantisce che la moltiplicazione avvenga in `long long`, evitando overflow su `int` già per valori piccoli come $13!$.
+- In `fattoriale`, il caso base `if (n <= 1) { return 1; }` gestisce sia `0!` sia `1!` senza ulteriori chiamate. Nel passo ricorsivo la moltiplicazione avviene in `long long` grazie al tipo di ritorno di `fattoriale(n - 1)` (e il cast esplicito `(long long)n` lo rende subito leggibile), evitando l'overflow su `int` già per valori piccoli come $13!$.
 - In `mcd_ricorsivo`, a ogni chiamata `a % b` è strettamente minore di `b` (per `a >= 0` e `b > 0`), quindi il secondo argomento diminuisce a ogni passo finché raggiunge il caso base `b == 0`. Per `mcd_ricorsivo(48, 18)` la sequenza delle chiamate è `(48, 18) -> (18, 12) -> (12, 6) -> (6, 0) -> 6`.
 - Confronta `mcd_ricorsivo` con un ciclo `while (b != 0)` come quelli del capitolo 6: entrambe le versioni eseguono esattamente gli stessi resti, ma la versione iterativa usa memoria costante mentre quella ricorsiva apre un livello sulla pila delle chiamate per ogni resto (comunque pochissimi passi, perché il resto cala molto rapidamente).
 
@@ -627,7 +627,7 @@ Un principio di progettazione particolarmente utile è **separare tre ruoli dist
 - **Funzioni di calcolo pure**: ricevono dati già validati come parametri e restituiscono un risultato calcolato, *senza* leggere da `stdin`, *senza* stampare su `stdout` e *senza* dipendere da stato esterno nascosto. A parità di argomenti producono sempre lo stesso risultato.
 - **Presentazione dell'output**: funzioni `void` che ricevono i risultati già calcolati e li formattano con `printf`.
 
-Quando le funzioni di base sono piccole e pure, diventa immediato costruire funzioni di livello superiore per **composizione**: una funzione più complessa richiama funzioni elementari già scritte e verificate. Pensa a un calendario: una volta verificata `e_bisestile(anno)`, puoi usarla dentro `giorni_del_mese(mese, anno)`, che a sua volta semplifica `data_valida(g, m, a)` e `giorno_dell_anno(g, m, a)`. Ogni livello aggiunge un solo concetto nuovo, senza mai ripetere la logica dei livelli sottostanti.
+Quando le funzioni di base sono piccole e pure, diventa immediato costruire funzioni di livello superiore per **composizione**: una funzione più complessa richiama funzioni elementari già scritte e verificate. Pensa a un preventivo di vendita: una volta verificata `calcola_subtotale`, puoi usarla insieme a `calcola_sconto` e `calcola_iva` dentro una funzione di livello superiore che determina il totale finale. Ogni livello aggiunge un solo concetto nuovo, senza mai ripetere la logica dei livelli sottostanti.
 
 Come capisci, mentre scrivi o rileggi un programma, che una funzione andrebbe spezzata in due o più funzioni più piccole? Osserva questi tre segnali pratici:
 
@@ -756,9 +756,9 @@ Distanza: 2 giorni
 - **Aspettarsi che modificare un parametro dentro una funzione aggiorni la variabile del chiamante**: in C il passaggio è sempre per valore; per aggiornare una variabile del chiamante restituisci il nuovo valore con `return` e riassegnalo nel chiamante (oppure usa i puntatori, lo vedremo nel capitolo 10).
 - **Chiamare una funzione prima di averla definita o averne dichiarato il prototipo, oppure scrivere un prototipo con tipi diversi dalla definizione**: il compilatore segnala un identificatore non dichiarato o un conflitto di tipi; tieni tutti i prototipi allineati alle definizioni in cima al file.
 - **Dimenticare un'istruzione `return` in uno dei rami di una funzione non `void`, oppure scrivere un punto e virgola indesiderato nell'intestazione della definizione**: nel primo caso usare il valore restituito provoca comportamento indefinito (e `-Wall -Werror` lo segnala); nel secondo il compilatore rifiuta la definizione per errore di sintassi.
-- **Dichiarare una variabile locale senza `static` quando serve conservarne il valore tra chiamate successive, oppure inizializzare una variabile `static` con un'espressione non costante**: una variabile automatica si azzera o si ricrea a ogni chiamata, mentre una `static` accetta solo inizializzatori costanti noti a tempo di compilazione.
+- **Dichiarare una variabile locale senza `static` quando serve conservarne il valore tra chiamate successive, oppure inizializzare una variabile `static` con un'espressione non costante**: una variabile automatica viene ricreata a ogni chiamata senza conservare il valore precedente (e senza azzeramento implicito), mentre una `static` accetta solo inizializzatori costanti noti a tempo di compilazione.
 - **Scrivere una funzione ricorsiva senza caso base o con un passo ricorsivo che non si avvicina al caso base**: la ricorsione prosegue all'infinito fino a esaurire la memoria della pila delle chiamate, provocando comportamento indefinito.
-- **Chiamare `abs`, `labs` o `llabs` rispettivamente su `INT_MIN`, `LONG_MIN` o `LLONG_MIN` senza controllo preventivo**: nella rappresentazione in complemento a due (lo vedremo nel capitolo 13) il valore assoluto del minimo intero con segno non è rappresentabile nel tipo di ritorno e la chiamata provoca comportamento indefinito.
+- **Chiamare `abs`, `labs` o `llabs` rispettivamente su `INT_MIN`, `LONG_MIN` o `LLONG_MIN` senza controllo preventivo**: nella rappresentazione degli interi con segno (lo vedremo nel capitolo 13) il valore assoluto del minimo intero con segno non è rappresentabile nel tipo di ritorno e la chiamata provoca comportamento indefinito.
 
 ## Prima di proseguire
 

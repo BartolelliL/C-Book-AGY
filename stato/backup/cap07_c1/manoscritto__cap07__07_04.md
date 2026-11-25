@@ -1,0 +1,120 @@
+## 7.4 Funzioni ricorsive
+
+Alcuni problemi hanno una forma naturale che si ripete su scala più piccola. Pensa al fattoriale di un numero intero non negativo $n$: per definizione $0! = 1$, mentre per ogni $n > 0$ vale $n! = n \cdot (n - 1)!$. Per calcolare $4!$ ti basta sapere quanto vale $3!$ e moltiplicarlo per $4$; per calcolare $3!$ ti basta $2!$, e così via fino a $0!$, che conosci direttamente.
+
+In C una funzione può tradurre questa idea in modo diretto richiamando se stessa. Questa tecnica si chiama **ricorsione** (*recursion*): una tecnica in cui una funzione richiama se stessa su un sottoproblema più piccolo fino a raggiungere un caso base.
+
+Affinché una funzione ricorsiva sia corretta e termini sempre, deve contenere due elementi indispensabili:
+
+1. Almeno un **caso base** (*base case*): una condizione che termina la funzione ricorsiva restituendo un risultato immediato senza ulteriori chiamate ricorsive. Per il fattoriale il caso base è `n <= 1`, che restituisce `1`.
+2. Un **passo ricorsivo** (*recursive step*): la chiamata della funzione su un argomento *strettamente più vicino* al caso base, combinando il risultato restituito per costruire la risposta del problema corrente. Per il fattoriale è `n * fattoriale(n - 1)`.
+
+Come fa il programma a non confondere il valore di `n` delle diverse chiamate attive nello stesso momento? Ogni volta che una funzione viene chiamata — anche ricorsivamente — il programma crea un nuovo spazio riservato in cima alla **pila delle chiamate** (lo vedremo nel dettaglio nel capitolo 11), con copie completamente indipendenti dei parametri e delle variabili locali automatiche. Le chiamate scendono una sopra l'altra fino al caso base, poi risalgono una alla volta restituendo i risultati:
+
+```text
+Discesa delle chiamate:                Risalita dei risultati:
+fattoriale(4)                          4 * 6 = 24  (torna a main)
+  -> 4 * fattoriale(3)                 ^
+       -> 3 * fattoriale(2)            3 * 2 = 6
+            -> 2 * fattoriale(1)       ^
+                 -> caso base: 1  ---> 2 * 1 = 2
+```
+
+Osserva lo schema: mentre `fattoriale(1)` sta eseguendo, le chiamate `fattoriale(2)`, `fattoriale(3)` e `fattoriale(4)` sono ancora in attesa sulla pila delle chiamate, ciascuna con la propria copia separata di `n`. Solo quando `fattoriale(1)` restituisce `1`, la chiamata `fattoriale(2)` può completare `2 * 1`, liberare il proprio spazio e consegnare `2` a `fattoriale(3)`, e così via fino a `main`.
+
+Lo standard C23 definisce con precisione la ricorsione e garantisce l'indipendenza delle variabili automatiche di ciascuna invocazione. Esistono però due errori critici da conoscere bene:
+
+- **Caso base assente o mai raggiunto (ricorsione infinita)**: se dimentichi il caso base, oppure se il passo ricorsivo non riduce strettamente il problema verso il caso base (per esempio chiamando `fattoriale(n)` invece di `fattoriale(n - 1)`, o passando un numero negativo a una funzione che controlla solo `n == 0`), le chiamate continuano ad accumularsi fino a esaurire la memoria disponibile per la pila delle chiamate. In C questo esaurimento provoca **comportamento indefinito** (in genere il programma si arresta bruscamente).
+- **Ricorsione esponenziale ingenua**: anche con un caso base corretto, se ogni chiamata genera due o più chiamate ricorsive che ricalcolano più volte gli stessi sottoproblemi, il numero di chiamate esplode esponenzialmente, come vedrai nell'approfondimento su Fibonacci.
+
+Quando conviene allora usare la ricorsione rispetto a un ciclo iterativo del capitolo 6? Un ciclo occupa memoria costante e non ha il costo delle chiamate di funzione ripetute: per compiti lineari come il fattoriale o il massimo comune divisore l'iterazione è spesso altrettanto semplice e più leggera in memoria. La ricorsione diventa invece uno strumento prezioso quando il problema stesso ha una forma ramificata o gerarchica (come alberi, espressioni matematiche o scomposizioni *divide et impera*, che incontrerai dal capitolo 17 in poi) oppure quando la risalita della pila delle chiamate permette di produrre risultati in ordine inverso senza memoria aggiuntiva esplicita.
+
+> **Se vieni da Python** — In Python una ricorsione troppo profonda viene intercettata dall'interprete e solleva un'eccezione `RecursionError` controllata. In C non esiste alcun limite gestito dal linguaggio: superare lo spazio della pila delle chiamate provoca comportamento indefinito e l'arresto immediato del programma.
+
+### Esempio guidato
+
+Il programma seguente mostra due funzioni ricorsive: `fattoriale`, che calcola $n!$ in un `long long` (esatto fino a $n = 20$), e `mcd_ricorsivo`, che applica l'algoritmo di Euclide sfruttando il fatto che $\text{MCD}(a, 0) = a$ (caso base) e $\text{MCD}(a, b) = \text{MCD}(b, a \bmod b)$ (passo ricorsivo).
+
+<!-- cod: id=7.4-a tipo=programma -->
+```c
+#include <stdio.h>
+
+long long fattoriale(int n);
+int mcd_ricorsivo(int a, int b);
+
+int main(void) {
+    printf("4! = %lld\n", fattoriale(4));
+    printf("10! = %lld\n", fattoriale(10));
+    printf("MCD(48, 18) = %d\n", mcd_ricorsivo(48, 18));
+    printf("MCD(105, 42) = %d\n", mcd_ricorsivo(105, 42));
+    return 0;
+}
+
+long long fattoriale(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return (long long)n * fattoriale(n - 1);
+}
+
+int mcd_ricorsivo(int a, int b) {
+    if (b == 0) {
+        return a;
+    }
+    return mcd_ricorsivo(b, a % b);
+}
+```
+
+```output
+4! = 24
+10! = 3628800
+MCD(48, 18) = 6
+MCD(105, 42) = 21
+```
+
+Analizziamo come funzionano le due funzioni:
+
+- In `fattoriale`, il caso base `if (n <= 1) { return 1; }` gestisce sia `0!` sia `1!` senza ulteriori chiamate. Nel passo ricorsivo il cast `(long long)n` garantisce che la moltiplicazione avvenga in `long long`, evitando overflow su `int` già per valori piccoli come $13!$.
+- In `mcd_ricorsivo`, a ogni chiamata `a % b` è strettamente minore di `b` (per `a >= 0` e `b > 0`), quindi il secondo argomento diminuisce a ogni passo finché raggiunge il caso base `b == 0`. Per `mcd_ricorsivo(48, 18)` la sequenza delle chiamate è `(48, 18) -> (18, 12) -> (12, 6) -> (6, 0) -> 6`.
+- Confronta `mcd_ricorsivo` con un ciclo `while (b != 0)` come quelli del capitolo 6: entrambe le versioni eseguono esattamente gli stessi resti, ma la versione iterativa usa memoria costante mentre quella ricorsiva apre un livello sulla pila delle chiamate per ogni resto (comunque pochissimi passi, perché il resto cala molto rapidamente).
+
+> **Approfondimento — Perché Fibonacci ricorsivo ingenuo è lentissimo**
+> La successione di Fibonacci è definita da $F(0) = 0$, $F(1) = 1$ e $F(n) = F(n - 1) + F(n - 2)$. Tradurla direttamente in una funzione ricorsiva sembra naturale, ma è un pessimo affare: per calcolare $F(5)$ la funzione chiama $F(4)$ e $F(3)$, e dentro $F(4)$ ricalcola di nuovo $F(3)$ e $F(2)$, ripetendo gli stessi sottoproblemi un numero enorme di volte. Per $n = 40$ supera già i 300 milioni di chiamate, mentre un ciclo iterativo del capitolo 6 con due variabili di stato calcola $F(40)$ in appena 40 iterazioni. Prima di scegliere la ricorsione, controlla sempre se le chiamate si sovrappongono ripetendo lo stesso lavoro.
+
+### Esercizio 7.4 — Potenza veloce, somma delle cifre e stampa binaria con ricorsione
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una sola riga contenente tre valori: `base` (`int` tra `-10` e `10` inclusi), `esponente` (`int` tra `0` e `15` inclusi) e `numero` (`long long` tra `0` e `1'000'000'000` inclusi). Verifica la fine dell'input, il formato esatto (`"%d %d %lld %c"` == `3`) e gli intervalli; in caso di errore stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Implementa tre funzioni ricorsive (senza usare cicli al loro interno) con prototipi prima di `main`:
+
+- `long long potenza_veloce(int base, int esponente)`: con caso base `esponente == 0` che restituisce `1` (anche per `base == 0`), e passo ricorsivo che calcola una sola volta `meta = potenza_veloce(base, esponente / 2)` restituendo `meta * meta` se `esponente` è pari e `meta * meta * base` se è dispari;
+- `int somma_cifre_ric(long long n)`: somma ricorsiva delle cifre decimali di `n`;
+- `void stampa_binario_ric(long long n)`: stampa la rappresentazione binaria di `n >= 0` usando `putchar` durante la risalita della ricorsione, stampando `0` per `n == 0`.
+
+Stampa i risultati esattamente come nell'esempio di esecuzione e restituisci `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- ricorsione con caso base e passo ricorsivo convergente
+- dimezzamento dell'esponente nella potenza veloce
+- ordine di stampa nella risalita della pila delle chiamate
+- prevenzione dell'overflow tramite vincoli di ingresso e `long long`
+
+**Domande guida**
+
+1. Qual è il caso base di `potenza_veloce` e perché calcolare `meta` una sola volta invece di chiamare `potenza_veloce` due volte riduce drasticamente il numero di chiamate?
+2. Qual è il caso base di `somma_cifre_ric` e come garantisci che `n` diminuisca strettamente a ogni chiamata?
+3. Perché in `stampa_binario_ric` devi chiamare ricorsivamente la funzione su `n / 2` prima di chiamare `putchar` per il resto `n % 2`?
+4. Che cosa stampa `stampa_binario_ric` quando riceve il caso limite `n = 0`?
+
+**Esempio di esecuzione**
+
+```input
+3 5 42
+```
+
+```output
+Potenza 3^5: 243
+Somma cifre di 42: 6
+Binario di 42: 101010
+```

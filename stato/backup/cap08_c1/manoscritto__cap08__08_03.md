@@ -1,0 +1,144 @@
+## 8.3 Array e funzioni
+
+Nel capitolo 7 hai visto come dividere un programma in funzioni riutilizzabili. Appena inizi a lavorare con gli array, nasce subito la necessità di scrivere funzioni che calcolino la media di un array, ne trovino il massimo, lo stampino o ne aggiornino gli elementi.
+
+Per ricevere un array come parametro, una funzione usa la sintassi `tipo a[]` (con parentesi quadre vuote) accompagnata **sempre** da un secondo parametro `size_t n` che indica quanti elementi contiene l'array:
+
+<!-- cod: id=8.3-b tipo=frammento -->
+```c
+double calcola_media(const double a[], size_t n);
+void scala_valori(double a[], size_t n, double fattore);
+```
+
+Quando chiami la funzione, passi semplicemente il nome dell'array (senza parentesi quadre) e la sua lunghezza:
+
+<!-- cod: id=8.3-c tipo=frammento -->
+```c
+double m = calcola_media(prezzi, n);
+scala_valori(prezzi, n, 1.10);
+```
+
+Qui incontri una differenza fondamentale rispetto alle variabili scalari viste nel capitolo 7. Quando passi un `int` o un `double` a una funzione, la funzione riceve una copia del valore e modificare il parametro non altera la variabile del chiamante. Quando invece passi un array con parametro `tipo a[]`, **la funzione non riceve una copia dell'intero array**: accede direttamente agli elementi dell'array del chiamante. Di conseguenza:
+
+- se la funzione modifica `a[i]` al proprio interno, modifica direttamente l'elemento corrispondente nell'array del chiamante;
+- la funzione può operare in modo efficiente anche su array grandi, perché evita di duplicare tutti gli elementi in memoria a ogni chiamata.
+
+Questo non contraddice la regola del passaggio per valore del C: dietro le quinte, secondo lo standard C23, il compilatore adatta automaticamente un parametro dichiarato come `tipo a[]` a un puntatore al primo elemento dell'array, e passa quel puntatore per valore (il meccanismo completo dei puntatori verrà spiegato nel capitolo 10). È un comportamento completamente **definito** dallo standard.
+
+Da questo adattamento discende una conseguenza pratica molto importante: **all'interno di una funzione, `sizeof(a)` non restituisce la dimensione in byte dell'array del chiamante**. Non puoi quindi usare `sizeof(a) / sizeof(a[0])` dentro una funzione per scoprire quanti elementi ha l'array ricevuto; otterresti un valore sbagliato (e il compilatore con `-Wall` emette un avviso per metterti in guardia). Ecco perché la lunghezza effettiva va **sempre** passata esplicitamente come parametro separato `size_t n`.
+
+Proprio perché una funzione con parametro `double a[]` può modificare direttamente gli elementi del chiamante, devi distinguere con chiarezza le funzioni che *leggono soltanto* l'array da quelle che lo *modificano*:
+
+- se la funzione deve solo consultare gli elementi (come `calcola_media`, `indice_massimo` o `stampa_array`), dichiara il parametro con il qualificatore `const`: `const double a[]`;
+- se la funzione deve modificare gli elementi sul posto (come `scala_valori`), ometti `const`: `double a[]`.
+
+Secondo lo standard C23, dichiarare `const tipo a[]` impedisce alla funzione di modificare gli elementi tramite quel parametro: qualsiasi tentativo di scrivere `a[i] = ...;` viene rifiutato dal compilatore con un errore di compilazione.
+
+Separare i compiti in funzioni mirate rende i programmi su array molto più puliti. Nella pratica incontrerai spesso tre famiglie di operazioni modulari:
+
+- **aggregazione** (`const tipo a[]`): scorre l'array senza alterarlo e restituisce una sintesi, come somma, media, minimo o indice del massimo;
+- **modifica sul posto** (`tipo a[]`): trasforma ciascun elemento direttamente dentro l'array originale (per esempio applicando una scala o limitando i valori a un intervallo);
+- **riorganizzazione sul posto** (`tipo a[]`): cambia la disposizione degli elementi senza usare un secondo array, per esempio invertendo l'ordine dell'array scambiando `a[0]` con `a[n - 1]`, `a[1]` con `a[n - 2]`, e così via fino a metà lunghezza (`i < n / 2`).
+
+> **Se vieni da Python** — In Python `len(a)` restituisce la lunghezza di una lista anche all'interno di una funzione; in C una funzione che riceve un array non ne conosce la lunghezza e deve sempre riceverla come parametro separato `size_t n`.
+
+### Esempio guidato
+
+Il programma seguente dichiara i prototipi di quattro funzioni prima di `main`: tre funzioni di sola lettura (`calcola_media`, `indice_massimo`, `stampa_array`) con parametro `const double a[]`, e una funzione di modifica sul posto (`scala_valori`) con parametro `double a[]`. Dopo aver mostrato i prezzi iniziali, la media e l'indice del prezzo più alto, applica un aumento del 10% con `scala_valori` e ristampa `prezzi` per verificare che l'array di `main` è stato aggiornato direttamente.
+
+<!-- cod: id=8.3-a tipo=programma -->
+```c
+#include <stdio.h>
+
+double calcola_media(const double a[], size_t n);
+size_t indice_massimo(const double a[], size_t n);
+void scala_valori(double a[], size_t n, double fattore);
+void stampa_array(const double a[], size_t n);
+
+int main(void) {
+    double prezzi[] = {12.0, 25.5, 18.0, 30.0};
+    const size_t n = sizeof(prezzi) / sizeof(prezzi[0]);
+    printf("Prima: ");
+    stampa_array(prezzi, n);
+    printf("Media: %.2f, massimo indice %zu\n", calcola_media(prezzi, n), indice_massimo(prezzi, n));
+    scala_valori(prezzi, n, 1.10);
+    printf("Dopo +10%%: ");
+    stampa_array(prezzi, n);
+    return 0;
+}
+
+double calcola_media(const double a[], size_t n) {
+    double somma = 0.0;
+    for (size_t i = 0; i < n; ++i) { somma += a[i]; }
+    return (n > 0) ? somma / (double)n : 0.0;
+}
+
+size_t indice_massimo(const double a[], size_t n) {
+    size_t idx = 0;
+    for (size_t i = 1; i < n; ++i) {
+        if (a[i] > a[idx]) { idx = i; }
+    }
+    return idx;
+}
+
+void scala_valori(double a[], size_t n, double fattore) {
+    for (size_t i = 0; i < n; ++i) { a[i] *= fattore; }
+}
+
+void stampa_array(const double a[], size_t n) {
+    for (size_t i = 0; i < n; ++i) { printf("%.2f%s", a[i], (i + 1 < n) ? " " : "\n"); }
+}
+```
+
+```output
+Prima: 12.00 25.50 18.00 30.00
+Media: 21.38, massimo indice 3
+Dopo +10%: 13.20 28.05 19.80 33.00
+```
+
+Esaminiamo come lavorano insieme `main` e le quattro funzioni:
+
+- In `main`, `sizeof(prezzi) / sizeof(prezzi[0])` è valido perché `prezzi` è dichiarato proprio dentro `main`. Il risultato `n` (pari a `4`) viene poi passato come secondo argomento a tutte le funzioni.
+- `calcola_media`, `indice_massimo` e `stampa_array` dichiarano `const double a[]`: non possono alterare `prezzi` e accettano sia array modificabili sia array `const`.
+- `scala_valori` dichiara `double a[]` senza `const` perché moltiplica sul posto ciascun elemento per `fattore`. Non deve restituire nulla (`void`): quando il controllo torna a `main`, la seconda chiamata a `stampa_array(prezzi, n)` mostra i valori aggiornati.
+- In `calcola_media`, il controllo `(n > 0)` evita una divisione per zero se la funzione venisse chiamata con `n == 0`.
+
+> **Approfondimento — Perché usare sempre `const` sui parametri array di sola lettura**
+> Aggiungere `const` davanti a `tipo a[]` ogni volta che una funzione non deve modificare l'array ha due vantaggi concreti. Il primo è documentare immediatamente il contratto della funzione: chi legge il prototipo `double calcola_media(const double a[], size_t n);` sa subito che i suoi dati non verranno toccati. Il secondo è la sicurezza verificata dal compilatore: se per distrazione scrivi un assegnamento su `a[i]` (per esempio `=` invece di `==` in una condizione), il compilatore rifiuta il codice invece di introdurre un difetto silenzioso. Inoltre, solo un parametro `const` può ricevere in argomento un array dichiarato `const` nel chiamante.
+
+### Esercizio 8.3 — Saturazione e inversione di un segnale con funzioni su array
+
+**Descrizione**
+
+Scrivi un programma C che dichiari prima di `main` i prototipi di tre funzioni su array di `int` (`constexpr size_t MAX_CAMPIONI = 30;`) e ne collochi le definizioni dopo `main`: `size_t satura_array(int a[], size_t n, int minimo, int massimo)` (modifica l'array sul posto portando a `minimo` ogni elemento `< minimo` e a `massimo` ogni elemento `> massimo`, restituendo quanti elementi sono stati modificati), `void inverti_array(int a[], size_t n)` (inverte l'ordine degli elementi sul posto) e `void stampa_array(const int a[], size_t n)` (stampa gli elementi separati da un singolo spazio seguiti da ritorno a capo). In `main` leggi dalla prima riga `n minimo massimo` (`1 <= n <= 30`, `minimo <= massimo`, `-10'000 <= minimo`, `massimo <= 10'000`) e dalle successive `n` righe un campione intero ciascuna (`-10'000..10'000`); in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`. Stampa l'array originale con `stampa_array`, applica `satura_array` e `inverti_array` sul posto e stampa l'array elaborato e il numero di elementi modificati dalla saturazione esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- passaggio di un array e della sua lunghezza `size_t` a una funzione
+- qualificatore `const` per i parametri array di sola lettura
+- modifica diretta degli elementi dell'array del chiamante sul posto
+- scambio simmetrico di coppie per invertire un array senza array d'appoggio
+
+**Domande guida**
+
+1. Quale delle tre funzioni deve dichiarare il parametro array come `const int a[]` e quali invece come `int a[]`?
+2. Perché tutte e tre le funzioni richiedono il parametro `size_t n` oltre all'array?
+3. In `inverti_array`, fino a quale indice deve arrivare il ciclo di scambio affinché gli elementi non vengano scambiati due volte tornando all'ordine iniziale?
+4. Perché `satura_array` modifica i valori dell'array `campioni` dentro `main` senza bisogno di restituire un nuovo array?
+
+**Esempio di esecuzione**
+
+```input
+5 0 100
+-15
+40
+120
+75
+100
+```
+
+```output
+Originali: -15 40 120 75 100
+Elementi modificati: 2
+Elaborati: 100 75 100 40 0
+```

@@ -227,7 +227,7 @@ Nei programmi reali raramente l'array è sempre pieno fino all'ultimo elemento: 
 - la **capacità fisica** dell'array (costante `constexpr`, fissata alla dichiarazione);
 - la **lunghezza effettiva** `n` (variabile intera o `size_t`, sempre compresa tra `0` e la capacità fisica), che conta quanti elementi sono stati realmente caricati.
 
-Prima di aggiungere un nuovo elemento controlla che `n < CAPACITA`; prima di leggere o modificare un elemento in posizione `idx`, controlla che `0 <= idx < n` — non `< CAPACITA`, perché le posizioni tra `n` e `CAPACITA - 1` non contengono dati validi.
+Prima di aggiungere un nuovo elemento controlla che `n < CAPACITA`; prima di leggere o modificare un elemento in posizione `idx`, controlla che `idx >= 0 && idx < n` — non `idx < CAPACITA`, perché le posizioni tra `n` e `CAPACITA - 1` non contengono dati validi.
 
 Quando una condizione combina il controllo dell'indice con la lettura dell'elemento, sfrutta la **valutazione a corto circuito** di `&&` (capitolo 4): metti sempre il controllo dei limiti *a sinistra* dell'accesso all'array:
 
@@ -376,7 +376,7 @@ Separare i compiti in funzioni mirate rende i programmi su array molto più puli
 
 - **aggregazione** (`const tipo a[]`): scorre l'array senza alterarlo e restituisce una sintesi, come somma, media, minimo o indice del massimo;
 - **modifica sul posto** (`tipo a[]`): trasforma ciascun elemento direttamente dentro l'array originale (per esempio applicando una scala o limitando i valori a un intervallo);
-- **riorganizzazione sul posto** (`tipo a[]`): cambia la disposizione degli elementi senza usare un secondo array, per esempio invertendo l'ordine dell'array scambiando `a[0]` con `a[n - 1]`, `a[1]` con `a[n - 2]`, e così via fino a metà lunghezza (`i < n / 2`).
+- **riorganizzazione sul posto** (`tipo a[]`): cambia la disposizione degli elementi senza usare un secondo array, per esempio invertendo l'ordine degli elementi tramite scambi simmetrici tra l'inizio e la fine dell'array.
 
 > **Se vieni da Python** — In Python `len(a)` restituisce la lunghezza di una lista anche all'interno di una funzione; in C una funzione che riceve un array non ne conosce la lunghezza e deve sempre riceverla come parametro separato `size_t n`.
 
@@ -511,7 +511,7 @@ r=1  | 4 | 5 | 6 |                     |<----- riga 0 ----->|<----- riga 1 -----
      +---+---+---+
 ```
 
-Per leggere o modificare l'elemento alla riga `r` e colonna `c` scrivi `m[r][c]`, con `0 <= r < RIGHE` e `0 <= c < COLONNE`. Entrambi gli indici devono restare nei rispettivi limiti: un indice fuori intervallo provoca comportamento indefinito esattamente come negli array monodimensionali.
+Per leggere o modificare l'elemento alla riga `r` e colonna `c` scrivi `m[r][c]`, con `r` compreso tra `0` e `RIGHE - 1` e `c` compreso tra `0` e `COLONNE - 1`. Entrambi gli indici devono restare nei rispettivi limiti: un indice fuori intervallo provoca comportamento indefinito esattamente come negli array monodimensionali.
 
 Lo schema naturale per attraversare un array bidimensionale usa due cicli `for` annidati (capitolo 6): il ciclo esterno scorre le righe `r`, il ciclo interno scorre le colonne `c`:
 

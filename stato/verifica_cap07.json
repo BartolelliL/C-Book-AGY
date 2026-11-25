@@ -1,15 +1,12 @@
 {
   "capitolo": 7,
   "errori": [],
-  "avvisi": [
-    "07_02.md: usa il termine 'complemento a due' che il glossario introduce al capitolo 13",
-    "07_99.md: usa il termine 'complemento a due' che il glossario introduce al capitolo 13"
-  ],
+  "avvisi": [],
   "info": {
     "programmi": 5,
     "frammenti": 6,
     "errori_voluti": 0,
     "tracce": 0,
-    "parole": 7726
+    "parole": 7743
   }
 }

@@ -1,0 +1,147 @@
+## 8.2 Accessi fuori dai limiti e comportamento indefinito
+
+Quando dichiari un array di lunghezza `N`, gli unici indici validi sono gli interi da `0` a `N - 1`. Che cosa succede se il programma tenta di leggere `a[N]` oppure di scrivere in `a[-1]`? In molti linguaggi di alto livello l'esecuzione si interrompe immediatamente con un messaggio d'errore preciso. In C no: il linguaggio non inserisce controlli automatici sugli indici a tempo di esecuzione per evitare il costo di una verifica a ogni singolo accesso in memoria.
+
+Qualsiasi lettura o scrittura di un array con un indice negativo o maggiore o uguale alla sua lunghezza è un **accesso fuori dai limiti** (*out-of-bounds access*). Secondo lo standard C23, qualsiasi accesso in lettura o scrittura fuori dall'intervallo `[0, N - 1]` di un array provoca **comportamento indefinito**.
+
+"Comportamento indefinito" significa che lo standard non impone alcun vincolo su ciò che accadrà:
+
+- il programma potrebbe leggere dati privi di senso appartenenti ad altre variabili vicine;
+- una scrittura fuori dai limiti potrebbe modificare silenziosamente il valore di un'altra variabile senza alcun segnale visibile;
+- il sistema operativo potrebbe interrompere bruscamente il programma se l'accesso colpisce un'area di memoria protetta;
+- il programma potrebbe persino sembrare funzionante durante le prove e fallire solo in seguito o su un altro computer.
+
+Gli accessi fuori dai limiti nascono quasi sempre da errori di un'unità (*off-by-one*) nei cicli o nel calcolo degli indici. Ecco i tre casi più frequenti da riconoscere a colpo d'occhio:
+
+1. **Condizione di ciclo `<=` invece di `<`**: scrivere `for (size_t i = 0; i <= n; ++i)` fa eseguire un'iterazione di troppo con `i == n`, accedendo ad `a[n]` che è già fuori dall'array.
+2. **Accesso al vicino `a[i + 1]` all'ultima iterazione**: quando confronti elementi adiacenti (per esempio `a[i] < a[i + 1]`), il ciclo deve fermarsi a `i + 1 < n` (oppure partire da `i = 1` confrontando `a[i - 1]` e `a[i]`). Se lasci `i < n`, all'ultima iterazione `i` vale `n - 1` e `a[i + 1]` accede ad `a[n]`.
+3. **Underflow su `size_t` con `i - 1`**: `size_t` è un tipo intero senza segno. Se `i` vale `0`, l'espressione `i - 1` non produce `-1`, bensì il valore massimo rappresentabile da `size_t` (un numero enorme, dell'ordine di $10^{19}$ sui sistemi a 64 bit), trasformando `a[i - 1]` in un accesso gravemente fuori dai limiti.
+
+Guarda questo esempio di codice **errato** (non scriverlo mai nei tuoi programmi):
+
+<!-- cod: id=8.2-b tipo=frammento -->
+```c
+// ERRORE: accesso fuori dai limiti — comportamento indefinito!
+constexpr size_t CAPACITA = 8;
+double letture[CAPACITA] = {0};
+for (size_t i = 0; i <= CAPACITA; ++i) {  // SBAGLIATO: quando i == 8 scrive in letture[8]
+    letture[i] = 1.0;
+}
+```
+
+> **Attenzione — Codice vietato**
+> Il frammento sopra contiene un errore grave: quando `i` raggiunge `CAPACITA` (`8`), `letture[8]` scrive oltre la fine dell'array provocando comportamento indefinito. Il ciclo corretto deve usare sempre `i < CAPACITA`.
+
+Nei programmi reali raramente l'array è sempre pieno fino all'ultimo elemento: spesso dichiari un array di capacità massima fissa (per esempio `CAPACITA = 8` o `MAX_STAZIONI = 20`) e lo riempi solo in parte con i dati letti dall'input. In questi casi devi mantenere sempre **due grandezze distinte**:
+
+- la **capacità fisica** dell'array (costante `constexpr`, fissata alla dichiarazione);
+- la **lunghezza effettiva** `n` (variabile intera o `size_t`, sempre compresa tra `0` e la capacità fisica), che conta quanti elementi sono stati realmente caricati.
+
+Prima di aggiungere un nuovo elemento controlla che `n < CAPACITA`; prima di leggere o modificare un elemento in posizione `idx`, controlla che `0 <= idx < n` — non `< CAPACITA`, perché le posizioni tra `n` e `CAPACITA - 1` non contengono dati validi.
+
+Quando una condizione combina il controllo dell'indice con la lettura dell'elemento, sfrutta la **valutazione a corto circuito** di `&&` (capitolo 4): metti sempre il controllo dei limiti *a sinistra* dell'accesso all'array:
+
+<!-- cod: id=8.2-c tipo=frammento -->
+```c
+if (idx >= 0 && idx < n && letture[idx] > 20.0) {
+    printf("Valore sopra soglia: %.1f\n", letture[idx]);
+}
+```
+
+Se `idx` è negativo oppure `idx >= n`, la valutazione si ferma subito e `letture[idx]` non viene mai valutato. Invertire l'ordine scrivendo `letture[idx] > 20.0 && idx >= 0 && idx < n` vanificherebbe la protezione, perché l'accesso fuori dai limiti avverrebbe prima del controllo. Durante i test esistono strumenti del compilatore chiamati sanitizer (lo vedremo nel capitolo 11) che individuano automaticamente molti accessi fuori dai limiti e fermano il programma segnalando la riga esatta dell'errore.
+
+> **Se vieni da Python** — In Python un indice negativo come `a[-1]` accede all'ultimo elemento e un indice fuori intervallo solleva subito un'eccezione `IndexError`; in C non esistono indici negativi validi né controlli automatici, e qualsiasi accesso fuori dai limiti provoca comportamento indefinito.
+
+### Esempio guidato
+
+Il programma seguente gestisce un array di capacità fisica `CAPACITA = 8` destinato alle letture di un sensore di temperatura, ma contiene soltanto `5` campioni caricati (`usati = 5`). Una sequenza di interrogazioni chiede di consultare vari indici — alcuni validi, uno negativo, uno oltre `usati` ma entro `CAPACITA`, uno pari a `CAPACITA` — e il programma valida ogni richiesta prima di indicizzare `letture`.
+
+<!-- cod: id=8.2-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+
+int main(void) {
+    constexpr int CAPACITA = 8;
+    double letture[CAPACITA] = {21.4, 21.8, 22.1, 21.9, 22.5};
+    int usati = 5;
+
+    const int richieste[] = {0, 4, -1, 5, 8};
+    const size_t num_richieste = sizeof(richieste) / sizeof(richieste[0]);
+
+    for (size_t k = 0; k < num_richieste; ++k) {
+        int idx = richieste[k];
+        if (idx >= 0 && idx < usati && letture[idx] >= 22.0) {
+            printf("Indice %d: %.1f C (sopra soglia)\n", idx, letture[idx]);
+        } else if (idx >= 0 && idx < usati) {
+            printf("Indice %d: %.1f C (nella norma)\n", idx, letture[idx]);
+        } else {
+            printf("Indice %d: non valido (intervallo 0..%d)\n", idx, usati - 1);
+        }
+    }
+
+    return 0;
+}
+```
+
+```output
+Indice 0: 21.4 C (nella norma)
+Indice 4: 22.5 C (sopra soglia)
+Indice -1: non valido (intervallo 0..4)
+Indice 5: non valido (intervallo 0..4)
+Indice 8: non valido (intervallo 0..4)
+```
+
+Osserva i dettagli essenziali:
+
+- `letture` ha capacità fisica `8`, ma solo i primi `5` elementi (`0..4`) contengono dati reali; gli elementi `5..7` sono stati azzerati dall'inizializzazione parziale ma non rappresentano misure acquisite.
+- L'interrogazione sull'indice `5` viene respinta anche se `5 < CAPACITA`: confrontare `idx < usati` invece di `idx < CAPACITA` evita di trattare uno `0.0` di riempimento come una misura reale.
+- Nella prima condizione `if (idx >= 0 && idx < usati && letture[idx] >= 22.0)`, la valutazione a corto circuito garantisce che `letture[idx]` venga letto solo quando `idx` è compreso tra `0` e `usati - 1`.
+- Gli indici `-1` e `8` sono respinti senza mai eseguire `letture[idx]`, evitando il comportamento indefinito.
+
+> **Approfondimento — Perché un accesso fuori dai limiti può "sembrare" innocuo**
+> Le variabili locali di una funzione vengono spesso collocate dal compilatore in zone adiacenti della memoria dedicata alle chiamate (lo stack, che studierai nel capitolo 11). Se un ciclo scrive per errore in `letture[8]` oltre la fine di `double letture[8]`, quei byte potrebbero appartenere alla variabile dichiarata subito accanto oppure a byte di riempimento inutilizzati. Nel secondo caso il programma può completare l'esecuzione senza errori visibili sul tuo computer; compilato con un altro livello di ottimizzazione o su un'altra architettura, lo stesso codice può invece sovrascrivere una variabile di controllo o provocare un arresto immediato. Per questo un accesso fuori dai limiti è sempre un difetto critico, anche quando una prova isolata produce l'output atteso.
+
+### Esercizio 8.2 — Interrogazioni su sotto-intervalli con controlli sui limiti
+
+**Descrizione**
+
+Scrivi un programma C che usi un array di capacità fissa `constexpr int MAX_STAZIONI = 20;` (`double misure[MAX_STAZIONI] = {0};`). Leggi dalla prima riga di `stdin` il numero effettivo di stazioni `n` (`int` compreso tra `1` e `MAX_STAZIONI` inclusi) e dalle successive `n` righe una misura `double` per ciascuna stazione `0..n-1` (controllando fine dell'input e formato esatto; in caso di errore stampa su `stderr` e restituisci `EXIT_FAILURE`). Leggi poi fino alla fine dell'input una sequenza di righe, ciascuna contenente una coppia di indici interi `inizio fine` (`"%d %d %c"` == `2`; se il formato è errato scrivi su `stderr` e restituisci `EXIT_FAILURE`). Prima di accedere all'array controlla sempre i limiti: se `inizio < 0 || fine < inizio || fine >= n`, non accedere a `misure`, incrementa `respinte` e stampa `Intervallo [inizio..fine]: fuori dai limiti (validi 0..n-1)`; altrimenti calcola minimo, massimo e media di `misure[inizio..fine]`, incrementa `valide` e stampa `Intervallo [inizio..fine]: min=..., max=..., media=...` con due cifre decimali. Al termine dello stream stampa `Interrogazioni valide: V, respinte: R` e restituisci `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- distinzione tra capacità fisica dell'array e lunghezza effettiva
+- prevenzione degli accessi fuori dai limiti prima di indicizzare
+- controllo di indici negativi, indici `>= n` e intervalli invertiti
+- elaborazione sicura di sotto-intervalli di un array
+
+**Domande guida**
+
+1. Perché devi distinguere tra la capacità massima `MAX_STAZIONI` e il numero effettivo `n` di elementi caricati?
+2. Quali tre condizioni di errore sugli indici devi verificare prima di accedere a `misure[inizio..fine]`?
+3. Come inizializzi `min` e `max` per un sotto-intervallo `[inizio..fine]` già validato senza usare costanti arbitrarie?
+4. Che cosa rischierebbe il programma se accedessi a `misure[fine]` quando `fine` è uguale a `n`?
+
+**Esempio di esecuzione**
+
+```input
+4
+10.0
+14.5
+12.0
+16.5
+1 3
+-1 2
+0 4
+2 1
+0 0
+```
+
+```output
+Intervallo [1..3]: min=12.00, max=16.50, media=14.33
+Intervallo [-1..2]: fuori dai limiti (validi 0..3)
+Intervallo [0..4]: fuori dai limiti (validi 0..3)
+Intervallo [2..1]: fuori dai limiti (validi 0..3)
+Intervallo [0..0]: min=10.00, max=10.00, media=10.00
+Interrogazioni valide: 2, respinte: 3
+```

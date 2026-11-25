@@ -1,0 +1,37 @@
+{
+  "capitolo": 8,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap08/08_02.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Scrivere `0 <= idx < n` formattato come codice C è fuorviante (soprattutto per lettori provenienti da Python): in C il confronto concatenato compila ma equivale a `(0 <= idx) < n`, introducendo un bug silenzioso. Come codice C va scritto `idx >= 0 && idx < n`.",
+      "old_text": "prima di leggere o modificare un elemento in posizione `idx`, controlla che `0 <= idx < n` — non `< CAPACITA`, perché le posizioni tra `n` e `CAPACITA - 1` non contengono dati validi.",
+      "new_text": "prima di leggere o modificare un elemento in posizione `idx`, controlla che `idx >= 0 && idx < n` — non `idx < CAPACITA`, perché le posizioni tra `n` e `CAPACITA - 1` non contengono dati validi."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap08/08_04.md",
+      "gravita": "alta",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Scrivere `0 <= r < RIGHE` e `0 <= c < COLONNE` in font di codice è fuorviante perché in C i confronti concatenati non verificano l'appartenenza all'intervallo (`0 <= r < RIGHE` viene valutato come `(0 <= r) < RIGHE`). Conviene esprimere i limiti in prosa.",
+      "old_text": "Per leggere o modificare l'elemento alla riga `r` e colonna `c` scrivi `m[r][c]`, con `0 <= r < RIGHE` e `0 <= c < COLONNE`.",
+      "new_text": "Per leggere o modificare l'elemento alla riga `r` e colonna `c` scrivi `m[r][c]`, con `r` compreso tra `0` e `RIGHE - 1` e `c` compreso tra `0` e `COLONNE - 1`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap08/08_03.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Nella teoria si anticipano letteralmente gli indici di scambio e la condizione di arresto (`i < n / 2`) dell'inversione sul posto, svelando la risposta alla terza domanda guida dell'Esercizio 8.3.",
+      "old_text": "per esempio invertendo l'ordine dell'array scambiando `a[0]` con `a[n - 1]`, `a[1]` con `a[n - 2]`, e così via fino a metà lunghezza (`i < n / 2`).",
+      "new_text": "per esempio invertendo l'ordine degli elementi tramite scambi simmetrici tra l'inizio e la fine dell'array."
+    }
+  ]
+}

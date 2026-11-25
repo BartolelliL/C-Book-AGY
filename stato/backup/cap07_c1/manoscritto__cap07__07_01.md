@@ -1,0 +1,156 @@
+## 7.1 Definire e chiamare una funzione
+
+Immagina di scrivere un programma che analizza decine di rilevazioni di velocità stradale. Ogni volta devi convertire una velocità da chilometri orari a metri al secondo, controllare se supera il limite e stampare una riga separatrice per rendere leggibile il prospetto. Se ricopi le stesse formule e gli stessi cicli in cinque punti diversi di `main`, il codice si allunga inutilmente e, se scopri un errore o decidi di cambiare lo stile del separatore, devi inseguire tutte le copie una per una.
+
+La soluzione è raccogliere ciascun compito in un blocco autonomo dotato di un nome chiaro che ne descriva lo scopo. In C questo costrutto si chiama **funzione** (*function*): un blocco di codice dotato di nome, parametri e tipo di ritorno che svolge un compito definito e può essere richiamato ogni volta che serve. In realtà scrivi già una funzione dal primo capitolo: `main` è la funzione da cui il sistema operativo avvia il programma. Ora impari a crearne di nuove.
+
+Una definizione di funzione ha sempre la stessa forma, composta da un'intestazione e da un corpo racchiuso tra parentesi graffe:
+
+<!-- cod: id=7.1-b tipo=frammento -->
+```c
+double kmh_a_ms(double kmh) {
+    return kmh / 3.6;
+}
+```
+
+Osserva i quattro elementi che compongono questa definizione:
+
+1. **Tipo di ritorno** (`double`): indica il tipo del valore che la funzione restituisce al punto in cui viene chiamata. Può essere qualunque tipo del linguaggio (`int`, `double`, `long`, `bool`, `char`, ecc.) oppure `void` quando la funzione esegue soltanto un'azione senza restituire alcun valore.
+2. **Nome della funzione** (`kmh_a_ms`): segue le stesse regole degli identificatori delle variabili. In questo libro i nomi di funzione sono in `snake_case` italiano senza accenti e descrivono chiaramente che cosa fa la funzione.
+3. **Lista dei parametri** (`(double kmh)`): racchiusa tra parentesi tonde, elenca i dati che la funzione si aspetta di ricevere, separati da virgole e preceduti ciascuno dal proprio tipo. Anche se due parametri hanno lo stesso tipo, il tipo va ripetuto per entrambi: si scrive `(double kmh, double limite)`, mai `(double kmh, limite)`. Se la funzione non accetta alcun parametro, tra le parentesi si scrive `void`, come in `int main(void)`.
+4. **Corpo della funzione** (`{ ... }`): il blocco di istruzioni eseguito a ogni chiamata. A differenza di una dichiarazione, l'intestazione della definizione non termina mai con un punto e virgola: inserire `;` subito prima della graffa di apertura provoca un errore di compilazione.
+
+Per parlare di funzioni con precisione occorre tenere ben distinti due termini che nel linguaggio comune vengono spesso confusi:
+
+- Un **parametro** (*parameter*) è una variabile dichiarata nell'intestazione di una funzione che riceve il valore fornito alla chiamata. Nell'esempio precedente `kmh` è un parametro di `kmh_a_ms`.
+- Un **argomento** (*argument*) è l'espressione passata tra parentesi nel punto in cui si chiama una funzione. Quando in `main` scrivi `double v = kmh_a_ms(54.0);` oppure `double v = kmh_a_ms(velocita + 2.0);`, le espressioni `54.0` e `velocita + 2.0` sono argomenti.
+
+La distinzione è semplice da ricordare: i parametri vivono nella definizione della funzione, gli argomenti si passano alla chiamata.
+
+Quando il programma incontra una chiamata di funzione, sospende temporaneamente la funzione chiamante, valuta gli argomenti, li copia nei rispettivi parametri ed esegue il corpo della funzione chiamata. L'istruzione `return` interrompe immediatamente l'esecuzione della funzione e restituisce il controllo al chiamante.
+
+Se il tipo di ritorno è diverso da `void`, l'istruzione `return espressione;` calcola `espressione`, converte il risultato al tipo di ritorno dichiarato (se necessario) e lo consegna al chiamante, che può assegnarlo a una variabile, passarlo a `printf` o usarlo dentro un'altra espressione. Una funzione può contenere più istruzioni `return` per realizzare un'uscita anticipata quando una condizione è già sufficiente a determinare il risultato:
+
+<!-- cod: id=7.1-c tipo=frammento -->
+```c
+bool supera_limite(double kmh, double limite) {
+    if (kmh > limite) {
+        return true;
+    }
+    return false;
+}
+```
+
+Naturalmente questa funzione si può scrivere in modo ancora più conciso come `return kmh > limite;`, ma la versione con uscita anticipata mostra bene un principio utile nei casi più articolati: appena il risultato è noto, `return` conclude subito la funzione.
+
+Se invece la funzione esegue solo un'azione — per esempio stampare un'intestazione o una riga di trattini — il suo tipo di ritorno è `void`. Una funzione `void` non restituisce alcun valore: non può essere usata dentro un'espressione (non puoi scrivere `int x = stampa_separatore(10);`) e termina quando raggiunge la graffa di chiusura oppure quando incontra `return;` senza alcuna espressione.
+
+Riassumiamo la regola precisa stabilita dallo standard C23:
+
+- Una definizione di funzione specifica tipo di ritorno, identificatore, lista dei parametri con i rispettivi tipi (oppure `void` se non accetta parametri) e corpo tra parentesi graffe.
+- Una funzione con tipo di ritorno diverso da `void` deve restituire tramite `return` un valore convertibile al tipo dichiarato su ogni percorso di esecuzione possibile.
+- Una funzione `void` non restituisce alcun valore e può terminare con `return;` oppure raggiungendo la graffa di chiusura.
+
+> **C23** — Nello standard C23 una lista di parametri vuota `f()` ha lo stesso significato di `f(void)`: indica una funzione che non accetta argomenti. Negli standard precedenti (C17 e C11), invece, `f()` in una dichiarazione lasciava imprecisati numero e tipo dei parametri, disattivando il controllo del compilatore sulle chiamate. Per chiarezza e portabilità verso compilatori più vecchi, in questo libro scriviamo sempre esplicitamente `(void)` per le funzioni senza parametri.
+
+> **Se vieni da Python** — In Python definisci una funzione con `def` senza indicare i tipi dei parametri né del valore restituito, e puoi restituire più valori insieme in una tupla con un solo `return`. In C ogni funzione dichiara esplicitamente il tipo di ritorno e il tipo di ciascun parametro, e restituisce al più un solo valore (nei capitoli 10 e 12 vedrai come gestire più risultati tramite puntatori o `struct`).
+
+### Esempio guidato
+
+Il programma seguente simula il controllo di due rilevazioni di velocità stradale. Definisce sopra `main` tre funzioni con tipi di ritorno diversi: `kmh_a_ms` (`double`), `supera_limite` (`bool`) e `stampa_separatore` (`void`). In `main` richiama le tre funzioni su due rilevazioni distinte.
+
+<!-- cod: id=7.1-a tipo=programma -->
+```c
+#include <stdio.h>
+
+double kmh_a_ms(double kmh) {
+    return kmh / 3.6;
+}
+
+bool supera_limite(double kmh, double limite) {
+    return kmh > limite;
+}
+
+void stampa_separatore(int lunghezza) {
+    for (int i = 0; i < lunghezza; ++i) {
+        putchar('-');
+    }
+    putchar('\n');
+}
+
+int main(void) {
+    constexpr double LIMITE = 50.0;
+    double rilevazione_1 = 48.6;
+    double rilevazione_2 = 61.2;
+
+    stampa_separatore(32);
+    printf("Rilevazione 1: %.1f km/h (%.2f m/s) -> %s\n",
+           rilevazione_1,
+           kmh_a_ms(rilevazione_1),
+           supera_limite(rilevazione_1, LIMITE) ? "INFRAZIONE" : "REGOLARE");
+    printf("Rilevazione 2: %.1f km/h (%.2f m/s) -> %s\n",
+           rilevazione_2,
+           kmh_a_ms(rilevazione_2),
+           supera_limite(rilevazione_2, LIMITE) ? "INFRAZIONE" : "REGOLARE");
+    stampa_separatore(32);
+    return 0;
+}
+```
+
+```output
+--------------------------------
+Rilevazione 1: 48.6 km/h (13.50 m/s) -> REGOLARE
+Rilevazione 2: 61.2 km/h (17.00 m/s) -> INFRAZIONE
+--------------------------------
+```
+
+Analizziamo come collaborano le parti del programma:
+
+- Le tre funzioni sono definite *prima* di `main`: quando il compilatore legge le chiamate dentro `main`, conosce già nome, tipo di ritorno e tipi dei parametri di ciascuna funzione.
+- `kmh_a_ms` accetta un parametro `double kmh` e restituisce il valore convertito in metri al secondo. Nelle chiamate dentro `printf`, gli argomenti sono `rilevazione_1` e `rilevazione_2`; il valore restituito viene passato direttamente allo specificatore `%.2f`.
+- `supera_limite` accetta due parametri `double` e restituisce un `bool` (`true` o `false`), che comanda l'operatore condizionale `?:` per scegliere la parola da stampare.
+- `stampa_separatore` ha tipo di ritorno `void`: stampa una sequenza di trattini con `putchar` seguita da `'\n'` e termina raggiungendo la graffa di chiusura senza bisogno di `return`. Se volessi cambiare il separatore da 32 trattini a 40, ti basterebbe cambiare l'argomento alla chiamata; se volessi cambiare il carattere `'-'` con `'='`, modificheresti una sola riga dentro la funzione.
+
+> **Approfondimento — Che cosa accade se dimentichi `return` in una funzione non `void`**
+> Se una funzione dichiarata `int`, `double` o `bool` può raggiungere la graffa di chiusura senza eseguire `return` (per esempio perché un ramo `if` restituisce un valore ma manca il ramo `else`), lo standard C23 stabilisce che usare il valore restituito dal chiamante provoca **comportamento indefinito**. Fa eccezione solo `main`, per la quale lo standard prevede un `return 0;` implicito alla chiusura (anche se in questo libro lo scriviamo sempre in modo esplicito). Compilando con `-Wall -Wextra -Werror`, il compilatore rileva subito i percorsi privi di `return` e blocca la compilazione prima ancora di eseguire il programma.
+
+### Esercizio 7.1 — Scheda di un lotto di terreno rettangolare
+
+**Descrizione**
+
+Scrivi un programma C che includa `<stdio.h>`, `<stdlib.h>` e `<math.h>` e definisca sopra `main` quattro funzioni:
+
+- `void stampa_intestazione(void)`: stampa `=== SCHEDA LOTTO ===` seguito da ritorno a capo;
+- `double calcola_area(double larghezza, double lunghezza)`: restituisce l'area del lotto;
+- `double calcola_perimetro(double larghezza, double lunghezza)`: restituisce il perimetro del lotto;
+- `bool e_quadrato(double larghezza, double lunghezza)`: restituisce `true` se `fabs(larghezza - lunghezza) <= 1e-9`, `false` altrimenti.
+
+In `main` leggi da `stdin` una riga contenente `larghezza`, `lunghezza` e `prezzo_mq` (`double`) verificando la fine dell'input, il formato esatto (`"%lf %lf %lf %c"` == `3`) e i vincoli (`larghezza > 0.0`, `lunghezza > 0.0`, `prezzo_mq >= 0.0`). In caso di errore stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Altrimenti chiama le quattro funzioni, calcola il valore totale (`area * prezzo_mq`) e stampa il riepilogo con due cifre decimali esattamente come nell'esempio di esecuzione, restituendo `EXIT_SUCCESS`.
+
+**Concetti da tenere a mente**
+
+- definizione e chiamata di funzioni con tipi di ritorno diversi (`void`, `double`, `bool`)
+- differenza tra parametro e argomento
+- istruzione `return`
+- confronto in virgola mobile con `fabs` e tolleranza dentro un predicato `bool`
+
+**Domande guida**
+
+1. Quale tipo di ritorno devi usare per una funzione che si limita a stampare l'intestazione senza produrre un risultato numerico?
+2. Quali parametri devono ricevere rispettivamente le funzioni per l'area, il perimetro e la verifica del quadrato?
+3. Perché nella funzione che verifica se il lotto è quadrato conviene usare `fabs(larghezza - lunghezza) <= 1e-9` invece di `larghezza == lunghezza`?
+4. In che modo il valore restituito da `calcola_area` può essere riutilizzato in `main` per ricavare il valore economico totale del lotto?
+
+**Esempio di esecuzione**
+
+```input
+12.5 20.0 80.0
+```
+
+```output
+=== SCHEDA LOTTO ===
+Area: 250.00 mq
+Perimetro: 65.00 m
+Forma: Rettangolo
+Valore stimato: 20000.00 euro
+```

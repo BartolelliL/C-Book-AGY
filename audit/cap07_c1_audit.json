@@ -1,0 +1,77 @@
+{
+  "capitolo": 7,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap07/07_99.md",
+      "gravita": "alta",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Dire che una variabile automatica 'si azzera o si ricrea a ogni chiamata' è tecnicamente errato e contraddice la sezione 7.3 e la regola 7.R4: in C23 una variabile automatica viene ricreata a ogni chiamata senza azzeramento implicito (se non inizializzata ha valore indeterminato).",
+      "old_text": "una variabile automatica si azzera o si ricrea a ogni chiamata, mentre una `static` accetta solo inizializzatori costanti noti a tempo di compilazione.",
+      "new_text": "una variabile automatica viene ricreata a ogni chiamata senza conservare il valore precedente (e senza azzeramento implicito), mentre una `static` accetta solo inizializzatori costanti noti a tempo di compilazione."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap07/07_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Affermare che il tipo di ritorno 'Può essere qualunque tipo del linguaggio' non è rigoroso rispetto allo standard C23: in C una funzione non può restituire un tipo array né un tipo funzione.",
+      "old_text": "Può essere qualunque tipo del linguaggio (`int`, `double`, `long`, `bool`, `char`, ecc.) oppure `void` quando la funzione esegue soltanto un'azione senza restituire alcun valore.",
+      "new_text": "Può essere uno dei tipi di valore che conosci (`int`, `double`, `long`, `bool`, `char`, ecc.) oppure `void` quando la funzione esegue soltanto un'azione senza restituire alcun valore."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap07/07_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nel box di confronto con Python si presenta l'arresto immediato come conseguenza garantita insieme al comportamento indefinito; secondo lo standard C23 il comportamento indefinito non garantisce alcun esito specifico (l'arresto immediato è solo il caso tipico, come indicato correttamente nel testo poco sopra).",
+      "old_text": "superare lo spazio della pila delle chiamate provoca comportamento indefinito e l'arresto immediato del programma.",
+      "new_text": "superare lo spazio della pila delle chiamate provoca comportamento indefinito (in genere l'arresto immediato del programma)."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap07/07_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nella spiegazione di fattoriale si afferma che il cast (long long)n garantisce che la moltiplicazione avvenga in long long evitando overflow su int, ma poiché fattoriale(n - 1) restituisce già long long, per le conversioni aritmetiche usuali la moltiplicazione avverrebbe comunque in long long anche senza il cast.",
+      "old_text": "Nel passo ricorsivo il cast `(long long)n` garantisce che la moltiplicazione avvenga in `long long`, evitando overflow su `int` già per valori piccoli come $13!$.",
+      "new_text": "Nel passo ricorsivo la moltiplicazione avviene in `long long` grazie al tipo di ritorno di `fattoriale(n - 1)` (e il cast esplicito `(long long)n` lo rende subito leggibile), evitando l'overflow su `int` già per valori piccoli come $13!$."
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap07/07_02.md",
+      "gravita": "media",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il testo usa il termine 'complemento a due', che appartiene al glossario del capitolo 13 (segnalato anche dai controlli automatici). Conviene descrivere l'asimmetria della rappresentazione binaria degli interi con segno rinviando al capitolo 13 senza usare il termine in anticipo.",
+      "old_text": "In C23 gli interi con segno sono rappresentati in complemento a due (lo vedremo nel dettaglio nel capitolo 13). In questa rappresentazione l'intervallo è asimmetrico:",
+      "new_text": "In C23 la rappresentazione binaria degli interi con segno (la vedremo nel dettaglio nel capitolo 13) ha un intervallo asimmetrico:"
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap07/07_99.md",
+      "gravita": "media",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il testo usa il termine 'complemento a due', che appartiene al glossario del capitolo 13 (segnalato dai controlli automatici). Conviene riformulare riferendosi alla rappresentazione degli interi con segno con rinvio al capitolo 13.",
+      "old_text": "nella rappresentazione in complemento a due (lo vedremo nel capitolo 13) il valore assoluto del minimo intero con segno non è rappresentabile nel tipo di ritorno e la chiamata provoca comportamento indefinito.",
+      "new_text": "nella rappresentazione degli interi con segno (lo vedremo nel capitolo 13) il valore assoluto del minimo intero con segno non è rappresentabile nel tipo di ritorno e la chiamata provoca comportamento indefinito."
+    },
+    {
+      "id": "p7",
+      "file": "manoscritto/cap07/07_05.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Nella teoria l'esempio sulla composizione anticipa esattamente i nomi e le dipendenze delle funzioni dell'Esercizio 7.5 (e_bisestile, giorni_del_mese, data_valida, giorno_dell_anno), svelando la risposta alla prima domanda guida dell'esercizio.",
+      "old_text": "Pensa a un calendario: una volta verificata `e_bisestile(anno)`, puoi usarla dentro `giorni_del_mese(mese, anno)`, che a sua volta semplifica `data_valida(g, m, a)` e `giorno_dell_anno(g, m, a)`.",
+      "new_text": "Pensa a un preventivo di vendita: una volta verificata `calcola_subtotale`, puoi usarla insieme a `calcola_sconto` e `calcola_iva` dentro una funzione di livello superiore che determina il totale finale."
+    }
+  ]
+}

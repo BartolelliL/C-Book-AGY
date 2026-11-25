@@ -1,0 +1,158 @@
+## 7.2 Prototipi e passaggio per valore
+
+Nella sotto-sezione precedente hai collocato tutte le definizioni di funzione prima di `main`. Con tre brevi funzioni questa disposizione è comoda, ma in un programma più lungo costringe chi legge il file a scorrere decine o centinaia di righe di funzioni ausiliarie prima di arrivare a `main` e capire che cosa fa il programma nel complesso. Inoltre, se una funzione `a` deve chiamare una funzione `b` e `b` deve chiamare `a`, nessuna delle due definizioni può stare prima dell'altra.
+
+Per risolvere entrambi i problemi, il C separa la *dichiarazione* di una funzione dalla sua *definizione*. La dichiarazione si chiama **prototipo** (*prototype*): una dichiarazione di funzione che ne specifica nome, tipo di ritorno e tipi dei parametri senza il corpo, chiusa da un punto e virgola:
+
+<!-- cod: id=7.2-b tipo=frammento -->
+```c
+double kmh_a_ms(double kmh);
+bool supera_limite(double kmh, double limite);
+void stampa_separatore(int lunghezza);
+```
+
+Collocando i prototipi in cima al file sorgente, subito dopo gli `#include`, puoi scrivere `main` per primo e lasciare le definizioni complete più in basso. Il compilatore legge il file dall'alto verso il basso: quando incontra una chiamata dentro `main`, controlla nel prototipo che il numero degli argomenti sia corretto, che i loro tipi siano compatibili con quelli dei parametri e che il valore restituito venga usato in modo coerente. I nomi dei parametri nel prototipo sono facoltativi per il compilatore, ma scriverli sempre (uguali a quelli della definizione) funge da documentazione immediata per chi legge il file.
+
+Il prototipo e la definizione devono essere perfettamente coerenti tra loro: se il prototipo dichiara `int raddoppia(int x);` e la definizione scrive `double raddoppia(int x)`, il compilatore segnala un conflitto di tipi e rifiuta il programma. In C23 ogni funzione deve essere dichiarata prima della sua prima chiamata mediante un prototipo o una definizione completa; chiamare una funzione sconosciuta è un errore di compilazione.
+
+Quando i tipi degli argomenti non coincidono esattamente con quelli dei parametri dichiarati nel prototipo, il C applica una **conversione implicita** esattamente come in un assegnamento. Se una funzione accetta un `double` e la chiami passando un `int` come `5`, il compilatore converte automaticamente `5` in `5.0`. Viceversa, passare un `double` come `3.9` a un parametro `int` tronca la parte frazionaria a `3`: il prototipo rende possibile questa conversione, ma resta tua responsabilità evitare troncamenti indesiderati.
+
+Che cosa succede esattamente al valore di una variabile quando la passi come argomento a una funzione? In C vale una regola fondamentale, senza eccezioni: il **passaggio per valore** (*pass by value*). Questo meccanismo stabilisce che una funzione riceve una *copia* del valore di ciascun argomento. Ogni parametro è a tutti gli effetti una variabile locale della funzione, inizializzata con quella copia.
+
+Di conseguenza, modificare un parametro dentro la funzione altera soltanto la copia locale e non modifica mai la variabile del chiamante. Ecco una rappresentazione schematica di ciò che avviene in memoria quando `main` ha una variabile `valore = 15` e chiama `tenta_raddoppio(valore)`:
+
+```text
+main:                    tenta_raddoppio:
++------------+           +------------+
+| valore: 15 | --copia-> | x: 15      |
++------------+           +------------+
+                             | x = x * 2;
+                         +------------+
+                         | x: 30      |  (valore in main resta 15)
+                         +------------+
+```
+
+Alla fine di `tenta_raddoppio`, la copia `x` scompare e `valore` dentro `main` vale ancora `15`. Se vuoi aggiornare una variabile del chiamante usando una funzione, con gli strumenti che conosci finora la strada corretta è restituire il nuovo valore tramite `return` e riassegnarlo nel chiamante (`valore = raddoppia(valore);`). Quando invece servirà davvero modificare una o più variabili del chiamante direttamente dall'interno di una funzione, userai i puntatori (lo vedremo nel capitolo 10).
+
+Un dettaglio sottile ma molto importante riguarda la valutazione degli argomenti quando una funzione ne riceve più d'uno. Lo standard C23 lascia l'ordine di valutazione degli argomenti come **comportamento non specificato**: in una chiamata come `f(g(), h())`, un compilatore può eseguire prima `g()` e poi `h()`, mentre un altro può fare il contrario, senza doverlo documentare. Finché gli argomenti non interferiscono tra loro, questo non crea alcun problema. Se però modifichi una variabile in un argomento e la leggi (o la modifichi di nuovo) in un altro argomento della stessa chiamata, entri nel **comportamento indefinito**:
+
+<!-- cod: id=7.2-c tipo=frammento -->
+```c
+// ERRORE: comportamento indefinito! Non scrivere mai così.
+int n = 5;
+int risultato = somma(n, ++n);
+```
+
+Non è detto quale argomento venga valutato per primo, e il linguaggio non garantisce alcun risultato sensato. La regola pratica è semplice: esegui prima l'incremento in un'istruzione separata (`++n;`) e passa alla funzione argomenti privi di effetti collaterali incrociati.
+
+Infine, in questo capitolo aggiungiamo alla tua cassetta degli attrezzi tre funzioni della libreria standard dichiarate in `<stdlib.h>` per calcolare il valore assoluto di numeri interi:
+
+- `int abs(int j);` per gli interi di tipo `int`;
+- `long int labs(long int j);` per gli interi di tipo `long`;
+- `long long int llabs(long long int j);` per gli interi di tipo `long long`.
+
+Ricorda di non confonderle con `fabs` di `<math.h>`, che lavora su `double`: passare un `double` a `abs` lo troncherebbe a `int` perdendo la parte decimale, mentre usare `abs` su un `long` o `long long` che supera `INT_MAX` provocherebbe un troncamento scorretto. Scegli sempre la variante corrispondente al tipo dell'argomento. Inoltre, come vedrai nell'approfondimento, chiamare `abs(INT_MIN)`, `labs(LONG_MIN)` o `llabs(LLONG_MIN)` provoca **comportamento indefinito** perché il valore assoluto del minimo intero con segno non è rappresentabile nel tipo di ritorno.
+
+### Esempio guidato
+
+Il programma seguente dichiara in cima i prototipi di due funzioni e ne scrive le definizioni dopo `main`. Confronta `tenta_raddoppio` (che modifica solo la propria copia locale del parametro) con `raddoppia` (che restituisce il nuovo valore), poi usa `abs` e `labs` per calcolare gli scarti di quota tra coppie di altitudini.
+
+<!-- cod: id=7.2-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+void tenta_raddoppio(int x);
+int raddoppia(int x);
+
+int main(void) {
+    int quota = 15;
+
+    tenta_raddoppio(quota);
+    printf("Dopo tenta_raddoppio: quota = %d\n", quota);
+
+    quota = raddoppia(quota);
+    printf("Dopo quota = raddoppia(quota): quota = %d\n", quota);
+
+    int passo_a = 1200;
+    int passo_b = 1850;
+    int scarto_breve = abs(passo_a - passo_b);
+
+    long vetta_a = -400L;
+    long vetta_b = 2900L;
+    long scarto_ampio = labs(vetta_a - vetta_b);
+
+    printf("Scarto int: %d m\n", scarto_breve);
+    printf("Scarto long: %ld m\n", scarto_ampio);
+    return 0;
+}
+
+void tenta_raddoppio(int x) {
+    x = x * 2;
+    printf("Dentro tenta_raddoppio: x = %d\n", x);
+}
+
+int raddoppia(int x) {
+    return x * 2;
+}
+```
+
+```output
+Dentro tenta_raddoppio: x = 30
+Dopo tenta_raddoppio: quota = 15
+Dopo quota = raddoppia(quota): quota = 30
+Scarto int: 650 m
+Scarto long: 3300 m
+```
+
+Osserva i punti chiave dell'esempio:
+
+- I due prototipi prima di `main` informano il compilatore delle firme esatte delle funzioni, permettendo di collocare `main` in testa al file.
+- Dentro `tenta_raddoppio`, `x` passa davvero da `15` a `30`, come dimostra la prima riga stampata. Tuttavia `x` è una copia: al rientro in `main`, `quota` vale ancora `15`.
+- Con `quota = raddoppia(quota);` il valore calcolato dalla funzione torna al chiamante tramite `return` e aggiorna esplicitamente `quota` a `30`.
+- Per `passo_a - passo_b` (`-650`, di tipo `int`) si usa `abs`, mentre per `vetta_a - vetta_b` (`-3300L`, di tipo `long`) si usa `labs`, evitando conversioni rischiose verso `int`.
+
+> **Approfondimento — Perché `abs(INT_MIN)` è comportamento indefinito**
+> In C23 gli interi con segno sono rappresentati in complemento a due (lo vedremo nel dettaglio nel capitolo 13). In questa rappresentazione l'intervallo è asimmetrico: per un `int` a 32 bit, `INT_MIN` vale `-2'147'483'648` mentre `INT_MAX` vale `2'147'483'647`. Il valore assoluto matematico di `INT_MIN` sarebbe `+2'147'483'648`, che supera `INT_MAX` di una unità e non entra in un `int`. Lo stesso vale per `labs(LONG_MIN)` e `llabs(LLONG_MIN)`. Poiché il risultato provoca overflow su un intero con segno, lo standard dichiara la chiamata **comportamento indefinito**. Prima di invocare `abs`, `labs` o `llabs` su dati esterni, verifica sempre che l'argomento rientri in un intervallo sicuro (oppure controlla esplicitamente `x != INT_MIN`).
+
+### Esercizio 7.2 — Percorso di un rover con prototipi, passaggio per valore e `abs`/`labs`/`llabs`
+
+**Descrizione**
+
+Scrivi un programma C che includa `<stdio.h>` e `<stdlib.h>`, dichiari prima di `main` i prototipi di quattro funzioni e ne collochi le definizioni dopo `main`:
+
+- `long distanza_manhattan(long x1, long y1, long x2, long y2)`: restituisce `labs(x2 - x1) + labs(y2 - y1)`;
+- `int sbilanciamento_assi(long x1, long y1, long x2, long y2)`: restituisce `abs((int)(labs(x2 - x1) - labs(y2 - y1)))`;
+- `long long differenza_energia(long long e1, long long e2)`: restituisce `llabs(e1 - e2)`;
+- `int applica_margine(int soglia)`: incrementa il proprio parametro di `10` e lo restituisce, mostrando che il passaggio per valore non modifica la variabile del chiamante.
+
+In `main` leggi una riga da `stdin` con cinque interi `x1 y1 x2 y2 soglia` (i primi quattro `long` tra `-1'000'000` e `1'000'000`, `soglia` `int` tra `0` e `10'000'000`), validando il formato esatto (`"%ld %ld %ld %ld %d %c"` == `5`) e gli intervalli; in caso di errore stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`. Calcola `e1 = (long long)x1 * x1 + (long long)y1 * y1` ed `e2 = (long long)x2 * x2 + (long long)y2 * y2`, invoca le quattro funzioni e stampa distanza di Manhattan, sbilanciamento, differenza di energia, `soglia` originale in `main` (invariata), `soglia_estesa` restituita ed esito del percorso (`Entro soglia estesa` se `distanza <= soglia_estesa`, `Oltre soglia estesa` altrimenti), esattamente come nell'esempio di esecuzione.
+
+**Concetti da tenere a mente**
+
+- prototipi dichiarati prima di `main` e definizioni dopo `main`
+- passaggio per valore dei parametri
+- funzioni `abs`, `labs` e `llabs` di `<stdlib.h>`
+- scelta di tipi adeguati per prevenire l'overflow
+
+**Domande guida**
+
+1. Perché devi dichiarare i prototipi prima di `main` se scegli di scrivere le definizioni delle funzioni dopo `main`?
+2. Dopo aver chiamato `applica_margine(soglia)`, perché la variabile `soglia` dentro `main` conserva ancora il suo valore originale?
+3. Quale differenza esiste tra `abs`, `labs` e `llabs` e quale tipo di argomento accetta ciascuna?
+4. Perché i limiti imposti sulle coordinate impediscono di incorrere nel comportamento indefinito di `abs(INT_MIN)`, `labs(LONG_MIN)` e `llabs(LLONG_MIN)`?
+
+**Esempio di esecuzione**
+
+```input
+-3 4 5 -2 10
+```
+
+```output
+Distanza Manhattan: 14
+Sbilanciamento assi: 2
+Differenza energia: 4
+Soglia originale in main: 10
+Soglia estesa restituita: 20
+Esito: Entro soglia estesa
+```
