@@ -1,0 +1,107 @@
+{
+  "capitolo": 26,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato 26.4-c (main.c) il valore booleano restituito dalle tre chiamate a env_def (che alloca con strdup e malloc) viene ignorato e subito dopo i puntatori restituiti da env_cerca vengono dereferenziati senza verifica, violando la regola di controllare sempre il successo delle allocazioni dinamiche ed esponendo a dereferenziazione di puntatore nullo in caso di memoria esaurita.",
+      "old_text": "    env_def(&glob, \"x\", 10);\n    env_def(&glob, \"y\", 1);\n    env_def(&bloc, \"x\", 99);",
+      "new_text": "    if (!env_def(&glob, \"x\", 10) || !env_def(&glob, \"y\", 1) || !env_def(&bloc, \"x\", 99)) {\n        tab_distruggi(bloc.tab);\n        tab_distruggi(glob.tab);\n        return EXIT_FAILURE;\n    }"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap26/26_03.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Il testo scrive `struct parser_t`, ma `parser_t` è un alias definito con `typedef struct parser parser_t;`; in C `struct parser_t` indicherebbe un tag di struttura distinto e incompatibile.",
+      "old_text": "Per coordinare il flusso dei token, il parser conserva in una `struct parser_t` un puntatore al lexer,",
+      "new_text": "Per coordinare il flusso dei token, il parser conserva in una struttura `parser_t` un puntatore al lexer,"
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Il testo scrive `struct ambiente_t` subito prima di `struct ambiente *genitore`: in C `ambiente_t` è l'alias `typedef` di `struct ambiente`, mentre `struct ambiente_t` sarebbe un tipo struttura differente.",
+      "old_text": "Ogni nodo della catena è una piccola `struct ambiente_t` che racchiude una `tabella_hash_t *tab` e un puntatore `struct ambiente *genitore`:",
+      "new_text": "Ogni nodo della catena è una piccola struttura `ambiente_t` che racchiude una `tabella_hash_t *tab` e un puntatore `struct ambiente *genitore`:"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap26/26_06.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "Nella traccia dell'esecuzione di `minil_esegui` il punto 2 parla di «due nodi di primo livello», ma alla riga immediatamente successiva elenca tre nodi (`NODO_FN(\"e_primo\")`, `NODO_VAR(\"k\")` e `NODO_WHILE(k <= 20)`), corrispondenti alle tre dichiarazioni/istruzioni di primo livello del sorgente mostrato.",
+      "old_text": "  2. lexer + parser producono nell'arena due nodi di primo livello:",
+      "new_text": "  2. lexer + parser producono nell'arena tre nodi di primo livello:"
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap26/26_01.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio guidato afferma che il programma definisce `valore_t` e `nodo_demo_t`, ma nei tre file dell'esempio (`ast_demo.h`, `ast_demo.c`, `main.c`) `valore_t` non è definito (compare solo nel frammento precedente `26.1-b`).",
+      "old_text": "allineato ad `alignof(max_align_t)` e definisce `valore_t` e un piccolo nodo AST `nodo_demo_t` con unione etichettata.",
+      "new_text": "allineato ad `alignof(max_align_t)` e definisce un piccolo nodo AST `nodo_demo_t` con unione etichettata."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap26/26_02.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio guidato 26.2-a dice che analizza «una singola istruzione» e che «Mostra il cursore con riga/colonna», ma il codice analizza due istruzioni (`var x = 12 + 34; x == 46;`) e traccia solo la colonna (`col`), senza alcun campo `riga`.",
+      "old_text": "Questo breve lexer didattico analizza una singola istruzione contenente parole chiave, identificatori, interi e operatori `=`, `==`, `+` e `;`. Mostra il cursore con riga/colonna, il cast a `unsigned char`,",
+      "new_text": "Questo breve lexer didattico analizza due brevi istruzioni contenenti una parola chiave, identificatori, interi e operatori `=`, `==`, `+` e `;`. Mostra il cursore con la colonna, il cast a `unsigned char`,"
+    },
+    {
+      "id": "p7",
+      "file": "manoscritto/cap26/26_05.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio guidato 26.5-a chiama la seconda funzione predefinita `somma_sicura`, mentre nel codice e nell'output la funzione è registrata e invocata con il nome `somma` (`bi_somma`).",
+      "old_text": "registra due funzioni predefinite (`doppio` e `somma_sicura`) in una tabella di dispatch",
+      "new_text": "registra due funzioni predefinite (`doppio` e `somma`) in una tabella di dispatch"
+    },
+    {
+      "id": "p8",
+      "file": "manoscritto/cap26/26_05.md",
+      "gravita": "bassa",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Il testo definisce «coppie» una tupla di tre elementi `(nome, arita, puntatore_a_funzione)`; il termine corretto è «terne».",
+      "old_text": "le registriamo in una tabella `static const` di coppie `(nome, arita, puntatore_a_funzione)`:",
+      "new_text": "le registriamo in una tabella `static const` di terne `(nome, arita, puntatore_a_funzione)`:"
+    },
+    {
+      "id": "p9",
+      "file": "manoscritto/cap26/26_01.md",
+      "gravita": "bassa",
+      "tipo": "grammatica",
+      "certezza": "alta",
+      "problema": "Il termine italiano «asserzione statica» è racchiuso per errore tra apici inversi come se fosse un identificatore C.",
+      "old_text": "Con un'`asserzione statica` (`static_assert`, capitolo 15)",
+      "new_text": "Con un'asserzione statica (`static_assert`, capitolo 15)"
+    },
+    {
+      "id": "p10",
+      "file": "manoscritto/cap26/26_06.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La presentazione dell'esempio 26.6-a parla di «errore simulato» e di una macro «di `test_fw.h`», ma `main` esegue solo il caso di successo (nessun errore simulato) e definisce localmente `VERIFICA_STR` senza includere `test_fw.h`.",
+      "old_text": "(che rilascia le risorse sia su successo sia su errore simulato) e una macro di test `do { ... } while (0)` di `test_fw.h`,",
+      "new_text": "(che rilascia le risorse sia su successo sia su errore) e una macro di test `do { ... } while (0)` nello stile di `test_fw.h`,"
+    }
+  ]
+}

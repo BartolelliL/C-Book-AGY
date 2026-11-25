@@ -60,7 +60,7 @@ typedef struct valore {
 } valore_t;
 ```
 
-Lo stesso schema si applica ai nodi dell'albero di sintassi astratta (`nodo_t`): un `enum` elenca tutte le specie di nodi (`NODO_INT`, `NODO_BOOL`, `NODO_VAR`, `NODO_UNARIO`, `NODO_BINARIO`, `NODO_IF`, `NODO_WHILE`, `NODO_FN`, `NODO_CHIAMATA`, e così via), mentre la `union` raccoglie i campi pertinenti a ciascun nodo. Con un'`asserzione statica` (`static_assert`, capitolo 15) puoi verificare già in fase di compilazione che la dimensione di `valore_t` o di `nodo_t` resti compatta e non cresca per errore se aggiungi un campo troppo grande a una variante della `union`.
+Lo stesso schema si applica ai nodi dell'albero di sintassi astratta (`nodo_t`): un `enum` elenca tutte le specie di nodi (`NODO_INT`, `NODO_BOOL`, `NODO_VAR`, `NODO_UNARIO`, `NODO_BINARIO`, `NODO_IF`, `NODO_WHILE`, `NODO_FN`, `NODO_CHIAMATA`, e così via), mentre la `union` raccoglie i campi pertinenti a ciascun nodo. Con un'asserzione statica (`static_assert`, capitolo 15) puoi verificare già in fase di compilazione che la dimensione di `valore_t` o di `nodo_t` resti compatta e non cresca per errore se aggiungi un campo troppo grande a una variante della `union`.
 
 La regola fondamentale di sicurezza sulle unioni etichettate è tassativa: **prima di leggere un campo della `union` occorre sempre controllare l'etichetta `tipo` tramite `switch` o `if`**. Secondo lo standard C23, accedere a un campo di una `union` diverso dall'ultimo scritto (salvo casi particolari su prefissi comuni di `struct`) produce comportamento non specificato o indefinito.
 
@@ -96,7 +96,7 @@ Tutti gli errori — lessicali, sintattici o di esecuzione — condividono una s
 
 ### Esempio guidato
 
-Questo esempio su tre file (`ast_demo.h`, `ast_demo.c`, `main.c`) costruisce il nucleo essenziale di un'arena su buffer statico allineato ad `alignof(max_align_t)` e definisce `valore_t` e un piccolo nodo AST `nodo_demo_t` con unione etichettata. Il programma assembla manualmente l'albero dell'espressione `-(3 + 4 * 2)`, lo stampa in notazione prefissa, verifica i byte occupati nell'arena e infine azzera l'arena con `arena_reset`.
+Questo esempio su tre file (`ast_demo.h`, `ast_demo.c`, `main.c`) costruisce il nucleo essenziale di un'arena su buffer statico allineato ad `alignof(max_align_t)` e definisce un piccolo nodo AST `nodo_demo_t` con unione etichettata. Il programma assembla manualmente l'albero dell'espressione `-(3 + 4 * 2)`, lo stampa in notazione prefissa, verifica i byte occupati nell'arena e infine azzera l'arena con `arena_reset`.
 
 <!-- cod: id=26.1-a tipo=programma gruppo=ast_demo file=ast_demo.h -->
 ```c
@@ -344,7 +344,7 @@ Saltati spazi e commenti, il lexer ispeziona il carattere corrente `c = src[pos]
 
 ### Esempio guidato
 
-Questo breve lexer didattico analizza una singola istruzione contenente parole chiave, identificatori, interi e operatori `=`, `==`, `+` e `;`. Mostra il cursore con riga/colonna, il cast a `unsigned char`, la tabella statica delle parole chiave e il lookahead di un carattere per distinguere `=` da `==`.
+Questo breve lexer didattico analizza due brevi istruzioni contenenti una parola chiave, identificatori, interi e operatori `=`, `==`, `+` e `;`. Mostra il cursore con la colonna, il cast a `unsigned char`, la tabella statica delle parole chiave e il lookahead di un carattere per distinguere `=` da `==`.
 
 <!-- cod: id=26.2-a tipo=programma -->
 ```c
@@ -506,7 +506,7 @@ Una volta che l'analizzatore lessicale produce una sequenza pulita di token, il 
 
 La tecnica più chiara e diretta da scrivere a mano in C è la **discesa ricorsiva** (*recursive descent*). L'idea è immediata: a ogni regola grammaticale del linguaggio corrisponde una funzione C che consuma i token previsti da quella regola e restituisce un puntatore al sottoalbero `nodo_t *` appena allocato nell'arena (oppure `nullptr` in caso di errore).
 
-Per coordinare il flusso dei token, il parser conserva in una `struct parser_t` un puntatore al lexer, il token corrente `cur` (sempre pronto per essere ispezionato), un puntatore all'arena dell'AST, un puntatore a `errore_t` e un contatore di profondità `prof`. Tre piccoli helper rendono ogni regola grammaticale leggibile quasi come una specifica formale:
+Per coordinare il flusso dei token, il parser conserva in una struttura `parser_t` un puntatore al lexer, il token corrente `cur` (sempre pronto per essere ispezionato), un puntatore all'arena dell'AST, un puntatore a `errore_t` e un contatore di profondità `prof`. Tre piccoli helper rendono ogni regola grammaticale leggibile quasi come una specifica formale:
 
 - `avanza(p)`: legge il token successivo dal lexer in `p->cur` (e se riceve `TOK_ERR`, registra subito l'errore lessicale).
 - `corrisponde(p, tipo)`: se `p->cur.tipo == tipo`, chiama `avanza(p)` e restituisce `true`; altrimenti lascia `p->cur` intatto e restituisce `false`.
@@ -703,7 +703,7 @@ Gli operatori logici `&&` e `||` richiedono un'attenzione speciale: devono rispe
 
 Per memorizzare le variabili del programma MiniL e gestirne la **visibilità** nei blocchi annidati introduciamo l'**ambiente di esecuzione** (*environment*): una catena di tabelle associative che mappa gli identificatori ai rispettivi valori a tempo di esecuzione gestendo ambiti annidati e oscuramento.
 
-Qui entra finalmente in azione il traguardo centrale di questo libro: la **tabella hash generica come tipo opaco** costruita nei capitoli 18 e 19 (`tabella_hash.h`). Ogni nodo della catena è una piccola `struct ambiente_t` che racchiude una `tabella_hash_t *tab` e un puntatore `struct ambiente *genitore`:
+Qui entra finalmente in azione il traguardo centrale di questo libro: la **tabella hash generica come tipo opaco** costruita nei capitoli 18 e 19 (`tabella_hash.h`). Ogni nodo della catena è una piccola struttura `ambiente_t` che racchiude una `tabella_hash_t *tab` e un puntatore `struct ambiente *genitore`:
 
 ```text
   [ Ambiente blocco interno ]          [ Ambiente globale ]
@@ -876,9 +876,11 @@ int main(void) {
         tab_distruggi(glob.tab);
         return EXIT_FAILURE;
     }
-    env_def(&glob, "x", 10);
-    env_def(&glob, "y", 1);
-    env_def(&bloc, "x", 99);
+    if (!env_def(&glob, "x", 10) || !env_def(&glob, "y", 1) || !env_def(&bloc, "x", 99)) {
+        tab_distruggi(bloc.tab);
+        tab_distruggi(glob.tab);
+        return EXIT_FAILURE;
+    }
 
     int64_t *py = env_cerca(&bloc, "y");
     if (py != nullptr) {
@@ -984,7 +986,7 @@ Le funzioni definite dall'utente (`fn nome(p1, p2) { ... }`) sono registrate in 
 
 Come si gestisce un'istruzione `return expr;` annidata dentro un `if`, dentro un `while`, dentro un altro blocco? Invece di ricorrere a salti non locali (`longjmp`), la soluzione più pulita e sicura per la memoria consiste nell'aggiungere due campi allo stato del valutatore: `bool in_ritorno` e `valore_t val_ritorno`. Quando viene eseguita `return expr;`, il valutatore calcola `expr`, salva il valore in `vm->val_ritorno` e imposta `vm->in_ritorno = true`. Ogni ciclo di esecuzione di blocco, `if` e `while` controlla `if (vm->in_ritorno || vm->err->attivo) { break; }`: in questo modo l'esecuzione risale ordinatamente tutte le funzioni C annidate, **distruggendo uno per uno ogni sotto-ambiente creato lungo la strada**, fino al confine della chiamata di funzione che azzera `vm->in_ritorno = false` e restituisce `vm->val_ritorno`.
 
-Infine, le **funzioni predefinite** (`abs`, `min`, `max`, `pot`) si integrano elegantemente grazie ai **puntatori a funzione** (capitolo 16). Definiamo una firma uniforme per tutte le funzioni predefinite e le registriamo in una tabella `static const` di coppie `(nome, arita, puntatore_a_funzione)`:
+Infine, le **funzioni predefinite** (`abs`, `min`, `max`, `pot`) si integrano elegantemente grazie ai **puntatori a funzione** (capitolo 16). Definiamo una firma uniforme per tutte le funzioni predefinite e le registriamo in una tabella `static const` di terne `(nome, arita, puntatore_a_funzione)`:
 
 <!-- cod: id=26.5-b tipo=frammento -->
 ```c
@@ -998,7 +1000,7 @@ Una sola funzione di dispatch cerca il nome in tabella, controlla che `n == arit
 
 ### Esempio guidato
 
-Questo modulo dimostrativo registra due funzioni predefinite (`doppio` e `somma_sicura`) in una tabella di dispatch tramite puntatori a funzione e mostra come il flag `in_ritorno` interrompa un ciclo `while` annidato e restituisca il valore alla cornice della funzione chiamante senza perdere risorse.
+Questo modulo dimostrativo registra due funzioni predefinite (`doppio` e `somma`) in una tabella di dispatch tramite puntatori a funzione e mostra come il flag `in_ritorno` interrompa un ciclo `while` annidato e restituisca il valore alla cornice della funzione chiamante senza perdere risorse.
 
 <!-- cod: id=26.5-a tipo=programma -->
 ```c
@@ -1207,7 +1209,7 @@ Osserva passo passo che cosa accade dentro `minil` quando esegue un programma Mi
 
   Traccia dell'esecuzione in minil_esegui:
   1. arena_crea(&arena, 65536) riserva il buffer unico dell'AST.
-  2. lexer + parser producono nell'arena due nodi di primo livello:
+  2. lexer + parser producono nell'arena tre nodi di primo livello:
      NODO_FN("e_primo") -> NODO_VAR("k") -> NODO_WHILE(k <= 20).
   3. ht_crea crea la tabella delle funzioni e registra "e_primo" -> nodo AST.
   4. env_crea(nullptr) crea l'ambiente globale e inserisce "k" = 2.
@@ -1220,7 +1222,7 @@ Osserva passo passo che cosa accade dentro `minil` quando esegue un programma Mi
   6. Etichetta cleanup: distrugge ambiente globale, tabella funzioni e arena AST.
 ```
 
-Il breve programma C seguente dimostra in forma compatta l'accoppiamento tra il modello `goto cleanup` (che rilascia le risorse sia su successo sia su errore simulato) e una macro di test `do { ... } while (0)` di `test_fw.h`, verificando il risultato atteso del filtro dei numeri primi fino a `20`.
+Il breve programma C seguente dimostra in forma compatta l'accoppiamento tra il modello `goto cleanup` (che rilascia le risorse sia su successo sia su errore) e una macro di test `do { ... } while (0)` nello stile di `test_fw.h`, verificando il risultato atteso del filtro dei numeri primi fino a `20`.
 
 <!-- cod: id=26.6-a tipo=programma -->
 ```c
