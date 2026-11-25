@@ -1,0 +1,215 @@
+## 26.6 L'interprete completo e la suite di test automatici
+
+Hai ormai progettato e sperimentato ciascun ingranaggio di MiniL separatamente. L'ultima tappa consiste nel riunire gli otto moduli in un unico progetto C su più file:
+
+- `arena.h` / `arena.c`: allocatore ad arena allineato ad `alignof(max_align_t)` per tutti i nodi dell'AST e le copie degli identificatori;
+- `tabella_hash.h` / `tabella_hash.c`: tabella hash generica come tipo opaco (`void *`) con ridimensionamento automatico e distruttori personalizzati;
+- `valore.h` / `valore.c`: unioni etichettate `valore_t` e `nodo_t`, struttura `errore_t` e buffer di output `out_buf_t`;
+- `lexer.h` / `lexer.c`: analizzatore lessicale con coordinate, commenti `//` e parsing sicuro degli interi;
+- `parser.h` / `parser.c`: analizzatore sintattico a discesa ricorsiva con sette livelli di precedenza e limite di profondità;
+- `eval.h` / `eval.c`: valutatore con aritmetica controllata, corto circuito, ambienti lessicali a catena, `if`/`else`, `while`, funzioni `fn`, `return` e funzioni predefinite via puntatori a funzione;
+- `test_fw.h`: mini framework di test automatici basato su macro `do { ... } while (0)` e puntatori a funzione (capitolo 25);
+- `main.c`: suite di test integrata (`RUN_TESTS`) ed esecutore da `stdin` (`EXEC ... END`).
+
+Ogni file di intestazione possiede una protezione di inclusione univoca (`ARENA_H`, `TABELLA_HASH_H`, `VALORE_H`, `LEXER_H`, `PARSER_H`, `EVAL_H`, `TEST_FW_H`) e dipendenze strettamente acicliche. Con la **compilazione separata** (capitolo 19), ogni file `.c` costituisce un'unità di traduzione autonoma, compilabile in un file oggetto `.o` e collegata nell'eseguibile finale con tutti gli avvisi attivi come errori: `-std=c23 -Wall -Wextra -Wpedantic -Werror`.
+
+Il punto più delicato dell'integrazione è il coordinamento del ciclo di vita delle risorse dentro la funzione di ingresso `minil_esegui(const char *src, out_buf_t *out, errore_t *err)`. Una singola esecuzione di un programma MiniL acquisisce tre risorse distinte: l'**arena** che contiene l'AST, la **tabella hash delle funzioni** e l'**ambiente globale** delle variabili (oltre ai sotto-ambienti temporanei creati e distrutti durante l'esecuzione). Un errore può verificarsi in qualunque momento: durante l'inizializzazione dell'arena, durante il parsing di un'istruzione malformata, oppure a metà valutazione per una divisione per zero.
+
+Per garantire zero perdite di memoria su ogni percorso di uscita — sia su successo sia su qualunque errore — si applica il modello **`goto cleanup`** del capitolo 21: tutte le risorse vengono inizializzate a `nullptr` (o stato vuoto) all'inizio della funzione; ogni fallimento imposta `errore_t` e salta a un'unica etichetta `cleanup:` in fondo alla funzione, che rilascia in ordine inverso l'ambiente globale, la tabella delle funzioni e l'arena. Poiché `ht_distruggi(nullptr)`, `env_distruggi(nullptr)` e `arena_distruggi` su un'arena vuota non eseguono alcuna azione, il blocco `cleanup:` è valido qualunque sia il punto in cui il salto è avvenuto. Secondo lo standard C23, la compilazione separata, le protezioni di inclusione, il salto `goto` verso un'etichetta nella stessa funzione e le macro `do { ... } while (0)` sono completamente definiti.
+
+Per verificare la correttezza dell'intero interprete senza dover testare a mano decine di casi dopo ogni modifica, `main.c` integra una suite di **test automatici** deterministica costruita con `test_fw.h` (capitolo 25). Catturare l'output di `stampa` in un buffer `out_buf_t` anziché scrivere direttamente su `stdout` con `printf` rende ogni test automatico immediato: basta invocare `minil_esegui(sorgente, &out, &err)` e confrontare `out.dati` con la stringa attesa tramite `T_EQ_STR`. La suite copre sistematicamente otto categorie:
+
+1. precedenza e associatività aritmetica (`10 - 3 - 2`, `2 + 3 * 4`, unari);
+2. variabili, ambiti annidati e oscuramento (*shadowing*);
+3. booleani e valutazione a corto circuito (`x != 0 && 10 / x > 1`);
+4. controllo di flusso `if`/`else` e `while` (per esempio calcolo del MCD);
+5. funzioni definite dall'utente e ricorsione (fattoriale, Fibonacci);
+6. funzioni predefinite (`abs`, `min`, `max`, `pot`);
+7. errori lessicali e sintattici (caratteri illegali, parentesi mancanti, overflow letterale);
+8. errori di esecuzione (divisione per zero, overflow aritmetico, tipo errato nella condizione di `if`, variabile non dichiarata, arità errata, ciclo infinito).
+
+L'ultima verifica prima di considerare pronto l'interprete è l'esecuzione dell'intera suite compilata con i **sanitizer** (capitolo 11): `-fsanitize=address,undefined` controlla a tempo di esecuzione che non esista neppure un accesso fuori dai limiti, un uso dopo la liberazione, un overflow con segno o una perdita di memoria in nessuno degli otto scenari.
+
+### Esempio guidato
+
+Quando tutti i file sorgenti dell'interprete MiniL sono pronti nella stessa cartella, puoi compilarli separatamente e collegarli con il comando seguente (aggiungendo `-fsanitize=address,undefined -g` durante i test di robustezza):
+
+```text
+cc -std=c23 -Wall -Wextra -Wpedantic -Werror -c arena.c tabella_hash.c valore.c lexer.c parser.c eval.c main.c
+cc -std=c23 -Wall -Wextra -Wpedantic -Werror arena.o tabella_hash.o valore.o lexer.o parser.o eval.o main.o -o minil
+```
+
+Osserva passo passo che cosa accade dentro `minil` quando esegue un programma MiniL che stampa tutti i numeri primi fino a `20` usando una funzione `e_primo(n)`:
+
+```text
+  Sorgente MiniL:
+    fn e_primo(n) {
+        if (n < 2) { return false; }
+        var d = 2;
+        while (d * d <= n) {
+            if (n % d == 0) { return false; }
+            d = d + 1;
+        }
+        return true;
+    }
+    var k = 2;
+    while (k <= 20) {
+        if (e_primo(k)) { stampa k; }
+        k = k + 1;
+    }
+
+  Traccia dell'esecuzione in minil_esegui:
+  1. arena_crea(&arena, 65536) riserva il buffer unico dell'AST.
+  2. lexer + parser producono nell'arena tre nodi di primo livello:
+     NODO_FN("e_primo") -> NODO_VAR("k") -> NODO_WHILE(k <= 20).
+  3. ht_crea crea la tabella delle funzioni e registra "e_primo" -> nodo AST.
+  4. env_crea(nullptr) crea l'ambiente globale e inserisce "k" = 2.
+  5. A ogni iterazione del while (k = 2..20):
+     - chiama e_primo(k) creando un ambiente locale con genitore = globale;
+     - inserisce il parametro "n" = k e la locale "d" = 2;
+     - al primo divisore (o al termine del ciclo) imposta in_ritorno = true,
+       distrugge l'ambiente locale di e_primo e restituisce VAL_BOOL;
+     - se true, accoda k in out_buf_t ("2\n3\n5\n7\n11\n13\n17\n19\n").
+  6. Etichetta cleanup: distrugge ambiente globale, tabella funzioni e arena AST.
+```
+
+Il breve programma C seguente dimostra in forma compatta l'accoppiamento tra il modello `goto cleanup` (che rilascia le risorse sia su successo sia su errore) e una macro di test `do { ... } while (0)` nello stile di `test_fw.h`, verificando il risultato atteso del filtro dei numeri primi fino a `20`.
+
+<!-- cod: id=26.6-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define VERIFICA_STR(ctx, atteso, reale) do { \
+    ++(ctx)->eseguiti; \
+    if (strcmp((atteso), (reale)) == 0) { ++(ctx)->superati; } \
+    else { ++(ctx)->falliti; } \
+} while (0)
+
+typedef struct test_ctx {
+    size_t eseguiti;
+    size_t superati;
+    size_t falliti;
+} test_ctx_t;
+
+static bool esegui_pipeline(int limite, char *out, size_t cap) {
+    bool ok = false;
+    int *buf = malloc((size_t)(limite + 1) * sizeof(*buf));
+    if (buf == nullptr) {
+        goto cleanup;
+    }
+    size_t pos = 0;
+    out[0] = '\0';
+    for (int n = 2; n <= limite; ++n) {
+        bool primo = true;
+        for (int d = 2; d * d <= n; ++d) {
+            if (n % d == 0) {
+                primo = false;
+                break;
+            }
+        }
+        if (primo) {
+            int scritti = snprintf(out + pos, cap - pos, "%s%d", pos > 0 ? " " : "", n);
+            if (scritti < 0 || (size_t)scritti >= cap - pos) {
+                goto cleanup;
+            }
+            pos += (size_t)scritti;
+        }
+    }
+    ok = true;
+cleanup:
+    free(buf);
+    return ok;
+}
+
+int main(void) {
+    char out[64] = {};
+    test_ctx_t ctx = {};
+    if (esegui_pipeline(20, out, sizeof(out))) {
+        printf("Primi <= 20: %s\n", out);
+        VERIFICA_STR(&ctx, "2 3 5 7 11 13 17 19", out);
+    }
+    printf("Test: %zu/%zu falliti=%zu\n", ctx.superati, ctx.eseguiti, ctx.falliti);
+    return ctx.falliti == 0 ? 0 : EXIT_FAILURE;
+}
+```
+
+```output
+Primi <= 20: 2 3 5 7 11 13 17 19
+Test: 1/1 falliti=0
+```
+
+Osserva come in `esegui_pipeline` esista un solo punto di uscita `cleanup:` che libera `buf` sia in caso di successo (`ok = true`) sia in caso di buffer di output insufficiente (`goto cleanup`), e come la macro `VERIFICA_STR` incapsulata in `do { ... } while (0)` aggiorni il contesto di test in modo sicuro dentro qualunque costrutto `if`/`else`.
+
+> **Approfondimento — Estensione facoltativa: un raccoglitore di memoria automatico per MiniL**
+> Oggi MiniL gestisce solo valori scalari (`int64_t`, `bool`, `nullo`), facili da copiare per valore. Che cosa cambierebbe se volessi aggiungere al linguaggio stringhe e array dinamici creati a tempo di esecuzione? Poiché più variabili potrebbero riferirsi allo stesso array, liberarlo alla fine di un singolo blocco rischierebbe di lasciare puntatori pendenti in altri ambiti. La tecnica classica è un **raccoglitore di memoria automatico** (*garbage collector* a marcatura e scansione): si collegano tutti gli oggetti dinamici creati in una **lista intrusiva** (capitolo 24) con un flag `bool marcato`; quando la memoria allocata supera una soglia, la fase di **marcatura** parte dagli ambienti attivi nella pila delle chiamate e marca tutti gli oggetti raggiungibili; la fase di **scansione** percorre la lista intrusiva, libera con `free` gli oggetti rimasti non marcati e azzera il flag sui sopravvissuti.
+
+### Progetto 26.6 — Interprete completo per il linguaggio MiniL su più file con suite di test automatici
+
+**Descrizione**
+
+Integra tutti i componenti progettati nel capitolo per realizzare l'interprete completo del linguaggio **MiniL** organizzato su più file (`arena.h`, `arena.c`, `tabella_hash.h`, `tabella_hash.c`, `valore.h`, `valore.c`, `lexer.h`, `lexer.c`, `parser.h`, `parser.c`, `eval.h`, `eval.c`, `test_fw.h`, `main.c`), privo di perdite di memoria e di comportamento indefinito. Il linguaggio supporta: valori `int64_t`, `bool` (`true`/`false`) e `nullo`; commenti `//`; operatori con precedenza (`||`, `&&` a corto circuito, `==`/`!=`, `<`/`<=`/`>`/`>=`, `+`/`-`, `*`/`/`/`%`, unari `-`/`!`); dichiarazione di variabili `var x = expr;`, assegnamento `x = expr;`, istruzione `stampa expr;`, `if (cond) { ... } else { ... }` (anche `else if`), `while (cond) { ... }`, dichiarazione e chiamata ricorsiva di funzioni `fn nome(p1, ...) { ... }` con `return [expr];`, e funzioni predefinite tramite puntatori a funzione (`abs`, `min`, `max`, `pot`). Tutti i nodi dell'**albero di sintassi astratta** vivono in un'**arena** (`arena.h/c`); gli ambienti delle variabili e la tabella delle funzioni usano la **tabella hash generica opaca** (`tabella_hash.h/c`). L'eseguibile accetta da `stdin` due comandi: `RUN_TESTS` (esegue la suite integrata di 8 **test automatici** con `test_fw.h` e stampa il riepilogo) ed `EXEC` seguito da righe di codice MiniL fino a una riga `END` (esegue il programma catturando l'output di `stampa` e stampa `--- OUTPUT ---` seguito dall'output e `--- OK ---`, oppure `--- ERRORE <riga>:<col>: <msg> ---`).
+
+**Fasi**
+
+1. Fase 1 — Strutture dati, valori e arena AST (`arena.h/c`, `valore.h/c`): implementa l'allocatore ad arena allineato ad `alignof(max_align_t)` e le unioni etichettate `valore_t` e `nodo_t` con `errore_t`. Criterio di verifica: allocazione di nodi AST e stringhe nell'arena con rilascio completo in `O(1)` e zero perdite con AddressSanitizer.
+2. Fase 2 — Analizzatore lessicale (`lexer.h/c`): implementa la scansione di parole chiave, identificatori, letterali `int64_t` con `ckd_mul`/`ckd_add`, commenti `//` e operatori a 1 e 2 caratteri con riga e colonna. Criterio di verifica: riconoscimento esatto di tutti i token di MiniL e segnalazione puntuale di caratteri non validi e overflow.
+3. Fase 3 — Analizzatore sintattico a discesa ricorsiva (`parser.h/c`): costruisci l'AST nell'arena per tutti i 7 livelli di precedenza e per tutte le istruzioni (`var`, assegnamento, `stampa`, `if`/`else`, `while`, `fn`, `return`) con limite di profondità 32. Criterio di verifica: `10 - 3 - 2` valuta `5`, `2 + 3 * 4` valuta `14` e parentesi o punti e virgola mancanti producono errori sintattici chiari.
+4. Fase 4 — Valutatore di espressioni e ambienti su tabella hash opaca (`tabella_hash.h/c`, `eval.h/c`): collega `tabella_hash_t` agli ambienti a catena (con shadowing e lookup nel genitore), alla valutazione a corto circuito e all'aritmetica controllata con `<stdckdint.h>`. Criterio di verifica: `x != 0 && 10 / x > 1` non va in errore per `x = 0`, e divisione per zero o overflow producono errori puliti.
+5. Fase 5 — Controllo di flusso, funzioni utente e funzioni predefinite (`eval.h/c`): implementa `if`/`else`, `while` con guardia a 10000 passi, funzioni ricorsive `fn` con `return` e guardia a 64 chiamate annidate, e funzioni predefinite `abs`, `min`, `max`, `pot` via puntatori a funzione. Criterio di verifica: fattoriale ricorsivo, Fibonacci, MCD con `while` e tutte le built-in producono i risultati attesi senza perdite di memoria.
+6. Fase 6 — Integrazione su più file e suite di test automatici (`test_fw.h`, `main.c`): compila e collega l'intero interprete con `-std=c23 -Wall -Wextra -Wpedantic -Werror`, implementa la suite di 8 test automatici (`RUN_TESTS`) e l'esecutore da `stdin` (`EXEC ... END`). Criterio di verifica: 8/8 test superati, esecuzione deterministica di programmi validi ed errati da `stdin` e zero errori con AddressSanitizer e UndefinedBehaviorSanitizer.
+
+**Concetti da tenere a mente**
+
+- separazione modulare su più file con protezioni di inclusione e compilazione separata
+- allocatore ad arena per l'intero ciclo di vita dell'albero di sintassi astratta
+- tabella hash generica come tipo opaco per gli ambienti delle variabili e per la tabella delle funzioni
+- puntatori a funzione per le funzioni predefinite e ricorsione con ambienti isolati per le funzioni utente
+- modello `goto cleanup`, aritmetica controllata `<stdckdint.h>` e suite di test automatici con `test_fw.h`
+
+**Domande guida**
+
+1. In che modo il ciclo di vita dei nodi AST (gestiti dall'arena) differisce dal ciclo di vita degli ambienti delle chiamate di funzione (gestiti con `tabella_hash_t`)?
+2. Come si propaga il valore di un'istruzione `return` annidata dentro un `while` e un `if` fino alla funzione chiamante senza perdere la memoria degli ambienti intermedi?
+3. Perché conviene catturare l'output di `stampa` in un buffer `out_buf_t` anziché scrivere direttamente con `printf` dentro `eval.c`?
+4. Quali controlli deve effettuare `eval.c` per impedire che un sorgente MiniL malformato provochi comportamento indefinito o esaurimento dello stack nell'interprete C?
+5. Come permette il modello `goto cleanup` in `minil_esegui` di garantire l'assenza di perdite di memoria sia su errore lessicale/sintattico sia su errore di esecuzione?
+
+**Esempio di esecuzione**
+
+```input
+RUN_TESTS
+EXEC
+fn fact(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fact(n - 1);
+}
+var k = 1;
+while (k <= 5) {
+    stampa fact(k);
+    k = k + 1;
+}
+END
+```
+
+```output
+[PASS] aritmetica_precedenza
+[PASS] variabili_ambiti
+[PASS] booleani_corto_circuito
+[PASS] if_else_while_mcd
+[PASS] funzioni_ricorsive
+[PASS] funzioni_predefinite
+[PASS] errori_lessicali_sintattici
+[PASS] errori_esecuzione
+RIEPILOGO: test=8/8 falliti=0
+--- OUTPUT ---
+1
+2
+6
+24
+120
+--- OK ---
+```

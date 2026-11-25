@@ -1,0 +1,185 @@
+## 25.1 Misurare il costo: contare le operazioni e usare `clock`
+
+Nel capitolo 23 hai imparato a classificare gli algoritmi con la complessità asintotica e la notazione O. Sapere che un algoritmo è `O(n log n)` e un altro è `O(n^2)` ti dice come si comportano al crescere di `n`, ma non racconta tutta la storia: due algoritmi con la stessa complessità asintotica possono differire per un fattore costante importante, e un algoritmo `O(n^2)` nel caso peggiore può risultare molto più rapido di uno `O(n log n)` quando i dati in ingresso sono quasi ordinati. Per scegliere con cognizione di causa, devi misurare.
+
+La tentazione immediata è cronometrare il programma con un orologio. Prima di farlo, però, conviene fermarsi a riflettere: il tempo in secondi dipende dal processore, dalla frequenza variabile (turbo o risparmio energetico), dai programmi aperti in background e dalla risoluzione del timer del sistema operativo. Se vuoi confrontare due algoritmi in modo **riproducibile** e **indipendente dalla macchina**, il primo strumento non è il cronometro, ma il **conteggio delle operazioni elementari**: quanti confronti tra elementi esegue l'algoritmo, quanti spostamenti o copie effettua, quanti accessi in memoria o quante allocazioni richiede.
+
+Questi contatori sono numeri interi esatti: sulla tua macchina, su quella di un compagno o su un server remoto, lo stesso algoritmo sullo stesso input eseguirà esattamente lo stesso numero di confronti e di spostamenti. Inoltre, osservare più metriche insieme — per esempio confronti e spostamenti separatamente — permette di capire il comportamento **adattivo** di un algoritmo: su un array già ordinato o quasi ordinato, un algoritmo di ordinamento per inserzione compie pochissimi confronti e quasi nessuno spostamento, mentre su un array in ordine inverso il numero di operazioni cresce quadraticamente.
+
+Quando invece vuoi stimare il tempo reale di elaborazione speso dal processore, la libreria standard mette a disposizione l'intestazione `<time.h>`, che definisce:
+
+- il tipo aritmetico `clock_t`, che rappresenta un istante di tempo di CPU;
+- la funzione `clock_t clock(void);`, che restituisce il tempo di processore approssimato utilizzato dal programma dall'avvio (oppure `(clock_t)-1` se la misura non è disponibile o non rappresentabile);
+- la costante `CLOCKS_PER_SEC`, che indica quante unità di `clock_t` corrispondono a un secondo.
+
+La regola per misurare un intervallo è precisa:
+
+1. Leggi `clock_t inizio = clock();` prima del blocco da misurare e `clock_t fine = clock();` subito dopo.
+2. Verifica sempre che né `inizio` né `fine` valgano `(clock_t)-1`.
+3. Calcola i secondi di CPU trascorsi con `(double)(fine - inizio) / (double)CLOCKS_PER_SEC`.
+
+Secondo lo standard C23, i nomi `clock`, `clock_t`, `CLOCKS_PER_SEC` e il valore di errore `(clock_t)-1` sono definiti dallo standard, mentre il tipo aritmetico sottostante a `clock_t`, la risoluzione effettiva del timer e il valore numerico di `CLOCKS_PER_SEC` sono **dipendenti dall'implementazione**. Su alcuni sistemi `clock()` avanza a scatti di millisecondi, su altri di microsecondi; inoltre misura il tempo di CPU del processo (non necessariamente il tempo d'orologio reale se il programma rimane in attesa di input).
+
+Ancora più insidiose sono le trappole del micro-benchmarking:
+
+- **Eliminazione del codice morto (*dead-code elimination*)**: se esegui un calcolo in un ciclo ma non usi mai il risultato, il compilatore con `-O2` può dimostrare che il ciclo non produce effetti osservabili e cancellarlo del tutto.
+- **Livello di ottimizzazione**: misurare codice compilato con `-O0` non riflette le prestazioni reali. Le ottimizzazioni (`-O2`) trasformano radicalmente i cicli e possono persino invertire il vincitore tra due soluzioni.
+- **Durata troppo breve e rumore del sistema**: una singola ricerca su poche migliaia di elementi dura frazioni di microsecondo, al di sotto della risoluzione del timer. Per ottenere una misura sensata con `clock()` occorre ripetere l'operazione molte volte, e comunque non bisogna mai usare un tempo misurato come output atteso di una verifica deterministica.
+
+### Esempio guidato
+
+Il programma seguente confronta la ricerca lineare e la ricerca binaria su un array ordinato di 10 000 interi. Prima raccoglie i contatori esatti di confronti e accessi all'array su quattro chiavi rappresentative (inizio, centro, fine, assente), poi esegue un ciclo di 2 000 iterazioni misurato con `clock()` accumulando i risultati in un checksum e in un pozzo `volatile` per impedire al compilatore di eliminare il ciclo. Per mantenere l'output deterministico su ogni computer, il programma verifica la validità della misura di `clock()` senza stampare i secondi variabili (durante un'analisi locale sulla tua macchina potresti stampare anche `secondi` con `%.6f`).
+
+<!-- cod: id=25.1-a tipo=programma -->
+```c
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <time.h>
+
+typedef struct contatori {
+    uint64_t confronti;
+    uint64_t accessi;
+} contatori_t;
+
+static ptrdiff_t ricerca_lineare(const int32_t *a, size_t n, int32_t chiave,
+                                 contatori_t *c) {
+    for (size_t i = 0; i < n; ++i) {
+        ++c->confronti;
+        ++c->accessi;
+        if (a[i] == chiave) {
+            return (ptrdiff_t)i;
+        }
+    }
+    return -1;
+}
+
+static ptrdiff_t ricerca_binaria(const int32_t *a, size_t n, int32_t chiave,
+                                 contatori_t *c) {
+    size_t sx = 0;
+    size_t dx = n;
+    while (sx < dx) {
+        size_t mid = sx + (dx - sx) / 2;
+        ++c->accessi;
+        int32_t val = a[mid];
+        ++c->confronti;
+        if (val == chiave) {
+            return (ptrdiff_t)mid;
+        }
+        ++c->confronti;
+        if (val < chiave) {
+            sx = mid + 1;
+        } else {
+            dx = mid;
+        }
+    }
+    return -1;
+}
+
+int main(void) {
+    constexpr size_t N = 10000;
+    static int32_t dati[N];
+    for (size_t i = 0; i < N; ++i) {
+        dati[i] = (int32_t)(i * 2);
+    }
+
+    const int32_t chiavi[4] = {0, 9998, 19998, 19999};
+    contatori_t c_lin = {};
+    contatori_t c_bin = {};
+    ptrdiff_t somma_pos = 0;
+
+    for (size_t k = 0; k < 4; ++k) {
+        somma_pos += ricerca_lineare(dati, N, chiavi[k], &c_lin);
+        somma_pos += ricerca_binaria(dati, N, chiavi[k], &c_bin);
+    }
+
+    printf("Lineare (4 ricerche): confronti=%" PRIu64 " accessi=%" PRIu64 "\n",
+           c_lin.confronti, c_lin.accessi);
+    printf("Binaria (4 ricerche): confronti=%" PRIu64 " accessi=%" PRIu64 "\n",
+           c_bin.confronti, c_bin.accessi);
+
+    clock_t t0 = clock();
+    uint64_t checksum = 0;
+    contatori_t scarto = {};
+    for (size_t rep = 0; rep < 2000; ++rep) {
+        ptrdiff_t p = ricerca_binaria(dati, N, chiavi[rep % 4], &scarto);
+        checksum += (uint64_t)(p + 2);
+    }
+    volatile uint64_t pozzo = checksum;
+    clock_t t1 = clock();
+
+    bool valida = (CLOCKS_PER_SEC > 0 && t0 != (clock_t)-1 && t1 != (clock_t)-1
+                   && (double)(t1 - t0) / (double)CLOCKS_PER_SEC >= 0.0);
+    printf("somma_pos=%td checksum=%" PRIu64 " clock_valida=%d\n",
+           somma_pos, pozzo, valida ? 1 : 0);
+    return 0;
+}
+```
+
+```output
+Lineare (4 ricerche): confronti=25001 accessi=25001
+Binaria (4 ricerche): confronti=103 accessi=53
+somma_pos=29994 checksum=7502500 clock_valida=1
+```
+
+Osserva i numeri prodotti dal programma:
+
+- Su quattro ricerche in un array di 10 000 elementi, la ricerca lineare esegue 25 001 confronti e 25 001 accessi in memoria, mentre la ricerca binaria si ferma a 103 confronti e 53 accessi. Questa differenza è interamente deterministica e non cambia cambiando computer o compilatore.
+- Nel ciclo cronometrato con `clock()`, ogni iterazione aggiorna `checksum`, che viene poi copiato nel pozzo `volatile uint64_t pozzo` e stampato. Così il compilatore è obbligato a eseguire davvero tutte le 2 000 ricerche.
+- Prima di calcolare `(double)(t1 - t0) / (double)CLOCKS_PER_SEC`, il codice controlla sia `t0 != (clock_t)-1` sia `t1 != (clock_t)-1`, come richiesto dallo standard.
+
+> **C23** — L'esempio usa `constexpr` per la dimensione `N`, l'inizializzatore vuoto `{}` per azzerare le strutture e `bool` senza includere intestazioni aggiuntive. Con compilatori C17 o precedenti si usano `enum { N = 10000 };`, `{0}` e l'intestazione standard dedicata al tipo booleano di C99/C17.
+
+> **Approfondimento — Perché un benchmark può impiegare 0.000 secondi con `-O2`**
+> Se scrivi un ciclo che chiama `ricerca_binaria(...)` un milione di volte ignorando il valore restituito, un compilatore con `-O2` osserva che la funzione legge solo memoria costante e non modifica alcun dato osservabile all'esterno. In base alle regole di ottimizzazione, il compilatore può rimuovere l'intero ciclo: il cronometro misurerà `0.000` secondi anche per milioni di iterazioni. Accumulare il risultato in una variabile che viene poi stampata (o assegnata a un pozzo `volatile`) crea un effetto osservabile e impedisce l'eliminazione del ciclo.
+
+### Esercizio 25.1 — Profilatore deterministico di operazioni per algoritmi di ordinamento adattivi e verifica di clock
+
+**Descrizione**
+
+Scrivi un programma C che confronti in modo deterministico tre algoritmi di ordinamento su `int32_t` contando tre metriche esatte dentro `typedef struct metriche_op { uint64_t confronti; uint64_t spostamenti; uint64_t accessi; } metriche_op_t;`: (1) `ordina_inserzione(int32_t *a, size_t n, metriche_op_t *m)` (incrementa `confronti` a ogni verifica `a[j] > chiave`, `spostamenti` a ogni spostamento `a[j + 1] = a[j]`, e `accessi` per ogni lettura/scrittura di un elemento dell'array); (2) `ordina_shell(int32_t *a, size_t n, metriche_op_t *m)` con passi `gap = n / 2; gap > 0; gap /= 2` contando le stesse metriche; (3) `ordina_heap(int32_t *a, size_t n, metriche_op_t *m)` (max-heap sul posto con costruzione bottom-up ed estrazioni successive) contando confronti, scambi (contati come 3 spostamenti / 4 accessi per scambio) e letture di confronto. In `main` gestisci da `stdin` i comandi: `BENCH <modo> <n>` (`1 <= n <= 256`, `<modo>` tra `ORD` crescente `0..n-1`, `REV` decrescente `n-1..0`, `QUASI` crescente con scambio di ogni coppia `(8*k, 8*k+1)` valida) che esegue tutti e tre gli algoritmi su copie identiche, verifica con `memcmp` che i risultati ordinati coincidano esattamente e stampa i contatori di ciascun algoritmo; `CUSTOM <n> <v0> ... <v{n-1}>` (`0 <= n <= 64`) con la stessa verifica; `CLOCK_CHECK` che invoca `clock()` prima e dopo un breve ciclo accumulato in un pozzo `volatile uint64_t` verificando `CLOCKS_PER_SEC > 0`, `t0 != (clock_t)-1`, `t1 != (clock_t)-1` e `(double)(t1 - t0) / (double)CLOCKS_PER_SEC >= 0.0` (senza stampare i secondi fluttuanti), riproducendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- conteggio deterministico di confronti, spostamenti e accessi in memoria come base portabile di profilazione
+- comportamento adattivo di Insertion Sort su input ordinati e quasi ordinati rispetto a Shell Sort e Heap Sort
+- verifica di correttezza e coincidenza dei tre ordinamenti tramite `memcmp`
+- uso corretto di `clock()`, `clock_t` e `CLOCKS_PER_SEC` (`<time.h>`) con pozzo `volatile` contro l'eliminazione del codice morto
+
+**Domande guida**
+
+1. Perché Insertion Sort esegue molti meno confronti di Heap Sort su una sequenza già ordinata o quasi ordinata, ma esplode sulla sequenza inversa?
+2. Come mai nel comando `CLOCK_CHECK` si verifica la validità di `clock()` e `CLOCKS_PER_SEC` senza stampare il numero esatto di millisecondi trascorsi?
+3. A che cosa serve accumulare il risultato del ciclo di prova in una variabile qualificata `volatile` prima della seconda chiamata a `clock()`?
+4. Quale vantaggio offre misurare sia i confronti sia gli spostamenti invece di osservare un solo contatore?
+
+**Esempio di esecuzione**
+
+```input
+BENCH ORD 32
+BENCH QUASI 8
+BENCH REV 8
+CUSTOM 5 9 1 4 1 7
+CLOCK_CHECK
+```
+
+```output
+BENCH ORD(32) ok=1:
+  INS:   cmp=31 mov=0 acc=62
+  SHELL: cmp=129 mov=0 acc=258
+  HEAP:  cmp=231 mov=438 acc=1046
+BENCH QUASI(8) ok=1:
+  INS:   cmp=7 mov=1 acc=17
+  SHELL: cmp=17 mov=1 acc=37
+  HEAP:  cmp=27 mov=63 acc=138
+BENCH REV(8) ok=1:
+  INS:   cmp=28 mov=28 acc=98
+  SHELL: cmp=22 mov=12 acc=75
+  HEAP:  cmp=24 mov=48 acc=112
+CUSTOM(5) ok=1:
+  INS:   cmp=8 mov=5 acc=26
+  SHELL: cmp=10 mov=5 acc=31
+  HEAP:  cmp=10 mov=21 acc=48
+CLOCK_CHECK: valido=1
+```

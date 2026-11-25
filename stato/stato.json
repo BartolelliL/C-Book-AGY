@@ -226,10 +226,10 @@
   },
   "p6": {
     "unito": true,
-    "audit": false,
+    "audit": true,
     "applicato": false,
     "p5_capitoli": [],
-    "chiuso": false
+    "chiuso": true
   },
   "p7": {
     "verificato": false

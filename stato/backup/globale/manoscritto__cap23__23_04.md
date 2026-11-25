@@ -1,0 +1,225 @@
+## 23.4 Trie per la ricerca su prefissi
+
+Una tabella hash (capitolo 18) verifica in tempo medio `O(1)` se una stringa esatta è presente, ma non può rispondere in modo efficiente a domande come "quante parole nel dizionario iniziano con `"ca"`?" oppure "elenca in ordine alfabetico i primi 5 suggerimenti per `"pro"`". Un albero AVL (sotto-sezione 23.3) mantiene le parole ordinate, ma confronta intere stringhe a ogni nodo e impiega `O(L log n)` per una ricerca su `n` parole di lunghezza `L`.
+
+Un **trie** (*trie*, o albero dei prefissi) affronta il problema da una prospettiva diversa: è un albero di ricerca in cui ogni arco rappresenta un singolo carattere e le chiavi condividono i prefissi comuni lungo il cammino dalla radice. Le operazioni di inserimento, ricerca esatta, conteggio su prefisso e rimozione dipendono unicamente dalla lunghezza `L` della parola (`O(L)`) e non dal numero totale `n` di chiavi memorizzate.
+
+Ecco come appaiono le parole `"cane"`, `"casa"`, `"caso"` e `"gatto"` in un trie:
+
+```text
+          (radice, sub=4)
+           /           \
+         'c'           'g'
+        (sub=3)       (sub=1)
+          |             |
+         'a'           'a'
+        (sub=3)       (sub=1)
+        /   \           |
+      'n'   's'        't'
+    (sub=1) (sub=2)   (sub=1)
+      |     /   \       |
+     'e'* 'a'*  'o'*   't'
+                      (sub=1)
+                        |
+                       'o'*
+
+  * = nodo con fine_parola = true
+  sub = contatore parole_sottoalbero
+```
+
+Ogni nodo del trie per l'alfabeto ASCII minuscolo `'a'..'z'` (dimensione `A = 26`) contiene:
+
+- un array di `26` puntatori ai figli (`struct nodo_trie *figli[26]`), inizializzati a `nullptr` con `calloc`;
+- un flag booleano `fine_parola` che distingue una chiave realmente inserita da un semplice prefisso intermedio (nello schema sopra, `"cas"` esiste come cammino ma non ha `fine_parola = true`);
+- un contatore `parole_sottoalbero` che registra quante parole terminano in quel nodo o nei suoi discendenti, permettendo di rispondere a una query di conteggio su prefisso in tempo `O(L)` senza visitare l'intero sottoalbero;
+- un eventuale dato associato alla parola (per esempio un peso o una frequenza).
+
+Il passaggio da un carattere `c` al figlio corrispondente avviene con l'indice `idx = (size_t)(c - 'a')`. Qui è indispensabile un controllo rigoroso: secondo lo standard C23, l'indicizzazione dell'array `figli` è definita soltanto per indici validi `0 <= idx < 26`. Calcolare `c - 'a'` su una lettera maiuscola, una cifra, uno spazio o un `char` negativo non verificato produce un indice fuori dai limiti dell'array e quindi **comportamento indefinito**. Prima di scendere nel trie occorre sempre validare esplicitamente che ogni carattere della stringa soddisfi `c >= 'a' && c <= 'z'`.
+
+Le quattro operazioni principali funzionano così:
+
+1. **Ricerca esatta (`O(L)`)**: parti dalla radice e, per ogni carattere `c` della parola, segui `figli[(size_t)(c - 'a')]`. Se incontri `nullptr` prima della fine della stringa, la parola è assente; se arrivi in fondo, la parola è presente solo se `fine_parola` vale `true`.
+2. **Inserimento (`O(L)`)**: se la parola è valida, verifica se è già presente (per evitare di incrementare due volte `parole_sottoalbero` in caso di aggiornamento del dato associato). Poi percorri i caratteri allocando con `calloc` i nodi mancanti, incrementando `parole_sottoalbero` lungo il cammino se la parola è nuova e impostando `fine_parola = true` sul nodo finale.
+3. **Conteggio su prefisso (`O(L)`) e autocompletamento**: segui i caratteri del prefisso fino al nodo corrispondente `n`. Se `n == nullptr`, il conteggio è `0`; altrimenti `n->parole_sottoalbero` è già la risposta esatta. Per elencare le parole in ordine lessicografico, basta eseguire una visita in profondità a partire da `n` scorrendo `figli[i]` da `i = 0` (`'a'`) a `i = 25` (`'z'`).
+4. **Rimozione con potatura (`O(L)`) e distruzione**: azzerare soltanto `fine_parola` lascerebbe in memoria rami morti non più usati da alcuna parola. La rimozione corretta scende ricorsivamente fino al nodo finale, decrementa `parole_sottoalbero` al ritorno e libera con `free` ogni nodo (diverso dalla radice) che non marca più una fine parola e non ha più alcun figlio. Analogamente, la distruzione completa del trie libera tutti i figli prima del nodo padre (post-ordine), evitando perdite di memoria.
+
+### Esempio guidato
+
+Il programma seguente costruisce un trie per un piccolo vocabolario di parole minuscole, esegue ricerche esatte e conteggi di parole per prefisso in tempo `O(L)` (rifiutando parole con caratteri fuori da `'a'..'z'`) e libera l'intera struttura in post-ordine.
+
+<!-- cod: id=23.4-a tipo=programma -->
+```c
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static constexpr size_t ALFABETO = 26;
+
+typedef struct nodo_trie {
+    struct nodo_trie *figli[ALFABETO];
+    size_t parole_sottoalbero;
+    bool fine_parola;
+} nodo_trie_t;
+
+static bool valida_stringa(const char *s, bool consenti_vuota) {
+    if (s == nullptr || (!consenti_vuota && s[0] == '\0')) { return false; }
+    for (size_t i = 0; s[i] != '\0'; ++i) {
+        if (s[i] < 'a' || s[i] > 'z') { return false; }
+    }
+    return true;
+}
+
+static const nodo_trie_t *scendi(const nodo_trie_t *radice, const char *s) {
+    const nodo_trie_t *cur = radice;
+    for (size_t i = 0; s[i] != '\0' && cur != nullptr; ++i) {
+        cur = cur->figli[(size_t)(s[i] - 'a')];
+    }
+    return cur;
+}
+
+static bool trie_cerca(const nodo_trie_t *radice, const char *parola) {
+    if (!valida_stringa(parola, false)) { return false; }
+    const nodo_trie_t *n = scendi(radice, parola);
+    return n != nullptr && n->fine_parola;
+}
+
+static bool trie_inserisci(nodo_trie_t *radice, const char *parola) {
+    if (!valida_stringa(parola, false)) { return false; }
+    if (trie_cerca(radice, parola)) { return true; }
+    nodo_trie_t *cur = radice;
+    ++cur->parole_sottoalbero;
+    for (size_t i = 0; parola[i] != '\0'; ++i) {
+        size_t idx = (size_t)(parola[i] - 'a');
+        if (cur->figli[idx] == nullptr) {
+            cur->figli[idx] = calloc(1, sizeof(*cur->figli[idx]));
+            if (cur->figli[idx] == nullptr) { return false; }
+        }
+        cur = cur->figli[idx];
+        ++cur->parole_sottoalbero;
+    }
+    cur->fine_parola = true;
+    return true;
+}
+
+static size_t trie_conta_prefisso(const nodo_trie_t *radice, const char *pref) {
+    if (!valida_stringa(pref, true)) { return 0; }
+    const nodo_trie_t *n = scendi(radice, pref);
+    return (n != nullptr) ? n->parole_sottoalbero : 0;
+}
+
+static void trie_distruggi(nodo_trie_t *n) {
+    if (n == nullptr) { return; }
+    for (size_t i = 0; i < ALFABETO; ++i) {
+        trie_distruggi(n->figli[i]);
+    }
+    free(n);
+}
+
+int main(void) {
+    nodo_trie_t *radice = calloc(1, sizeof(*radice));
+    if (radice == nullptr) { return EXIT_FAILURE; }
+    const char *voci[] = {"mare", "marea", "mano", "mela", "sole"};
+    for (size_t i = 0; i < 5; ++i) {
+        if (!trie_inserisci(radice, voci[i])) { trie_distruggi(radice); return EXIT_FAILURE; }
+    }
+    printf("cerca(mare)=%d cerca(mar)=%d cerca(Mare)=%d\n",
+           trie_cerca(radice, "mare"), trie_cerca(radice, "mar"),
+           trie_cerca(radice, "Mare"));
+    printf("pref(ma)=%zu pref(mar)=%zu pref(m)=%zu pref(z)=%zu\n",
+           trie_conta_prefisso(radice, "ma"), trie_conta_prefisso(radice, "mar"),
+           trie_conta_prefisso(radice, "m"), trie_conta_prefisso(radice, "z"));
+    trie_distruggi(radice);
+    return 0;
+}
+```
+
+```output
+cerca(mare)=1 cerca(mar)=0 cerca(Mare)=0
+pref(ma)=3 pref(mar)=2 pref(m)=4 pref(z)=0
+```
+
+Osserva i punti salienti del programma:
+
+- `valida_stringa` controlla l'intera stringa prima di qualunque accesso a `figli`: così `"Mare"` viene respinta subito senza mai calcolare `'M' - 'a'` (che darebbe un valore negativo).
+- `"mar"` restituisce `0` in `trie_cerca` (il nodo esiste ma `fine_parola` è `false`), mentre `trie_conta_prefisso(radice, "mar")` restituisce `2` in soli tre passi, leggendo `parole_sottoalbero` sul nodo `'r'`.
+- `calloc(1, sizeof(*cur->figli[idx]))` azzera in un solo passaggio tutti i `26` puntatori `figli`, il contatore e `fine_parola`.
+- `trie_distruggi` visita tutti i sottoalberi figli prima di chiamare `free(n)`.
+
+> **Approfondimento — Compromesso spazio-tempo del trie**
+> Un array fisso di `26` puntatori per nodo rende ogni transizione `O(1)` e il codice molto lineare, ma su un sistema a 64 bit ogni nodo occupa oltre `200` byte anche quando ha un solo figlio. Su alfabeti grandi (come l'intero insieme ASCII o Unicode) o su dizionari con parole lunghe e pochi prefissi condivisi, il consumo di memoria cresce rapidamente. Nei sistemi reali si attenuano questi costi comprimendo le catene di nodi con un solo figlio in un unico arco etichettato da una sottostringa (**radix tree** o trie compresso) oppure memorizzando solo i figli presenti in una piccola lista o tabella nei nodi sparsi.
+
+### Esercizio 23.4 — Motore di autocompletamento su trie con conteggio prefissi O(L) e rimozione potata
+
+**Descrizione**
+
+Realizza su tre file (`trie.h`, `trie.c`, `main.c`) un **trie** come **tipo opaco** `trie_t` sull'alfabeto minuscolo `'a'..'z'` che associa a ciascuna parola un peso `uint32_t` e supporta conteggio su prefisso in tempo `O(L)`, autocompletamento lessicografico e rimozione con potatura dei nodi inutili.
+
+1. In `trie.h` (protetto da `TRIE_H`) definisci `typedef struct trie trie_t;` e `typedef void (*trie_sugg_fn)(const char *parola, uint32_t peso, void *ctx);`, e dichiara:
+   - `trie_t *trie_crea(void);`
+   - `void trie_distruggi(trie_t *t);`
+   - `bool trie_inserisci(trie_t *t, const char *parola, uint32_t peso);` (rifiuta parole vuote, lunghe oltre `31` caratteri o con caratteri fuori da `'a'..'z'`; se la parola esiste già aggiorna il peso senza incrementare i contatori di sottoalbero)
+   - `bool trie_cerca(const trie_t *t, const char *parola, uint32_t *peso_out);`
+   - `size_t trie_conta_prefisso(const trie_t *t, const char *prefisso);` (accetta anche `""` e risponde in `O(L)` leggendo il contatore `parole_sottoalbero` del nodo prefisso)
+   - `size_t trie_suggerisci(const trie_t *t, const char *prefisso, size_t max_ris, trie_sugg_fn fn, void *ctx);` (visita i figli in ordine `'a'..'z'` invocando `fn` su al più `max_ris` parole)
+   - `bool trie_rimuovi(trie_t *t, const char *parola);` (rimuove la parola, decrementa `parole_sottoalbero` lungo il cammino e libera con `free` ogni nodo non radice divenuto privo di figli e non terminale)
+   - `size_t trie_num_parole(const trie_t *t);`
+   - `size_t trie_num_nodi(const trie_t *t);` (include la radice)
+2. In `main.c` leggi da `stdin` i comandi `ADD <parola> <peso>`, `FIND <parola>`, `COUNT <pref>` (`*` rappresenta il prefisso vuoto `""`), `SUGG <pref> [<k>]` (`*` per `""`, `1 <= k <= 32`, predefinito `32` se `<k>` è omesso), `DEL <parola>` e `NODES`, producendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- validazione rigorosa dei caratteri nell'intervallo `'a'..'z'` prima di indicizzare `figli[26]`
+- mantenimento del contatore `parole_sottoalbero` in ogni nodo per rispondere a `trie_conta_prefisso` in `O(L)`
+- visita DFS in ordine `'a'..'z'` a partire dal nodo del prefisso per generare suggerimenti ordinati lessicograficamente
+- potatura ricorsiva dei nodi orfani non terminali durante `trie_rimuovi` e verifica tramite `trie_num_nodi`
+
+**Domande guida**
+
+1. Perché `trie_inserisci` deve verificare se la parola è già presente prima di incrementare `parole_sottoalbero` lungo il cammino?
+2. Quali condizioni deve soddisfare un nodo (diverso dalla radice) affinché `trie_rimuovi` possa liberarlo con `free` in sicurezza?
+3. Come mai la visita DFS dei figli da `0` a `25` produce automaticamente le parole in ordine lessicografico senza doverle ordinare?
+4. Quale rischio di comportamento indefinito correresti se calcolassi `(size_t)(c - 'a')` su un carattere maiuscolo o non alfabetico senza prima validarlo?
+
+**Esempio di esecuzione**
+
+```input
+ADD casa 10
+ADD caso 20
+ADD cane 15
+ADD gatto 5
+ADD Casa 1
+NODES
+FIND caso
+FIND cas
+COUNT ca
+COUNT cas
+COUNT *
+SUGG ca 2
+SUGG ca 5
+DEL gatto
+DEL casa
+DEL cas
+NODES
+SUGG *
+```
+
+```output
+ADD casa: OK
+ADD caso: OK
+ADD cane: OK
+ADD gatto: OK
+ADD Casa: INVALIDA
+NODES: parole=4 nodi=13
+FIND caso: peso=20
+FIND cas: ASSENTE
+COUNT ca: 3
+COUNT cas: 2
+COUNT *: 4
+SUGG ca: cane(15) casa(10)
+SUGG ca: cane(15) casa(10) caso(20)
+DEL gatto: OK
+DEL casa: OK
+DEL cas: ASSENTE
+NODES: parole=2 nodi=7
+SUGG *: cane(15) caso(20)
+```

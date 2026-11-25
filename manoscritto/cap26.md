@@ -6,7 +6,7 @@
 > - Gestire i nodi dell'albero di sintassi con un allocatore ad arena e gli ambienti di variabili e funzioni con la tabella hash generica opaca
 > - Integrare controllo di flusso, funzioni definite dall'utente, funzioni predefinite e test automatici su più file senza perdite di memoria
 
-> **Ti servono:** allocazione dinamica e sanitizer (capitolo 11), strutture ed enumerazioni (capitolo 12), unioni etichettate e allineamento (capitolo 13), programmazione generica con `void *` (capitolo 15), puntatori a funzione (capitolo 16), strutture dati dinamiche (capitolo 17), tabelle hash (capitolo 18), programmi su più file e tipi opachi (capitolo 19), `goto cleanup` e aritmetica controllata (capitolo 21), allocatore ad arena (capitolo 22) e test automatici (capitolo 25).
+> **Ti servono:** allocazione dinamica e sanitizer (capitolo 11), strutture ed enumerazioni (capitolo 12), unioni etichettate e allineamento (capitolo 13), programmazione generica con `void *` (capitolo 15), puntatori a funzione (capitolo 16), strutture dati dinamiche (capitolo 17), tabelle hash (capitolo 18), programmi su più file e tipi opachi (capitolo 19), `goto cleanup` e aritmetica controllata (capitolo 21), allocatore ad arena (capitolo 22), macro `do-while(0)` e `#` (capitolo 24) e test automatici (capitolo 25).
 
 Nei venticinque capitoli precedenti hai costruito un intero repertorio di strumenti: dalla gestione rigorosa della memoria sullo heap fino agli allocatori ad arena, dai puntatori a funzione alle tabelle hash generiche come tipi opachi, dalla compilazione separata ai test automatici. Finora ciascuna tecnica ha risolto un problema ben delimitato; in questo capitolo conclusivo le riunisci tutte dentro un unico programma reale di alcune centinaia di righe: un interprete completo per un piccolo linguaggio imperativo chiamato **MiniL**.
 
@@ -701,7 +701,7 @@ Per l'aritmetica su `int64_t` valgono quindi quattro controlli sistematici:
 
 Gli operatori logici `&&` e `||` richiedono un'attenzione speciale: devono rispettare la **valutazione a corto circuito** (capitolo 4). In un'espressione come `x != 0 && 10 / x > 1`, se `x` vale `0` il lato sinistro è `false`, quindi il risultato dell'intera espressione è già `false` e il valutatore **non deve valutare** `10 / x > 1` (evitando così una divisione per zero). Analogamente, per `a || b`, se `a` valuta a `VAL_BOOL` con valore `true`, si restituisce subito `true` senza toccare `b`. Solo se il primo operando non decide il risultato si valuta il secondo e se ne verifica il tipo `VAL_BOOL`.
 
-Per memorizzare le variabili del programma MiniL e gestirne la **visibilità** nei blocchi annidati introduciamo l'**ambiente di esecuzione** (*environment*): una catena di tabelle associative che mappa gli identificatori ai rispettivi valori a tempo di esecuzione gestendo ambiti annidati e oscuramento.
+Per memorizzare le variabili del programma MiniL e gestirne la **visibilità** nei blocchi annidati introduciamo l'**ambiente di esecuzione** (*environment*): una catena di tabelle associative che mappa gli identificatori ai rispettivi valori a tempo di esecuzione gestendo ambiti annidati e occultamento (*shadowing*, capitolo 7).
 
 Qui entra finalmente in azione il traguardo centrale di questo libro: la **tabella hash generica come tipo opaco** costruita nei capitoli 18 e 19 (`tabella_hash.h`). Ogni nodo della catena è una piccola struttura `ambiente_t` che racchiude una `tabella_hash_t *tab` e un puntatore `struct ambiente *genitore`:
 
@@ -713,11 +713,11 @@ Qui entra finalmente in azione il traguardo centrale di questo libro: la **tabel
 
 Le tre operazioni sull'ambiente seguono regole limpide:
 
-- **Dichiarazione (`var x = expr;`)**: cerca `"x"` *solo* nella tabella dell'ambito corrente. Se è già presente, segnala un errore di ridefinizione nello stesso ambito; altrimenti inserisce `"x"` nella tabella corrente. Se esiste già una `"x"` in un ambito genitore, la nuova dichiarazione locale la oscura temporaneamente (*shadowing*) senza modificarla: quando il blocco interno termina e il suo ambiente viene distrutto, la `"x"` esterna torna visibile con il proprio valore originario.
+- **Dichiarazione (`var x = expr;`)**: cerca `"x"` *solo* nella tabella dell'ambito corrente. Se è già presente, segnala un errore di ridefinizione nello stesso ambito; altrimenti inserisce `"x"` nella tabella corrente. Se esiste già una `"x"` in un ambito genitore, la nuova dichiarazione locale la nasconde temporaneamente (*occultamento*) senza modificarla: quando il blocco interno termina e il suo ambiente viene distrutto, la `"x"` esterna torna visibile con il proprio valore originario.
 - **Lettura (`x`)**: cerca `"x"` nell'ambiente corrente; se non la trova, risale lungo `genitore` fino all'ambiente globale (`genitore == nullptr`). Se non esiste in alcun ambito, segnala `"variabile non dichiarata"`.
 - **Assegnamento (`x = expr;`)**: risale la catena come la lettura per trovare il primo ambiente che contiene `"x"` e ne aggiorna il `valore_t` sul posto; se non la trova, segnala `"variabile non dichiarata"`.
 
-Le regole di **possesso della memoria** dentro `tabella_hash_t` sono nette e prive di ambiguità: ogni chiave è una copia allocata con `strdup` (funzione standard C23 di `<string.h>`), ogni valore è un `valore_t *` allocato con `malloc`, ed entrambi sono posseduti dalla tabella hash, configurata con `d_chiave = free` e `d_valore = free`. Quando `env_distruggi` chiama `ht_distruggi(e->tab)` e `free(e)`, ogni singola stringa chiave e ogni `valore_t` di quell'ambito vengono liberati automaticamente.
+Le regole di **possesso della memoria** dentro `tabella_hash_t` sono nette e prive di ambiguità: ogni chiave è una copia allocata con `strdup` (funzione standard C23 di `<string.h>`), ogni valore è un `valore_t *` allocato con `malloc`, ed entrambi sono posseduti dalla tabella hash, configurata in `ht_config_t` con `.distruggi_chiave = free` e `.distruggi_valore = free`. Quando `env_distruggi` chiama `ht_distruggi(e->tab)` e `free(e)`, ogni singola stringa chiave e ogni `valore_t` di quell'ambito vengono liberati automaticamente.
 
 > **C23** — `strdup` è parte della libreria standard `<string.h>` a partire da C23; su compilatori C11/C17 strettamente ISO occorre scrivere una piccola funzione di supporto basata su `strlen`, `malloc` e `memcpy`.
 
@@ -725,7 +725,7 @@ Le regole di **possesso della memoria** dentro `tabella_hash_t` sono nette e pri
 
 ### Esempio guidato
 
-Questo programma su tre file (`tab_opaca.h`, `tab_opaca.c`, `main.c`) costruisce un ambiente globale e un ambiente figlio appoggiati a una tabella hash generica opaca (`void *`), dimostra la lettura risalendo dal figlio al genitore, l'oscuramento con una variabile locale `x`, l'aggiornamento della variabile globale `y` e la distruzione pulita di entrambi gli ambienti.
+Questo programma su tre file (`tab_opaca.h`, `tab_opaca.c`, `main.c`) costruisce un ambiente globale e un ambiente figlio appoggiati a una tabella hash generica opaca (`void *`), dimostra la lettura risalendo dal figlio al genitore, l'occultamento con una variabile locale `x`, l'aggiornamento della variabile globale `y` e la distruzione pulita di entrambi gli ambienti.
 
 <!-- cod: id=26.4-a tipo=programma gruppo=env_demo file=tab_opaca.h -->
 ```c
@@ -779,10 +779,13 @@ tab_opaca_t *tab_crea(size_t cap, distruggi_fn d_chiave, distruggi_fn d_val) {
     if (t == nullptr) {
         return nullptr;
     }
-    t->secchi = calloc(cap, sizeof(*t->secchi));
+    t->secchi = malloc(cap * sizeof(*t->secchi));
     if (t->secchi == nullptr) {
         free(t);
         return nullptr;
+    }
+    for (size_t i = 0; i < cap; ++i) {
+        t->secchi[i] = nullptr;
     }
     t->cap = cap;
     t->dc = d_chiave;
@@ -910,7 +913,7 @@ Osserva il comportamento dello *shadowing*: nel blocco interno `env_cerca(&bloc,
 
 **Descrizione**
 
-Realizza su tre file (`tabella_hash.h`, `tabella_hash.c`, `main.c`) il sottosistema di **ambiente di esecuzione** a catena basato sulla **tabella hash generica opaca** del capitolo 19 e usalo per gestire variabili tipizzate (`int64_t` e `bool`) con ambiti annidati, oscuramento (shadowing), aritmetica controllata (`ckd_add`, divisione sicura contro `0` e `INT64_MIN / -1`) e **valutazione a corto circuito**. (1) In `tabella_hash.h` e `tabella_hash.c` incapsula il **tipo opaco** `tabella_hash_t` con configurazione `ht_config_t`, ridimensionamento automatico al fattore di carico `0.75`, distruttori indipendenti per chiavi e valori e helper `ht_hash_stringa`/`ht_uguali_stringa`. (2) In `main.c` definisci `val_t` (`V_INT` o `V_BOOL`) e `env_t` (`tabella_hash_t *tab; struct env *genitore;`), configurando ciascuna tabella con chiavi `char *` possedute (`free`) e valori `val_t *` posseduti (`free`). Implementa `env_crea`, `env_distruggi`, `env_def` (inserisce solo nell'ambito corrente, rifiutando duplicati nello stesso ambito), `env_set` (aggiorna nel primo ambito della catena in cui il nome è definito) ed `env_get` (cerca risalendo la catena). (3) Leggi comandi da `stdin`: `ENTER` (apre un ambito figlio), `LEAVE` (chiude l'ambito corrente senza mai chiudere il globale), `DEF <nome> <int|true|false>`, `SET <nome> <int|true|false>`, `GET <nome>`, `ADD <a> <b>` (somma controllata con `ckd_add`), `DIV <a> <b>` (intercetta divisore `0` e `INT64_MIN / -1`) e `SHORT_AND <var_bool> <num> <den>` (valuta `var_bool && (num / den > 0)` applicando il corto circuito se `var_bool == false` senza eseguire la divisione). Distruggi tutti gli ambiti residui prima di uscire, producendo esattamente l'output dell'esempio.
+Realizza su tre file (`tabella_hash.h`, `tabella_hash.c`, `main.c`) il sottosistema di **ambiente di esecuzione** a catena basato sulla **tabella hash generica opaca** del capitolo 19 e usalo per gestire variabili tipizzate (`int64_t` e `bool`) con ambiti annidati, occultamento (*shadowing*), aritmetica controllata (`ckd_add`, divisione sicura contro `0` e `INT64_MIN / -1`) e **valutazione a corto circuito**. (1) In `tabella_hash.h` e `tabella_hash.c` incapsula il **tipo opaco** `tabella_hash_t` con configurazione `ht_config_t`, ridimensionamento automatico al fattore di carico `0.75`, distruttori indipendenti per chiavi e valori e helper `ht_hash_stringa`/`ht_uguali_stringa`. (2) In `main.c` definisci `val_t` (`V_INT` o `V_BOOL`) e `env_t` (`tabella_hash_t *tab; struct env *genitore;`), configurando ciascuna tabella con chiavi `char *` possedute (`free`) e valori `val_t *` posseduti (`free`). Implementa `env_crea`, `env_distruggi`, `env_def` (inserisce solo nell'ambito corrente, rifiutando duplicati nello stesso ambito), `env_set` (aggiorna nel primo ambito della catena in cui il nome è definito) ed `env_get` (cerca risalendo la catena). (3) Leggi comandi da `stdin`: `ENTER` (apre un ambito figlio), `LEAVE` (chiude l'ambito corrente senza mai chiudere il globale), `DEF <nome> <int|true|false>`, `SET <nome> <int|true|false>`, `GET <nome>`, `ADD <a> <b>` (somma controllata con `ckd_add`), `DIV <a> <b>` (intercetta divisore `0` e `INT64_MIN / -1`) e `SHORT_AND <var_bool> <num> <den>` (valuta `var_bool && (num / den > 0)` applicando il corto circuito se `var_bool == false` senza eseguire la divisione). Distruggi tutti gli ambiti residui prima di uscire, producendo esattamente l'output dell'esempio.
 
 **Concetti da tenere a mente**
 
@@ -1169,7 +1172,7 @@ Per garantire zero perdite di memoria su ogni percorso di uscita — sia su succ
 Per verificare la correttezza dell'intero interprete senza dover testare a mano decine di casi dopo ogni modifica, `main.c` integra una suite di **test automatici** deterministica costruita con `test_fw.h` (capitolo 25). Catturare l'output di `stampa` in un buffer `out_buf_t` anziché scrivere direttamente su `stdout` con `printf` rende ogni test automatico immediato: basta invocare `minil_esegui(sorgente, &out, &err)` e confrontare `out.dati` con la stringa attesa tramite `T_EQ_STR`. La suite copre sistematicamente otto categorie:
 
 1. precedenza e associatività aritmetica (`10 - 3 - 2`, `2 + 3 * 4`, unari);
-2. variabili, ambiti annidati e oscuramento (*shadowing*);
+2. variabili, ambiti annidati e occultamento (*shadowing*);
 3. booleani e valutazione a corto circuito (`x != 0 && 10 / x > 1`);
 4. controllo di flusso `if`/`else` e `while` (per esempio calcolo del MCD);
 5. funzioni definite dall'utente e ricorsione (fattoriale, Fibonacci);
@@ -1385,5 +1388,5 @@ RIEPILOGO: test=8/8 falliti=0
 - [ ] So progettare valori a tempo di esecuzione e nodi di un albero di sintassi astratta con unioni etichettate e gestirne la memoria con un allocatore ad arena.
 - [ ] So scrivere un analizzatore lessicale senza allocazioni sullo heap con coordinate di riga/colonna, cast a `unsigned char` e parsing sicuro degli interi con `<stdckdint.h>`.
 - [ ] So implementare un analizzatore sintattico a discesa ricorsiva che codifica precedenza e associatività a sinistra tramite cicli `while` e controlla la profondità massima di ricorsione.
-- [ ] So costruire ambienti lessicali a catena sulla tabella hash generica opaca gestendo oscuramento, corto circuito e aritmetica priva di comportamento indefinito.
+- [ ] So costruire ambienti lessicali a catena sulla tabella hash generica opaca gestendo occultamento, corto circuito e aritmetica priva di comportamento indefinito.
 - [ ] So integrare controllo di flusso, funzioni ricorsive con `return`, funzioni predefinite via puntatori a funzione, `goto cleanup` e una suite di test automatici su più file verificata con AddressSanitizer e UndefinedBehaviorSanitizer.

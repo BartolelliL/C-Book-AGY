@@ -675,7 +675,7 @@ Ogni `va_start` e ogni `va_copy` **deve** essere bilanciato da un corrispondente
 Dato che `va_arg` non sa dove finiscono gli argomenti né che tipo abbiano, la funzione e il chiamante devono concordare una convenzione esplicita. Le tre convenzioni canoniche sono:
 
 - **Contatore iniziale**: un parametro fisso indica il numero di argomenti dello stesso tipo che seguono (per esempio `int somma(size_t n, ...)`).
-- **Valore sentinella**: gli argomenti dello stesso tipo si concludono con un valore speciale concordato, tipicamente `nullptr` per una sequenza di puntatori a stringa (per esempio `unisci("a", "b", nullptr)`).
+- **Valore sentinella**: gli argomenti dello stesso tipo si concludono con un valore speciale concordato, tipicamente un puntatore nullo del tipo atteso (per esempio `unisci("a", "b", (const char *)nullptr)`, con cast esplicito affinché il tipo passato nella parte `...` coincida esattamente con `const char *`).
 - **Stringa di formato**: una stringa come in `printf` specifica sia quanti argomenti leggere sia il tipo di ciascuno (per esempio `"%s: %d"`).
 
 ### Promozioni predefinite degli argomenti variadici

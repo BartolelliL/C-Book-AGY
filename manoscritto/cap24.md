@@ -294,12 +294,7 @@ Questa forma offre tre vantaggi decisivi:
 
 ### `static inline` contro `inline` + `extern inline`
 
-Quando organizzi una libreria sovraccaricata su più file (un file di intestazione `.h` e uno o più file `.c`), devi decidere quale modello di collegamento dare alle funzioni di supporto:
-
-- **`static inline` nell'header**: ogni unità di traduzione riceve una copia con collegamento interno. È la scelta più semplice per helper brevi e privati dell'header, come piccole funzioni di formattazione o ricerche lineari, di cui non serve garantire un unico indirizzo condiviso tra più file `.c`.
-- **`inline` nell'header + `extern inline` in esattamente un file `.c`**: la definizione nell'header fornisce il corpo per l'inlining, mentre la dichiarazione `extern inline` in un solo file `.c` ordina al compilatore di emettere l'unica definizione con collegamento esterno del modulo. Questa scelta è preferibile per le funzioni pubbliche della libreria, perché garantisce che esista un solo simbolo nel programma anche quando il compilatore disattiva l'inlining (ad esempio con `-O0` in debug) o quando prendi l'indirizzo della funzione tramite un puntatore a funzione.
-
-Secondo lo standard C23, questo modello di collegamento è completamente definito: omettere la dichiarazione `extern inline` per una funzione `inline` non-`static` usata con collegamento esterno provoca un errore del collegatore (simbolo non definito).
+Quando organizzi una libreria sovraccaricata su più file, scegli il modello di collegamento tra i due introdotti nella sotto-sezione 19.3: usa **`static inline`** nell'header per piccoli helper privati di cui non serve un simbolo condiviso, oppure **`inline` nell'header + `extern inline` in un solo `.c`** per le funzioni pubbliche della libreria (garantendo un unico simbolo esterno anche con `-O0` o quando si usa un puntatore a funzione). Come ricordato nel capitolo 19, in C23 omettere `extern inline` per una funzione `inline` non-`static` usata con collegamento esterno provoca un errore del collegatore.
 
 ### Preservare la qualificazione `const`
 
@@ -418,8 +413,8 @@ Osserva i dettagli fondamentali del modulo:
 - Nella macro `MOSTRA(x)` sono presenti sia `const char *` sia `char *`: in C sia un array `char etichetta[]` sia un letterale stringa come `"testo costante"` decadono a `char *` (a differenza del C++, in C i letterali stringa non sono `const` nel tipo, pur essendo comportamento indefinito modificarli), mentre un puntatore a caratteri costanti ha tipo `const char *`; coprire entrambi i rami rende la macro sicura con qualsiasi stringa.
 - L'output conferma che `prossimo_int` è stata invocata una sola volta (`Valutazioni di prossimo_int: 1`), dimostrando che `(x)` dentro `_Generic((x), ...)` non è valutato.
 
-> **Approfondimento — Conversioni di tipo nell'espressione di controllo di `_Generic`**
-> Nell'espressione di controllo di `_Generic((x), ...)`, il compilatore applica la conversione *lvalue* (rimuovendo qualificatori di alto livello come `const` sul valore stesso, non sul tipo puntato) e il decadimento di array e funzioni a puntatori. Per questo un array `int a[4]` combacia con `int *` e non con `int[4]`, mentre un letterale carattere come `'a'` in C ha tipo `int` (non `char`) e quindi seleziona il ramo `int`. Quando progetti una macro sovraccaricata, verifica sempre quali tipi risultano dopo queste conversioni.
+> **Approfondimento — Dettagli sulle conversioni nell'espressione di controllo di `_Generic`**
+> Oltre alla conversione *lvalue* e al decadimento degli array già visti nella sotto-sezione 15.4 (per cui `int a[4]` combacia con `int *` e non con `int[4]`), ricorda un dettaglio tipico del C quando progetti macro sovraccaricate: un letterale carattere come `'a'` ha tipo `int` (non `char`) e seleziona quindi il ramo `int`. Verifica sempre quali tipi risultano dopo queste conversioni.
 
 ### Esercizio 24.2 — Libreria numerica sovraccaricata su più file con `_Generic`, `inline`/`extern inline` e `const`-preservation
 
@@ -1038,7 +1033,7 @@ Realizza su tre file (`fsm_sess.h`, `fsm_sess.c`, `main.c`) una **macchina a sta
 
 **Concetti da tenere a mente**
 
-- tabella bidimensionale `static const transizione_t[STATO_CONTEGGIO][EVENTO_CONTEGGIO]` con inizializzatori designati
+- tabella bidimensionale `static const transizione_t[ST_CONTEGGIO][EV_CONTEGGIO]` con inizializzatori designati
 - motore di transizione privo di `switch` con validazione rigorosa degli indici di stato ed evento
 - azioni di transizione capaci di deviare lo stato di destinazione tramite guardie sul contesto
 - hook `ON_ENTER` invocati al cambio di stato e controlli a tempo di compilazione con `static_assert`
@@ -1102,12 +1097,7 @@ Nel capitolo 13 hai incontrato i campi di bit, le unioni etichettate e l'ordine 
 
 ### Campi di bit avanzati e verifica con `static_assert`
 
-In una `struct`, un campo di bit dichiara il numero esatto di bit occupati all'interno di un'unità di memorizzazione. Per scrivere codice portabile e privo di ambiguità rispetta quattro regole precise:
-
-- **Specifica sempre il segno**: dichiara i campi di bit come `unsigned int`, `signed int` oppure `bool`. Non usare mai `int` semplice, perché lo standard lascia **dipendente dall'implementazione** se un campo di bit `int` sia con segno o senza segno.
-- **Campi anonimi di riserva**: scrivere `unsigned int : 3;` inserisce 3 bit di padding non indirizzabili, utili per allineare il campo successivo o riservare bit per estensioni future.
-- **Campi a larghezza zero (`unsigned int : 0;`)**: forzano il campo di bit successivo a iniziare in una nuova unità di memorizzazione, evitando che un campo si sovrapponga a un confine che desideri tenere separato.
-- **Verifica a tempo di compilazione**: controlla sempre la compattezza attesa con `static_assert`, ad esempio `static_assert(sizeof(data_ora_bf_t) == sizeof(unsigned int));`, per accorgerti subito se un campo aggiunto sfora la parola di 32 bit.
+Richiamando le regole sui campi di bit già introdotte nella sotto-sezione 13.4 — usare sempre tipi con segno esplicito (`unsigned int`, `signed int` o `bool`, mai `int` semplice) e ricorrere all'occorrenza a campi anonimi (`unsigned int : 3;`) o a separatori di unità (`unsigned int : 0;`) — in un formato compatto reale conviene affiancare una **verifica a tempo di compilazione** con `static_assert`, ad esempio `static_assert(sizeof(data_ora_bf_t) == sizeof(unsigned int));`, per accorgersi subito se un nuovo campo fa sforare la parola di 32 bit.
 
 Abbinando un'intestazione a campi di bit con un'**unione etichettata** (il cui tag risiede proprio in uno dei campi di bit dell'intestazione), puoi rappresentare in pochissimi byte pacchetti binari con payload di tipo variabile: la `struct` occupa soltanto lo spazio dell'intestazione più il ramo più grande della `union`, invece della somma di tutti i possibili payload.
 
@@ -1123,11 +1113,7 @@ uint8_t buffer[4];
 memcpy(buffer, &hdr, sizeof(buffer)); // NON portabile su file o rete!
 ```
 
-Questo codice è gravemente non portabile per tre ragioni sancite dallo standard C23:
-
-1. **Ordine dei bit dipendente dall'implementazione**: il compilatore può impacchettare i campi di bit dal bit meno significativo verso il più significativo (comune su x86/ARM little-endian) oppure dal più significativo verso il meno significativo.
-2. **Padding e confini di unità dipendenti dall'implementazione**: lo standard non garantisce in che modo un campo che supera l'unità corrente venga spezzato o spostato all'unità successiva.
-3. **Ordine dei byte (endianness) e *strict aliasing***: i byte di un `unsigned int` in memoria possono essere disposti in little-endian o big-endian, e aggirare il sistema dei tipi con puntatori incompatibili viola le regole di *strict aliasing* (capitolo 22).
+Questo codice non è portabile per i motivi già analizzati nel capitolo 13 (sotto-sezioni 13.4 e 13.5): ordine di impacchettamento dei bit, padding tra unità e ordine dei byte (*endianness*) sono **dipendenti dall'implementazione**; inoltre, tentare di rileggere i byte con un puntatore di tipo incompatibile viola le regole di *strict aliasing* (capitolo 22).
 
 ### Separare il modello in memoria dal codec portabile
 

@@ -1,0 +1,197 @@
+## 21.4 Funzioni variadiche con `<stdarg.h>`
+
+Fin dal capitolo 1 usi `printf` e `fprintf` passando un numero qualsiasi di argomenti: uno, due, cinque, di tipi diversi. Una funzione con questa capacità è una **funzione variadica** (*variadic function*): una funzione che accetta un numero variabile di argomenti, dichiarata con `...` (ellissi) nell'elenco dei parametri e letta tramite gli strumenti dell'intestazione `<stdarg.h>`.
+
+Costruire funzioni variadiche ti permette di scrivere utility di logging personalizzate, formattatori che allocano automaticamente il buffer esatto sullo heap o funzioni di aggregazione flessibili. Poiché però il C non trasmette a tempo di esecuzione né il conteggio né i tipi degli argomenti passati attraverso `...`, questo meccanismo richiede regole rigorose.
+
+### Il ciclo di vita di `va_list`
+
+In `<stdarg.h>` sono definiti il tipo `va_list` e quattro macro che ne governano l'intero ciclo di vita:
+
+1. `va_list ap;` — dichiara lo stato di scorrimento degli argomenti variadici.
+2. `va_start(ap, ultimo_parametro);` — inizializza `ap` affinché punti al primo argomento variabile (quello che segue `ultimo_parametro`).
+3. `va_arg(ap, tipo)` — estrae l'argomento corrente assumendo che abbia tipo `tipo` e fa avanzare `ap` all'argomento successivo.
+4. `va_copy(dest, src)` — copia lo stato corrente di `src` in un secondo `va_list` chiamato `dest`, utile quando devi percorrere due volte la stessa lista di argomenti.
+5. `va_end(ap);` — chiude `ap` prima di uscire dalla funzione.
+
+Ogni `va_start` e ogni `va_copy` **deve** essere bilanciato da un corrispondente `va_end` su **tutti** i percorsi di uscita della funzione, inclusi i rami di errore. Secondo lo standard C23, omettere `va_end`, leggere oltre il numero di argomenti effettivamente forniti dal chiamante oppure passare a `va_arg` un tipo incompatibile provoca **comportamento indefinito**.
+
+> **C23** — A partire dallo standard C23, una funzione variadica può anche non avere alcun parametro fisso (`void f(...);`) e `va_start` accetta un solo argomento (`va_start(ap)`), ignorando eventuali argomenti successivi per compatibilità. Con compilatori più vecchi (C17 e precedenti) è obbligatorio almeno un parametro fisso e va usata la forma a due argomenti `va_start(ap, ultimo_parametro)`, che rimane pienamente valida anche in C23.
+
+### Come sapere quanti argomenti leggere
+
+Dato che `va_arg` non sa dove finiscono gli argomenti né che tipo abbiano, la funzione e il chiamante devono concordare una convenzione esplicita. Le tre convenzioni canoniche sono:
+
+- **Contatore iniziale**: un parametro fisso indica il numero di argomenti dello stesso tipo che seguono (per esempio `int somma(size_t n, ...)`).
+- **Valore sentinella**: gli argomenti dello stesso tipo si concludono con un valore speciale concordato, tipicamente `nullptr` per una sequenza di puntatori a stringa (per esempio `unisci("a", "b", nullptr)`).
+- **Stringa di formato**: una stringa come in `printf` specifica sia quanti argomenti leggere sia il tipo di ciascuno (per esempio `"%s: %d"`).
+
+### Promozioni predefinite degli argomenti variadici
+
+Quando passi un argomento nella parte `...` di una chiamata di funzione, il C applica automaticamente le **promozioni predefinite degli argomenti** (*default argument promotions*):
+
+- ogni tipo intero più stretto di `int` (`bool`, `char`, `signed char`, `unsigned char`, `short`, `unsigned short`) viene promosso a `int` (oppure `unsigned int` se `int` non può rappresentare tutti i valori del tipo originale);
+- `float` viene promosso a `double`.
+
+Di conseguenza, dentro `va_arg(ap, tipo)` **non devi mai** scrivere `bool`, `char`, `short` o `float`: se un chiamante ha passato un `bool` o un `char`, la funzione variadica riceve un `int`, quindi devi estrarlo con `va_arg(ap, int)` (e, se serve, convertirlo poi in `bool` o `char`); se ha passato un `float`, devi estrarlo con `va_arg(ap, double)`. Richiedere a `va_arg` un tipo non promosso provoca **comportamento indefinito**.
+
+### Inoltrare `va_list` a `vprintf`, `vfprintf` e `vsnprintf`
+
+Non puoi passare `...` da una funzione variadica a `printf` o `fprintf`. Per scrivere wrapper di formattazione e logging, `<stdio.h>` mette a disposizione le varianti con prefisso `v` che accettano direttamente un `va_list` già inizializzato:
+
+- `int vprintf(const char *restrict format, va_list arg);`
+- `int vfprintf(FILE *restrict stream, const char *restrict format, va_list arg);`
+- `int vsnprintf(char *restrict s, size_t n, const char *restrict format, va_list arg);`
+
+Dopo che hai passato `ap` a una funzione come `vsnprintf`, lo stato di `ap` diventa indeterminato: non puoi riutilizzarlo una seconda volta. Per implementare il classico **pattern a due passaggi** che alloca una stringa formattata della dimensione esatta sullo heap, usa `va_copy`:
+
+1. inizializza `ap` con `va_start`;
+2. crea `va_copy(copia, ap);`;
+3. chiama `int len = vsnprintf(nullptr, 0, fmt, copia);` e chiudi subito `va_end(copia);`;
+4. se `len >= 0`, alloca `(size_t)len + 1` byte con `malloc`, chiama `vsnprintf(buf, (size_t)len + 1, fmt, ap)` e chiudi `va_end(ap);`.
+
+> **Se vieni da Python** — In Python gli argomenti variabili (`*args`, `**kwargs`) conservano lunghezza e tipi a tempo di esecuzione; in C una funzione variadica (`...`) non conosce né il numero né il tipo degli argomenti ricevuti e si affida completamente al contratto tra chiamante e `va_arg`.
+
+### Esempio guidato
+
+Il programma seguente mostra tre funzioni variadiche: `somma_variadica` (contatore iniziale con passaggio di `double` e `float`), `unisci_stringhe` (sequenza terminata da sentinella `nullptr` che unisce le stringhe con `'-'` percorrendo due volte gli argomenti tramite `va_copy`) e `log_messaggio` (wrapper che inoltra `va_list` a `vprintf` e `vfprintf`).
+
+<!-- cod: id=21.4-a tipo=programma -->
+```c
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static double somma_variadica(size_t n, ...) {
+    va_list ap;
+    va_start(ap, n);
+    double tot = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        tot += va_arg(ap, double);
+    }
+    va_end(ap);
+    return tot;
+}
+
+static char *unisci_stringhe(const char *prima, ...) {
+    if (prima == nullptr) { return nullptr; }
+    va_list ap, copia;
+    va_start(ap, prima);
+    va_copy(copia, ap);
+
+    size_t len = strlen(prima);
+    const char *s = nullptr;
+    while ((s = va_arg(copia, const char *)) != nullptr) {
+        len += 1 + strlen(s);
+    }
+    va_end(copia);
+
+    char *res = malloc(len + 1);
+    if (res == nullptr) {
+        va_end(ap);
+        return nullptr;
+    }
+
+    size_t pos = strlen(prima);
+    memcpy(res, prima, pos);
+    while ((s = va_arg(ap, const char *)) != nullptr) {
+        res[pos++] = '-';
+        size_t slen = strlen(s);
+        memcpy(res + pos, s, slen);
+        pos += slen;
+    }
+    res[pos] = '\0';
+    va_end(ap);
+    return res;
+}
+
+static void log_messaggio(FILE *out, const char *livello, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    if (out == stdout) {
+        printf("[%s] ", livello);
+        vprintf(fmt, ap);
+        putchar('\n');
+    } else {
+        fprintf(out, "[%s] ", livello);
+        vfprintf(out, fmt, ap);
+        fputc('\n', out);
+    }
+    va_end(ap);
+}
+
+int main(void) {
+    float f = 1.5f;
+    double tot = somma_variadica(3, (double)2, (double)f, 4.25);
+    printf("Somma: %.2f\n", tot);
+
+    char *etichetta = unisci_stringhe("mod", "net", "v2", (const char *)nullptr);
+    if (etichetta == nullptr) { return EXIT_FAILURE; }
+    printf("Etichetta: %s\n", etichetta);
+    free(etichetta);
+
+    log_messaggio(stdout, "OK", "avvio nodo=%d stato=%s", 7, "attivo");
+    return 0;
+}
+```
+
+```output
+Somma: 7.75
+Etichetta: mod-net-v2
+[OK] avvio nodo=7 stato=attivo
+```
+
+Nota alcuni dettagli tecnici importanti:
+
+- In `somma_variadica(3, (double)2, (double)f, 4.25)`, il `2` viene convertito esplicitamente in `double` perché un letterale `int` non verrebbe promosso a `double` nella parte `...` (estrarre un `int` come `double` con `va_arg` causerebbe comportamento indefinito). Il `float f` verrebbe già promosso a `double`, e il cast rende esplicito il contratto.
+- In `unisci_stringhe`, la sentinella finale è scritta `(const char *)nullptr` per assicurare che il tipo passato coincida esattamente con `const char *` richiesto da `va_arg`. `va_copy(copia, ap)` permette di calcolare la lunghezza esatta nel primo passaggio e copiare i byte nel secondo, chiudendo sia `copia` sia `ap` con `va_end` su ogni percorso.
+- In `log_messaggio`, `va_list` viene inoltrato a `vprintf` (su `stdout`) o `vfprintf` (su qualsiasi `FILE *`) evitando di duplicare la logica di formattazione.
+
+> **Approfondimento — Perché il C non controlla i tipi oltre `...`**
+> A differenza di una funzione con firma fissa, sul lato `...` il compilatore non conosce a priori i tipi attesi dalla funzione chiamata e si limita ad applicare le promozioni predefinite. Un solo disallineamento (per esempio passare un `int` dove la funzione chiama `va_arg(ap, int64_t)` o dimenticare la sentinella `nullptr`) corrompe la lettura dello stack o dei registri provocando comportamento indefinito. Per questo, oltre a documentare contratti chiarissimi, conviene abilitare gli avvisi del compilatore sulle stringhe di formato (`-Wall -Wextra`) e limitare le funzioni variadiche ai casi in cui servono davvero.
+
+### Esercizio 21.4 — Formattatore dinamico e aggregatore variadico con `<stdarg.h>`, `va_copy` e `vsnprintf` su più file
+
+**Descrizione**
+
+Realizza un modulo su tre file (`fmt_variadico.h`, `fmt_variadico.c`, `main.c`) che implementi tre **funzioni variadiche** con `<stdarg.h>` e `<stdio.h>`.
+
+1. `char *formatta_alloc(const char *fmt, ...);`: usa `va_start` e `va_copy` per eseguire una prima chiamata `vsnprintf(nullptr, 0, fmt, copia)` che determina esattamente la lunghezza `len`, chiude `copia` con `va_end`, alloca `(size_t)len + 1` byte con `malloc`, esegue la seconda `vsnprintf` su `ap`, chiude `ap` con `va_end` e restituisce la stringa allocata sullo heap (oppure `nullptr` in caso di errore).
+2. `void log_su_stream(FILE *out, const char *tag, const char *fmt, ...);`: scrive `[<tag>] ` sullo stream `out`, inoltra `fmt` e `va_list` a `vfprintf` e chiude la riga con `'\n'`.
+3. `bool riepilogo_tipato(const char *spec, double *somma_out, size_t *cont_out, ...);`: scorre ogni carattere di `spec` estraendo il corrispondente argomento con `va_arg`: `'i'` (`int`), `'l'` (`int64_t`), `'d'` (`double`) e `'b'` (`bool`, estratto rigorosamente come `va_arg(ap, int) != 0` nel rispetto delle promozioni predefinite, contribuendo `1.0` o `0.0` alla somma). Se incontra un carattere non riconosciuto chiude comunque `ap` con `va_end` e restituisce `false`.
+4. In `main.c` leggi da `stdin` i comandi `FMT <prodotto> <qty> <prezzo>` (chiama `formatta_alloc("Prodotto=%s qty=%d tot=%.2f", ...)`), `LOG <tag> <cod> <msg>` (chiama `log_su_stream(stdout, tag, "cod=%d msg=%s", cod, msg)`), `AGG idb <i> <d> <0|1>`, `AGG ll <a64> <b64>`, `AGG VUOTO` e `AGG ERR` (chiama `riepilogo_tipato("ix", ...)`), producendo l'output esatto dell'esempio senza perdite di memoria.
+
+**Concetti da tenere a mente**
+
+- ciclo di vita completo di `va_list`: `va_start`, `va_copy`, `va_arg` e `va_end` su ogni percorso di uscita
+- pattern a due passaggi con `va_copy` e `vsnprintf(nullptr, 0, ...)` per allocare stringhe su misura senza troncamenti
+- promozioni predefinite degli argomenti variadici (estrarre `bool` come `int` con `va_arg(ap, int)`)
+- inoltro di `va_list` a `vfprintf` per costruire funzioni di logging
+
+**Domande guida**
+
+1. Perché in `formatta_alloc` devi chiamare `va_copy` prima della prima `vsnprintf` anziché passare due volte lo stesso `va_list`?
+2. Perché nel caso `'b'` di `riepilogo_tipato` devi scrivere `va_arg(ap, int)` invece di `va_arg(ap, bool)`?
+3. Quale errore commetteresti se, incontrando un carattere invalido in `spec`, facessi `return false;` prima di chiamare `va_end(ap)`?
+4. Perché `log_su_stream` usa `vfprintf` invece di chiamare direttamente `fprintf`?
+
+**Esempio di esecuzione**
+
+```input
+FMT Libro 3 12.50
+LOG INFO 200 Avvio
+AGG idb 10 2.5 1
+AGG ll 100000 250000
+AGG VUOTO
+AGG ERR
+```
+
+```output
+FMT (len=30): Prodotto=Libro qty=3 tot=37.50
+[INFO] cod=200 msg=Avvio
+AGG idb: n=3 somma=13.50
+AGG ll: n=2 somma=350000.00
+AGG VUOTO: n=0 somma=0.00
+AGG: SPECIFICA NON VALIDA
+```

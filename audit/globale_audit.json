@@ -1,0 +1,215 @@
+{
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "alta",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Nell'esempio guidato della tabella hash opaca, tab_crea alloca l'array di puntatori t->secchi con calloc, contraddicendo la regola di portabilità C23 spiegata in manoscritto/cap18/18_02.md (e rispettata in 18_04.md, 18_05.md e 19_05.md), secondo cui gli array di puntatori vanno allocati con malloc e inizializzati esplicitamente a nullptr con un ciclo.",
+      "old_text": "    t->secchi = calloc(cap, sizeof(*t->secchi));\n    if (t->secchi == nullptr) {\n        free(t);\n        return nullptr;\n    }",
+      "new_text": "    t->secchi = malloc(cap * sizeof(*t->secchi));\n    if (t->secchi == nullptr) {\n        free(t);\n        return nullptr;\n    }\n    for (size_t i = 0; i < cap; ++i) {\n        t->secchi[i] = nullptr;\n    }"
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "alta",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La spiegazione della configurazione della tabella hash opaca del capitolo 19 cita i nomi privati interni di struct tabella_hash (d_chiave e d_valore, nascosti dentro tabella_hash.c) invece dei campi pubblici di ht_config_t definiti in manoscritto/cap19/19_05.md (.distruggi_chiave e .distruggi_valore).",
+      "old_text": "configurata con `d_chiave = free` e `d_valore = free`.",
+      "new_text": "configurata in `ht_config_t` con `.distruggi_chiave = free` e `.distruggi_valore = free`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap21/21_04.md",
+      "gravita": "alta",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "L'esempio in prosa unisci(\"a\", \"b\", nullptr) omette il cast esplicito a const char *, contraddicendo l'esempio guidato e la spiegazione dello stesso file (righe 129 e 148): in C23 nullptr ha tipo nullptr_t e, passato nella parte ..., va convertito esplicitamente a (const char *)nullptr per coincidere con il tipo estratto da va_arg(ap, const char *).",
+      "old_text": "- **Valore sentinella**: gli argomenti dello stesso tipo si concludono con un valore speciale concordato, tipicamente `nullptr` per una sequenza di puntatori a stringa (per esempio `unisci(\"a\", \"b\", nullptr)`).",
+      "new_text": "- **Valore sentinella**: gli argomenti dello stesso tipo si concludono con un valore speciale concordato, tipicamente un puntatore nullo del tipo atteso (per esempio `unisci(\"a\", \"b\", (const char *)nullptr)`, con cast esplicito affinché il tipo passato nella parte `...` coincida esattamente con `const char *`)."
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap23/23_04.md",
+      "gravita": "alta",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La descrizione del nodo trie afferma senza precisazioni che calloc inizializza a nullptr l'array di 26 puntatori figli, in contrasto con la nota di portabilità C23 di manoscritto/cap18/18_02.md secondo cui lo standard C non garantisce che tutti bit a zero coincidano con nullptr su ogni architettura.",
+      "old_text": "- un array di `26` puntatori ai figli (`struct nodo_trie *figli[26]`), inizializzati a `nullptr` con `calloc`;",
+      "new_text": "- un array di `26` puntatori ai figli (`struct nodo_trie *figli[26]`), inizializzati a `nullptr` (con `calloc` sulle piattaforme moderne, oppure — per stretta portabilità C23, come osservato nel capitolo 18 — allocando con `malloc` e inizializzando con `*n = (nodo_trie_t){};`);"
+    },
+    {
+      "id": "p5",
+      "file": "manoscritto/cap23/23_04.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Il commento all'esempio guidato sul ruolo di calloc nell'azzeramento dei 26 puntatori figli va armonizzato con la precisazione di portabilità C23 del capitolo 18.",
+      "old_text": "- `calloc(1, sizeof(*cur->figli[idx]))` azzera in un solo passaggio tutti i `26` puntatori `figli`, il contatore e `fine_parola`.",
+      "new_text": "- `calloc(1, sizeof(*cur->figli[idx]))` azzera tutti i byte del nodo (sulle architetture moderne ciò coincide con `nullptr` per i `26` puntatori `figli`, oltre ad azzerare il contatore e `fine_parola`; per la portabilità stretta C23 sui puntatori nulli vale la nota del capitolo 18)."
+    },
+    {
+      "id": "p6",
+      "file": "manoscritto/cap18/18_04.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "L'esempio guidato dichiara tab_ht_t e coord_t come typedef struct anonimi senza etichetta, violando la convenzione esplicita stabilita in manoscritto/cap12/12_02.md (\"Mantieni sempre l'etichetta della struct\").",
+      "old_text": "typedef struct { nodo_t **secchi; size_t cap, len; hash_fn hash; uguali_fn uguali; } tab_ht_t;\ntypedef struct { int x; int y; } coord_t;",
+      "new_text": "typedef struct tab_ht { nodo_t **secchi; size_t cap, len; hash_fn hash; uguali_fn uguali; } tab_ht_t;\ntypedef struct coord { int x; int y; } coord_t;"
+    },
+    {
+      "id": "p7",
+      "file": "manoscritto/cap18/18_05.md",
+      "gravita": "media",
+      "tipo": "codice",
+      "certezza": "alta",
+      "problema": "L'esempio guidato dichiara tab_ht_t e item_t come typedef struct anonimi senza etichetta, violando la convenzione esplicita stabilita in manoscritto/cap12/12_02.md.",
+      "old_text": "typedef struct { nodo_t **sec; size_t cap, len; hash_fn hf; uguali_fn eq; distruggi_fn dk, dv; } tab_ht_t;\ntypedef struct { char *nome; int peso; size_t *cont_dis; } item_t;",
+      "new_text": "typedef struct tab_ht { nodo_t **sec; size_t cap, len; hash_fn hf; uguali_fn eq; distruggi_fn dk, dv; } tab_ht_t;\ntypedef struct item { char *nome; int peso; size_t *cont_dis; } item_t;"
+    },
+    {
+      "id": "p8",
+      "file": "manoscritto/cap24/24_02.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap19/19_03.md: la sotto-sezione 24.2 rispiega per intero i due modelli static inline e inline + extern inline senza rinviare alla trattazione completa già svolta nella sotto-sezione 19.3.",
+      "old_text": "Quando organizzi una libreria sovraccaricata su più file (un file di intestazione `.h` e uno o più file `.c`), devi decidere quale modello di collegamento dare alle funzioni di supporto:\n\n- **`static inline` nell'header**: ogni unità di traduzione riceve una copia con collegamento interno. È la scelta più semplice per helper brevi e privati dell'header, come piccole funzioni di formattazione o ricerche lineari, di cui non serve garantire un unico indirizzo condiviso tra più file `.c`.\n- **`inline` nell'header + `extern inline` in esattamente un file `.c`**: la definizione nell'header fornisce il corpo per l'inlining, mentre la dichiarazione `extern inline` in un solo file `.c` ordina al compilatore di emettere l'unica definizione con collegamento esterno del modulo. Questa scelta è preferibile per le funzioni pubbliche della libreria, perché garantisce che esista un solo simbolo nel programma anche quando il compilatore disattiva l'inlining (ad esempio con `-O0` in debug) o quando prendi l'indirizzo della funzione tramite un puntatore a funzione.\n\nSecondo lo standard C23, questo modello di collegamento è completamente definito: omettere la dichiarazione `extern inline` per una funzione `inline` non-`static` usata con collegamento esterno provoca un errore del collegatore (simbolo non definito).",
+      "new_text": "Quando organizzi una libreria sovraccaricata su più file, scegli il modello di collegamento tra i due introdotti nella sotto-sezione 19.3: usa **`static inline`** nell'header per piccoli helper privati di cui non serve un simbolo condiviso, oppure **`inline` nell'header + `extern inline` in un solo `.c`** per le funzioni pubbliche della libreria (garantendo un unico simbolo esterno anche con `-O0` o quando si usa un puntatore a funzione). Come ricordato nel capitolo 19, in C23 omettere `extern inline` per una funzione `inline` non-`static` usata con collegamento esterno provoca un errore del collegatore."
+    },
+    {
+      "id": "p9",
+      "file": "manoscritto/cap24/24_02.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap15/15_04.md: l'approfondimento ripete da capo le regole di conversione lvalue e decadimento degli array in _Generic già spiegate nella sotto-sezione 15.4, invece di rinviarvi e concentrarsi sul nuovo dettaglio del letterale carattere come int.",
+      "old_text": "> **Approfondimento — Conversioni di tipo nell'espressione di controllo di `_Generic`**\n> Nell'espressione di controllo di `_Generic((x), ...)`, il compilatore applica la conversione *lvalue* (rimuovendo qualificatori di alto livello come `const` sul valore stesso, non sul tipo puntato) e il decadimento di array e funzioni a puntatori. Per questo un array `int a[4]` combacia con `int *` e non con `int[4]`, mentre un letterale carattere come `'a'` in C ha tipo `int` (non `char`) e quindi seleziona il ramo `int`. Quando progetti una macro sovraccaricata, verifica sempre quali tipi risultano dopo queste conversioni.",
+      "new_text": "> **Approfondimento — Dettagli sulle conversioni nell'espressione di controllo di `_Generic`**\n> Oltre alla conversione *lvalue* e al decadimento degli array già visti nella sotto-sezione 15.4 (per cui `int a[4]` combacia con `int *` e non con `int[4]`), ricorda un dettaglio tipico del C quando progetti macro sovraccaricate: un letterale carattere come `'a'` ha tipo `int` (non `char`) e seleziona quindi il ramo `int`. Verifica sempre quali tipi risultano dopo queste conversioni."
+    },
+    {
+      "id": "p10",
+      "file": "manoscritto/cap24/24_06.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap13/13_04.md: la sotto-sezione 24.6 rispiega da zero le regole di base dei campi di bit (segno esplicito, divieto di int semplice, campi anonimi : N e : 0) già trattate in dettaglio nella sotto-sezione 13.4.",
+      "old_text": "In una `struct`, un campo di bit dichiara il numero esatto di bit occupati all'interno di un'unità di memorizzazione. Per scrivere codice portabile e privo di ambiguità rispetta quattro regole precise:\n\n- **Specifica sempre il segno**: dichiara i campi di bit come `unsigned int`, `signed int` oppure `bool`. Non usare mai `int` semplice, perché lo standard lascia **dipendente dall'implementazione** se un campo di bit `int` sia con segno o senza segno.\n- **Campi anonimi di riserva**: scrivere `unsigned int : 3;` inserisce 3 bit di padding non indirizzabili, utili per allineare il campo successivo o riservare bit per estensioni future.\n- **Campi a larghezza zero (`unsigned int : 0;`)**: forzano il campo di bit successivo a iniziare in una nuova unità di memorizzazione, evitando che un campo si sovrapponga a un confine che desideri tenere separato.\n- **Verifica a tempo di compilazione**: controlla sempre la compattezza attesa con `static_assert`, ad esempio `static_assert(sizeof(data_ora_bf_t) == sizeof(unsigned int));`, per accorgerti subito se un campo aggiunto sfora la parola di 32 bit.",
+      "new_text": "Richiamando le regole sui campi di bit già introdotte nella sotto-sezione 13.4 — usare sempre tipi con segno esplicito (`unsigned int`, `signed int` o `bool`, mai `int` semplice) e ricorrere all'occorrenza a campi anonimi (`unsigned int : 3;`) o a separatori di unità (`unsigned int : 0;`) — in un formato compatto reale conviene affiancare una **verifica a tempo di compilazione** con `static_assert`, ad esempio `static_assert(sizeof(data_ora_bf_t) == sizeof(unsigned int));`, per accorgersi subito se un nuovo campo fa sforare la parola di 32 bit."
+    },
+    {
+      "id": "p11",
+      "file": "manoscritto/cap24/24_06.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap13/13_04.md e 13_05.md: l'elenco dei tre motivi di non portabilità dei byte grezzi di una struct a campi di bit ripete integralmente quanto già spiegato nel capitolo 13.",
+      "old_text": "Questo codice è gravemente non portabile per tre ragioni sancite dallo standard C23:\n\n1. **Ordine dei bit dipendente dall'implementazione**: il compilatore può impacchettare i campi di bit dal bit meno significativo verso il più significativo (comune su x86/ARM little-endian) oppure dal più significativo verso il meno significativo.\n2. **Padding e confini di unità dipendenti dall'implementazione**: lo standard non garantisce in che modo un campo che supera l'unità corrente venga spezzato o spostato all'unità successiva.\n3. **Ordine dei byte (endianness) e *strict aliasing***: i byte di un `unsigned int` in memoria possono essere disposti in little-endian o big-endian, e aggirare il sistema dei tipi con puntatori incompatibili viola le regole di *strict aliasing* (capitolo 22).",
+      "new_text": "Questo codice non è portabile per i motivi già analizzati nel capitolo 13 (sotto-sezioni 13.4 e 13.5): ordine di impacchettamento dei bit, padding tra unità e ordine dei byte (*endianness*) sono **dipendenti dall'implementazione**; inoltre, tentare di rileggere i byte con un puntatore di tipo incompatibile viola le regole di *strict aliasing* (capitolo 22)."
+    },
+    {
+      "id": "p12",
+      "file": "manoscritto/cap25/25_03.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap22/22_05.md e manoscritto/cap14/14_04.md: i punti 3 e 4 ripetono quasi alla lettera la spiegazione di memcpy + static_assert per strict aliasing e il significato di restrict, senza rinviare alla sotto-sezione 22.5 (e 14.4).",
+      "old_text": "3. **Reinterpretazione dei bit con `memcpy` + `static_assert`**: per leggere i bit di un `float` come `uint32_t`, non scrivere `*(const uint32_t *)&f` (viola strict aliasing); usa `memcpy(&u, &f, sizeof(u))` con `static_assert(sizeof(float) == sizeof(uint32_t))`. Con `-O2` il compilatore trasforma quella `memcpy` di 4 byte in una singola istruzione di registro, zero chiamate a funzione e zero UB.\n4. **`restrict` protetto**: qualificare i puntatori di un kernel numerico con `restrict` informa il compilatore che le aree di memoria non si sovrappongono, permettendogli di vettorizzare il ciclo e tenere i valori nei registri. Se il chiamante non può garantire la disgiunzione, proteggi la chiamata con un wrapper che controlla l'eventuale sovrapposizione degli intervalli tramite `uintptr_t`, invocando la versione `restrict` solo quando le aree sono davvero disgiunte e ricorrendo altrimenti a un buffer temporaneo.",
+      "new_text": "3. **Reinterpretazione dei bit conforme a strict aliasing**: come visto nella sotto-sezione 22.5, usa `memcpy` con `static_assert` invece di cast di puntatore (`*(const uint32_t *)&f`); con `-O2` il compilatore la ottimizza in un singolo spostamento di registro, senza UB.\n4. **`restrict` protetto**: come spiegato nelle sotto-sezioni 14.4 e 22.5, `restrict` autorizza vettorizzazione e mantenimento nei registri solo su aree disgiunte; se il chiamante non può garantirlo, proteggi la chiamata con un wrapper che verifica la disgiunzione tramite `uintptr_t` e ricorre a un buffer temporaneo in caso di sovrapposizione."
+    },
+    {
+      "id": "p13",
+      "file": "manoscritto/cap25/25_01.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Ridondanza con manoscritto/cap23/23_01.md: il secondo paragrafo ripresenta da capo la stessa motivazione contro il cronometro e a favore del conteggio delle operazioni già esposta in apertura della sotto-sezione 23.1.",
+      "old_text": "La tentazione immediata è cronometrare il programma con un orologio. Prima di farlo, però, conviene fermarsi a riflettere: il tempo in secondi dipende dal processore, dalla frequenza variabile (turbo o risparmio energetico), dai programmi aperti in background e dalla risoluzione del timer del sistema operativo. Se vuoi confrontare due algoritmi in modo **riproducibile** e **indipendente dalla macchina**, il primo strumento non è il cronometro, ma il **conteggio delle operazioni elementari**: quanti confronti tra elementi esegue l'algoritmo, quanti spostamenti o copie effettua, quanti accessi in memoria o quante allocazioni richiede.",
+      "new_text": "Come già osservato nella sotto-sezione 23.1, il tempo in secondi dipende da processore, frequenza variabile, carico di sistema e risoluzione del timer. Per confrontare due algoritmi in modo **riproducibile** e **indipendente dalla macchina** conviene estendere il **conteggio delle operazioni elementari** a più metriche separate: non solo i confronti, ma anche gli spostamenti o le copie, gli accessi in memoria e le allocazioni."
+    },
+    {
+      "id": "p14",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica: il capitolo 7 (manoscritto/cap07/07_03.md) definisce e usa sistematicamente il termine italiano \"occultamento\" per lo shadowing, mentre il capitolo 26 usa \"oscuramento\".",
+      "old_text": "gestendo ambiti annidati e oscuramento.",
+      "new_text": "gestendo ambiti annidati e occultamento (*shadowing*, capitolo 7)."
+    },
+    {
+      "id": "p15",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica con manoscritto/cap07/07_03.md (\"nasconde\" / \"occultamento\" invece di \"oscura\").",
+      "old_text": "la nuova dichiarazione locale la oscura temporaneamente (*shadowing*) senza modificarla:",
+      "new_text": "la nuova dichiarazione locale la nasconde temporaneamente (*occultamento*) senza modificarla:"
+    },
+    {
+      "id": "p16",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica con manoscritto/cap07/07_03.md (\"occultamento\" invece di \"oscuramento\").",
+      "old_text": "l'oscuramento con una variabile locale `x`,",
+      "new_text": "l'occultamento con una variabile locale `x`,"
+    },
+    {
+      "id": "p17",
+      "file": "manoscritto/cap26/26_04.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica con manoscritto/cap07/07_03.md nell'esercizio 26.4 (\"occultamento\" invece di \"oscuramento\").",
+      "old_text": "con ambiti annidati, oscuramento (shadowing), aritmetica controllata",
+      "new_text": "con ambiti annidati, occultamento (*shadowing*), aritmetica controllata"
+    },
+    {
+      "id": "p18",
+      "file": "manoscritto/cap26/26_06.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica con manoscritto/cap07/07_03.md (\"occultamento\" invece di \"oscuramento\").",
+      "old_text": "2. variabili, ambiti annidati e oscuramento (*shadowing*);",
+      "new_text": "2. variabili, ambiti annidati e occultamento (*shadowing*);"
+    },
+    {
+      "id": "p19",
+      "file": "manoscritto/cap26/26_99.md",
+      "gravita": "media",
+      "tipo": "glossario",
+      "certezza": "alta",
+      "problema": "Incoerenza terminologica con manoscritto/cap07/07_03.md nel riepilogo del capitolo 26 (\"occultamento\" invece di \"oscuramento\").",
+      "old_text": "- [ ] So costruire ambienti lessicali a catena sulla tabella hash generica opaca gestendo oscuramento, corto circuito e aritmetica priva di comportamento indefinito.",
+      "new_text": "- [ ] So costruire ambienti lessicali a catena sulla tabella hash generica opaca gestendo occultamento, corto circuito e aritmetica priva di comportamento indefinito."
+    },
+    {
+      "id": "p20",
+      "file": "manoscritto/cap24/24_05.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Nella sezione \"Concetti da tenere a mente\" dell'esercizio 24.5 compaiono i nomi STATO_CONTEGGIO ed EVENTO_CONTEGGIO anziché ST_CONTEGGIO ed EV_CONTEGGIO usati in tutta la sotto-sezione e nella descrizione dell'esercizio.",
+      "old_text": "- tabella bidimensionale `static const transizione_t[STATO_CONTEGGIO][EVENTO_CONTEGGIO]` con inizializzatori designati",
+      "new_text": "- tabella bidimensionale `static const transizione_t[ST_CONTEGGIO][EV_CONTEGGIO]` con inizializzatori designati"
+    },
+    {
+      "id": "p21",
+      "file": "manoscritto/cap26/26_00.md",
+      "gravita": "bassa",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "La riga \"Ti servono\" del capitolo 26 omette il capitolo 24, pur previsto tra i prerequisiti in macro_scaletta.json e usato nel capitolo per le macro do-while(0), l'operatore # di test_fw.h e la lista intrusiva nell'approfondimento.",
+      "old_text": "> **Ti servono:** allocazione dinamica e sanitizer (capitolo 11), strutture ed enumerazioni (capitolo 12), unioni etichettate e allineamento (capitolo 13), programmazione generica con `void *` (capitolo 15), puntatori a funzione (capitolo 16), strutture dati dinamiche (capitolo 17), tabelle hash (capitolo 18), programmi su più file e tipi opachi (capitolo 19), `goto cleanup` e aritmetica controllata (capitolo 21), allocatore ad arena (capitolo 22) e test automatici (capitolo 25).",
+      "new_text": "> **Ti servono:** allocazione dinamica e sanitizer (capitolo 11), strutture ed enumerazioni (capitolo 12), unioni etichettate e allineamento (capitolo 13), programmazione generica con `void *` (capitolo 15), puntatori a funzione (capitolo 16), strutture dati dinamiche (capitolo 17), tabelle hash (capitolo 18), programmi su più file e tipi opachi (capitolo 19), `goto cleanup` e aritmetica controllata (capitolo 21), allocatore ad arena (capitolo 22), macro `do-while(0)` e `#` (capitolo 24) e test automatici (capitolo 25)."
+    }
+  ]
+}

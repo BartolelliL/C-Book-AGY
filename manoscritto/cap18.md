@@ -719,8 +719,8 @@ typedef uint64_t (*hash_fn)(const void *);
 typedef bool (*uguali_fn)(const void *, const void *);
 typedef void (*visita_fn)(const void *, void *, void *);
 typedef struct nodo { void *chiave; void *valore; uint64_t hash; struct nodo *prox; } nodo_t;
-typedef struct { nodo_t **secchi; size_t cap, len; hash_fn hash; uguali_fn uguali; } tab_ht_t;
-typedef struct { int x; int y; } coord_t;
+typedef struct tab_ht { nodo_t **secchi; size_t cap, len; hash_fn hash; uguali_fn uguali; } tab_ht_t;
+typedef struct coord { int x; int y; } coord_t;
 
 bool ht_init(tab_ht_t *t, size_t cap, hash_fn h, uguali_fn u) {
     t->secchi = malloc(cap * sizeof(*t->secchi));
@@ -945,8 +945,8 @@ typedef uint64_t (*hash_fn)(const void *);
 typedef bool (*uguali_fn)(const void *, const void *);
 typedef void (*distruggi_fn)(void *);
 typedef struct nodo { void *k; void *v; uint64_t h; struct nodo *prox; } nodo_t;
-typedef struct { nodo_t **sec; size_t cap, len; hash_fn hf; uguali_fn eq; distruggi_fn dk, dv; } tab_ht_t;
-typedef struct { char *nome; int peso; size_t *cont_dis; } item_t;
+typedef struct tab_ht { nodo_t **sec; size_t cap, len; hash_fn hf; uguali_fn eq; distruggi_fn dk, dv; } tab_ht_t;
+typedef struct item { char *nome; int peso; size_t *cont_dis; } item_t;
 
 tab_ht_t *ht_crea(size_t cap, hash_fn hf, uguali_fn eq, distruggi_fn dk, distruggi_fn dv) {
     tab_ht_t *t = malloc(sizeof(*t));

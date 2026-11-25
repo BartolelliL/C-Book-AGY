@@ -1,0 +1,173 @@
+## 25.3 Ottimizzazioni del compilatore e comportamento indefinito
+
+Quando compili un programma C puoi scegliere il livello di ottimizzazione: `-O0` (nessuna ottimizzazione, utile per il debug passo-passo), `-O2` (ottimizzazioni standard per la produzione), `-O3` (ottimizzazioni più aggressive, inclusa la vettorizzazione dei cicli) e `-Os` (ottimizzazione per ridurre la dimensione dell'eseguibile). Con `-O2` e `-O3`, il compilatore non si limita a tradurre riga per riga il tuo sorgente: applica decine di trasformazioni sofisticate, tra cui:
+
+- **Propagazione di costanti**: sostituisce a tempo di compilazione le espressioni i cui operandi sono noti.
+- **Inlining**: inserisce il corpo di una piccola funzione direttamente nel punto di chiamata, eliminando il costo della chiamata e aprendo ulteriori semplificazioni.
+- **Spostamento di invarianti di ciclo**: porta fuori da un ciclo i calcoli che producono lo stesso risultato a ogni iterazione.
+- **Eliminazione di codice morto**: rimuove variabili, rami o interi cicli i cui effetti non sono osservabili.
+- **Vettorizzazione**: trasforma un ciclo scalare in istruzioni hardware che elaborano più elementi contemporaneamente.
+
+Tutte queste trasformazioni si basano su un principio dello standard C23 chiamato **regola "as-if"**: il compilatore può riordinare, trasformare o eliminare codice liberamente, purché il comportamento osservabile (output, accessi `volatile`, interazioni con il sistema) di un programma *privo di comportamento indefinito* resti identico a quello descritto dallo standard.
+
+Qui nasce l'interazione più insidiosa del C moderno. Poiché lo standard autorizza il compilatore ad **assumere che nessun comportamento indefinito si verifichi mai** in un'esecuzione valida, il compilatore usa questa ipotesi per dimostrare proprietà sul tuo codice. Se scrivi un controllo *dopo* un'operazione che può già provocare comportamento indefinito, il compilatore può eliminarlo silenziosamente:
+
+- **Controllo post-overflow su interi con segno**: se `x` è `int`, l'espressione `x + 1` non può andare in overflow in un programma valido. Il compilatore dimostra quindi che `x + 1 < x` è *sempre falso* ed elimina il ramo `if (x + 1 < x)`!
+- **Controllo `nullptr` dopo la dereferenziazione**: se prima scrivi `int v = *p;` e solo dopo controlli `if (p == nullptr)`, il compilatore deduce che, poiché `*p` è stato dereferenziato senza UB, `p` non può essere `nullptr`, quindi elimina interamente il controllo `if (p == nullptr)`.
+
+Lo stesso vale per gli spostamenti di bit fuori intervallo (per esempio spostare un `uint32_t` di 32 posizioni o di un numero negativo è comportamento indefinito anche sui tipi senza segno), per le violazioni di **strict aliasing** (capitolo 22) e per la violazione del contratto di `restrict` (capitolo 14). Secondo lo standard C23, la regola *as-if*, `<stdckdint.h>`, `memcpy` e il contratto di `restrict` sono definiti, ma la presenza di **qualsiasi comportamento indefinito** annulla ogni garanzia del compilatore sull'intera esecuzione.
+
+Per scrivere codice che sia al tempo stesso veloce e sicuro sotto `-O2` e `-O3`, segui quattro regole pratiche in C23:
+
+1. **Overflow controllato con `<stdckdint.h>`**: invece di fare la somma e controllare dopo, usa `ckd_add(&ris, a, b)`, `ckd_sub(&ris, a, b)` e `ckd_mul(&ris, a, b)` (introdotti nel capitolo 21). Restituiscono `false` se il risultato è esatto e `true` in caso di overflow, senza mai causare UB e compilando in pochissime istruzioni macchina.
+2. **Shift sicuri su tipi senza segno**: controlla sempre `k >= 0 && k < 32` (per `uint32_t`, o `< 64` per `uint64_t`) prima di applicare `<<` o `>>`.
+3. **Reinterpretazione dei bit con `memcpy` + `static_assert`**: per leggere i bit di un `float` come `uint32_t`, non scrivere `*(const uint32_t *)&f` (viola strict aliasing); usa `memcpy(&u, &f, sizeof(u))` con `static_assert(sizeof(float) == sizeof(uint32_t))`. Con `-O2` il compilatore trasforma quella `memcpy` di 4 byte in una singola istruzione di registro, zero chiamate a funzione e zero UB.
+4. **`restrict` protetto**: qualificare i puntatori di un kernel numerico con `restrict` informa il compilatore che le aree di memoria non si sovrappongono, permettendogli di vettorizzare il ciclo e tenere i valori nei registri. Se il chiamante non può garantire la disgiunzione, proteggi la chiamata con un wrapper che controlla l'eventuale sovrapposizione degli intervalli tramite `uintptr_t`, invocando la versione `restrict` solo quando le aree sono davvero disgiunte e ricorrendo altrimenti a un buffer temporaneo.
+
+> **C23** — L'intestazione `<stdckdint.h>` (`ckd_add`, `ckd_sub`, `ckd_mul`) è una novità di C23. Con compilatori più vecchi si devono scrivere controlli preventivi con `INT32_MAX`/`INT32_MIN` prima di eseguire l'operazione aritmetica.
+
+> **Se vieni da Python** — In Python l'aritmetica intera ha precisione arbitraria e non va in overflow, mentre un accesso fuori dai limiti solleva sempre `IndexError`; in C l'overflow con segno e i puntatori invalidi sono comportamento indefinito che il compilatore può sfruttare in modo aggressivo durante l'ottimizzazione.
+
+### Esempio guidato
+
+Osserva prima due brevi frammenti **errati**: contengono comportamento indefinito e non vanno mai scritti in un programma reale.
+
+> **Attenzione — Frammenti con comportamento indefinito (da non scrivere mai)**
+> Nei due frammenti seguenti il compilatore con `-O2` può eliminare entrambi gli `if`, perché i controlli avvengono *dopo* un potenziale comportamento indefinito (overflow con segno nel primo caso, dereferenziazione di puntatore nullo nel secondo).
+
+<!-- cod: id=25.3-b tipo=frammento -->
+```c
+// ERRORE: overflow con segno (UB); con -O2 il controllo può sparire
+int controlla_dopo_ub(int x) {
+    if (x + 1 < x) {
+        return -1;
+    }
+    return x + 1;
+}
+```
+
+<!-- cod: id=25.3-c tipo=frammento -->
+```c
+// ERRORE: dereferenziazione prima del controllo nullptr (UB)
+int leggi_dopo_ub(const int *p) {
+    int valore = *p;
+    if (p == nullptr) {
+        return 0;
+    }
+    return valore;
+}
+```
+
+Il programma eseguibile seguente mostra invece le versioni corrette e completamente definite in C23: somma sicura con `ckd_add`, controllo preventivo di `nullptr` prima della dereferenziazione e un kernel vettoriale `scala_e_somma` con `restrict` invocato su array disgiunti (verificati con `uintptr_t`).
+
+<!-- cod: id=25.3-a tipo=programma -->
+```c
+#include <inttypes.h>
+#include <stdckdint.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+static bool incrementa_sicuro(int32_t x, int32_t *out) {
+    return !ckd_add(out, x, 1);
+}
+
+static int32_t leggi_sicuro(const int32_t *p) {
+    if (p == nullptr) {
+        return 0;
+    }
+    return *p;
+}
+
+static bool aree_disgiunte(const void *a, const void *b, size_t n_byte) {
+    uintptr_t ia = (uintptr_t)a;
+    uintptr_t ib = (uintptr_t)b;
+    return (ia + n_byte <= ib) || (ib + n_byte <= ia);
+}
+
+static void scala_e_somma(size_t n, double *restrict dst,
+                          const double *restrict src, double fattore) {
+    for (size_t i = 0; i < n; ++i) {
+        dst[i] = dst[i] + fattore * src[i];
+    }
+}
+
+int main(void) {
+    int32_t ris = 0;
+    bool ok1 = incrementa_sicuro(41, &ris);
+    printf("41 + 1 -> ok=%d val=%" PRId32 "\n", ok1 ? 1 : 0, ris);
+
+    bool ok2 = incrementa_sicuro(INT32_MAX, &ris);
+    printf("INT32_MAX + 1 -> ok=%d\n", ok2 ? 1 : 0);
+
+    int32_t dato = 99;
+    printf("leggi(&dato)=%" PRId32 " leggi(nullptr)=%" PRId32 "\n",
+           leggi_sicuro(&dato), leggi_sicuro(nullptr));
+
+    double dst[4] = {1.0, 2.0, 3.0, 4.0};
+    const double src[4] = {10.0, 20.0, 30.0, 40.0};
+    if (aree_disgiunte(dst, src, sizeof(dst))) {
+        scala_e_somma(4, dst, src, 0.5);
+    }
+    printf("dst=[%.1f, %.1f, %.1f, %.1f]\n", dst[0], dst[1], dst[2], dst[3]);
+    return 0;
+}
+```
+
+```output
+41 + 1 -> ok=1 val=42
+INT32_MAX + 1 -> ok=0
+leggi(&dato)=99 leggi(nullptr)=0
+dst=[6.0, 12.0, 18.0, 24.0]
+```
+
+Nota come ogni controllo avvenga in modo privo di UB: `incrementa_sicuro` delega a `ckd_add`, `leggi_sicuro` controlla `p == nullptr` *prima* di `*p`, e `scala_e_somma` viene chiamata solo dopo aver verificato che `dst` e `src` siano disgiunti, rispettando il contratto di `restrict`.
+
+> **Approfondimento — Perché un bug di UB può emergere solo con `-O2`**
+> Un difetto di comportamento indefinito può restare invisibile per mesi durante lo sviluppo con `-O0` e manifestarsi all'improvviso quando compili con `-O2` per il rilascio. A `-O0` il compilatore traduce quasi letteralmente ogni istruzione e spesso esegue il wrap-around hardware dei registri; a `-O2` sfrutta l'ipotesi di assenza di UB per semplificare condizioni, rimuovere controlli e riordinare letture e scritture. Compilare e testare fin da subito sia con `-O2` sia con i sanitizer (`-fsanitize=address,undefined`) evita queste sorprese.
+
+### Esercizio 25.3 — Primitive numeriche e vettoriali sicure contro overflow, shift, strict aliasing e violazioni di restrict
+
+**Descrizione**
+
+Scrivi un programma C che implementi cinque primitive completamente prive di **comportamento indefinito** (sicure anche con `-O3` e `-fsanitize=address,undefined`) per sostituire i classici idiomi vulnerabili alle ottimizzazioni del compilatore: (1) `bool somma_sicura_i32(int32_t a, int32_t b, int32_t *out)` con `ckd_add` (rifiuta overflow invece di eseguire `a + b < a`); (2) `bool prod_sicuro_i64(int64_t a, int64_t b, int64_t *out)` con `ckd_mul`; (3) `bool shift_sicuro_u32(uint32_t x, int k, bool sinistra, uint32_t *out)` che valida `0 <= k && k < 32` prima di applicare `<<` o `>>`; (4) `uint32_t float_a_bit(float f)` e `float bit_a_float(uint32_t u)` che reinterpretano i bit tramite `memcpy` con `static_assert(sizeof(float) == sizeof(uint32_t))` (senza violare **strict aliasing**); (5) `void combina_restrict(size_t n, double *restrict dst, const double *restrict a, const double *restrict b, double alpha)` (`dst[i] = alpha * a[i] + b[i]`) protetta dal wrapper `bool combina_sicura(size_t n, double *dst, const double *a, const double *b, double alpha, bool *usato_restrict)` che verifica tramite `uintptr_t` se l'intervallo di `dst` si sovrappone ad `a` o `b`: se disgiunti chiama `combina_restrict` (`*usato_restrict = true`), se sovrapposti usa un buffer temporaneo dinamico evitando la violazione di `restrict` (`*usato_restrict = false`). In `main` leggi da `stdin` i comandi `ADD32 <a> <b>`, `MUL64 <a> <b>`, `SHL32 <u32> <k>`, `SHR32 <u32> <k>`, `FBITS <val_f>` (stampa esadecimale IEEE-754 e round-trip `bit_a_float`), `VEC_DISJ <alpha>` e `VEC_OVERLAP <alpha>` (entrambi su un vettore base `{1.0, 2.0, 3.0, 4.0}` con `b = {10.0, 20.0, 30.0, 40.0}`, nel secondo caso scrivendo `dst = a` con sovrapposizione totale), riproducendo esattamente l'output dell'esempio.
+
+**Concetti da tenere a mente**
+
+- uso di `ckd_add` e `ckd_mul` (`<stdckdint.h>`) al posto di controlli post-overflow eliminabili dal compilatore
+- validazione dell'intervallo `0 <= k < 32` prima di spostare un `uint32_t`
+- reinterpretazione dei bit di `float` tramite `memcpy` e `static_assert` nel rispetto di `strict aliasing`
+- verifica preventiva della sovrapposizione tramite `uintptr_t` prima di invocare un kernel con parametri `restrict`
+
+**Domande guida**
+
+1. Perché un compilatore ottimizzante può eliminare interamente il ramo `if (a > 0 && b > 0 && a + b < 0)` su variabili `int32_t`?
+2. Come mai `float_a_bit` usa `memcpy` invece di `*(const uint32_t *)&f` e che cosa genera di solito il compilatore con `-O2` per quella `memcpy` di 4 byte?
+3. Che cosa succederebbe se invocassi direttamente `combina_restrict` passando `dst == a` sullo stesso array?
+4. Perché `shift_sicuro_u32` deve rifiutare `k == 32` anche se `x` è di tipo `uint32_t` senza segno?
+
+**Esempio di esecuzione**
+
+```input
+ADD32 2147483640 7
+ADD32 2147483640 10
+MUL64 -9223372036854775808 -1
+SHL32 1 31
+SHL32 1 32
+SHR32 16 -1
+FBITS -2.5
+VEC_DISJ 2.0
+VEC_OVERLAP 2.0
+```
+
+```output
+ADD32: OK 2147483647
+ADD32: OVERFLOW
+MUL64: OVERFLOW
+SHL32: OK 0x80000000
+SHL32: ERR_SHIFT
+SHR32: ERR_SHIFT
+FBITS: hex=0xc0200000 rt=-2.50
+VEC_DISJ: restrict=1 [12.00 24.00 36.00 48.00]
+VEC_OVERLAP: restrict=0 [12.00 24.00 36.00 48.00]
+```
