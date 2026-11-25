@@ -72,11 +72,11 @@
       "note": []
     },
     "9": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 1,
       "errori_aperti": false,
       "gravi_ciclo": false,
-      "audit_applicato": 0,
+      "audit_applicato": 1,
       "note": []
     },
     "10": {
@@ -88,11 +88,11 @@
       "note": []
     },
     "11": {
-      "fase": "audit",
+      "fase": "chiuso",
       "ciclo": 1,
       "errori_aperti": false,
       "gravi_ciclo": false,
-      "audit_applicato": 0,
+      "audit_applicato": 1,
       "note": []
     },
     "12": {

@@ -557,7 +557,7 @@ Scrivi un programma C che legga da `stdin` una soglia intera `soglia` dalla prim
 
 Ogni volta che `len == cap`, calcola `nuova_cap = (cap == 0) ? 2 : cap * 2;` e ridimensiona con `realloc` salvando il risultato in un puntatore temporaneo `int *tmp` (senza mai sovrascrivere `dati` prima del controllo `tmp == nullptr`), contando il numero di ridimensionamenti di crescita eseguiti e conservando la capacità di picco raggiunta. Terminata la lettura, filtra l'array sul posto mantenendo in ordine relativo solo i valori `>= soglia` (lunghezza `len_filt`).
 
-Se `len_filt == 0`, libera `dati` con `free(dati); dati = nullptr; cap = 0;` senza mai chiamare `realloc(dati, 0)` (comportamento indefinito in C23); se invece `len_filt > 0 && len_filt < cap`, compatta il blocco alla dimensione esatta `len_filt` con `realloc` e puntatore temporaneo. Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire.
+Se `len_filt == 0`, libera `dati` con `free(dati); dati = nullptr; cap = 0;` senza mai chiamare `realloc(dati, 0)` (comportamento indefinito in C23); se invece `len_filt > 0 && len_filt < cap`, compatta il blocco alla dimensione esatta `len_filt` con `realloc` e puntatore temporaneo. Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma; se `len_filt == 0` stampa `Valori: (nessuno)` e ometti la riga della somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire.
 
 **Concetti da tenere a mente**
 

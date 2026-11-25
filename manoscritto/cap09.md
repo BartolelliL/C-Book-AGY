@@ -48,7 +48,7 @@ char etichetta[16] = "ciao"; // 16 byte: i primi 5 come sopra, gli altri 11 azze
 char vuota[8] = "";          // 8 byte: vuota[0] == '\0' (lunghezza logica 0)
 ```
 
-Quando ometti la dimensione tra parentesi quadre (`char saluto[] = "ciao";`), il compilatore conta automaticamente i caratteri della stringa letterale e aggiunge `1` per `'\0'`: `sizeof(saluto)` vale quindi `5`, non `4`. Quando invece indichi una dimensione maggiore (`char etichetta[16] = "ciao";`), il compilatore copia i caratteri e il `'\0'` iniziale, e azzera tutti i byte rimanenti (la stessa regola che hai visto per gli array nel capitolo 8). La stringa vuota `""` non occupa zero byte: contiene comunque un singolo byte pari a `'\0'`, quindi ha lunghezza logica `0` ma richiede almeno `1` byte di memoria.
+Quando ometti la dimensione tra parentesi quadre (`char saluto[] = "ciao";`), il compilatore conta automaticamente i caratteri della stringa letterale e aggiunge `1` per `'\0'`: `sizeof(saluto)` vale quindi `5`, non `4`. Quando invece indichi una dimensione maggiore (`char etichetta[16] = "ciao";`), il compilatore copia i caratteri e il `'\0'` finale, e azzera tutti i byte rimanenti (la stessa regola che hai visto per gli array nel capitolo 8). La stringa vuota `""` non occupa zero byte: contiene comunque un singolo byte pari a `'\0'`, quindi ha lunghezza logica `0` ma richiede almeno `1` byte di memoria.
 
 Esiste però un pericolo serio: un array di `char` privo di `'\0'` **non è una stringa valida**. Per esempio:
 
@@ -155,8 +155,8 @@ Analizziamo i passaggi principali del programma:
 
 > **Approfondimento — Differenza tra `'0'`, `'\0'` e `"0"` (e una nota su UTF-8)**
 > È facile confondere tre espressioni molto simili ma del tutto diverse:
-> - `'\0'` è un singolo `char` di valore numerico `0`: è il terminatore nullo che chiude una stringa.
-> - `'0'` è un singolo `char` che rappresenta la cifra zero: in codifica ASCII il suo valore numerico è `48`, non `0`.
+> - `'\0'` è una costante carattere di valore numerico `0`: è il terminatore nullo che chiude una stringa.
+> - `'0'` è una costante carattere che rappresenta la cifra zero: in codifica ASCII il suo valore numerico è `48`, non `0`.
 > - `"0"` è una stringa letterale composta da **due** `char`: la cifra `'0'` seguita automaticamente da `'\0'`.
 >
 > Un'altra precisazione riguarda i caratteri accentati: nei sistemi moderni il testo è codificato quasi sempre in UTF-8, dove una lettera come `à` o `è` occupa **due o più byte** (cioè più di un `char`), non uno solo. Di conseguenza il numero di byte di una stringa UTF-8 può essere maggiore del numero di lettere visibili. Per mantenere semplici e prevedibili gli indici carattere per carattere, negli esercizi di questo capitolo lavoreremo su testo ASCII.
@@ -272,7 +272,7 @@ Regola fondamentale dallo standard C23: in tutte e quattro le funzioni (`strcpy`
 
 > **Se vieni da Python** — In Python puoi confrontare e concatenare stringhe con `==` e `+`, e `len(s)` impiega tempo costante. In C devi usare funzioni come `strcmp`, `snprintf` o copie e concatenazioni controllate verificando sempre la capienza del buffer, e `strlen(s)` scorre la stringa fino a `'\0'`.
 
-> **C23** — In C23 `strchr`, `strrchr`, `strstr` e `strpbrk` sono definite come macro generiche che preservano il qualificatore `const` del primo argomento: se passi una stringa `const char[]`, il risultato mantiene `const` evitando modifiche accidentali. Nei compilatori più vecchi (C11/C17) queste funzioni restituivano sempre `char *` anche quando il primo argomento era `const`.
+> **C23** — In C23 `strchr`, `strrchr`, `strstr` e `strpbrk` preservano il qualificatore `const` del primo argomento: se passi una stringa `const char[]`, il risultato mantiene `const` evitando modifiche accidentali (lo vedremo nel capitolo 10). Nei compilatori più vecchi (C11/C17) il risultato perdeva il qualificatore `const` anche quando il primo argomento era di sola lettura.
 
 ### Esempio guidato
 
@@ -752,7 +752,7 @@ Esistono inoltre strumenti del compilatore, chiamati sanitizer, che rilevano aut
 
 ### Esempio guidato
 
-Il programma seguente definisce tre funzioni sicure — `svuota_riga`, `copia_sicura` e `accoda_sicura` — che ricevono sempre la capacità esplicita del buffer di destinazione e restituiscono un esito booleano. Legge un nome utente in un piccolo buffer `char utente[12]`, svuota eventuali caratteri eccedenti e compone un'etichetta in `char tag[18]`.
+Il programma seguente definisce tre funzioni ausiliarie — `svuota_se_troncata`, `copia_sicura` e `accoda_sicura` — che restituiscono un esito booleano (le due funzioni di modifica ricevono sempre la capacità esplicita del buffer di destinazione). Legge un nome utente in un piccolo buffer `char utente[12]`, svuota eventuali caratteri eccedenti e compone un'etichetta in `char tag[18]`.
 
 <!-- cod: id=9.5-a tipo=programma -->
 ```c

@@ -1,0 +1,47 @@
+{
+  "capitolo": 9,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap09/09_05.md",
+      "gravita": "media",
+      "tipo": "coerenza",
+      "certezza": "alta",
+      "problema": "Il testo introduttivo dell'esempio guidato chiama `svuota_riga` la funzione che nel codice sottostante (e nella spiegazione successiva) si chiama `svuota_se_troncata`, e afferma che tutte e tre le funzioni ricevono la capacità esplicita del buffer, mentre `svuota_se_troncata(char buf[])` non ha il parametro di capacità.",
+      "old_text": "Il programma seguente definisce tre funzioni sicure — `svuota_riga`, `copia_sicura` e `accoda_sicura` — che ricevono sempre la capacità esplicita del buffer di destinazione e restituiscono un esito booleano.",
+      "new_text": "Il programma seguente definisce tre funzioni ausiliarie — `svuota_se_troncata`, `copia_sicura` e `accoda_sicura` — che restituiscono un esito booleano (le due funzioni di modifica ricevono sempre la capacità esplicita del buffer di destinazione)."
+    },
+    {
+      "id": "p2",
+      "file": "manoscritto/cap09/09_01.md",
+      "gravita": "media",
+      "tipo": "fattuale",
+      "certezza": "alta",
+      "problema": "In C (a differenza del C++) le costanti carattere come `'\\0'` e `'0'` hanno tipo `int`, non `char`; descriverle come 'un singolo `char`' è impreciso rispetto allo standard C23.",
+      "old_text": "> - `'\\0'` è un singolo `char` di valore numerico `0`: è il terminatore nullo che chiude una stringa.\n> - `'0'` è un singolo `char` che rappresenta la cifra zero: in codifica ASCII il suo valore numerico è `48`, non `0`.",
+      "new_text": "> - `'\\0'` è una costante carattere di valore numerico `0`: è il terminatore nullo che chiude una stringa.\n> - `'0'` è una costante carattere che rappresenta la cifra zero: in codifica ASCII il suo valore numerico è `48`, non `0`."
+    },
+    {
+      "id": "p3",
+      "file": "manoscritto/cap09/09_01.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "Il testo parla di \"`'\\0'` iniziale\" riferendosi al terminatore nullo della stringa letterale `\"ciao\"`, che è invece il terminatore finale della stringa (seguito poi dall'azzeramento dei byte residui).",
+      "old_text": "Quando invece indichi una dimensione maggiore (`char etichetta[16] = \"ciao\";`), il compilatore copia i caratteri e il `'\\0'` iniziale, e azzera tutti i byte rimanenti",
+      "new_text": "Quando invece indichi una dimensione maggiore (`char etichetta[16] = \"ciao\";`), il compilatore copia i caratteri e il `'\\0'` finale, e azzera tutti i byte rimanenti"
+    },
+    {
+      "id": "p4",
+      "file": "manoscritto/cap09/09_02.md",
+      "gravita": "media",
+      "tipo": "progressione",
+      "certezza": "alta",
+      "problema": "Il box C23 usa la sintassi di puntatore `char *` e il termine 'macro generiche', concetti non ancora introdotti nel capitolo 9 (i puntatori vengono introdotti nel capitolo 10 e `_Generic` nel capitolo 15).",
+      "old_text": "> **C23** — In C23 `strchr`, `strrchr`, `strstr` e `strpbrk` sono definite come macro generiche che preservano il qualificatore `const` del primo argomento: se passi una stringa `const char[]`, il risultato mantiene `const` evitando modifiche accidentali. Nei compilatori più vecchi (C11/C17) queste funzioni restituivano sempre `char *` anche quando il primo argomento era `const`.",
+      "new_text": "> **C23** — In C23 `strchr`, `strrchr`, `strstr` e `strpbrk` preservano il qualificatore `const` del primo argomento: se passi una stringa `const char[]`, il risultato mantiene `const` evitando modifiche accidentali (lo vedremo nel capitolo 10). Nei compilatori più vecchi (C11/C17) il risultato perdeva il qualificatore `const` anche quando il primo argomento era di sola lettura."
+    }
+  ]
+}

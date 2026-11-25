@@ -1,0 +1,17 @@
+{
+  "capitolo": 11,
+  "ciclo": 1,
+  "verdetto": "da_correggere",
+  "patch": [
+    {
+      "id": "p1",
+      "file": "manoscritto/cap11/11_03.md",
+      "gravita": "media",
+      "tipo": "didattica",
+      "certezza": "alta",
+      "problema": "La descrizione dell'esercizio 11.3 contempla esplicitamente il caso `len_filt == 0`, ma l'esempio di esecuzione mostra solo il caso non vuoto e il testo non specifica il formato di stampa atteso quando non resta alcun elemento filtrato (`Valori: (nessuno)` senza la riga `Somma filtrati`).",
+      "old_text": "Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire.",
+      "new_text": "Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma; se `len_filt == 0` stampa `Valori: (nessuno)` e ometti la riga della somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire."
+    }
+  ]
+}

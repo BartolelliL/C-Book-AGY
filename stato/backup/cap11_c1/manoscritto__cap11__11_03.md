@@ -1,0 +1,179 @@
+## 11.3 Ridimensionare blocchi con `realloc` e array dinamici
+
+Con `malloc` e `calloc` puoi allocare esattamente la memoria che serve, ma presuppongono che tu conosca già la quantità di dati prima di iniziare a leggerli. Molto spesso, però, leggi valori da uno stream fino alla fine dell'input senza sapere in anticipo se saranno tre, trenta o trentamila. Per far crescere (o restringere) un blocco già allocato sullo heap esiste la funzione `realloc` (`<stdlib.h>`):
+
+```text
+void *realloc(void *ptr, size_t size);
+```
+
+### Come funziona `realloc`
+
+Quando chiami `realloc(ptr, nuova_dim)`, l'allocatore ridimensiona il blocco puntato da `ptr` portandolo a `nuova_dim` byte e preserva i dati già presenti fino al minimo tra la vecchia e la nuova dimensione:
+
+- se dopo il blocco attuale c'è spazio libero sufficiente sullo heap, `realloc` può estenderlo **sul posto** e restituire lo stesso indirizzo `ptr`;
+- se lo spazio contiguo non basta, `realloc` alloca un **nuovo blocco** di `nuova_dim` byte in un'altra posizione dello heap, copia automaticamente il contenuto precedente nel nuovo blocco, libera il vecchio blocco e restituisce il nuovo indirizzo;
+- se l'allocazione fallisce, `realloc` restituisce `nullptr` e lascia **intatto e ancora valido** il blocco originale puntato da `ptr`.
+
+Quest'ultimo dettaglio impone una regola ferrea: **salva sempre il risultato di `realloc` in un puntatore temporaneo** prima di aggiornare il puntatore originale.
+
+<!-- cod: id=11.3-b tipo=frammento -->
+```c
+double *tmp = realloc(p, nuova_cap * sizeof(*p));
+if (tmp == nullptr) {
+    // p è ancora valido: possiamo liberarlo senza perdite di memoria
+    free(p);
+    fprintf(stderr, "Errore: riallocazione fallita.\n");
+    return EXIT_FAILURE;
+}
+p = tmp;
+```
+
+Se invece scrivessi direttamente `p = realloc(p, nuova_dim);` e la richiesta fallisse, `p` verrebbe sovrascritto con `nullptr`: il vecchio blocco resterebbe allocato sullo heap, ma avresti perso l'unico puntatore che permetteva di liberarlo, creando una perdita di memoria immediata.
+
+### Casi limite di `realloc` in C23
+
+Lo standard C23 definisce con precisione due casi particolari:
+
+- Se `ptr` è `nullptr`, `realloc(nullptr, nuova_dim)` si comporta esattamente come `malloc(nuova_dim)`. Questo permette di iniziare con un puntatore `nullptr` e usare un unico codice di crescita per la prima allocazione e le successive.
+- Se `nuova_dim` è `0`, in C23 chiamare `realloc(ptr, 0)` provoca **comportamento indefinito**. Per rilasciare completamente un blocco non si chiama mai `realloc(ptr, 0)`, ma sempre `free(ptr)` seguito da `ptr = nullptr;`.
+
+> **C23** — Negli standard C precedenti al C23 il comportamento di `realloc(ptr, 0)` era dipendente dall'implementazione (alcune librerie liberavano il blocco restituendo `nullptr`, altre restituivano un puntatore non nullo). Il C23 ha rimosso questa ambiguità rendendo `realloc(ptr, 0)` comportamento indefinito: controlla sempre che la nuova dimensione sia maggiore di zero prima di chiamare `realloc`, e usa `free` quando la dimensione scende a zero.
+
+### Costruire un array dinamico con lunghezza e capacità
+
+Per raccogliere un numero ignoto di elementi in un array dinamico, conviene mantenere sempre due contatori `size_t` distinti accanto al puntatore `dati`:
+
+- **lunghezza effettiva (`len`)**: quanti elementi validi sono stati inseriti finora;
+- **capacità allocata (`cap`)**: quanti elementi entrano nel blocco attualmente allocato sullo heap (vale sempre `len <= cap`).
+
+```text
+cap = 8, len = 5
++------+------+------+------+------+------+------+------+
+| 10.5 | 12.0 |  9.5 | 14.0 | 11.0 |  ?   |  ?   |  ?   |
++------+------+------+------+------+------+------+------+
+  [0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]
+  <--------- elementi usati --------><-- spazio libero -->
+```
+
+Quando devi inserire un nuovo elemento, controlli se `len == cap`. Se c'è ancora spazio (`len < cap`), scrivi direttamente in `dati[len]` e incrementi `len` senza toccare `realloc`. Solo quando l'array è pieno (`len == cap`), calcoli una nuova capacità **raddoppiando** quella precedente — per esempio seguendo la progressione `0 -> 4 -> 8 -> 16 -> 32` — e chiami `realloc` tramite un puntatore temporaneo.
+
+Questa strategia si chiama **crescita geometrica**. Rispetto a chiamare `realloc` a ogni singolo elemento aggiunto, riduce drasticamente il numero di riallocazioni e di copie in memoria: per inserire un milione di elementi bastano circa venti raddoppi invece di un milione di chiamate a `realloc`.
+
+Al termine della lettura, se l'array non è vuoto (`len > 0`) e ha molta capacità inutilizzata (`len < cap`), puoi eseguire una **compattazione finale** (*shrink-to-fit*) chiamando `realloc(dati, len * sizeof(*dati))` con il solito puntatore temporaneo. Se invece `len == 0`, liberi direttamente il blocco con `free(dati); dati = nullptr; cap = 0;`.
+
+> **Se vieni da Python** — In Python una lista cresce automaticamente con `append` nascondendo le riallocazioni; in C un array dinamico si costruisce esplicitamente gestendo puntatore, lunghezza, capacità e crescita geometrica con `realloc`.
+
+### Esempio guidato
+
+Il programma seguente legge da `stdin` un numero imprecisato di misure `double`, accumulandole in un array dinamico che parte da capacità `4` e raddoppia con `realloc` e puntatore temporaneo ogni volta che si riempie. Stampa un messaggio a ogni raddoppio, calcola la media finale e libera correttamente il blocco.
+
+<!-- cod: id=11.3-a tipo=programma -->
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void) {
+    size_t cap = 4, len = 0;
+    double *misure = malloc(cap * sizeof(*misure));
+    if (misure == nullptr) {
+        fprintf(stderr, "Errore: allocazione iniziale fallita.\n");
+        return EXIT_FAILURE;
+    }
+
+    char riga[64];
+    double valore = 0.0;
+    while (fgets(riga, (int)sizeof(riga), stdin) != nullptr) {
+        if (sscanf(riga, "%lf", &valore) != 1) {
+            continue;
+        }
+        if (len == cap) {
+            size_t nuova_cap = cap * 2;
+            double *tmp = realloc(misure, nuova_cap * sizeof(*misure));
+            if (tmp == nullptr) {
+                free(misure);
+                fprintf(stderr, "Errore: riallocazione fallita.\n");
+                return EXIT_FAILURE;
+            }
+            printf("Capacita raddoppiata: %zu -> %zu\n", cap, nuova_cap);
+            misure = tmp;
+            cap = nuova_cap;
+        }
+        misure[len] = valore;
+        ++len;
+    }
+
+    double somma = 0.0;
+    for (size_t i = 0; i < len; ++i) { somma += misure[i]; }
+    printf("Misure lette: %zu (capacita finale: %zu)\n", len, cap);
+    if (len > 0) { printf("Media: %.2f\n", somma / (double)len); }
+    free(misure);
+    misure = nullptr;
+    return EXIT_SUCCESS;
+}
+```
+
+```input
+10.0
+12.0
+14.0
+16.0
+18.0
+20.0
+```
+
+```output
+Capacita raddoppiata: 4 -> 8
+Misure lette: 6 (capacita finale: 8)
+Media: 15.00
+```
+
+Osserva come si comporta l'array dinamico durante la lettura:
+
+- I primi quattro valori occupano gli indici `0..3` senza alcuna riallocazione.
+- All'arrivo del quinto valore (`18.0`), `len` vale `4` ed è uguale a `cap`: il programma calcola `nuova_cap = 8` e chiama `realloc` salvando il risultato in `tmp`. Solo dopo aver verificato `tmp != nullptr` aggiorna `misure` e `cap`.
+- Se la riallocazione fosse fallita, `misure` avrebbe ancora contenuto l'indirizzo del blocco da 4 elementi, permettendo di chiamare `free(misure)` prima di restituire `EXIT_FAILURE`.
+
+> **Approfondimento — Perché il raddoppio mantiene lineare il costo totale**
+> Supponi di inserire `n` elementi in un array dinamico che raddoppia la capacità ogni volta che si riempie. Le copie complessive eseguite durante tutti i ridimensionamenti fino a raggiungere `n` sono al massimo `1 + 2 + 4 + 8 + ... + n`, una somma che resta sempre inferiore a `2n` (quindi proporzionale a `n`, in media meno di due copie per elemento). Se invece aumentassi la capacità di un solo elemento per volta, a ogni inserimento dovresti copiare tutti i dati già presenti, con un numero di copie proporzionale a `n * n` (costo quadratico): per centomila elementi la differenza passa da una frazione di secondo a diversi minuti.
+
+### Esercizio 11.3 — Array dinamico a crescita geometrica e compattazione con `realloc`
+
+**Descrizione**
+
+Scrivi un programma C che legga da `stdin` una soglia intera `soglia` dalla prima riga (`"%d %c"` == `1`) e poi un numero arbitrario (anche nullo) di interi dalle righe successive fino a fine input (`-100'000..100'000`; in caso di formato o intervallo non valido libera la memoria allocata, stampa un messaggio su `stderr` e restituisci `EXIT_FAILURE`). Accumula i valori letti in un array dinamico `int *dati = nullptr;` gestendo lunghezza effettiva `len` e capacità `cap` inizialmente entrambe a `0`.
+
+Ogni volta che `len == cap`, calcola `nuova_cap = (cap == 0) ? 2 : cap * 2;` e ridimensiona con `realloc` salvando il risultato in un puntatore temporaneo `int *tmp` (senza mai sovrascrivere `dati` prima del controllo `tmp == nullptr`), contando il numero di ridimensionamenti di crescita eseguiti e conservando la capacità di picco raggiunta. Terminata la lettura, filtra l'array sul posto mantenendo in ordine relativo solo i valori `>= soglia` (lunghezza `len_filt`).
+
+Se `len_filt == 0`, libera `dati` con `free(dati); dati = nullptr; cap = 0;` senza mai chiamare `realloc(dati, 0)` (comportamento indefinito in C23); se invece `len_filt > 0 && len_filt < cap`, compatta il blocco alla dimensione esatta `len_filt` con `realloc` e puntatore temporaneo. Stampa il riepilogo (elementi letti, capacità di picco, numero di ridimensionamenti di crescita, capacità finale, elementi filtrati, valori e loro somma) esattamente come nell'esempio di esecuzione e libera la memoria prima di uscire.
+
+**Concetti da tenere a mente**
+
+- crescita geometrica (raddoppio della capacità) con coppia (`len`, `cap`)
+- uso obbligatorio di un puntatore temporaneo con `realloc` per non perdere il blocco originale
+- equivalenza tra `realloc(nullptr, dim)` e `malloc(dim)` alla prima crescita
+- divieto di `realloc(ptr, 0)` in C23 e uso di `free` quando la lunghezza scende a zero
+
+**Domande guida**
+
+1. Perché devi assegnare il valore restituito da `realloc` a una variabile temporanea `tmp` invece di scrivere direttamente `dati = realloc(dati, ...)`?
+2. Che cosa succede alla prima chiamata di `realloc` quando `dati` vale ancora `nullptr`?
+3. Perché quando `len_filt` risulta `0` devi chiamare `free(dati)` anziché `realloc(dati, 0)`?
+4. Quanti ridimensionamenti di crescita avvengono leggendo `5` elementi se la capacità parte da `0` e passa a `2`, `4`, `8`?
+
+**Esempio di esecuzione**
+
+```input
+10
+5
+12
+-3
+25
+10
+```
+
+```output
+Letti: 5, capacita picco: 8, ridimensionamenti: 3
+Capacita finale: 3, filtrati (>= 10): 3
+Valori: 12 25 10
+Somma filtrati: 47
+```
